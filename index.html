@@ -16,14 +16,14 @@
 .grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px;padding-bottom:45px}.card{background:#fff;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;box-shadow:0 7px 24px rgba(30,36,55,.06);display:flex;flex-direction:column}.photo{aspect-ratio:1/1;background:#f0f2f7;display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative}.photo img{width:100%;height:100%;object-fit:contain;display:block}.photoNav{position:absolute;inset:0;display:flex;align-items:center;justify-content:space-between;pointer-events:none}.photoBtn{pointer-events:auto;width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,.9);font-size:20px;font-weight:900;margin:0 8px}.photoDots{position:absolute;bottom:9px;left:0;right:0;display:flex;justify-content:center;gap:5px}.photoDot{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.65);border:1px solid rgba(0,0,0,.15)}.photoDot.active{background:#2457e6}.photoCount{position:absolute;left:10px;top:10px;background:rgba(17,24,39,.75);color:#fff;border-radius:999px;padding:5px 8px;font-size:11px;font-weight:900}.noimg{font-size:42px;color:#9aa1b2}.stock{position:absolute;top:10px;right:10px;background:#fff;border-radius:999px;padding:6px 9px;font-size:12px;font-weight:900}.stock.ok{color:var(--success)}.stock.out{color:#d13b43}.body{padding:15px}.code{font-size:11px;color:var(--muted);font-weight:800}.name{font-size:17px;font-weight:900;margin:5px 0}.cat{font-size:12px;color:var(--muted)}.price{font-size:22px;font-weight:950;margin-top:12px}.buyRow{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}.buy{width:100%;padding:12px;border-radius:13px;background:#168c4b;color:#fff;font-weight:900}.empty,.loading{padding:50px;text-align:center;color:var(--muted);grid-column:1/-1;background:#fff;border:1px dashed var(--border);border-radius:18px}.footer{border-top:1px solid var(--border);padding:25px 0 40px;color:var(--muted);font-size:13px;text-align:center}.error{display:none;background:#fff1f1;color:#a32730;border:1px solid #ffd0d0;border-radius:15px;padding:14px;margin:15px 0}.toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:#111827;color:#fff;padding:12px 17px;border-radius:12px;display:none;z-index:250}
 .galleryModal{position:fixed;inset:0;background:rgba(0,0,0,.88);display:none;align-items:center;justify-content:center;z-index:100;padding:18px}.galleryModal.open{display:flex}.galleryBox{position:relative;width:min(96vw,1000px);height:min(92vh,850px);display:flex;align-items:center;justify-content:center}.galleryMain{max-width:100%;max-height:100%;object-fit:contain;border-radius:14px}.galleryClose{position:absolute;right:0;top:-8px;width:46px;height:46px;border-radius:50%;background:#fff;font-size:30px;z-index:3}.galleryNav{position:absolute;top:50%;transform:translateY(-50%);width:50px;height:50px;border-radius:50%;background:rgba(255,255,255,.92);font-size:36px;z-index:3}.galleryPrev{left:8px}.galleryNext{right:8px}.galleryInfo{position:absolute;bottom:10px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.62);color:#fff;padding:7px 13px;border-radius:999px;font-size:13px}
 .cartBar{display:none;margin:18px 0;padding:16px;border:1px solid #e5e7eb;border-radius:18px;background:#fff;box-shadow:0 8px 24px rgba(0,0,0,.07);position:sticky;top:8px;z-index:30}.cartHead{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}.cartTitle{font-size:18px;font-weight:800}.cartSummary{font-size:13px;color:#6b7280;margin-top:3px}.cartItems{display:grid;gap:8px;margin-top:12px}.cartItem{display:flex;align-items:center;justify-content:space-between;gap:10px;background:#f8fafc;border-radius:12px;padding:9px 11px}.cartName{font-weight:750}.cartMeta{font-size:13px;color:#6b7280;margin-top:2px}.cartActions{display:flex;align-items:center;gap:5px}.cartActions button{width:31px;height:31px;border:1px solid #d1d5db;border-radius:9px;background:#fff;font-size:18px}.cartRemove{color:#b91c1c!important;background:#fee2e2!important}.cartSend{border-radius:12px;padding:12px 16px;background:#16a34a;color:#fff;font-weight:800}.addOrder{width:100%;margin-top:9px;border-radius:12px;padding:11px;background:#111827;color:#fff;font-weight:800}
-.checkoutModal{position:fixed;inset:0;background:rgba(0,0,0,.58);display:none;align-items:center;justify-content:center;z-index:200;padding:16px}.checkoutModal.open{display:flex}.checkoutBox{width:min(96vw,560px);max-height:92vh;overflow:auto;background:#fff;border-radius:22px;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,.25)}.checkoutHead{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}.checkoutTitle{font-size:21px;font-weight:900}.checkoutClose{width:40px;height:40px;border-radius:50%;background:#f1f3f7;font-size:25px}.checkoutNote{font-size:13px;color:#6b7280;margin:0 0 16px}.checkoutGrid{display:grid;gap:10px}.checkoutGrid label{font-size:13px;font-weight:800;color:#374151}.checkoutGrid input,.checkoutGrid select{width:100%;min-width:0;border:1px solid #dfe3ea;border-radius:12px;padding:12px;background:#fff;outline:none}.shippingBox{padding:13px;border-radius:14px;background:#f4f7ff;border:1px solid #dce5ff}.shippingLine{display:flex;justify-content:space-between;gap:10px;font-weight:800}.shippingSmall{font-size:12px;color:#6b7280;margin-top:4px}.paymentOptions{display:grid;gap:8px}.paymentOption{display:flex;align-items:center;gap:10px;padding:12px;border:1px solid #dfe3ea;border-radius:13px;cursor:pointer}.paymentOption input{width:auto!important}.checkoutTotal{display:flex;justify-content:space-between;gap:10px;padding:14px 0;border-top:1px solid #e5e7eb;border-bottom:1px solid #e5e7eb;font-size:18px;font-weight:900}.checkoutActions{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:14px}.checkoutCancel{padding:12px;border-radius:12px;background:#eef0f4;font-weight:800}.checkoutConfirm{padding:12px;border-radius:12px;background:#16a34a;color:#fff;font-weight:900}.confirmModal{position:fixed;inset:0;background:rgba(0,0,0,.58);display:none;align-items:center;justify-content:center;z-index:230;padding:16px}.confirmModal.open{display:flex}.confirmBox{width:min(96vw,520px);max-height:92vh;overflow:auto;background:#fff;border-radius:22px;padding:24px;box-shadow:0 20px 60px rgba(0,0,0,.25)}.confirmIcon{font-size:48px;text-align:center}.confirmTitle{font-size:24px;font-weight:900;text-align:center;margin:8px 0}.confirmText{text-align:center;color:#6b7280;line-height:1.5}.confirmRef{margin:18px 0;padding:15px;border-radius:15px;background:#f4f7ff;border:1px solid #dce5ff;text-align:center}.confirmRef b{display:block;font-size:22px;margin-top:5px}.confirmDetails{display:grid;gap:8px;margin-top:14px}.confirmRow{display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid #eef0f4}.confirmClose{width:100%;margin-top:18px;padding:13px;border-radius:12px;background:#111827;color:#fff;font-weight:900}
-@media(max-width:950px){.grid{grid-template-columns:repeat(3,minmax(0,1fr))}}@media(max-width:680px){.topin{height:70px}.brandLogo{width:52px;height:52px}.brandName{font-size:17px}.waTop{padding:9px 10px;font-size:12px}.hero{padding:23px;border-radius:22px}.grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.body{padding:12px}.name{font-size:15px}.price{font-size:19px}.buy{padding:10px 6px;font-size:12px}.search{min-width:100%}.count{margin-left:0;width:100%}.checkoutActions{grid-template-columns:1fr}.checkoutBox{padding:18px}}@media(max-width:390px){.grid{grid-template-columns:1fr}.waBtns{display:none}.confirmBox{padding:18px}.confirmTitle{font-size:21px}.confirmRef b{font-size:19px}}
+.checkoutModal{position:fixed;inset:0;background:rgba(0,0,0,.58);display:none;align-items:center;justify-content:center;z-index:200;padding:16px}.checkoutModal.open{display:flex}.checkoutBox{width:min(96vw,560px);max-height:92vh;overflow:auto;background:#fff;border-radius:22px;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,.25)}.checkoutHead{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}.checkoutTitle{font-size:21px;font-weight:900}.checkoutClose{width:40px;height:40px;border-radius:50%;background:#f1f3f7;font-size:25px}.checkoutNote{font-size:13px;color:#6b7280;margin:0 0 16px}.checkoutGrid{display:grid;gap:10px}.checkoutGrid label{font-size:13px;font-weight:800;color:#374151}.checkoutGrid input,.checkoutGrid select{width:100%;min-width:0;border:1px solid #dfe3ea;border-radius:12px;padding:12px;background:#fff;outline:none}.shippingBox{padding:13px;border-radius:14px;background:#f4f7ff;border:1px solid #dce5ff}.shippingLine{display:flex;justify-content:space-between;gap:10px;font-weight:800}.shippingSmall{font-size:12px;color:#6b7280;margin-top:4px}.paymentOptions{display:grid;gap:8px}.paymentOption{display:flex;align-items:center;gap:10px;padding:12px;border:1px solid #dfe3ea;border-radius:13px;cursor:pointer}.paymentOption input{width:auto!important}.checkoutTotal{display:flex;justify-content:space-between;gap:10px;padding:14px 0;border-top:1px solid #e5e7eb;border-bottom:1px solid #e5e7eb;font-size:18px;font-weight:900}.checkoutActions{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:14px}.checkoutCancel{padding:12px;border-radius:12px;background:#eef0f4;font-weight:800}.checkoutConfirm{padding:12px;border-radius:12px;background:#16a34a;color:#fff;font-weight:900}
+@media(max-width:950px){.grid{grid-template-columns:repeat(3,minmax(0,1fr))}}@media(max-width:680px){.topin{height:70px}.brandLogo{width:52px;height:52px}.brandName{font-size:17px}.waTop{padding:9px 10px;font-size:12px}.hero{padding:23px;border-radius:22px}.grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.body{padding:12px}.name{font-size:15px}.price{font-size:19px}.buy{padding:10px 6px;font-size:12px}.search{min-width:100%}.count{margin-left:0;width:100%}.checkoutActions{grid-template-columns:1fr}.checkoutBox{padding:18px}}@media(max-width:390px){.grid{grid-template-columns:1fr}.waBtns{display:none}}
 </style>
 </head>
 <body>
 <header class="top"><div class="wrap topin"><div class="brand"><div class="brandLogo" aria-label="Variedades JM"><svg class="brandLogoSvg" viewBox="0 0 100 100" role="img" aria-label="JM"><rect x="2" y="2" width="96" height="96" rx="16" fill="#101827"/><text x="50" y="50" text-anchor="middle" dominant-baseline="middle" font-family="Arial,sans-serif" font-size="42" font-weight="900" fill="#ffffff">JM</text></svg></div><div><div class="brandName">Variedades JM</div><div class="brandSub">Catálogo de productos</div></div></div><div class="waBtns"><button class="waTop" onclick="openWhatsApp('Hola, quiero información sobre sus productos.',WHATSAPP_NUMBERS[1])">💬 WhatsApp 2</button></div></div></header>
 <main class="wrap">
-<section class="hero"><h1>🚚 Envío GRATIS en Cali</h1><p>Compra tus productos y elige pago contra entrega o pago anticipado. En otras ciudades se agrega el costo del envío.</p></section>
+<section class="hero"><h1>🚚 Envío GRATIS en Cali</h1><p>En otras ciudades el envío cuesta $15.000, pero es GRATIS en compras de $100.000 o más.</p></section>
 <div id="error" class="error"></div>
 <div class="toolbar"><input id="search" class="search" placeholder="🔎 Buscar producto, código o categoría" oninput="render()"><select id="category" onchange="render()"><option value="">Todas las categorías</option></select><select id="availability" onchange="render()"><option value="">Disponibilidad</option><option value="available">Disponibles</option><option value="out">Agotados</option></select><span id="count" class="count">Cargando...</span></div>
 <section id="cartBar" class="cartBar"><div class="cartHead"><div><div class="cartTitle">🛒 Mi pedido</div><div id="cartSummary" class="cartSummary">0 productos</div></div><button id="cartSend" class="cartSend" type="button" onclick="sendCart()">💬 Finalizar pedido</button></div><div id="cartItems" class="cartItems"></div></section>
@@ -34,7 +34,7 @@
 <div id="checkoutModal" class="checkoutModal" onclick="closeCheckout(event)">
   <div class="checkoutBox">
     <div class="checkoutHead"><div class="checkoutTitle">📦 Finalizar pedido</div><button class="checkoutClose" type="button" onclick="closeCheckout()">×</button></div>
-    <p class="checkoutNote">Cali tiene envío gratis. Para otras ciudades se agrega el envío nacional. Si eliges pago anticipado, el pago se abre directamente en Wompi.</p>
+    <p class="checkoutNote">Cali tiene envío gratis. En otras ciudades el envío cuesta $15.000, pero es gratis en compras de $100.000 o más. Si eliges pago anticipado, el pago se abre directamente en Wompi.</p>
     <div class="checkoutGrid">
       <label for="customerName">Nombre completo</label><input id="customerName" type="text" autocomplete="name" placeholder="Tu nombre">
       <label for="customerPhone">WhatsApp / teléfono</label><input id="customerPhone" type="tel" autocomplete="tel" placeholder="300 000 0000">
@@ -44,7 +44,7 @@
       </select>
       <label for="customerAddress">Dirección</label><input id="customerAddress" type="text" autocomplete="street-address" placeholder="Calle, carrera, número, etc.">
       <label for="customerNeighborhood">Barrio / referencia</label><input id="customerNeighborhood" type="text" placeholder="Barrio, conjunto o referencia">
-      <div class="shippingBox"><div class="shippingLine"><span>🚚 Envío</span><span id="shippingValue">Selecciona una ciudad</span></div><div id="shippingNote" class="shippingSmall">Cali: envío gratis. Otras ciudades: tarifa provisional de $15.000.</div></div>
+      <div class="shippingBox"><div class="shippingLine"><span>🚚 Envío</span><span id="shippingValue">Selecciona una ciudad</span></div><div id="shippingNote" class="shippingSmall">Cali: envío gratis. Otras ciudades: $15.000. Compras de $100.000 o más: envío gratis.</div></div>
       <label>Forma de pago</label>
       <div class="paymentOptions">
         <label class="paymentOption"><input type="radio" name="paymentMethod" value="Contra entrega" checked> 💵 Pago contra entrega</label>
@@ -53,18 +53,6 @@
       <div class="checkoutTotal"><span>Total</span><span id="checkoutTotal">$0</span></div>
       <div class="checkoutActions"><button class="checkoutCancel" type="button" onclick="closeCheckout()">Cancelar</button><button id="checkoutConfirmBtn" class="checkoutConfirm" type="button" onclick="confirmCheckout()">✅ Confirmar pedido</button></div>
     </div>
-  </div>
-</div>
-
-<div id="confirmModal" class="confirmModal" onclick="closeConfirm(event)">
-  <div class="confirmBox">
-    <div class="confirmIcon">✅</div>
-    <div class="confirmTitle">¡Pedido recibido!</div>
-    <div id="confirmText" class="confirmText">Tu pedido fue enviado correctamente.</div>
-    <div class="confirmRef"><span>Número de pedido</span><b id="confirmReference">JM-</b></div>
-    <div id="confirmDetails" class="confirmDetails"></div>
-    <button class="confirmClose" type="button" onclick="sendConfirmedWhatsApp()">📲 Enviar pedido por WhatsApp</button>
-    <button class="confirmClose" type="button" style="background:#eef0f4;color:#111827" onclick="closeConfirm()">Cerrar</button>
   </div>
 </div>
 
@@ -122,8 +110,8 @@ function renderCart(){const bar=$('cartBar'),items=$('cartItems'),sum=$('cartSum
 
 function sendCart(){if(!cart.length)return;updateCheckoutSummary();$('checkoutModal').classList.add('open');document.body.style.overflow='hidden'}
 function closeCheckout(event){if(event&&event.target!==$('checkoutModal'))return;$('checkoutModal').classList.remove('open');document.body.style.overflow=''}
-function updateShipping(){const city=$('customerCity').value;checkoutShipping=city==='Cali'?0:(city?ENVIO_NACIONAL:0);$('shippingValue').textContent=city?(checkoutShipping===0?'GRATIS':money(checkoutShipping)):'Selecciona una ciudad';$('shippingNote').textContent=city==='Cali'?'Envío gratis dentro de Cali.':(city?'Envío nacional provisional de '+money(ENVIO_NACIONAL)+'. Cámbialo cuando tengas tu tarifa real.':'Cali: envío gratis. Otras ciudades: tarifa provisional de '+money(ENVIO_NACIONAL)+'.');updateCheckoutSummary()}
-function updateCheckoutSummary(){const totalProducts=cart.reduce((a,x)=>a+x.qty*x.price,0);$('checkoutTotal').textContent=money(totalProducts+checkoutShipping)}
+function updateShipping(){const city=$('customerCity').value;const productsTotal=cart.reduce((a,x)=>a+x.qty*x.price,0);const freeByAmount=productsTotal>=100000;checkoutShipping=(!city||city==='Cali'||freeByAmount)?0:ENVIO_NACIONAL;$('shippingValue').textContent=city?(checkoutShipping===0?'GRATIS':money(checkoutShipping)):'Selecciona una ciudad';$('shippingNote').textContent=city==='Cali'?'Envío gratis dentro de Cali.':(city?(freeByAmount?'🎉 Envío gratis por compras de $100.000 o más.':'Envío nacional provisional de '+money(ENVIO_NACIONAL)+'. En compras de $100.000 o más, el envío es gratis.'):'Cali: envío gratis. Otras ciudades: $15.000. Compras de $100.000 o más: envío gratis.');updateCheckoutSummary()}
+function updateCheckoutSummary(){const totalProducts=cart.reduce((a,x)=>a+x.qty*x.price,0);const city=$('customerCity')?.value||'';const freeByAmount=totalProducts>=100000;checkoutShipping=(!city||city==='Cali'||freeByAmount)?0:ENVIO_NACIONAL;if($('shippingValue'))$('shippingValue').textContent=city?(checkoutShipping===0?'GRATIS':money(checkoutShipping)):'Selecciona una ciudad';if($('shippingNote'))$('shippingNote').textContent=city==='Cali'?'Envío gratis dentro de Cali.':(city?(freeByAmount?'🎉 Envío gratis por compras de $100.000 o más.':'Envío nacional provisional de '+money(ENVIO_NACIONAL)+'. En compras de $100.000 o más, el envío es gratis.'):'Cali: envío gratis. Otras ciudades: $15.000. Compras de $100.000 o más: envío gratis.');$('checkoutTotal').textContent=money(totalProducts+checkoutShipping)}
 function selectedPayment(){
  return document.querySelector('input[name="paymentMethod"]:checked')?.value||'Contra entrega';
 }
@@ -194,33 +182,6 @@ async function payWithWompi(payload){
   btn.disabled=false; btn.textContent=original;
  }
 }
-let pendingWhatsAppMessage='';
-function sendConfirmedWhatsApp(){
- if(!pendingWhatsAppMessage)return;
- openWhatsApp(pendingWhatsAppMessage,WHATSAPP_NUMBERS[1]);
-}
-function closeConfirm(event){
- if(event&&event.target!==$('confirmModal'))return;
- $('confirmModal').classList.remove('open');document.body.style.overflow='';
-}
-function showOrderConfirmation(reference,payload,total,shipping,msg){
- const details=[
-  ['Total',money(total)],
-  ['Envío',shipping===0?'GRATIS':money(shipping)],
-  ['Pago','Contra entrega'],
-  ['Ciudad',payload.city]
- ];
- pendingWhatsAppMessage=msg||'';
- $('confirmReference').textContent=reference||'JM-';
- $('confirmText').textContent='Tu pedido fue preparado correctamente. Revisa los datos y luego pulsa “Enviar pedido por WhatsApp”.';
- $('confirmDetails').innerHTML=details.map(([a,b])=>`<div class="confirmRow"><span>${esc(a)}</span><b>${esc(b)}</b></div>`).join('');
- $('confirmModal').classList.add('open');document.body.style.overflow='hidden';
-}
-function generateOrderReference(){
- const now=Date.now().toString(36).toUpperCase(),rnd=Math.random().toString(36).slice(2,6).toUpperCase();
- return `JM-${now}-${rnd}`;
-}
-
 function confirmCheckout(){
  if(!cart.length)return;
  const name=$('customerName').value.trim(),phone=$('customerPhone').value.trim(),
@@ -228,28 +189,19 @@ function confirmCheckout(){
  if(!name||!phone||!city||!address){
   showToast('Completa nombre, teléfono, ciudad y dirección.');return;
  }
-
- // Recalcular el envío según la ciudad elegida para evitar usar un valor anterior.
- checkoutShipping=city==='Cali'?0:ENVIO_NACIONAL;
- updateCheckoutSummary();
-
  const payment=selectedPayment();
  const payload=buildOrderPayload();
  if(payment==='Pago anticipado'){
   payWithWompi(payload);
   return;
  }
-
  const lines=cart.map(x=>`• ${x.name} (${x.code}) — ${x.qty} × ${money(x.price)} = ${money(x.qty*x.price)}`);
  const productsTotal=cart.reduce((a,x)=>a+x.qty*x.price,0),total=productsTotal+checkoutShipping,
        envio=checkoutShipping===0?'GRATIS':money(checkoutShipping);
  const neighborhood=$('customerNeighborhood').value.trim();
- const reference=generateOrderReference();
  const msg=`Hola, Variedades JM 👋
 
 Quiero hacer este pedido desde el catálogo web.
-
-🧾 Número de pedido: ${reference}
 
 ${lines.join('\n')}
 
@@ -264,9 +216,7 @@ ${lines.join('\n')}
 💳 Forma de pago: Contra entrega
 
 ¿Me confirman disponibilidad y entrega?`;
-
- closeCheckout();
- showOrderConfirmation(reference,payload,total,checkoutShipping,msg);
+ closeCheckout();openWhatsApp(msg,WHATSAPP_NUMBERS[1]);
 }
 
 document.addEventListener('keydown',e=>{if($('checkoutModal')?.classList.contains('open')&&e.key==='Escape'){closeCheckout();return}if(!$('galleryModal')?.classList.contains('open'))return;if(e.key==='Escape')closeGallery();if(e.key==='ArrowLeft')galleryMove(-1);if(e.key==='ArrowRight')galleryMove(1)});
