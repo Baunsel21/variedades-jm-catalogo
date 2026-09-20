@@ -63,7 +63,8 @@
     <div id="confirmText" class="confirmText">Tu pedido fue enviado correctamente.</div>
     <div class="confirmRef"><span>Número de pedido</span><b id="confirmReference">JM-</b></div>
     <div id="confirmDetails" class="confirmDetails"></div>
-    <button class="confirmClose" type="button" onclick="closeConfirm()">Continuar</button>
+    <button class="confirmClose" type="button" onclick="sendConfirmedWhatsApp()">📲 Enviar pedido por WhatsApp</button>
+    <button class="confirmClose" type="button" style="background:#eef0f4;color:#111827" onclick="closeConfirm()">Cerrar</button>
   </div>
 </div>
 
@@ -193,19 +194,25 @@ async function payWithWompi(payload){
   btn.disabled=false; btn.textContent=original;
  }
 }
+let pendingWhatsAppMessage='';
+function sendConfirmedWhatsApp(){
+ if(!pendingWhatsAppMessage)return;
+ openWhatsApp(pendingWhatsAppMessage,WHATSAPP_NUMBERS[1]);
+}
 function closeConfirm(event){
  if(event&&event.target!==$('confirmModal'))return;
  $('confirmModal').classList.remove('open');document.body.style.overflow='';
 }
-function showOrderConfirmation(reference,payload,total,shipping){
+function showOrderConfirmation(reference,payload,total,shipping,msg){
  const details=[
   ['Total',money(total)],
   ['Envío',shipping===0?'GRATIS':money(shipping)],
   ['Pago','Contra entrega'],
   ['Ciudad',payload.city]
  ];
+ pendingWhatsAppMessage=msg||'';
  $('confirmReference').textContent=reference||'JM-';
- $('confirmText').textContent='Tu pedido fue enviado correctamente. Te contactaremos por WhatsApp para confirmar la entrega.';
+ $('confirmText').textContent='Tu pedido fue preparado correctamente. Revisa los datos y luego pulsa “Enviar pedido por WhatsApp”.';
  $('confirmDetails').innerHTML=details.map(([a,b])=>`<div class="confirmRow"><span>${esc(a)}</span><b>${esc(b)}</b></div>`).join('');
  $('confirmModal').classList.add('open');document.body.style.overflow='hidden';
 }
@@ -221,12 +228,18 @@ function confirmCheckout(){
  if(!name||!phone||!city||!address){
   showToast('Completa nombre, teléfono, ciudad y dirección.');return;
  }
+
+ // Recalcular el envío según la ciudad elegida para evitar usar un valor anterior.
+ checkoutShipping=city==='Cali'?0:ENVIO_NACIONAL;
+ updateCheckoutSummary();
+
  const payment=selectedPayment();
  const payload=buildOrderPayload();
  if(payment==='Pago anticipado'){
   payWithWompi(payload);
   return;
  }
+
  const lines=cart.map(x=>`• ${x.name} (${x.code}) — ${x.qty} × ${money(x.price)} = ${money(x.qty*x.price)}`);
  const productsTotal=cart.reduce((a,x)=>a+x.qty*x.price,0),total=productsTotal+checkoutShipping,
        envio=checkoutShipping===0?'GRATIS':money(checkoutShipping);
@@ -251,9 +264,9 @@ ${lines.join('\n')}
 💳 Forma de pago: Contra entrega
 
 ¿Me confirman disponibilidad y entrega?`;
+
  closeCheckout();
- showOrderConfirmation(reference,payload,total,checkoutShipping);
- openWhatsApp(msg,WHATSAPP_NUMBERS[1]);
+ showOrderConfirmation(reference,payload,total,checkoutShipping,msg);
 }
 
 document.addEventListener('keydown',e=>{if($('checkoutModal')?.classList.contains('open')&&e.key==='Escape'){closeCheckout();return}if(!$('galleryModal')?.classList.contains('open'))return;if(e.key==='Escape')closeGallery();if(e.key==='ArrowLeft')galleryMove(-1);if(e.key==='ArrowRight')galleryMove(1)});
