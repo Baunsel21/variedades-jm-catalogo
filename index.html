@@ -531,6 +531,19 @@ body{background:linear-gradient(180deg,#fffaf0 0%,#fff6e6 55%,#f8ecd7 100%);colo
 @media(max-width:700px){.brandLogoImg{width:60px;height:60px}.sirevyaHero{border-radius:0 0 14px 14px}.contactInfo{font-size:13px;gap:7px 12px;padding:0 10px}.contactInfo b{font-size:15px}}
 /* Imágenes de catálogo: decodificación asíncrona y carga diferida */
 #grid img{content-visibility:auto;}
+
+/* ===== CORRECCIÓN FINAL: PORTADA Y BENEFICIOS ===== */
+.sirevyaHero{width:100%;max-width:1240px;margin:20px auto 0!important;padding:0!important;overflow:hidden;background:#fff;border-radius:0 0 22px 22px;line-height:0}
+.sirevyaHero img{display:block;width:100%;height:auto;max-height:none;object-fit:contain;object-position:center;margin:0 auto}
+.sirevyaHero + .benefits{width:100%;max-width:1240px;margin:0 auto!important;display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;background:#fff;border:1px solid #e5e5e8;border-top:0;box-shadow:0 5px 18px rgba(0,0,0,.04)}
+.sirevyaHero + .benefits .benefit{min-width:0;min-height:82px;padding:12px 10px!important;display:flex!important;flex-direction:row;align-items:center;justify-content:center;gap:9px;text-align:left;border-right:1px solid #e8e8eb;border-bottom:0}
+.sirevyaHero + .benefits .benefit:last-child{border-right:0}
+.sirevyaHero + .benefits .benefitIcon{font-size:27px;flex:0 0 auto}
+.sirevyaHero + .benefits .benefit b{font-size:15px;color:#222}
+.sirevyaHero + .benefits .benefit small{font-size:12px;line-height:1.15;color:#777;white-space:normal}
+@media(max-width:760px){.sirevyaHero{width:calc(100% + 44px);max-width:none;margin-left:-22px!important;margin-right:-22px!important;border-radius:0}.sirevyaHero + .benefits{width:calc(100% + 44px);max-width:none;margin-left:-22px!important;margin-right:-22px!important}.sirevyaHero + .benefits .benefit{min-height:92px;padding:10px 5px!important;gap:5px}.sirevyaHero + .benefits .benefitIcon{font-size:23px}.sirevyaHero + .benefits .benefit b{font-size:12px}.sirevyaHero + .benefits .benefit small{font-size:10px}}
+@media(max-width:380px){.sirevyaHero + .benefits .benefit{gap:3px;padding-left:2px!important;padding-right:2px!important}.sirevyaHero + .benefits .benefitIcon{font-size:20px}.sirevyaHero + .benefits .benefit b{font-size:11px}.sirevyaHero + .benefits .benefit small{font-size:9px}}
+
 </style>
 
 </head>
