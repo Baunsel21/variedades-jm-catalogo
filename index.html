@@ -547,7 +547,7 @@ body{background:linear-gradient(180deg,#fffaf0 0%,#fff6e6 55%,#f8ecd7 100%);colo
 
 <style>
 .photoDots,.photoCount{display:none}
-.photoSwipe{touch-action:pan-y pan-x;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;cursor:default}
+.photoSwipe{touch-action:pan-y;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;cursor:default}
 .photoSwipe img{-webkit-user-drag:none;user-drag:none}
 </style></head>
 <body>
@@ -739,47 +739,92 @@ function advancePhotoFromElement(el,d=1){
 function photoTouchStart(event){
  const photo=event.currentTarget;
  if(!photo)return;
- photo.__startX=event.clientX; photo.__startY=event.clientY;
- photo.__swiped=false; photo.__touchChanged=false;
+
+ // Ignore a second pointer while one gesture is active.
+ if(photo.__gestureActive)return;
+
+ photo.__gestureActive=true;
+ photo.__pointerId=event.pointerId;
+ photo.__startX=event.clientX;
+ photo.__startY=event.clientY;
+ photo.__swiped=false;
+ photo.__tapChanged=false;
+
  photo.__tapTimer=setTimeout(()=>{
-   if(photo.__startX!=null && !photo.__swiped && !photo.__touchChanged){
+   if(photo.__gestureActive && !photo.__swiped && !photo.__tapChanged){
      advancePhotoFromElement(photo,1);
-     photo.__touchChanged=true;
-     photo.__blockClickUntil=Date.now()+350;
+     photo.__tapChanged=true;
    }
- },120);
+ },80);
 }
+
 function photoTouchMove(event){
  const photo=event.currentTarget;
- if(!photo || photo.__startX==null || photo.__swiped)return;
- const dx=event.clientX-photo.__startX, dy=event.clientY-photo.__startY;
- const distance=Math.max(Math.abs(dx),Math.abs(dy));
- if(distance<55)return;
- if(photo.__tapTimer){clearTimeout(photo.__tapTimer);photo.__tapTimer=null;}
+ if(!photo || !photo.__gestureActive)return;
+ if(event.pointerId!==photo.__pointerId)return;
+ if(photo.__swiped)return;
+
+ const dx=event.clientX-photo.__startX;
+ const dy=event.clientY-photo.__startY;
+ const ax=Math.abs(dx), ay=Math.abs(dy);
+
+ // Very deliberate movement only.
+ const threshold=110;
+ if(Math.max(ax,ay)<threshold)return;
+
+ if(photo.__tapTimer){
+   clearTimeout(photo.__tapTimer);
+   photo.__tapTimer=null;
+ }
+
+ // Require a clearly dominant direction.
+ if(ax>=ay){
+   if(ax<ay*1.5)return;
+ }else{
+   if(ay<ax*1.5)return;
+ }
+
+ // HARD LOCK: this gesture can change the image only once.
  photo.__swiped=true;
- photo.__touchChanged=true;
- // Determine the dominant direction, but change exactly once for this gesture.
- const d=Math.abs(dx)>=Math.abs(dy) ? (dx<0?1:-1) : (dy<0?1:-1);
- advancePhotoFromElement(photo,d);
- photo.__blockClickUntil=Date.now()+450;
+ photo.__blockClickUntil=Date.now()+500;
+
+ const direction=ax>=ay
+   ? (dx<0 ? 1 : -1)
+   : (dy<0 ? 1 : -1);
+
+ advancePhotoFromElement(photo,direction);
 }
+
 function photoTouchEnd(event){
  const photo=event.currentTarget;
  if(!photo)return;
- if(photo.__tapTimer){clearTimeout(photo.__tapTimer);photo.__tapTimer=null;}
- if(photo.__swiped || photo.__touchChanged){
+ if(photo.__pointerId!=null && event.pointerId!==photo.__pointerId)return;
+
+ if(photo.__tapTimer){
+   clearTimeout(photo.__tapTimer);
+   photo.__tapTimer=null;
+ }
+
+ if(photo.__swiped){
    event.preventDefault();
    event.stopPropagation();
  }
- photo.__startX=null; photo.__startY=null;
- setTimeout(()=>{if(photo){photo.__swiped=false;photo.__touchChanged=false;}},40);
+
+ // Only pointerup/cancel ends the gesture.
+ // pointerleave/pointerout must NOT reset it.
+ photo.__gestureActive=false;
+ photo.__pointerId=null;
+ photo.__startX=null;
+ photo.__startY=null;
+ photo.__swiped=false;
+ photo.__tapChanged=false;
 }
+
 function photoClickGuard(event){
  const photo=event.currentTarget;
  if(photo?.__blockClickUntil && Date.now()<photo.__blockClickUntil){
    event.preventDefault();
    event.stopPropagation();
-   return false;
  }
 }
 
