@@ -545,7 +545,11 @@ body{background:linear-gradient(180deg,#fffaf0 0%,#fff6e6 55%,#f8ecd7 100%);colo
 
 </style>
 
-</head>
+<style>
+.photoDots,.photoCount{display:none}
+.photoSwipe{touch-action:pan-y pan-x;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;cursor:default}
+.photoSwipe img{-webkit-user-drag:none;user-drag:none}
+</style></head>
 <body>
 <header class="top">
 <div class="wrap topin">
@@ -718,6 +722,79 @@ const money=n=>new Intl.NumberFormat('es-CO',{style:'currency',currency:'COP',ma
 function showToast(t){const el=$('toast');if(!el)return;el.textContent=t;el.style.display='block';requestAnimationFrame(()=>el.classList.add('show'));clearTimeout(window.__toastTimer);window.__toastTimer=setTimeout(()=>{el.classList.remove('show');setTimeout(()=>{if(!el.classList.contains('show'))el.style.display='none'},230)},2600)}
 function publicImage(path){if(!path)return '';let p=String(path);if(p.includes('/product-images/'))p=p.split('/product-images/')[1];p=p.split('?')[0].replace(/^\//,'');try{p=decodeURIComponent(p)}catch{}return SUPABASE_URL+'/storage/v1/object/public/product-images/'+p}
 function productImages(p){const a=Array.isArray(p.image_paths)?p.image_paths.filter(Boolean):[];if(!a.length&&p.image_url)a.push(p.image_url);return a.map(publicImage).filter(Boolean)}
+
+function advancePhotoFromElement(el,d=1){
+ const id=el?.closest('.card')?.dataset.productId;
+ if(!id)return;
+ const p=productos.find(x=>String(x.id)===String(id));
+ if(!p)return;
+ const imgs=productImages(p);
+ if(imgs.length<2)return;
+ let n=Number(el.dataset.index||0);
+ n=(n+d+imgs.length)%imgs.length;
+ el.dataset.index=n;
+ const img=el.querySelector('img');
+ if(img)img.src=imgs[n];
+}
+function photoTouchStart(event){
+ const photo=event.currentTarget;
+ if(!photo)return;
+ photo.__startX=event.clientX; photo.__startY=event.clientY;
+ photo.__swiped=false; photo.__touchChanged=false;
+ photo.__tapTimer=setTimeout(()=>{
+   if(photo.__startX!=null && !photo.__swiped && !photo.__touchChanged){
+     advancePhotoFromElement(photo,1);
+     photo.__touchChanged=true;
+     photo.__blockClickUntil=Date.now()+350;
+   }
+ },120);
+}
+function photoTouchMove(event){
+ const photo=event.currentTarget;
+ if(!photo || photo.__startX==null || photo.__swiped)return;
+ const dx=event.clientX-photo.__startX, dy=event.clientY-photo.__startY;
+ const distance=Math.max(Math.abs(dx),Math.abs(dy));
+ if(distance<55)return;
+ if(photo.__tapTimer){clearTimeout(photo.__tapTimer);photo.__tapTimer=null;}
+ photo.__swiped=true;
+ photo.__touchChanged=true;
+ // Determine the dominant direction, but change exactly once for this gesture.
+ const d=Math.abs(dx)>=Math.abs(dy) ? (dx<0?1:-1) : (dy<0?1:-1);
+ advancePhotoFromElement(photo,d);
+ photo.__blockClickUntil=Date.now()+450;
+}
+function photoTouchEnd(event){
+ const photo=event.currentTarget;
+ if(!photo)return;
+ if(photo.__tapTimer){clearTimeout(photo.__tapTimer);photo.__tapTimer=null;}
+ if(photo.__swiped || photo.__touchChanged){
+   event.preventDefault();
+   event.stopPropagation();
+ }
+ photo.__startX=null; photo.__startY=null;
+ setTimeout(()=>{if(photo){photo.__swiped=false;photo.__touchChanged=false;}},40);
+}
+function photoClickGuard(event){
+ const photo=event.currentTarget;
+ if(photo?.__blockClickUntil && Date.now()<photo.__blockClickUntil){
+   event.preventDefault();
+   event.stopPropagation();
+   return false;
+ }
+}
+
+
+function photoHover(event){
+ const photo=event.currentTarget;
+ if(!photo || photo.__hovered)return;
+ photo.__hovered=true;
+ advancePhotoFromElement(photo,1);
+}
+function photoHoverLeave(event){
+ const photo=event.currentTarget;
+ if(photo)photo.__hovered=false;
+}
+
 function changePhoto(i,d,event){if(event){event.preventDefault();event.stopPropagation()}const p=productos.find(x=>String(x.id)===String(i));if(!p)return;const imgs=productImages(p);if(imgs.length<2)return;const key='photo_'+i;let n=Number(document.querySelector('[data-photo="'+CSS.escape(key)+'"]')?.dataset.index||0);n=(n+d+imgs.length)%imgs.length;const el=document.querySelector('[data-photo="'+CSS.escape(key)+'"]');if(!el)return;el.dataset.index=n;const photoImg=el.querySelector('img');if(photoImg){photoImg.src=imgs[n];photoImg.removeAttribute('data-src')}el.querySelectorAll('.photoDot').forEach((x,j)=>x.classList.toggle('active',j===n))}
 function openGallery(id,event){if(event){event.preventDefault();event.stopPropagation()}const p=productos.find(x=>String(x.id)===String(id));if(!p)return;const imgs=productImages(p);if(!imgs.length)return;galleryProduct=p;galleryIndex=0;galleryImages=imgs;renderGallery();$('galleryModal').classList.add('open');document.body.style.overflow='hidden'}
 let galleryProduct=null,galleryImages=[],galleryIndex=0;
@@ -1119,7 +1196,7 @@ function render(){
    const blocked=!ok && !hasOwnActiveReservationForProduct(p.id);
    const msg='Hola, Variedades JM 👋\n\nMe interesa este producto:\n📦 Producto: '+p.name+'\n🔖 Código: '+p.code+'\n💰 Precio: '+money(p.sale_price)+'\n\n¿Está disponible?';
    const key='photo_'+p.id;
-return `<article class="card ${blocked?'inventoryUnavailable':''}" data-product-id="${esc(p.id)}" aria-disabled="${blocked?'true':'false'}" onclick="openProductDetail('${esc(p.id)}',event)">${blocked?'<div class="inventoryLock">🔒 RESERVADO / AGOTADO</div>':''}<div class="photo" data-photo="${esc(key)}" data-index="0">${imgs.length?`<img data-src="${esc(imgs[0])}" alt="${esc(p.name)}" loading="lazy" decoding="async" fetchpriority="low" onerror="this.style.display='none'">${imgs.length>1?`<div class="photoNav"><button class="photoBtn" type="button" onclick="changePhoto('${esc(p.id)}',-1,event)">‹</button><button class="photoBtn" type="button" onclick="changePhoto('${esc(p.id)}',1,event)">›</button></div><span class="photoCount">📷 ${imgs.length}</span><div class="photoDots">${imgs.map((_,j)=>`<span class="photoDot ${j===0?'active':''}></span>`).join('')}</div>`:''}`:'<div class="noimg">📦</div>'}</div><div class="body"><div class="name">${esc(p.name)}</div><div class="price">${money(p.sale_price)}</div>${renderVariantOptions(p)}</div></article>`
+return `<article class="card ${blocked?'inventoryUnavailable':''}" data-product-id="${esc(p.id)}" aria-disabled="${blocked?'true':'false'}" onclick="openProductDetail('${esc(p.id)}',event)">${blocked?'<div class="inventoryLock">🔒 RESERVADO / AGOTADO</div>':''}<div class="photo photoSwipe"" data-photo="${esc(key)}" data-index="0" onpointerdown="photoTouchStart(event)" onpointermove="photoTouchMove(event)" onpointerup="photoTouchEnd(event)" onpointercancel="photoTouchEnd(event)" onclick="photoClickGuard(event)" onmouseenter="photoHover(event)" onmouseleave="photoHoverLeave(event)">${imgs.length?`<img data-src="${esc(imgs[0])}" alt="${esc(p.name)}" loading="lazy" decoding="async" fetchpriority="low" onerror="this.style.display='none'">${imgs.length>1?``:''}`:'<div class="noimg">📦</div>'}</div><div class="body"><div class="name">${esc(p.name)}</div><div class="price">${money(p.sale_price)}</div>${renderVariantOptions(p)}</div></article>`
  }).join(''):'<div class="empty">No encontramos productos con esos filtros.</div>';
  document.querySelectorAll('#grid .card').forEach(card=>{const p=productos.find(x=>String(x.id)===String(card.dataset.productId));if(p)updateVariantAvailability(card,p)});
  activateCatalogLazyImages();
@@ -1616,11 +1693,34 @@ async function refreshInventoryStatus(){
      };
    });
    const freshMap=new Map(fresh.map(p=>[String(p.id),p]));
+   let inventoryChanged=false;
+
    productos=productos.map(old=>{
      const f=freshMap.get(String(old.id));
+     if(!f)return old;
+
+     const oldState=JSON.stringify({
+       quantity:Number(old.quantity)||0,
+       colors:old.colors||[],
+       sizes:old.sizes||[],
+       variants:old.variants||[]
+     });
+     const newState=JSON.stringify({
+       quantity:Number(f.quantity)||0,
+       colors:f.colors||[],
+       sizes:f.sizes||[],
+       variants:f.variants||[]
+     });
+
+     if(oldState!==newState)inventoryChanged=true;
+
      return f?{...old,...f,image_paths:old.image_paths||[]}:old;
    });
-   render();
+
+   // IMPORTANT: the 8-second check does NOT rebuild the catalog
+   // unless inventory data actually changed.
+   if(inventoryChanged)render();
+
    if(detailProduct){
      const updated=freshMap.get(String(detailProduct.id));
      if(updated)detailProduct=productos.find(p=>String(p.id)===String(updated.id))||detailProduct;
