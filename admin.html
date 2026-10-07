@@ -236,6 +236,25 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
           <div id="listaVentas"></div>
         </div>
       </section>
+<section id="pedidos" class="view">
+  <div class="rowBetween"><div><h2 style="margin:0">📋 Pedidos</h2><p class="muted">Consulta y administra los pedidos realizados desde el catálogo web.</p></div></div>
+  <div class="ordersSummary">
+    <div class="orderStat"><small>Todos</small><b id="ordersTotal">0</b></div>
+    <div class="orderStat"><small>Pendientes</small><b id="ordersPending">0</b></div>
+    <div class="orderStat"><small>Confirmados</small><b id="ordersConfirmed">0</b></div>
+    <div class="orderStat"><small>Entregados</small><b id="ordersDelivered">0</b></div>
+  </div>
+  <div class="box" style="margin-top:15px">
+    <div class="orderFilters">
+      <input id="buscarPedido" placeholder="🔎 Buscar por cliente, teléfono, ciudad, correo o pedido" oninput="renderPedidos()">
+      <select id="filtroPedidoEstado" onchange="renderPedidos()">
+        <option value="">Todos los estados</option><option value="pendiente">Pendientes</option><option value="confirmado">Confirmados</option><option value="enviado">Enviados</option><option value="entregado">Entregados</option><option value="rechazado">Rechazados</option><option value="devuelto">Devueltos</option>
+      </select>
+    </div>
+    <div id="listaPedidos"><div class="empty">Cargando pedidos...</div></div>
+  </div>
+</section>
+
 <section id="gastos" class="view">
         <div><h2 style="margin:0">💸 Gastos</h2><p class="muted">Registra gastos del negocio para conocer la ganancia real.</p></div>
         <div class="box" style="margin-top:15px"><div class="grid">
@@ -256,32 +275,6 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
           <label>Motivo<input id="mMotivo" placeholder="Ej. Compra, pérdida, corrección"></label>
         </div><div style="margin-top:15px"><button class="primary" onclick="registrarMovimiento()">🔄 Registrar movimiento</button></div></div>
         <div class="box" style="margin-top:15px"><h3>Últimos movimientos</h3><div id="listaMovimientos"></div></div>
-      </section>
-
-
-      <section id="pedidos" class="view">
-        <div class="rowBetween"><div><h2 style="margin:0">📋 Pedidos</h2><p class="muted">Consulta y administra los pedidos realizados desde el catálogo.</p></div></div>
-        <div class="ordersSummary">
-          <div class="orderStat"><small>Todos</small><b id="ordersTotal">0</b></div>
-          <div class="orderStat"><small>Pendientes</small><b id="ordersPending">0</b></div>
-          <div class="orderStat"><small>Confirmados</small><b id="ordersConfirmed">0</b></div>
-          <div class="orderStat"><small>Entregados</small><b id="ordersDelivered">0</b></div>
-        </div>
-        <div class="box" style="margin-top:15px">
-          <div class="orderFilters">
-            <input id="buscarPedido" placeholder="🔎 Buscar por cliente, teléfono, ciudad o pedido" oninput="renderPedidos()">
-            <select id="filtroPedidoEstado" onchange="renderPedidos()">
-              <option value="">Todos los estados</option>
-              <option value="pendiente">Pendientes</option>
-              <option value="confirmado">Confirmados</option>
-              <option value="enviado">Enviados</option>
-              <option value="entregado">Entregados</option>
-              <option value="rechazado">Rechazados</option>
-              <option value="devuelto">Devueltos</option>
-            </select>
-          </div>
-          <div id="listaPedidos"></div>
-        </div>
       </section>
 
 <section id="reportes" class="view">
@@ -873,12 +866,12 @@ async function borrarProducto(id){
  if(!confirm(`¿Eliminar ${p.code} — ${p.name}?`))return;
  const {error}=await sb.from("products").delete().eq("id",id);if(error)alert(error.message);else{toast("Producto eliminado");await cargarTodo()}
 }
-async function getImageUrl(value){
+function getImageUrl(value){
  if(!value)return "";
  let path=value;
  const marker="/product-images/";
  if(path.includes(marker))path=path.split(marker)[1].split("?")[0];
- try{path=decodeURIComponent(path).replace(/^\/+,"")}catch{}
+ try{path=decodeURIComponent(path).replace(/^\/+/,"")}catch{}
  const {data}=sb.storage.from("product-images").getPublicUrl(path);
  return data?.publicUrl||"";
 }
