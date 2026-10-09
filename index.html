@@ -795,6 +795,7 @@ body{background:linear-gradient(180deg,#fffaf0 0%,#fff6e6 55%,#f8ecd7 100%);colo
 <script>
 const SUPABASE_URL="https://hnlbbtnfmbnbkcgegufa.supabase.co";
 const SUPABASE_KEY="sb_publishable_p2XJjsFd4Hp7LZ1IgfyVAg_hpXnFSSc";
+const IMAGE_WORKER_URL="https://sirevya-images.variedadesjm99.workers.dev";
 
 // Wompi: llave pública de producción.
 // La firma de integridad se genera en Supabase, nunca aquí en el navegador.
@@ -882,7 +883,26 @@ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const money=n=>new Intl.NumberFormat('es-CO',{style:'currency',currency:'COP',maximumFractionDigits:0}).format(Number(n)||0);
 
 function showToast(t){const el=$('toast');if(!el)return;el.textContent=t;el.style.display='block';requestAnimationFrame(()=>el.classList.add('show'));clearTimeout(window.__toastTimer);window.__toastTimer=setTimeout(()=>{el.classList.remove('show');setTimeout(()=>{if(!el.classList.contains('show'))el.style.display='none'},230)},2600)}
-function publicImage(path){if(!path)return '';let p=String(path);if(p.includes('/product-images/'))p=p.split('/product-images/')[1];p=p.split('?')[0].replace(/^\//,'');try{p=decodeURIComponent(p)}catch{}return SUPABASE_URL+'/storage/v1/object/public/product-images/'+p}
+function publicImage(path){
+ if(!path)return '';
+ let raw=String(path).trim();if(!raw)return '';
+ const original=raw;
+ if(/^https?:\/\//i.test(raw)){
+   try{
+     const u=new URL(raw);
+     if(u.hostname===new URL(IMAGE_WORKER_URL).hostname||/(^|\.)r2\.dev$/i.test(u.hostname))raw=u.pathname;
+     else if(u.pathname.includes('/product-images/'))raw=u.pathname.slice(u.pathname.indexOf('/product-images/')+'/product-images/'.length);
+     else return original;
+   }catch{return original}
+ }else{
+   const marker='/product-images/';
+   if(raw.includes(marker))raw=raw.slice(raw.indexOf(marker)+marker.length);
+   else if(raw.startsWith('product-images/'))raw=raw.slice('product-images/'.length);
+ }
+ raw=raw.split(/[?#]/)[0].replace(/^\/+/, '');if(!raw)return '';
+ try{raw=raw.split('/').map(part=>decodeURIComponent(part)).join('/')}catch{}
+ return IMAGE_WORKER_URL+'/'+raw.split('/').map(part=>encodeURIComponent(part)).join('/');
+}
 function productImages(p){const a=Array.isArray(p.image_paths)?p.image_paths.filter(Boolean):[];if(!a.length&&p.image_url)a.push(p.image_url);return a.map(publicImage).filter(Boolean)}
 
 function advancePhotoFromElement(el,d=1){
