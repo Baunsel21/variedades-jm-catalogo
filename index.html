@@ -629,6 +629,26 @@ body{background:linear-gradient(180deg,#fffaf0 0%,#fff6e6 55%,#f8ecd7 100%);colo
 @media(max-width:520px){.contactBox{padding:18px}.contactTitle{font-size:21px}}
 
 </style>
+
+<style id="sirevya-mobile-width-and-reservation-layout-fix">
+/* Ajuste conservador para móviles: se conserva el diseño de escritorio. */
+@media (max-width:760px){
+  html, body { width:100%; max-width:100%; overflow-x:clip; }
+  .wrap { padding-left:10px!important; padding-right:10px!important; }
+  main.wrap { width:100%; max-width:none; margin-left:0!important; margin-right:0!important; padding-left:10px!important; padding-right:10px!important; }
+  .sirevyaHero { width:100vw!important; max-width:100vw!important; margin-left:calc(50% - 50vw)!important; margin-right:calc(50% - 50vw)!important; }
+  .sirevyaHero + .benefits { width:100vw!important; max-width:100vw!important; margin-left:calc(50% - 50vw)!important; margin-right:calc(50% - 50vw)!important; }
+  .catalogSearchRow, .marketplaceToolbar, .filterPanel, .toolbar, #grid { width:100%; min-width:0; }
+  #grid { grid-template-columns:repeat(2,minmax(0,1fr))!important; gap:9px!important; }
+  #grid .card { width:100%; min-width:0; max-width:100%; }
+  #grid .card .photo, #grid .card .body { min-width:0; }
+  .categoryPanel { width:100%; min-width:0; }
+}
+@media (max-width:390px){
+  #grid { grid-template-columns:1fr!important; }
+}
+</style>
+
 </head>
 <body>
 <header class="top">
@@ -859,11 +879,13 @@ function getPendingWompiReference(){
 
 function savePendingWompiReference(ref){
  if(!ref)return;
+ const startedAt=Number(localStorage.getItem(WOMPI_RESERVATION_TIME_KEY)||0)||Date.now();
  localStorage.setItem(WOMPI_RESERVATION_REFERENCE_KEY,String(ref));
- const now=Date.now();
  localStorage.setItem(WOMPI_PENDING_REFERENCE_KEY,String(ref));
- localStorage.setItem(WOMPI_PENDING_TIME_KEY,String(now));
- localStorage.setItem(WOMPI_RESERVATION_TIME_KEY,String(now));
+ // Mantener el tiempo original de la reserva: volver atrás o recargar no debe
+ // fingir que la reserva del servidor tiene otros diez minutos adicionales.
+ localStorage.setItem(WOMPI_RESERVATION_TIME_KEY,String(startedAt));
+ localStorage.setItem(WOMPI_PENDING_TIME_KEY,String(startedAt));
 }
 
 const WOMPI_RESERVATION_ITEMS_KEY='jm_wompi_reservation_items_v1';
@@ -881,7 +903,22 @@ function saveActiveReservationReference(ref){if(ref)localStorage.setItem(WOMPI_R
 function saveActiveReservationItems(items){
  try{
    localStorage.setItem(WOMPI_RESERVATION_ITEMS_KEY,JSON.stringify((items||[]).map(x=>({id:String(x.id),qty:Number(x.qty)||1,color:x.color||'',size:x.size||''}))));
- }catch(e){}
+ }catch(e){console.warn('No se pudieron guardar los productos de la reserva.',e)}
+}
+function saveReservationDraft(reference,items){
+ // Se guarda ANTES de llamar a Supabase. Si el comprador recarga o vuelve atrás
+ // mientras la petición está en curso, el siguiente intento conserva la misma referencia.
+ try{
+   const startedAt=Date.now();
+   localStorage.setItem(WOMPI_RESERVATION_REFERENCE_KEY,String(reference));
+   localStorage.setItem(WOMPI_RESERVATION_ITEMS_KEY,JSON.stringify((items||[]).map(x=>({id:String(x.id),qty:Number(x.qty)||1,color:String(x.color||''),size:String(x.size||'')}))));
+   localStorage.setItem(WOMPI_RESERVATION_TIME_KEY,String(startedAt));
+   localStorage.removeItem(WOMPI_PENDING_REFERENCE_KEY);
+   localStorage.removeItem(WOMPI_PENDING_TIME_KEY);
+ }catch(e){
+   clearPendingWompiReference();
+   throw new Error('No se pudo guardar la reserva en este dispositivo. Comprueba que el almacenamiento del navegador esté habilitado e inténtalo otra vez.');
+ }
 }
 function getActiveReservationItems(){
  try{
@@ -1706,7 +1743,8 @@ async function attachInventoryReservation(oldReference,newReference){
 }
 async function releaseInventoryReservation(reference){
  if(!reference)return;
- try{await sb.rpc('release_inventory_reservation',{p_reference:reference})}catch(e){console.warn('No se pudo liberar la reserva temporal',e)}
+ const {error}=await sb.rpc('release_inventory_reservation',{p_reference:reference});
+ if(error)throw new Error('No se pudo liberar la reserva anterior: '+error.message);
 }
 function resetWompiButton(){
  const btn=$('checkoutConfirmBtn');
@@ -1727,120 +1765,70 @@ window.addEventListener('pageshow',event=>{
 });
 
 function reservationItemsMatch(a,b){
- const normalize=items=>(items||[]).map(x=>({
-   id:String(x.id),qty:Number(x.qty)||1,
-   color:String(x.color||''),size:String(x.size||'')
- })).sort((x,y)=>x.id.localeCompare(y.id)||x.color.localeCompare(y.color)||x.size.localeCompare(y.size));
+ const normalize=items=>(Array.isArray(items)?items:[]).map(x=>({
+   id:String(x.id||''),qty:Math.max(1,Number(x.qty)||1),
+   color:String(x.color||'').trim().toLocaleLowerCase('es'),
+   size:String(x.size||'').trim().toLocaleLowerCase('es')
+ })).sort((x,y)=>x.id.localeCompare(y.id)||x.color.localeCompare(y.color)||x.size.localeCompare(y.size)||x.qty-y.qty);
  const left=normalize(a),right=normalize(b);
  return left.length===right.length&&left.every((x,i)=>x.id===right[i].id&&x.qty===right[i].qty&&x.color===right[i].color&&x.size===right[i].size);
 }
 
 async function payWithWompi(payload){
+ // Evitar dos solicitudes simultáneas por doble toque en celular o doble clic.
+ if(window.__sirevyaWompiInProgress)return;
+ window.__sirevyaWompiInProgress=true;
  const btn=$('checkoutConfirmBtn');
- btn.disabled=true; btn.textContent='⏳ Reservando producto...';
+ if(btn){btn.disabled=true;btn.textContent='⏳ Reservando producto...'}
 
  let reservationReference='';
  let createdReservation=false;
 
  try{
-  const checkoutItems=getCheckoutItems();
+  const checkoutItems=getCheckoutItems().map(x=>({
+    ...x,
+    id:String(x.id),
+    qty:Math.max(1,Number(x.qty)||1),
+    color:String(x.color||'').trim(),
+    size:String(x.size||'').trim()
+  }));
   if(!checkoutItems.length)throw new Error('No hay productos para reservar.');
 
-  // Reutilizar una reserva solo si corresponde exactamente al carrito actual.
-  // Evita que la referencia de un producto anterior bloquee otro carrito.
   const storedReference=getActiveReservationReference()||getPendingWompiReference()||'';
   const storedItems=getActiveReservationItems();
+
   if(storedReference&&reservationItemsMatch(storedItems,checkoutItems)){
+    // Reutilizar SIEMPRE la misma referencia. reserve_inventory es idempotente:
+    // si ya existe esta reserva activa no vuelve a bloquear otra unidad.
     reservationReference=storedReference;
+    const reused=await reserveInventoryServer(reservationReference,checkoutItems);
+    createdReservation=!/reserva existente sigue activa|reserva ya estaba activa/i.test(String(reused.message||''));
     saveActiveReservationReference(reservationReference);
-  }else if(storedReference){
-    // Limpiar solo las referencias locales antiguas. La reserva del servidor
-    // conserva su vencimiento de 10 minutos y no se libera a ciegas.
-    clearPendingWompiReference();
-  }
-
-  /*
-   * IMPORTANTE:
-   * Si el cliente vuelve atrás desde Wompi, NO volvemos a llamar
-   * reserve_inventory con la referencia anterior. La reserva ya existe.
-   * Solo la movemos a una NUEVA referencia de pago.
-   *
-   * Esto evita el mensaje:
-   * "La variante seleccionada acaba de ser reservada por otro cliente."
-   */
-
-  // Si ya existe una reserva activa de este mismo comprador, usamos esa
-  // misma referencia para el reintento. Así NO volvemos a intentar reservar
-  // una unidad que ya está bloqueada por nosotros.
-  let newPaymentReference=reservationReference||generateReservationReference();
-
-  if(reservationReference){
-
-    // Mismo reference = solo verificar que la reserva siga activa.
-    // No se mueve ni se duplica la reserva.
-    const moved=await attachInventoryReservation(
-      reservationReference,
-      newPaymentReference
-    );
-
-    if(moved?.success===false){
-
-      // La referencia local puede haber caducado. Solo en ese caso
-      // comprobamos/reservamos de nuevo; nunca duplicamos una reserva activa.
-      localStorage.removeItem(WOMPI_RESERVATION_REFERENCE_KEY);
-      localStorage.removeItem(WOMPI_PENDING_REFERENCE_KEY);
-      localStorage.removeItem(WOMPI_PENDING_TIME_KEY);
-      localStorage.removeItem(WOMPI_RESERVATION_TIME_KEY);
-
-      reservationReference=generateReservationReference();
-      await reserveInventoryServer(reservationReference,checkoutItems);
-      createdReservation=true;
-      // La referencia de pago también debe cambiar: la anterior ya venció.
-      newPaymentReference=reservationReference;
-
-      const movedNew=await attachInventoryReservation(reservationReference,newPaymentReference);
-      if(movedNew?.success===false){
-        throw new Error(movedNew.message||'No se pudo asociar la reserva con el pago.');
-      }
-    }
-
-    reservationReference=newPaymentReference;
-
+    saveActiveReservationItems(checkoutItems);
   }else{
-
-    // Primera entrada al checkout: crear la reserva.
-    reservationReference=generateReservationReference();
-
-    await reserveInventoryServer(
-      reservationReference,
-      checkoutItems
-    );
-
-    createdReservation=true;
-
-    const movedNew=await attachInventoryReservation(
-      reservationReference,
-      newPaymentReference
-    );
-
-    if(movedNew?.success===false){
-      throw new Error(
-        movedNew.message ||
-        'No se pudo asociar la reserva con el pago.'
-      );
+    // Si el carrito cambió, liberar el hold anterior ANTES de crear otro.
+    // Antes se borraba el identificador local sin liberar la reserva del servidor,
+    // dejando el hold viejo activo y creando otro al continuar/recargar.
+    if(storedReference){
+      await releaseInventoryReservation(storedReference);
     }
+    if(storedReference||storedItems.length)clearPendingWompiReference();
 
-    reservationReference=newPaymentReference;
+    reservationReference=generateReservationReference();
+    // Persistir referencia + productos + reloj ANTES del primer await a Supabase.
+    saveReservationDraft(reservationReference,checkoutItems);
+    createdReservation=true;
+    await reserveInventoryServer(reservationReference,checkoutItems);
   }
 
-  // La reserva ahora está asociada a esta NUEVA referencia de pago.
+  // Usar la referencia de reserva como referencia inicial de pago; no crear
+  // una segunda referencia intermedia que pudiera provocar otra reserva al volver.
+  let paymentReference=reservationReference;
   saveActiveReservationReference(reservationReference);
   saveActiveReservationItems(checkoutItems);
+  payload.reference=paymentReference;
 
-  // Cada intento de Wompi recibe una referencia nueva.
-  payload.reference=newPaymentReference;
-
-  btn.textContent='⏳ Preparando pago...';
+  if(btn)btn.textContent='⏳ Preparando pago...';
 
   const response=await fetch(WOMPI_SIGNATURE_ENDPOINT,{
    method:'POST',
@@ -1852,7 +1840,6 @@ async function payWithWompi(payload){
 
   if(!response.ok){
    const localFile=location.protocol==='file:';
-
    throw new Error(
      data.error ||
      (localFile
@@ -1865,40 +1852,19 @@ async function payWithWompi(payload){
     throw new Error('La respuesta de Wompi no está completa.');
   }
 
-  /*
-   * El endpoint puede devolver una referencia diferente.
-   * Si ocurre, trasladamos la reserva una última vez a esa
-   * referencia REAL antes de abrir Wompi.
-   */
-  if(data.reference!==newPaymentReference){
-
-    const movedFinal=await attachInventoryReservation(
-      newPaymentReference,
-      data.reference
-    );
-
-    if(movedFinal?.success===false){
-      throw new Error(
-        movedFinal.message ||
-        'No se pudo asociar la reserva con el pago.'
-      );
+  // Si el endpoint devuelve otra referencia, trasladar la reserva EXISTENTE una
+  // sola vez y actualizar el identificador guardado para próximos reintentos.
+  if(data.reference!==paymentReference){
+    const moved=await attachInventoryReservation(paymentReference,data.reference);
+    if(moved?.success===false){
+      throw new Error(moved.message||'No se pudo asociar la reserva con el pago.');
     }
-
+    reservationReference=data.reference;
+    paymentReference=data.reference;
     saveActiveReservationReference(data.reference);
-
-  }else{
-
-    saveActiveReservationReference(newPaymentReference);
-
   }
 
-  // Conservar también qué producto(s) pertenecen a esta reserva.
-  // Así, al volver atrás desde Wompi, el comprador original sigue
-  // reconociéndose aunque checkoutCart haya sido reconstruido o la página
-  // haya sido restaurada por el navegador.
   saveActiveReservationItems(checkoutItems);
-
-  // Guardar la referencia actual para el regreso desde Wompi.
   savePendingWompiReference(data.reference);
 
   const form=document.createElement('form');
@@ -1936,31 +1902,30 @@ async function payWithWompi(payload){
   });
 
   document.body.appendChild(form);
-
   closeCheckout();
   form.submit();
 
  }catch(err){
-
   console.error(err);
 
-  /*
-   * Solo liberar si acabamos de crear una reserva NUEVA.
-   * Si era una reserva que ya existía, NO la liberamos al
-   * pulsar atrás ni ante un error de reintento.
-   */
-  if(createdReservation && reservationReference){
-    await releaseInventoryReservation(reservationReference);
+  // Si este intento creó una reserva nueva, liberarla al fallar la preparación.
+  // Las reservas reutilizadas se conservan para que el cliente pueda reintentar.
+  if(createdReservation&&reservationReference){
+    try{
+      await releaseInventoryReservation(reservationReference);
+      clearPendingWompiReference();
+    }catch(releaseError){
+      console.warn('No se pudo liberar la reserva tras el error.',releaseError);
+    }
   }
 
-  showToast(
-    err.message ||
-    'No fue posible abrir Wompi.'
-  );
-
+  showToast(err.message||'No fue posible abrir Wompi.');
   resetWompiButton();
+ }finally{
+  window.__sirevyaWompiInProgress=false;
  }
 }
+
 async function saveContraEntregaOrder(payload){
  const btn=$('checkoutConfirmBtn');if(btn){btn.disabled=true;btn.textContent='⏳ Enviando pedido...'}
  const checkoutItems=getCheckoutItems();
