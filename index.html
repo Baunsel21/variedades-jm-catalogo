@@ -631,20 +631,57 @@ body{background:linear-gradient(180deg,#fffaf0 0%,#fff6e6 55%,#f8ecd7 100%);colo
 </style>
 
 <style id="sirevya-mobile-width-and-reservation-layout-fix">
-/* Ajuste conservador para móviles: se conserva el diseño de escritorio. */
+/* Ajuste real de ancho móvil. Solo retoca presentación; no modifica el JavaScript de reservas. */
 @media (max-width:760px){
   html, body { width:100%; max-width:100%; overflow-x:clip; }
-  .wrap { padding-left:10px!important; padding-right:10px!important; }
-  main.wrap { width:100%; max-width:none; margin-left:0!important; margin-right:0!important; padding-left:10px!important; padding-right:10px!important; }
-  .sirevyaHero { width:100vw!important; max-width:100vw!important; margin-left:calc(50% - 50vw)!important; margin-right:calc(50% - 50vw)!important; }
-  .sirevyaHero + .benefits { width:100vw!important; max-width:100vw!important; margin-left:calc(50% - 50vw)!important; margin-right:calc(50% - 50vw)!important; }
-  .catalogSearchRow, .marketplaceToolbar, .filterPanel, .toolbar, #grid { width:100%; min-width:0; }
+  body { margin:0; }
+  .wrap { box-sizing:border-box; width:100%; max-width:100%; padding-left:10px!important; padding-right:10px!important; }
+  .top > .wrap.topin { padding-left:10px!important; padding-right:10px!important; gap:8px!important; }
+
+  /* El contenido principal usa casi todo el ancho. Se dejan solo 5 px de aire a cada lado. */
+  main#inicio.wrap {
+    box-sizing:border-box; display:flow-root; width:100%; max-width:none;
+    margin-left:0!important; margin-right:0!important;
+    padding-left:5px!important; padding-right:5px!important;
+  }
+
+  /* Portada y beneficios llegan de borde a borde, sin crear scroll horizontal. */
+  main#inicio.wrap > .sirevyaHero,
+  main#inicio.wrap > .sirevyaHero + .benefits {
+    box-sizing:border-box; width:100vw!important; max-width:100vw!important;
+    margin-left:calc(50% - 50vw)!important;
+    margin-right:calc(50% - 50vw)!important;
+  }
+  main#inicio.wrap > .sirevyaHero { margin-top:12px!important; border-radius:0!important; }
+  .sirevyaHero img { display:block; width:100%; max-width:100%; height:auto; object-fit:contain; }
+  .sirevyaHero + .benefits { grid-template-columns:repeat(3,minmax(0,1fr))!important; }
+  .sirevyaHero + .benefits .benefit { box-sizing:border-box; min-width:0; padding-left:5px!important; padding-right:5px!important; gap:5px; }
+  .sirevyaHero + .benefits .benefit b { font-size:clamp(10px,3.1vw,12px); }
+  .sirevyaHero + .benefits .benefit small { font-size:clamp(9px,2.7vw,11px); line-height:1.2; }
+  .sirevyaHero + .benefits .benefitIcon { font-size:clamp(18px,5.5vw,23px); }
+
+  /* Categorías, búsqueda, filtros y tarjetas quedan alineados al mismo ancho. */
+  .categoryPanel, .catalogSearchRow, .marketplaceToolbar, .filterPanel, #grid {
+    box-sizing:border-box; width:100%; max-width:100%; min-width:0;
+    margin-left:0!important; margin-right:0!important;
+  }
+  .categoryPanel { padding-left:0!important; padding-right:0!important; }
+  .categoryButtons { padding-left:8px!important; padding-right:8px!important; }
+  .catalogSearchRow .search { box-sizing:border-box; display:block; width:100%; min-width:0; }
+  .marketplaceToolbar { grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important; }
+  .marketplaceFilterButton, .marketplaceSort { box-sizing:border-box; min-width:0; }
+  .marketplaceSort .sortText { flex:1; min-width:0; }
+  .marketplaceSort select { box-sizing:border-box; width:100%; max-width:100%; min-width:0; }
+  .filterPanel { grid-template-columns:repeat(2,minmax(0,1fr)); }
   #grid { grid-template-columns:repeat(2,minmax(0,1fr))!important; gap:9px!important; }
-  #grid .card { width:100%; min-width:0; max-width:100%; }
-  #grid .card .photo, #grid .card .body { min-width:0; }
-  .categoryPanel { width:100%; min-width:0; }
+  #grid .card { box-sizing:border-box; width:100%; min-width:0; max-width:100%; }
+  #grid .card .photo, #grid .card .body { box-sizing:border-box; width:100%; min-width:0; }
+  #grid .card .body { padding-left:8px; padding-right:8px; }
+  #grid .card .name { overflow-wrap:anywhere; }
+  #grid .card .price { font-size:clamp(16px,4.7vw,20px); }
 }
 @media (max-width:390px){
+  /* En celulares estrechos, una columna evita que las fotos y los controles se aprieten. */
   #grid { grid-template-columns:1fr!important; }
 }
 </style>
