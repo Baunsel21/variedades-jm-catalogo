@@ -613,13 +613,29 @@ body{background:linear-gradient(180deg,#fffaf0 0%,#fff6e6 55%,#f8ecd7 100%);colo
 .photoDots,.photoCount{display:none}
 .photoSwipe{touch-action:pan-y;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;cursor:default}
 .photoSwipe img{-webkit-user-drag:none;user-drag:none}
-</style></head>
+</style><style>
+
+.contactModal{position:fixed;inset:0;background:rgba(15,12,15,.68);backdrop-filter:blur(5px);display:none;align-items:center;justify-content:center;z-index:520;padding:16px}
+.contactModal.open{display:flex}
+.contactBox{width:min(94vw,480px);background:#fffaf3;color:#332d28;border:1px solid #eadfd3;border-radius:22px;padding:24px;box-shadow:0 24px 70px rgba(0,0,0,.3)}
+.contactHead{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px}
+.contactTitle{font-family:Georgia,serif;font-size:24px;font-weight:900}
+.contactClose{width:38px;height:38px;border-radius:50%;background:#21171a;color:#fff;font-size:25px}
+.contactIntro{color:#71645c;font-size:14px;margin:0 0 16px}
+.contactLinks{display:grid;gap:10px}
+.contactLink{display:flex;align-items:center;gap:12px;padding:13px;border:1px solid #eadfd3;border-radius:13px;background:#fff;color:#332d28;text-decoration:none;font-weight:750;overflow-wrap:anywhere}
+.contactLink span:first-child{font-size:22px}
+.contactLink small{display:block;color:#8b7a6c;font-weight:500;margin-top:3px}
+@media(max-width:520px){.contactBox{padding:18px}.contactTitle{font-size:21px}}
+
+</style>
+</head>
 <body>
 <header class="top">
 <div class="wrap topin">
 <button class="mobileMenuBtn" type="button" aria-label="Abrir menú" onclick="openMobileMenu()">☰</button>
 <div class="brand"><div class="brandLogo" aria-label="Sirevya"><img class="brandLogoImg" src="logo-sirevya.webp" width="86" height="86" alt="Sirevya" decoding="async"></div><div><div class="brandName">Sirevya</div><div class="brandSub">Tu estilo, nuestra pasión ♥</div></div></div>
-<nav class="mainNav"><a class="active" href="#inicio">⌂ Inicio</a><a href="#catalogo">▣ Catálogo</a><a href="#pedidos" onclick="return false">▣ Mis pedidos</a><a href="#contactanos">♡ Contáctanos</a></nav>
+<nav class="mainNav"><a class="active" href="#inicio">⌂ Inicio</a><a href="#catalogo">▣ Catálogo</a><a href="#pedidos" onclick="return false">▣ Mis pedidos</a><a href="#contactanos" onclick="openContact(event)">♡ Contáctanos</a></nav>
 <div class="headerActions"><button class="iconBtn" type="button" onclick="document.getElementById('search').focus()">⌕</button><button class="iconBtn cartTop" type="button" onclick="toggleCart()">🛒<span id="cartBadge" class="cartBadge">0</span></button></div>
 </div></header>
 <div class="jmTicker"><div class="jmTickerTrack"><span>♥ Envío gratis en Cali</span><span>✦ Compra segura</span><span>♛ La mejor calidad</span><span>♥ Tu estilo, nuestra pasión</span><span>✦ Envío gratis desde $130.000 fuera de Cali</span><span>♛ Nuevos productos</span><span>♥ Envío gratis en Cali</span><span>✦ Compra segura</span></div></div>
@@ -630,7 +646,7 @@ body{background:linear-gradient(180deg,#fffaf0 0%,#fff6e6 55%,#f8ecd7 100%);colo
     <a href="#catalogo" onclick="closeMobileMenu()">Catálogo</a>
     <div class="mobileMenuLabel">Categorías activas</div>
     <div id="mobileMenuCategories" class="mobileMenuCategories"></div>
-    <a href="#contactanos" onclick="closeMobileMenu()">Contáctanos</a>
+    <a href="#contactanos" onclick="openContact(event);closeMobileMenu()">Contáctanos</a>
   </div>
 </div>
 <main id="inicio" class="wrap">
@@ -717,13 +733,6 @@ body{background:linear-gradient(180deg,#fffaf0 0%,#fff6e6 55%,#f8ecd7 100%);colo
         <label class="paymentOption onlinePaymentOption"><input type="radio" name="paymentMethod" value="Bancolombia"> 🏦 <span><b>Botón Bancolombia</b><small>Pago en línea mediante Wompi</small></span></label>
         <label class="paymentOption"><input type="radio" name="paymentMethod" value="Contra entrega"> 💵 <span><b>Pago contra entrega</b><small>Pagas al recibir tu pedido</small></span></label>
       </div>
-      <div class="privacyConsent">
-        <label for="privacyConsent">
-          <input id="privacyConsent" type="checkbox">
-          <span>Acepto la <a href="#" onclick="openPrivacy(event)">Política de Privacidad</a>.</span>
-        </label>
-        <div id="privacyError" class="privacyError">Debes aceptar la Política de Tratamiento de Datos Personales para continuar con el pedido.</div>
-      </div>
 <div class="checkoutTotal"><span>Total</span><span id="checkoutTotal">$0</span></div>
       <div class="checkoutActions"><button class="checkoutCancel" type="button" onclick="closeCheckout()">Cancelar</button><button id="checkoutConfirmBtn" class="checkoutConfirm" type="button" onclick="confirmCheckout()">✅ Confirmar pedido</button></div>
     </div>
@@ -731,6 +740,18 @@ body{background:linear-gradient(180deg,#fffaf0 0%,#fff6e6 55%,#f8ecd7 100%);colo
 </div>
 
 <div id="orderSuccess" class="orderSuccess" onclick="if(event.target===this)closeOrderSuccess()"><div class="orderSuccessBox"><h3>¡Pedido recibido! 💗</h3><p>Hemos recibido tu solicitud correctamente.</p><p><b>En un momento nos contactaremos contigo</b> para confirmar tu pedido y coordinar la entrega.</p><button type="button" onclick="closeOrderSuccess()">Entendido</button></div></div>
+<div id="contactModal" class="contactModal" onclick="closeContact(event)" aria-hidden="true">
+  <div class="contactBox" role="dialog" aria-modal="true" aria-labelledby="contactTitle">
+    <div class="contactHead"><div id="contactTitle" class="contactTitle">♡ Contáctanos</div><button class="contactClose" type="button" onclick="closeContact()" aria-label="Cerrar">×</button></div>
+    <p class="contactIntro">Estamos aquí para ayudarte con tus productos y pedidos.</p>
+    <div class="contactLinks">
+      <a class="contactLink" href="tel:+573128561773"><span>📞</span><span>+57 312 856 1773<small>Llamar</small></span></a>
+      <a class="contactLink" href="tel:+573025469983"><span>📞</span><span>+57 302 546 9983<small>Llamar</small></span></a>
+      <a class="contactLink" href="mailto:alex21991021@gmail.com"><span>✉️</span><span>alex21991021@gmail.com<small>Enviar correo electrónico</small></span></a>
+      <a class="contactLink" href="https://wa.me/573128561773" target="_blank" rel="noopener noreferrer"><span>💬</span><span>WhatsApp<small>Escríbenos directamente</small></span></a>
+    </div>
+  </div>
+</div>
 <div id="privacyModal" class="privacyModal" onclick="closePrivacy(event)" aria-hidden="true">
   <div class="privacyBox">
     <div class="privacyHead"><div class="privacyTitle">🔒 Política de Tratamiento de Datos Personales</div><button class="privacyClose" type="button" onclick="closePrivacy()" aria-label="Cerrar">×</button></div>
@@ -1580,6 +1601,18 @@ function sendCart(){
  document.body.style.overflow='hidden';
 }
 
+function openContact(event){
+ if(event)event.preventDefault();
+ const el=$('contactModal');if(!el)return;
+ el.classList.add('open');el.setAttribute('aria-hidden','false');document.body.style.overflow='hidden';
+}
+function closeContact(event){
+ if(event&&event.target!==$('contactModal'))return;
+ const el=$('contactModal');if(!el)return;
+ el.classList.remove('open');el.setAttribute('aria-hidden','true');
+ if(!$('checkoutModal')?.classList.contains('open')&&!$('privacyModal')?.classList.contains('open')&&!$('sizeGuideModal')?.classList.contains('open'))document.body.style.overflow='';
+}
+
 function openPrivacy(event){
  if(event)event.preventDefault();
  const el=$('privacyModal');if(!el)return;
@@ -1590,13 +1623,6 @@ function closePrivacy(event){
  const el=$('privacyModal');if(!el)return;
  el.classList.remove('open');el.setAttribute('aria-hidden','true');
  if(!$('checkoutModal')?.classList.contains('open')&&!$('sizeGuideModal')?.classList.contains('open'))document.body.style.overflow='';
-}
-function validatePrivacyConsent(){
- const cb=$('privacyConsent'),err=$('privacyError');
- if(cb?.checked){err?.classList.remove('show');return true}
- err?.classList.add('show');cb?.focus();
- showToast('Debes aceptar la Política de Tratamiento de Datos Personales para continuar.');
- return false;
 }
 
 function closeCheckout(event){if(event&&event.target!==$('checkoutModal'))return;$('checkoutModal').classList.remove('open');checkoutCart=null;document.body.style.overflow=''}
@@ -1698,20 +1724,38 @@ window.addEventListener('pageshow',event=>{
  }
 });
 
+function reservationItemsMatch(a,b){
+ const normalize=items=>(items||[]).map(x=>({
+   id:String(x.id),qty:Number(x.qty)||1,
+   color:String(x.color||''),size:String(x.size||'')
+ })).sort((x,y)=>x.id.localeCompare(y.id)||x.color.localeCompare(y.color)||x.size.localeCompare(y.size));
+ const left=normalize(a),right=normalize(b);
+ return left.length===right.length&&left.every((x,i)=>x.id===right[i].id&&x.qty===right[i].qty&&x.color===right[i].color&&x.size===right[i].size);
+}
+
 async function payWithWompi(payload){
  const btn=$('checkoutConfirmBtn');
  btn.disabled=true; btn.textContent='⏳ Reservando producto...';
 
- let reservationReference=getActiveReservationReference()||getPendingWompiReference()||'';
- // Si volvimos desde Wompi y por alguna razón solo quedó guardada la
- // referencia pendiente, esa referencia sigue siendo la reserva del mismo
- // comprador. No debemos intentar reservar otra unidad.
- if(reservationReference) saveActiveReservationReference(reservationReference);
+ let reservationReference='';
  let createdReservation=false;
 
  try{
   const checkoutItems=getCheckoutItems();
   if(!checkoutItems.length)throw new Error('No hay productos para reservar.');
+
+  // Reutilizar una reserva solo si corresponde exactamente al carrito actual.
+  // Evita que la referencia de un producto anterior bloquee otro carrito.
+  const storedReference=getActiveReservationReference()||getPendingWompiReference()||'';
+  const storedItems=getActiveReservationItems();
+  if(storedReference&&reservationItemsMatch(storedItems,checkoutItems)){
+    reservationReference=storedReference;
+    saveActiveReservationReference(reservationReference);
+  }else if(storedReference){
+    // Limpiar solo las referencias locales antiguas. La reserva del servidor
+    // conserva su vencimiento de 10 minutos y no se libera a ciegas.
+    clearPendingWompiReference();
+  }
 
   /*
    * IMPORTANTE:
@@ -1927,7 +1971,6 @@ async function saveContraEntregaOrder(payload){
 async function confirmCheckout(){
  const checkoutItems=getCheckoutItems();
  if(!checkoutItems.length)return;
- if(!validatePrivacyConsent())return;
  const name=$('customerName').value.trim(),cedula=$('customerCedula').value.trim(),phone=$('customerPhone').value.trim(),email=$('customerEmail').value.trim(),city=$('customerCity').value,address=$('customerAddress').value.trim(),neighborhood=$('customerNeighborhood').value.trim();
  if(!name||!cedula||!phone||!email||!city||!address||!neighborhood){showToast('Completa todos los datos obligatorios del pedido.');return}
  const payment=selectedPayment();updateShipping();const payload=buildOrderPayload();
