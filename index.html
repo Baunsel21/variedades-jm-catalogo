@@ -1693,8 +1693,10 @@ async function reserveInventoryServer(reference,items){
  return row;
 }
 async function attachInventoryReservation(oldReference,newReference){
- if(!oldReference||!newReference||oldReference===newReference){
-   return {success:true,reference:newReference};
+ // Incluso si ambas referencias son iguales, consultar Supabase para comprobar
+ // que la reserva siga activa. No dar por válida una reserva local vencida.
+ if(!oldReference||!newReference){
+   return {success:false,message:'Faltan referencias para comprobar la reserva.'};
  }
  const {data,error}=await sb.rpc('attach_inventory_reservation',{p_old_reference:oldReference,p_new_reference:newReference});
  if(error) throw new Error('No se pudo asociar la reserva con el pago: '+error.message);
@@ -1770,7 +1772,7 @@ async function payWithWompi(payload){
   // Si ya existe una reserva activa de este mismo comprador, usamos esa
   // misma referencia para el reintento. Así NO volvemos a intentar reservar
   // una unidad que ya está bloqueada por nosotros.
-  const newPaymentReference=reservationReference||generateReservationReference();
+  let newPaymentReference=reservationReference||generateReservationReference();
 
   if(reservationReference){
 
@@ -1793,6 +1795,8 @@ async function payWithWompi(payload){
       reservationReference=generateReservationReference();
       await reserveInventoryServer(reservationReference,checkoutItems);
       createdReservation=true;
+      // La referencia de pago también debe cambiar: la anterior ya venció.
+      newPaymentReference=reservationReference;
 
       const movedNew=await attachInventoryReservation(reservationReference,newPaymentReference);
       if(movedNew?.success===false){
