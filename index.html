@@ -468,6 +468,70 @@ body{background:linear-gradient(180deg,#fffaf0 0%,#fff6e6 55%,#f8ecd7 100%);colo
   }
 }
 
+
+/* Política de privacidad y consentimiento */
+.privacyConsent{margin-top:12px;padding:13px 14px;background:#fffaf3;border:1px solid #e5d9ce;border-radius:13px;color:#3a332d;font-size:12px;line-height:1.5}
+.privacyConsent label{display:flex;align-items:flex-start;gap:9px;cursor:pointer;font-weight:600}
+.privacyConsent input{width:18px;height:18px;flex:0 0 auto;margin-top:1px;accent-color:#d9163b}
+.privacyConsent a{color:#a90e2c;text-decoration:underline;font-weight:900}
+.privacyConsent.optional{background:#fff;border-color:#e8e8eb;font-weight:500}
+.privacyError{display:none;margin-top:7px;color:#b30f2e;font-size:11px;font-weight:800}
+.privacyError.show{display:block}
+.privacyModal{position:fixed;inset:0;background:rgba(20,16,12,.72);backdrop-filter:blur(5px);display:none;align-items:center;justify-content:center;z-index:500;padding:16px}
+.privacyModal.open{display:flex}
+.privacyBox{width:min(94vw,760px);max-height:90vh;overflow:auto;background:#fffaf3;color:#332d28;border:1px solid #eadfd3;border-radius:22px;padding:24px;box-shadow:0 24px 70px rgba(0,0,0,.3);line-height:1.6}
+.privacyHead{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px;position:sticky;top:-24px;background:#fffaf3;padding:4px 0 12px;z-index:2}
+.privacyTitle{font-family:Georgia,serif;font-size:22px;font-weight:900}
+.privacyClose{width:38px;height:38px;border-radius:50%;background:#21171a;color:#fff;font-size:25px}
+.privacyUpdated{font-size:12px;color:#8b7a6c;margin-bottom:16px}
+.privacyBox h3{margin:18px 0 6px;color:#8f1630}
+.privacyBox p,.privacyBox li{font-size:14px}
+
+
+
+/* Filtros discretos y elegantes */
+.catalogSearchRow{margin:14px 0 0}
+.catalogSearchRow .search{width:100%;min-width:0;display:block;background:#fff;color:#262326;border:1px solid #e4dfe2;border-radius:10px;padding:13px 15px;box-shadow:0 2px 8px rgba(35,20,27,.025)}
+.marketplaceToolbar{display:grid;grid-template-columns:1fr 1fr;gap:0;margin:10px 0 0;background:#fff;color:#343036;border:1px solid #ebe6e9;border-radius:12px;overflow:hidden;align-items:stretch;box-shadow:0 3px 12px rgba(40,20,30,.035)}
+.marketplaceFilterButton,.marketplaceSort{min-width:0;width:100%;min-height:58px;display:flex;align-items:center;justify-content:center;gap:9px;padding:9px 10px;background:#fff;color:#383238;border:0;border-radius:0;font-weight:500}
+.marketplaceFilterButton{border-right:1px solid #f0ebee;font-size:14px}
+.marketplaceFilterButton[aria-expanded="true"]{background:#fff9fb;color:#9d2947}
+.filterGlyph,.sortGlyph{font-size:19px;line-height:1;color:#82757c}
+.marketplaceSort{justify-content:center;text-align:left;cursor:pointer}
+.sortText{display:flex;flex-direction:column;gap:1px;min-width:0}
+.sortCaption{font-size:12px;color:#81757b}
+.marketplaceSort select{appearance:auto;min-width:0;width:100%;max-width:190px;padding:1px 14px 1px 0;border:0;border-radius:0;background:transparent;color:#393138;font-size:12px;font-weight:650;white-space:nowrap}
+.marketplaceToolbar .count{grid-column:1/-1;margin:0;padding:5px 10px;text-align:right;background:#fcfafb;border-top:1px solid #f1ecef;font-size:11px;color:#8b8186}
+.filterPanel{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;padding:12px;background:#fff;border:1px solid #eee7eb;border-top:0;border-radius:0 0 12px 12px;margin:0 0 12px;color:#383138;box-shadow:0 4px 12px rgba(40,20,30,.025)}
+.filterPanel[hidden]{display:none}
+.filterField{display:flex;flex-direction:column;gap:6px;font-size:11px;font-weight:700;color:#766a71}
+.filterField select{min-width:0;width:100%;background:#fff;color:#393138;border:1px solid #e5dce1;border-radius:8px;padding:9px;font-size:12px}
+.filterClear{grid-column:1/-1;justify-self:start;background:#fff7fa;border:1px solid #f0dce4;color:#9b2947;border-radius:8px;padding:8px 11px;font-size:12px;font-weight:700}
+@media(max-width:700px){
+ .catalogSearchRow{margin-top:10px}
+ .marketplaceToolbar{margin-top:8px}
+ .marketplaceFilterButton,.marketplaceSort{min-height:54px;padding:7px 8px;gap:7px}
+ .marketplaceFilterButton{font-size:13px}
+ .filterGlyph,.sortGlyph{font-size:18px}
+ .sortCaption{font-size:11px}
+ .marketplaceSort select{font-size:11px;max-width:138px}
+ .filterPanel{gap:8px;padding:10px}
+ .filterField{font-size:10px}
+ .filterField select{font-size:11px;padding:8px 5px}
+}
+
+
+/* WhatsApp: icono pequeño y texto sin pastilla de fondo */
+.waHelpFloat{position:fixed;right:18px;bottom:18px;z-index:140;display:flex;align-items:center;gap:9px;padding:6px 4px;background:transparent!important;color:#168b52!important;box-shadow:none!important;border:0!important;border-radius:0!important;text-decoration:none}
+.waHelpIcon{display:grid;place-items:center;width:27px;height:27px;border-radius:0;background:transparent;color:#22b765;font-size:0;flex:0 0 auto}
+.waHelpIcon:before{content:"";display:block;width:26px;height:26px;background:#22b765;-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='black' d='M20.52 3.48A11.8 11.8 0 0 0 12.12 0C5.6 0 .3 5.3.3 11.82c0 2.08.55 4.1 1.6 5.9L.2 24l6.45-1.69a11.8 11.8 0 0 0 5.47 1.35h.01c6.52 0 11.82-5.3 11.82-11.82 0-3.15-1.23-6.12-3.43-8.36ZM12.13 21.65h-.01a9.8 9.8 0 0 1-4.99-1.37l-.36-.21-3.83 1 1.02-3.73-.24-.38a9.77 9.77 0 0 1-1.5-5.14c0-5.4 4.4-9.8 9.81-9.8 2.62 0 5.08 1.02 6.93 2.87a9.74 9.74 0 0 1 2.87 6.93c0 5.4-4.4 9.8-9.8 9.8Zm5.38-7.34c-.3-.15-1.77-.87-2.05-.97-.28-.1-.48-.15-.68.15-.2.3-.78.97-.96 1.17-.18.2-.35.23-.65.08-.3-.15-1.26-.46-2.4-1.47-.89-.8-1.48-1.78-1.65-2.08-.17-.3-.02-.46.13-.61.13-.13.3-.35.45-.53.15-.18.2-.3.3-.5.1-.2.05-.38-.03-.53-.08-.15-.68-1.64-.93-2.25-.24-.59-.49-.5-.68-.51h-.58c-.2 0-.53.08-.8.38-.28.3-1.05 1.02-1.05 2.49s1.08 2.89 1.23 3.09c.15.2 2.12 3.23 5.13 4.53.72.31 1.28.5 1.72.64.72.23 1.38.2 1.9.12.58-.09 1.77-.72 2.02-1.42.25-.7.25-1.3.17-1.42-.07-.13-.27-.2-.57-.35Z'/%3E%3C/svg%3E") center/contain no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='black' d='M20.52 3.48A11.8 11.8 0 0 0 12.12 0C5.6 0 .3 5.3.3 11.82c0 2.08.55 4.1 1.6 5.9L.2 24l6.45-1.69a11.8 11.8 0 0 0 5.47 1.35h.01c6.52 0 11.82-5.3 11.82-11.82 0-3.15-1.23-6.12-3.43-8.36ZM12.13 21.65h-.01a9.8 9.8 0 0 1-4.99-1.37l-.36-.21-3.83 1 1.02-3.73-.24-.38a9.77 9.77 0 0 1-1.5-5.14c0-5.4 4.4-9.8 9.81-9.8 2.62 0 5.08 1.02 6.93 2.87a9.74 9.74 0 0 1 2.87 6.93c0 5.4-4.4 9.8-9.8 9.8Zm5.38-7.34c-.3-.15-1.77-.87-2.05-.97-.28-.1-.48-.15-.68.15-.2.3-.78.97-.96 1.17-.18.2-.35.23-.65.08-.3-.15-1.26-.46-2.4-1.47-.89-.8-1.48-1.78-1.65-2.08-.17-.3-.02-.46.13-.61.13-.13.3-.35.45-.53.15-.18.2-.3.3-.5.1-.2.05-.38-.03-.53-.08-.15-.68-1.64-.93-2.25-.24-.59-.49-.5-.68-.51h-.58c-.2 0-.53.08-.8.38-.28.3-1.05 1.02-1.05 2.49s1.08 2.89 1.23 3.09c.15.2 2.12 3.23 5.13 4.53.72.31 1.28.5 1.72.64.72.23 1.38.2 1.9.12.58-.09 1.77-.72 2.02-1.42.25-.7.25-1.3.17-1.42-.07-.13-.27-.2-.57-.35-.15-.08-.27-.2-.57-.35Z'/%3E%3C/svg%3E") center/contain no-repeat}
+.waHelpLabel{display:flex;flex-direction:row;gap:0;line-height:1.1}
+.waHelpLabel b{font-family:inherit;font-size:13px;font-weight:750;letter-spacing:.2px;color:#168b52;white-space:nowrap}
+.waHelpLabel small{display:none}
+.waHelpFloat:hover .waHelpLabel b{text-decoration:underline;text-underline-offset:3px}
+@media(max-width:700px){.waHelpFloat{right:12px;bottom:12px;padding:5px 3px;gap:5px}.waHelpIcon{width:23px;height:23px}.waHelpIcon:before{width:23px;height:23px}.waHelpLabel b{font-size:12px}}
+
+.footerPolicyLinks{display:flex;justify-content:center;gap:12px;flex-wrap:wrap;margin-top:12px}.footerPolicyLink{background:transparent;color:#cbb7bc;text-decoration:underline;font-size:12px;padding:5px}
 </style>
 </style>
 
@@ -558,7 +622,7 @@ body{background:linear-gradient(180deg,#fffaf0 0%,#fff6e6 55%,#f8ecd7 100%);colo
 <nav class="mainNav"><a class="active" href="#inicio">⌂ Inicio</a><a href="#catalogo">▣ Catálogo</a><a href="#pedidos" onclick="return false">▣ Mis pedidos</a><a href="#contactanos">♡ Contáctanos</a></nav>
 <div class="headerActions"><button class="iconBtn" type="button" onclick="document.getElementById('search').focus()">⌕</button><button class="iconBtn cartTop" type="button" onclick="toggleCart()">🛒<span id="cartBadge" class="cartBadge">0</span></button></div>
 </div></header>
-<div class="jmTicker"><div class="jmTickerTrack"><span>♥ Envío gratis en Cali</span><span>✦ Compra segura</span><span>♛ La mejor calidad</span><span>♥ Tu estilo, nuestra pasión</span><span>✦ Envío gratis desde $100.000 fuera de Cali</span><span>♛ Nuevos productos</span><span>♥ Envío gratis en Cali</span><span>✦ Compra segura</span></div></div>
+<div class="jmTicker"><div class="jmTickerTrack"><span>♥ Envío gratis en Cali</span><span>✦ Compra segura</span><span>♛ La mejor calidad</span><span>♥ Tu estilo, nuestra pasión</span><span>✦ Envío gratis desde $130.000 fuera de Cali</span><span>♛ Nuevos productos</span><span>♥ Envío gratis en Cali</span><span>✦ Compra segura</span></div></div>
 <div id="mobileMenu" class="mobileMenu" aria-hidden="true" onclick="closeMobileMenu(event)">
   <div class="mobileMenuPanel">
     <div class="mobileMenuHead"><b>Menú</b><button type="button" onclick="closeMobileMenu()">×</button></div>
@@ -573,23 +637,66 @@ body{background:linear-gradient(180deg,#fffaf0 0%,#fff6e6 55%,#f8ecd7 100%);colo
 <section class="hero sirevyaHero" aria-label="Promociones Sirevya">
   <img src="hero-sirevya.webp" width="1536" height="590" alt="Sirevya — Tu estilo, nuestra pasión" fetchpriority="high" decoding="async">
 </section>
-<section class="benefits"><div class="benefit"><div class="benefitIcon">📍</div><div><b>Cali</b><small>$0 de envío</small></div></div><div class="benefit"><div class="benefitIcon">🎁</div><div><b>Otras ciudades</b><small>Envío gratis desde $100.000</small></div></div><div class="benefit"><div class="benefitIcon">🛡️</div><div><b>Compra segura</b><small>Contra entrega o pago online</small></div></div></section>
+<section class="benefits"><div class="benefit"><div class="benefitIcon">📍</div><div><b>Cali</b><small>$0 de envío</small></div></div><div class="benefit"><div class="benefitIcon">🎁</div><div><b>Otras ciudades</b><small>Envío gratis desde $130.000</small></div></div><div class="benefit"><div class="benefitIcon">🛡️</div><div><b>Compra segura</b><small>Contra entrega o pago online</small></div></div></section>
 <div id="error" class="error"></div>
 
 
 
 
 <section class="categoryPanel" id="catalogo"><h2 class="categoryTitle">Categorías</h2><p class="categoryHint">Selecciona una categoría para ver sus productos.</p><div id="categoryButtons" class="categoryButtons"></div><select id="category" onchange="selectCategory(this.value)" style="display:none"><option value="">Todas las categorías</option></select></section>
-<div class="toolbar"><input id="search" class="search" placeholder="⌕  Buscar productos..." oninput="handleSearchInput()"><select id="availability" onchange="render()"><option value="">Disponibilidad</option><option value="available">Disponibles</option><option value="out">Agotados</option></select><select id="sort" onchange="render()"><option value="recent">Más recientes</option><option value="name_asc">Nombre A-Z</option><option value="price_asc">Precio menor → mayor</option><option value="price_desc">Precio mayor → menor</option><option value="stock_desc">Mayor stock</option></select><span id="count" class="count">Cargando...</span></div>
+<div class="catalogSearchRow">
+  <input id="search" class="search" placeholder="⌕  Buscar productos..." oninput="handleSearchInput()" aria-label="Buscar productos">
+</div>
+<div class="toolbar marketplaceToolbar">
+  <button type="button" class="marketplaceFilterButton" onclick="toggleFilterPanel()" aria-controls="filterPanel" aria-expanded="false" id="filterToggle">
+    <span class="filterGlyph" aria-hidden="true">☷</span><span>Filtrar</span>
+  </button>
+  <label class="marketplaceSort" for="sort">
+    <span class="sortGlyph" aria-hidden="true">↕</span>
+    <span class="sortText"><span class="sortCaption">Ordenar por:</span>
+      <select id="sort" onchange="syncPriceOrderFromSort();render()" aria-label="Ordenar productos">
+        <option value="recent">Más recientes</option>
+        <option value="best_selling">Más vendidos</option>
+        <option value="name_asc">Nombre A-Z</option>
+        <option value="price_asc">Precio menor → mayor</option>
+        <option value="price_desc">Precio mayor → menor</option>
+        <option value="stock_desc">Mayor stock</option>
+      </select>
+    </span>
+  </label>
+  <span id="count" class="count">Cargando...</span>
+</div>
+<div class="filterPanel" id="filterPanel" hidden>
+  <label class="filterField" for="filterCategory">Categoría
+    <select id="filterCategory" onchange="applyFilterCategory(this.value)">
+      <option value="">Todas las categorías</option>
+    </select>
+  </label>
+  <label class="filterField" for="availability">Disponibilidad
+    <select id="availability" onchange="render()">
+      <option value="">Todas las disponibles</option>
+      <option value="available">Solo disponibles</option>
+    </select>
+  </label>
+  <label class="filterField" for="filterPriceOrder">Ordenar por precio
+    <select id="filterPriceOrder" onchange="applyPriceOrder(this.value)">
+      <option value="">Orden habitual</option>
+      <option value="price_asc">Precio: menor a mayor</option>
+      <option value="price_desc">Precio: mayor a menor</option>
+    </select>
+  </label>
+  <button class="filterClear" type="button" onclick="clearCatalogFilters()">Limpiar filtros</button>
+</div>
 <section id="cartBar" class="cartBar"><div class="cartPanel"><div class="cartHead"><div><div class="cartTitle">🛒 Mi pedido</div><div id="cartSummary" class="cartSummary">0 productos</div></div><div style="display:flex;align-items:center;gap:8px"><button class="cartClose" type="button" onclick="hideCart()" aria-label="Cerrar carrito">×</button><button id="cartSend" class="cartSend" type="button" onclick="sendCart()">Finalizar pedido</button></div></div><div id="cartItems" class="cartItems"></div></div></section>
 <section id="grid" class="grid"><div class="loading">Cargando catálogo...</div></section>
 </main>
-<footer class="footer" id="contactanos"><div class="footerFeatures"><div class="footerFeature"><b>🚚 Envíos</b>Envíos a toda Colombia</div><div class="footerFeature"><b>💳 Pagos</b>Múltiples medios de pago</div><div class="footerFeature"><b>🛡️ Compra segura</b>Tu compra protegida</div><div class="footerFeature"><b>🎧 Atención</b>Soporte personalizado</div></div><div class="footerBrand">Sirevya</div><div class="footerSub">TU ESTILO, NUESTRA PASIÓN ♥</div><div class="contactInfo"><b>📞 Contáctanos</b><a href="tel:+573128561773">+57 312 856 1773</a><a href="tel:+573025469983">+57 302 546 9983</a><a href="mailto:alex21991021@gmail.com">alex21991021@gmail.com</a></div><div style="margin-top:24px;color:#777;font-size:12px">Catálogo actualizado desde el inventario · © Sirevya</div></footer>
+<footer class="footer" id="contactanos"><div class="footerFeatures"><div class="footerFeature"><b>🚚 Envíos</b>Envíos a toda Colombia</div><div class="footerFeature"><b>💳 Pagos</b>Múltiples medios de pago</div><div class="footerFeature"><b>🛡️ Compra segura</b>Tu compra protegida</div><div class="footerFeature"><b>🎧 Atención</b>Soporte personalizado</div></div><div class="footerBrand">Sirevya</div><div class="footerSub">TU ESTILO, NUESTRA PASIÓN ♥</div><div class="contactInfo"><b>📞 Contáctanos</b><a href="tel:+573128561773">+57 312 856 1773</a><a href="tel:+573025469983">+57 302 546 9983</a><a href="mailto:alex21991021@gmail.com">alex21991021@gmail.com</a></div><div style="margin-top:24px;color:#777;font-size:12px">Catálogo actualizado desde el inventario · © Sirevya</div><div class="footerPolicyLinks"><button type="button" class="footerPolicyLink" onclick="openPrivacy(event)">Política de privacidad y datos personales</button></div></footer>
+
 
 <div id="checkoutModal" class="checkoutModal" onclick="closeCheckout(event)">
   <div class="checkoutBox">
     <div class="checkoutHead"><div class="checkoutTitle">📦 Finalizar pedido</div><button class="checkoutClose" type="button" onclick="closeCheckout()">×</button></div>
-    <p class="checkoutNote">Cali tiene envío gratis. En otras ciudades el envío es de $15.000, pero es gratis desde $100.000 de compra. Los pagos en línea se procesan de forma segura con Wompi. Puedes elegir PSE, tarjeta, Nequi o Bancolombia.</p>
+    <p class="checkoutNote">Cali tiene envío gratis. En otras ciudades el envío es de $15.000, pero es gratis desde $130.000 de compra. Los pagos en línea se procesan de forma segura con Wompi. Puedes elegir PSE, tarjeta, Nequi o Bancolombia.</p>
     <div class="checkoutGrid">
       <label for="customerName">Nombre completo</label><input id="customerName" type="text" autocomplete="name" placeholder="Tu nombre">
       <label for="customerCedula">Cédula</label><input id="customerCedula" type="text" inputmode="numeric" placeholder="Número de cédula">
@@ -601,7 +708,7 @@ body{background:linear-gradient(180deg,#fffaf0 0%,#fff6e6 55%,#f8ecd7 100%);colo
       </select>
       <label for="customerAddress">Dirección</label><input id="customerAddress" type="text" autocomplete="street-address" placeholder="Calle, carrera, número, etc.">
       <label for="customerNeighborhood">Barrio / referencia</label><input id="customerNeighborhood" type="text" placeholder="Barrio, conjunto o referencia">
-      <div class="shippingBox"><div class="shippingLine"><span>🚚 Envío</span><span id="shippingValue">Selecciona una ciudad</span></div><div id="shippingNote" class="shippingSmall">Cali: envío gratis. Otras ciudades: $15.000. Envío gratis desde $100.000.</div></div>
+      <div class="shippingBox"><div class="shippingLine"><span>🚚 Envío</span><span id="shippingValue">Selecciona una ciudad</span></div><div id="shippingNote" class="shippingSmall">Cali: envío gratis. Otras ciudades: $15.000. Envío gratis desde $130.000.</div></div>
       <label>Forma de pago</label>
       <div class="paymentOptions">
         <label class="paymentOption onlinePaymentOption"><input type="radio" name="paymentMethod" value="PSE" checked> 🏦 <span><b>Pago con PSE</b><small>Pago en línea mediante Wompi</small></span></label>
@@ -610,13 +717,65 @@ body{background:linear-gradient(180deg,#fffaf0 0%,#fff6e6 55%,#f8ecd7 100%);colo
         <label class="paymentOption onlinePaymentOption"><input type="radio" name="paymentMethod" value="Bancolombia"> 🏦 <span><b>Botón Bancolombia</b><small>Pago en línea mediante Wompi</small></span></label>
         <label class="paymentOption"><input type="radio" name="paymentMethod" value="Contra entrega"> 💵 <span><b>Pago contra entrega</b><small>Pagas al recibir tu pedido</small></span></label>
       </div>
-      <div class="checkoutTotal"><span>Total</span><span id="checkoutTotal">$0</span></div>
+      <div class="privacyConsent">
+        <label for="privacyConsent">
+          <input id="privacyConsent" type="checkbox">
+          <span>Acepto la <a href="#" onclick="openPrivacy(event)">Política de Privacidad</a>.</span>
+        </label>
+        <div id="privacyError" class="privacyError">Debes aceptar la Política de Tratamiento de Datos Personales para continuar con el pedido.</div>
+      </div>
+<div class="checkoutTotal"><span>Total</span><span id="checkoutTotal">$0</span></div>
       <div class="checkoutActions"><button class="checkoutCancel" type="button" onclick="closeCheckout()">Cancelar</button><button id="checkoutConfirmBtn" class="checkoutConfirm" type="button" onclick="confirmCheckout()">✅ Confirmar pedido</button></div>
     </div>
   </div>
 </div>
 
 <div id="orderSuccess" class="orderSuccess" onclick="if(event.target===this)closeOrderSuccess()"><div class="orderSuccessBox"><h3>¡Pedido recibido! 💗</h3><p>Hemos recibido tu solicitud correctamente.</p><p><b>En un momento nos contactaremos contigo</b> para confirmar tu pedido y coordinar la entrega.</p><button type="button" onclick="closeOrderSuccess()">Entendido</button></div></div>
+<div id="privacyModal" class="privacyModal" onclick="closePrivacy(event)" aria-hidden="true">
+  <div class="privacyBox">
+    <div class="privacyHead"><div class="privacyTitle">🔒 Política de Tratamiento de Datos Personales</div><button class="privacyClose" type="button" onclick="closePrivacy()" aria-label="Cerrar">×</button></div>
+    <div class="privacyUpdated">Última actualización: 7 de octubre de 2026</div>
+    <p>En Sirevya nos comprometemos a proteger los datos personales de nuestros clientes y a utilizarlos únicamente para las finalidades informadas en esta política, de conformidad con la normativa colombiana aplicable sobre protección de datos personales.</p>
+
+    <h3>1. Responsable del tratamiento</h3>
+    <p><b>Responsable:</b> Sirevya<br><b>Ciudad:</b> Cali, Colombia<br><b>Teléfonos:</b> +57 312 856 1773 / +57 302 546 9983<br><b>Correo:</b> alex21991021@gmail.com</p>
+
+    <h3>2. Datos que podemos recolectar</h3>
+    <p>Cuando realizas un pedido podemos solicitar nombre completo, número de identificación, teléfono, correo electrónico, ciudad, dirección de entrega, barrio o referencia, información del pedido y datos necesarios para gestionar el pago y la entrega.</p>
+
+    <h3>3. Finalidades del tratamiento</h3>
+    <ul>
+      <li>Registrar y gestionar pedidos realizados a través del catálogo.</li>
+      <li>Procesar o facilitar el procesamiento de pagos mediante los medios disponibles, incluido Wompi.</li>
+      <li>Coordinar y realizar la entrega de los productos.</li>
+      <li>Contactarte para confirmar, aclarar o dar seguimiento a tu pedido.</li>
+      <li>Atender peticiones, consultas, reclamos y solicitudes relacionadas con tus datos.</li>
+      <li>Cumplir obligaciones legales, contables, tributarias o requerimientos de autoridades competentes cuando corresponda.</li>
+      <li>Si marcas la autorización opcional de promociones, enviarte información comercial sobre productos, novedades, ofertas y promociones.</li>
+    </ul>
+
+    <h3>4. Autorización</h3>
+    <p>El tratamiento de los datos personales se realizará con la autorización previa e informada del titular, salvo las excepciones previstas por la ley. La autorización para recibir comunicaciones comerciales es independiente y opcional.</p>
+
+    <h3>5. Encargados y terceros</h3>
+    <p>Para prestar el servicio podemos utilizar proveedores tecnológicos y de pago, como Supabase para servicios de almacenamiento y gestión de datos del sistema, y Wompi para el procesamiento de pagos. Estos proveedores podrán tratar información en la medida necesaria para prestar sus servicios y conforme a sus propias políticas y obligaciones aplicables.</p>
+
+    <h3>6. Seguridad</h3>
+    <p>Adoptamos medidas técnicas, humanas y administrativas razonables para proteger los datos personales frente a pérdida, uso indebido, acceso no autorizado, alteración o divulgación no autorizada. Ningún sistema conectado a Internet puede garantizar seguridad absoluta.</p>
+
+    <h3>7. Derechos del titular</h3>
+    <p>De acuerdo con la normativa colombiana, puedes conocer, actualizar y rectificar tus datos; solicitar prueba de la autorización cuando corresponda; conocer el uso dado a tus datos; presentar quejas ante la Superintendencia de Industria y Comercio cuando proceda; y solicitar la supresión de datos o retirar la autorización cuando sea legalmente posible.</p>
+
+    <h3>8. Consultas, reclamos y solicitudes</h3>
+    <p>Puedes presentar solicitudes relacionadas con tus datos personales a través del correo <a href="mailto:alex21991021@gmail.com">alex21991021@gmail.com</a> o de los teléfonos +57 312 856 1773 y +57 302 546 9983.</p>
+
+    <h3>9. Vigencia y cambios</h3>
+    <p>Esta política rige desde la fecha indicada arriba y podrá ser actualizada cuando sea necesario. Las modificaciones relevantes serán publicadas en este mismo espacio.</p>
+
+    <p style="margin-top:20px;font-size:11px;color:#777">Esta política es un texto informativo preparado para el funcionamiento actual del catálogo. Antes de publicar la tienda de forma definitiva, conviene verificar que los datos legales del responsable (por ejemplo, razón social o identificación tributaria, si aplica) coincidan exactamente con los de quien opera Sirevya.</p>
+  </div>
+</div>
+
 <div id="productDetailModal" class="productDetailModal" onclick="closeProductDetail(event)">
   <div class="productDetailBox">
     <button class="detailClose" type="button" onclick="closeProductDetail()">×</button>
@@ -628,7 +787,10 @@ body{background:linear-gradient(180deg,#fffaf0 0%,#fff6e6 55%,#f8ecd7 100%);colo
       <div class="detailPurchaseActions"><button id="detailAdd" class="detailAdd" type="button" onclick="detailAddToCart(event)">🛒 Agregar al carrito</button><button id="detailBuyNow" class="detailBuyNow" type="button" onclick="detailBuyNow(event)">⚡ Comprar ahora</button></div>
     </div>
   </div>
-</div><div id="galleryModal" class="galleryModal" onclick="closeGallery(event)"><div class="galleryBox"><button class="galleryClose" type="button" onclick="closeGallery()">×</button><button id="galleryPrev" class="galleryNav galleryPrev" type="button" onclick="galleryMove(-1,event)">‹</button><img id="galleryMain" class="galleryMain" alt="Imagen del producto" decoding="async"><button id="galleryNext" class="galleryNav galleryNext" type="button" onclick="galleryMove(1,event)">›</button><div id="galleryInfo" class="galleryInfo"></div></div></div><div id="toast" class="toast"></div>
+</div><div id="galleryModal" class="galleryModal" onclick="closeGallery(event)"><div class="galleryBox"><button class="galleryClose" type="button" onclick="closeGallery()">×</button><button id="galleryPrev" class="galleryNav galleryPrev" type="button" onclick="galleryMove(-1,event)">‹</button><img id="galleryMain" class="galleryMain" alt="Imagen del producto" decoding="async"><button id="galleryNext" class="galleryNav galleryNext" type="button" onclick="galleryMove(1,event)">›</button><div id="galleryInfo" class="galleryInfo"></div></div></div><a class="waHelpFloat" href="https://wa.me/573128561773?text=Hola%2C%20necesito%20asesor%C3%ADa%20sobre%20un%20producto." target="_blank" rel="noopener noreferrer" aria-label="Contactar asesoramiento por WhatsApp">
+  <span class="waHelpLabel"><b>Asesoramiento</b></span><span class="waHelpIcon" aria-hidden="true">●</span>
+</a>
+<div id="toast" class="toast"></div>
 
 <script>
 const SUPABASE_URL="https://hnlbbtnfmbnbkcgegufa.supabase.co";
@@ -962,7 +1124,10 @@ function selectCategory(cat){
  }
 }
 function updateCategoryButtons(){
- const cat=normalizeText($('category')?.value||'');
+ const selected=$('category')?.value||'';
+ const cat=normalizeText(selected);
+ const fc=$('filterCategory');
+ if(fc && fc.value!==selected)fc.value=selected;
  document.querySelectorAll('.categoryBtn').forEach(btn=>{
    btn.classList.toggle('active',normalizeText(btn.dataset.category||'')===cat);
  });
@@ -1216,18 +1381,62 @@ function closeMobileMenu(event){
 function selectCategoryFromMenu(cat){closeMobileMenu();selectCategory(cat)}
 function closeOrderSuccess(){const el=$('orderSuccess');if(el)el.classList.remove('open')}
 
+
+function populateFilterCategory(cats){
+ const f=$('filterCategory');
+ if(!f)return;
+ const current=$('category')?.value||'';
+ f.innerHTML='<option value="">Todas las categorías</option>'+(cats||[]).map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('');
+ f.value=current;
+}
+function toggleFilterPanel(force){
+ const panel=$('filterPanel'),btn=$('filterToggle');
+ if(!panel)return;
+ const open=typeof force==='boolean'?force:panel.hidden;
+ panel.hidden=!open;
+ if(btn)btn.setAttribute('aria-expanded',String(open));
+}
+function applyFilterCategory(value){
+ toggleFilterPanel(false);
+ selectCategory(value||'');
+}
+function syncPriceOrderFromSort(){
+ const value=$('sort')?.value||'';
+ const price=$('filterPriceOrder');
+ if(price)price.value=(value==='price_asc'||value==='price_desc')?value:'';
+}
+function applyPriceOrder(value){
+ const sortSelect=$('sort');
+ if(!sortSelect)return;
+ sortSelect.value=value||'recent';
+ syncPriceOrderFromSort();
+ render();
+}
+function clearCatalogFilters(){
+ $('category').value='';
+ $('filterCategory').value='';
+ $('availability').value='';
+ $('filterPriceOrder').value='';
+ $('sort').value='recent';
+ $('search').value='';
+ setDirectCategoryMode('');
+ updateCategoryButtons();
+ render();
+ toggleFilterPanel(false);
+}
+
 function render(){
  const q=$('search').value.trim().toLowerCase(),cat=$('category').value,av=$('availability').value,sort=$('sort')?.value||'recent';
  const title=$('productsHeadingTitle');
  if(title) title.textContent=cat?cat:'Todos los productos';
  let arr=productos.filter(p=>{
  const text=(p.code+' '+p.name+' '+p.category).toLowerCase();
- const reservedForThisSession=(!!getPendingWompiReference() || hasActiveLocalReservation()) && cart.some(x=>String(x.id)===String(p.id));
- const variantTotal=variantList(p).length?variantList(p).reduce((s,v)=>s+Number(v.stock||0),0):Number(p.quantity)||0;
- const ok=(Number(p.quantity)||0)>0 || reservedForThisSession;
- return text.includes(q)&&(!cat||p.category===cat)&&(!av||(av==='available'&&ok)||(av==='out'&&!ok));
+ // Los productos sin unidades disponibles no se muestran en el catálogo.
+ if((Number(p.quantity)||0)<=0)return false;
+ return text.includes(q)&&(!cat||p.category===cat)&&(!av||av==='available');
 });
- if(sort==='name_asc') arr.sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'es',{sensitivity:'base'}));
+ if(sort==='best_selling') arr.sort((a,b)=>(Number(b.sales_count??b.sold_count??b.units_sold??b.total_sold??0)-Number(a.sales_count??a.sold_count??a.units_sold??a.total_sold??0)));
+ else if(sort==='name_asc') arr.sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'es',{sensitivity:'base'}));
  else if(sort==='price_asc') arr.sort((a,b)=>(Number(a.sale_price)||0)-(Number(b.sale_price)||0));
  else if(sort==='price_desc') arr.sort((a,b)=>(Number(b.sale_price)||0)-(Number(a.sale_price)||0));
  else if(sort==='stock_desc') arr.sort((a,b)=>(Number(b.quantity)||0)-(Number(a.quantity)||0));
@@ -1241,7 +1450,7 @@ function render(){
    const blocked=!ok && !hasOwnActiveReservationForProduct(p.id);
    const msg='Hola, Variedades JM 👋\n\nMe interesa este producto:\n📦 Producto: '+p.name+'\n🔖 Código: '+p.code+'\n💰 Precio: '+money(p.sale_price)+'\n\n¿Está disponible?';
    const key='photo_'+p.id;
-return `<article class="card ${blocked?'inventoryUnavailable':''}" data-product-id="${esc(p.id)}" aria-disabled="${blocked?'true':'false'}" onclick="openProductDetail('${esc(p.id)}',event)">${blocked?'<div class="inventoryLock">🔒 RESERVADO / AGOTADO</div>':''}<div class="photo photoSwipe"" data-photo="${esc(key)}" data-index="0" onpointerdown="photoTouchStart(event)" onpointermove="photoTouchMove(event)" onpointerup="photoTouchEnd(event)" onpointercancel="photoTouchEnd(event)" onclick="photoClickGuard(event)" onmouseenter="photoHover(event)" onmouseleave="photoHoverLeave(event)">${imgs.length?`<img data-src="${esc(imgs[0])}" alt="${esc(p.name)}" loading="lazy" decoding="async" fetchpriority="low" onerror="this.style.display='none'">${imgs.length>1?``:''}`:'<div class="noimg">📦</div>'}</div><div class="body"><div class="name">${esc(p.name)}</div><div class="price">${money(p.sale_price)}</div>${renderVariantOptions(p)}</div></article>`
+return `<article class="card ${blocked?'inventoryUnavailable':''}" data-product-id="${esc(p.id)}" aria-disabled="${blocked?'true':'false'}" onclick="openProductDetail('${esc(p.id)}',event)">${blocked?'<div class="inventoryLock">🔒 RESERVADO / AGOTADO</div>':''}<div class="photo photoSwipe" data-photo="${esc(key)}" data-index="0" onpointerdown="photoTouchStart(event)" onpointermove="photoTouchMove(event)" onpointerup="photoTouchEnd(event)" onpointercancel="photoTouchEnd(event)" onclick="photoClickGuard(event)" onmouseenter="photoHover(event)" onmouseleave="photoHoverLeave(event)">${imgs.length?`<img data-src="${esc(imgs[0])}" alt="${esc(p.name)}" loading="lazy" decoding="async" fetchpriority="low" onerror="this.style.display='none'">${imgs.length>1?``:''}`:'<div class="noimg">📦</div>'}</div><div class="body"><div class="name">${esc(p.name)}</div><div class="price">${money(p.sale_price)}</div>${renderVariantOptions(p)}</div></article>`
  }).join(''):'<div class="empty">No encontramos productos con esos filtros.</div>';
  document.querySelectorAll('#grid .card').forEach(card=>{const p=productos.find(x=>String(x.id)===String(card.dataset.productId));if(p)updateVariantAvailability(card,p)});
  activateCatalogLazyImages();
@@ -1350,6 +1559,26 @@ function sendCart(){
  $('checkoutModal').classList.add('open');
  document.body.style.overflow='hidden';
 }
+
+function openPrivacy(event){
+ if(event)event.preventDefault();
+ const el=$('privacyModal');if(!el)return;
+ el.classList.add('open');el.setAttribute('aria-hidden','false');document.body.style.overflow='hidden';
+}
+function closePrivacy(event){
+ if(event&&event.target!==$('privacyModal'))return;
+ const el=$('privacyModal');if(!el)return;
+ el.classList.remove('open');el.setAttribute('aria-hidden','true');
+ if(!$('checkoutModal')?.classList.contains('open')&&!$('sizeGuideModal')?.classList.contains('open'))document.body.style.overflow='';
+}
+function validatePrivacyConsent(){
+ const cb=$('privacyConsent'),err=$('privacyError');
+ if(cb?.checked){err?.classList.remove('show');return true}
+ err?.classList.add('show');cb?.focus();
+ showToast('Debes aceptar la Política de Tratamiento de Datos Personales para continuar.');
+ return false;
+}
+
 function closeCheckout(event){if(event&&event.target!==$('checkoutModal'))return;$('checkoutModal').classList.remove('open');checkoutCart=null;document.body.style.overflow=''}
 function updateShipping(){
  const city=$('customerCity')?.value||'';
@@ -1359,8 +1588,8 @@ function updateShipping(){
  // Regla de envío:
  // Cali: GRATIS
  // Otras ciudades: $15.000
- // Otras ciudades con compra >= $100.000: GRATIS
- checkoutShipping = !city ? 0 : (city==='Cali' || productsTotal>=100000 ? 0 : ENVIO_NACIONAL);
+ // Otras ciudades con compra >= $130.000: GRATIS
+ checkoutShipping = !city ? 0 : (city==='Cali' || productsTotal>=130000 ? 0 : ENVIO_NACIONAL);
 
  if($('shippingValue')){
    $('shippingValue').textContent = city
@@ -1370,12 +1599,12 @@ function updateShipping(){
 
  if($('shippingNote')){
    $('shippingNote').textContent = !city
-     ? 'Cali: envío gratis. Otras ciudades: $15.000. Envío gratis desde $100.000.'
+     ? 'Cali: envío gratis. Otras ciudades: $15.000. Envío gratis desde $130.000.'
      : city==='Cali'
        ? 'Envío gratis dentro de Cali.'
-       : productsTotal>=100000
-         ? 'Envío gratis por compra igual o superior a $100.000.'
-         : 'Envío nacional: $15.000. Envío gratis desde $100.000.';
+       : productsTotal>=130000
+         ? 'Envío gratis por compra igual o superior a $130.000.'
+         : 'Envío nacional: $15.000. Envío gratis desde $130.000.';
  }
 
  updateCheckoutSummary();
@@ -1678,6 +1907,7 @@ async function saveContraEntregaOrder(payload){
 async function confirmCheckout(){
  const checkoutItems=getCheckoutItems();
  if(!checkoutItems.length)return;
+ if(!validatePrivacyConsent())return;
  const name=$('customerName').value.trim(),cedula=$('customerCedula').value.trim(),phone=$('customerPhone').value.trim(),email=$('customerEmail').value.trim(),city=$('customerCity').value,address=$('customerAddress').value.trim(),neighborhood=$('customerNeighborhood').value.trim();
  if(!name||!cedula||!phone||!email||!city||!address||!neighborhood){showToast('Completa todos los datos obligatorios del pedido.');return}
  const payment=selectedPayment();updateShipping();const payload=buildOrderPayload();
@@ -1685,7 +1915,7 @@ async function confirmCheckout(){
  await saveContraEntregaOrder(payload);
 }
 
-document.addEventListener('keydown',e=>{if($('checkoutModal')?.classList.contains('open')&&e.key==='Escape'){closeCheckout();return}if(!$('galleryModal')?.classList.contains('open'))return;if(e.key==='Escape')closeGallery();if(e.key==='ArrowLeft')galleryMove(-1);if(e.key==='ArrowRight')galleryMove(1)});
+document.addEventListener('keydown',e=>{if($('privacyModal')?.classList.contains('open')&&e.key==='Escape'){closePrivacy();return}if($('checkoutModal')?.classList.contains('open')&&e.key==='Escape'){closeCheckout();return}if(!$('galleryModal')?.classList.contains('open'))return;if(e.key==='Escape')closeGallery();if(e.key==='ArrowLeft')galleryMove(-1);if(e.key==='ArrowRight')galleryMove(1)});
 
 async function load(){
  try{
@@ -1711,6 +1941,7 @@ async function load(){
     }
   }catch(categoryError){console.warn('No se pudo cargar el orden de categorías; se usa el de productos.',categoryError)}
   $('category').innerHTML='<option value="">Todas las categorías</option>'+cats.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('');
+  populateFilterCategory(cats);
   renderCategoryButtons(cats);
   const urlCat=categoryFromUrl(cats);
   if(urlCat) $('category').value=urlCat;
