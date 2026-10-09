@@ -181,11 +181,11 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
       </section>
 
       <section id="inventario" class="view">
-        <div class="rowBetween"><div><h2 style="margin:0">📦 Inventario</h2><p class="muted">Consulta y administra tus productos.</p></div><button class="primary" onclick="show('producto',document.querySelector('[data-view=producto]'))">＋ Nuevo producto</button></div>
+        <div class="rowBetween"><div><h2 style="margin:0">📦 Inventario</h2><p class="muted">Consulta tu stock disponible. Las unidades reservadas temporalmente no aparecen disponibles hasta que se liberen.</p></div><button class="primary" onclick="show('producto',document.querySelector('[data-view=producto]'))">＋ Nuevo producto</button></div>
         <div class="searchbar"><input id="buscar" placeholder="🔎 Buscar por código, nombre, categoría o ubicación" oninput="renderProductos()"><select id="filtroCat" style="max-width:190px" onchange="renderProductos()"><option value="">Todas las categorías</option></select><select id="filtroStock" style="max-width:170px" onchange="renderProductos()"><option value="">Todo el stock</option><option value="ok">Con stock</option><option value="low">Stock bajo</option><option value="out">Agotados</option></select></div>
         <div class="rowBetween" style="margin-bottom:10px"><span class="muted" id="inventoryCount">0 productos</span><div><button class="softbtn" onclick="setInventoryMode('cards')">▦ Tarjetas</button> <button class="softbtn" onclick="setInventoryMode('table')">☷ Tabla</button></div></div>
         <div id="inventoryCards" class="productGrid"></div>
-        <div id="inventoryTable" class="tableWrap hidden"><table><thead><tr><th>Foto</th><th>Código</th><th>Producto</th><th>Categoría</th><th>Stock</th><th>Compra</th><th>Venta</th><th>Ganancia/unid.</th><th>Ubicación</th><th>Acciones</th></tr></thead><tbody id="tablaProductos"></tbody></table></div>
+        <div id="inventoryTable" class="tableWrap hidden"><table><thead><tr><th>Foto</th><th>Código</th><th>Producto</th><th>Categoría</th><th>Disponible</th><th>Compra</th><th>Venta</th><th>Ganancia/unid.</th><th>Ubicación</th><th>Acciones</th></tr></thead><tbody id="tablaProductos"></tbody></table></div>
       </section>
 
       <section id="producto" class="view">
@@ -219,11 +219,12 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
       <section id="ventas" class="view">
         <div class="rowBetween"><div><h2 style="margin:0">🛒 Ventas</h2><p class="muted">Toca la foto de un producto para seleccionarlo y registrar la venta rápidamente.</p></div></div>
         <div class="box" style="margin-top:15px">
-          <div class="salesHint">📸 Selecciona un producto de abajo. Los productos sin stock aparecen desactivados.</div>
+          <div class="salesHint">📸 Selecciona un producto y, si tiene variantes, el color/talla. La disponibilidad descuenta las reservas temporales activas.</div>
           <div class="searchbar"><input id="buscarProductoVenta" placeholder="🔎 Buscar producto por código, nombre, categoría o ubicación" oninput="renderVentaCatalogo()"></div>
           <div id="ventaCatalogo" class="salesCatalog"></div>
           <div class="grid" style="margin-top:18px">
             <label>Producto<select id="vProducto"></select></label>
+            <label id="saleVariantWrap" style="display:none">Color / talla<select id="vVariant"></select></label>
             <label>Cantidad<input id="vCantidad" type="number" min="1" value="1"></label>
             <label>Fecha<input id="vFecha" type="date"></label>
           </div>
@@ -519,20 +520,51 @@ function closeSidebar(){
  s.classList.remove("open");o.style.display="none";
 }
 async function cargarTodo(){
- const [p,v,c,pr,g,m,o]=await Promise.all([
+ const [p,v,c,pr,g,m,o,avail]=await Promise.all([
    sb.from("products").select("*").order("created_at",{ascending:false}),
    sb.from("sales").select("*").order("created_at",{ascending:false}),
    sb.from("clients").select("*").order("name"),
    sb.from("suppliers").select("*").order("name"),
    sb.from("expenses").select("*").order("expense_date",{ascending:false}),
    sb.from("inventory_movements").select("*").order("created_at",{ascending:false}),
-   sb.from("web_orders").select("*").order("created_at",{ascending:false})
+   sb.from("web_orders").select("*").order("created_at",{ascending:false}),
+   sb.rpc("get_public_catalog")
  ]);
  if(p.error||v.error||c.error){alert("No se pudieron cargar los datos principales. Revisa SQL/RLS en Supabase.");return}
- productos=p.data||[];ventas=v.data||[];clientes=c.data||[];
+ const availabilityMap=new Map((!avail?.error?(avail?.data||[]):[]).map(x=>[String(x.id),x]));
+ productos=(p.data||[]).map(raw=>{
+   const current=availabilityMap.get(String(raw.id));
+   return {...raw,
+     availableQuantity:current?Math.max(0,Number(current.quantity)||0):Math.max(0,Number(raw.quantity)||0),
+     availableVariants:current?parseVariants(current.variants):parseVariants(raw.variants)
+   };
+ });
+ if(avail?.error)console.warn("No se pudo calcular disponibilidad reservada; se mostrará el stock físico.",avail.error);
+ ventas=v.data||[];clientes=c.data||[];
  proveedores=pr.error?[]:(pr.data||[]);gastos=g.error?[]:(g.data||[]);movimientos=m.error?[]:(m.data||[]);pedidos=o.error?[]:(o.data||[]);
  populateFilters();renderInicio();renderProductos();renderVentas();renderClientes();renderProveedores();renderGastos();renderMovimientos();renderReportes();refrescarSelects();renderVentaCatalogo();
  renderPedidos();
+}
+
+let availabilityRefreshBusy=false;
+async function refreshPublicAvailability(){
+ if(!sb||availabilityRefreshBusy||document.hidden||document.getElementById("app")?.classList.contains("hidden"))return;
+ availabilityRefreshBusy=true;
+ try{
+   const {data,error}=await sb.rpc("get_public_catalog");
+   if(error)throw error;
+   const map=new Map((data||[]).map(x=>[String(x.id),x]));
+   let changed=false;
+   productos=productos.map(p=>{
+     const x=map.get(String(p.id));
+     if(!x)return p;
+     const available=Math.max(0,Number(x.quantity)||0),variants=parseVariants(x.variants);
+     if(available!==availableQuantity(p)||JSON.stringify(variants)!==JSON.stringify(availableVariants(p)))changed=true;
+     return {...p,availableQuantity:available,availableVariants:variants};
+   });
+   if(changed){renderProductos();refrescarSelects();renderVentaCatalogo();renderInicio();}
+ }catch(e){console.warn("No se pudo actualizar la disponibilidad de reservas.",e)}
+ finally{availabilityRefreshBusy=false}
 }
 
 async function cargarPedidos(){
@@ -815,6 +847,20 @@ function parseVariants(v){
  if(typeof v==='string'){try{const j=JSON.parse(v);return parseVariants(j)}catch{}}
  return [];
 }
+function availableQuantity(p){
+ const n=Number(p?.availableQuantity);
+ return Number.isFinite(n)?Math.max(0,n):Math.max(0,Number(p?.quantity)||0);
+}
+function availableVariants(p){
+ return Array.isArray(p?.availableVariants)?p.availableVariants:parseVariants(p?.variants);
+}
+function availableVariantStock(p,color,size){
+ const variants=availableVariants(p);
+ if(!variants.length)return availableQuantity(p);
+ const c=normalizeVariantText(color),z=normalizeVariantText(size);
+ const v=variants.find(x=>normalizeVariantText(x.color)===c&&normalizeVariantText(x.size)===z);
+ return v?Math.max(0,Number(v.stock)||0):0;
+}
 let variantDraft=[];
 function renderVariantEditor(existing=variantDraft){
  const box=$("variantEditor"), rows=$("variantEditorRows"); if(!box||!rows)return;
@@ -943,7 +989,7 @@ async function renderProductos(){
  const q=($("buscar").value||"").toLowerCase(),cat=$("filtroCat").value,st=$("filtroStock").value;
  let a=productos.filter(p=>{
    const text=(p.code+" "+p.name+" "+p.category+" "+(p.location||"")).toLowerCase();
-   const stock=Number(p.quantity)||0;return text.includes(q)&&(!cat||p.category===cat)&&(!st||(st==="ok"&&stock>2)||(st==="low"&&stock>0&&stock<=2)||(st==="out"&&stock<=0));
+   const stock=availableQuantity(p);return text.includes(q)&&(!cat||p.category===cat)&&(!st||(st==="ok"&&stock>2)||(st==="low"&&stock>0&&stock<=2)||(st==="out"&&stock<=0));
  });
  $("inventoryCount").textContent=`${a.length} producto${a.length===1?"":"s"}`;
  const rows=await Promise.all(a.map(async p=>{
@@ -953,16 +999,16 @@ async function renderProductos(){
  $("inventoryCards").innerHTML=rows.length?rows.map(({p,img,margin})=>`
    <div class="card productCard"><img loading="lazy" decoding="async" class="productImg" src="${img}" onerror="this.style.display='none'" alt="">
    <div class="productBody"><div class="productCode">${esc(p.code)}</div><div class="productName">${esc(p.name)}</div><div class="mini">${esc(p.category)} • ${esc(p.location||"Sin ubicación")}</div>
-   <div style="display:flex;justify-content:space-between;align-items:end;margin-top:11px"><div><div class="price">${money(p.sale_price)}</div><div class="mini">Compra ${money(p.cost_price)}</div></div><div style="text-align:right"><b>${p.quantity}</b><div class="mini">unidades</div></div></div>
-   <div style="margin-top:10px">${stockBadge(p.quantity)}</div><div style="margin-top:12px"><button class="action" onclick="openProduct('${p.id}')">👁️ Ver</button><button class="action" onclick="compartirProducto('${p.id}')">📘</button><button class="action" onclick="editarProducto('${p.id}')">✏️</button><button class="action" onclick="borrarProducto('${p.id}')">🗑️</button></div></div></div>`).join(""):'<div class="empty card" style="grid-column:1/-1">No encontramos productos con esos filtros.</div>';
- $("tablaProductos").innerHTML=rows.length?rows.map(({p,img,margin})=>`<tr><td>${img?`<img loading="lazy" decoding="async" class="thumb" src="${img}" alt="">`:'<div class="noimg">📦</div>'}</td><td><b>${esc(p.code)}</b></td><td><b>${esc(p.name)}</b></td><td>${esc(p.category)}</td><td><b>${p.quantity}</b><br>${stockBadge(p.quantity)}</td><td>${money(p.cost_price)}</td><td>${money(p.sale_price)}</td><td>${money(margin)}</td><td>${esc(p.location||"-")}</td><td><button class="action" onclick="openProduct('${p.id}')">👁️</button><button class="action" onclick="compartirProducto('${p.id}')">📘</button><button class="action" onclick="editarProducto('${p.id}')">✏️</button><button class="action" onclick="borrarProducto('${p.id}')">🗑️</button></td></tr>`).join(""):'<tr><td colspan="10" class="empty">No hay productos.</td></tr>';
+   <div style="display:flex;justify-content:space-between;align-items:end;margin-top:11px"><div><div class="price">${money(p.sale_price)}</div><div class="mini">Compra ${money(p.cost_price)}</div></div><div style="text-align:right"><b>${availableQuantity(p)}</b><div class="mini">disponibles</div></div></div>
+   <div style="margin-top:10px">${stockBadge(availableQuantity(p))}</div><div style="margin-top:12px"><button class="action" onclick="openProduct('${p.id}')">👁️ Ver</button><button class="action" onclick="compartirProducto('${p.id}')">📘</button><button class="action" onclick="editarProducto('${p.id}')">✏️</button><button class="action" onclick="borrarProducto('${p.id}')">🗑️</button></div></div></div>`).join(""):'<div class="empty card" style="grid-column:1/-1">No encontramos productos con esos filtros.</div>';
+ $("tablaProductos").innerHTML=rows.length?rows.map(({p,img,margin})=>`<tr><td>${img?`<img loading="lazy" decoding="async" class="thumb" src="${img}" alt="">`:'<div class="noimg">📦</div>'}</td><td><b>${esc(p.code)}</b></td><td><b>${esc(p.name)}</b></td><td>${esc(p.category)}</td><td><b>${availableQuantity(p)}</b><br>${stockBadge(availableQuantity(p))}</td><td>${money(p.cost_price)}</td><td>${money(p.sale_price)}</td><td>${money(margin)}</td><td>${esc(p.location||"-")}</td><td><button class="action" onclick="openProduct('${p.id}')">👁️</button><button class="action" onclick="compartirProducto('${p.id}')">📘</button><button class="action" onclick="editarProducto('${p.id}')">✏️</button><button class="action" onclick="borrarProducto('${p.id}')">🗑️</button></td></tr>`).join(""):'<tr><td colspan="10" class="empty">No hay productos.</td></tr>';
 }
 function setInventoryMode(mode,save=true){inventoryMode=mode;if(save)localStorage.setItem("jm_inventory_mode",mode);$("inventoryCards").classList.toggle("hidden",mode!=="cards");$("inventoryTable").classList.toggle("hidden",mode!=="table");if(productos.length)renderProductos()}
 async function openProduct(id){
  const p=productos.find(x=>x.id===id);if(!p)return;
  $("modalTitle").textContent=p.code+" — "+p.name;$("modalBody").innerHTML='<div class="empty">Cargando…</div>';$("productModal").classList.add("show");
  const img=await getImageUrl(p.image_url),margin=Number(p.sale_price)-Number(p.cost_price);
- $("modalBody").innerHTML=`${img?`<img src="${img}" style="width:100%;max-height:320px;object-fit:contain;border-radius:15px;background:#f1f2f6">`:''}<div class="kpis" style="margin-top:15px"><div class="kpi">Stock<b>${p.quantity}</b></div><div class="kpi">Venta<b>${money(p.sale_price)}</b></div><div class="kpi">Ganancia/unid.<b>${money(margin)}</b></div></div><div style="margin-top:15px" class="grid"><div><b>Categoría</b><br>${esc(p.category)}</div><div><b>Ubicación</b><br>${esc(p.location||"Sin ubicación")}</div><div><b>Precio compra</b><br>${money(p.cost_price)}</div><div><b>Estado</b><br>${stockBadge(p.quantity)}</div></div><div style="margin-top:18px;display:flex;gap:8px;flex-wrap:wrap"><button class="primary" onclick="closeModal();editarProducto('${p.id}')">✏️ Editar</button><button class="softbtn" onclick="compartirProducto('${p.id}')">📘 Compartir en Facebook</button></div>`;
+ $("modalBody").innerHTML=`${img?`<img src="${img}" style="width:100%;max-height:320px;object-fit:contain;border-radius:15px;background:#f1f2f6">`:''}<div class="kpis" style="margin-top:15px"><div class="kpi">Disponible<b>${availableQuantity(p)}</b></div><div class="kpi">Stock físico<b>${Number(p.quantity)||0}</b></div><div class="kpi">Venta<b>${money(p.sale_price)}</b></div><div class="kpi">Ganancia/unid.<b>${money(margin)}</b></div></div><div style="margin-top:15px" class="grid"><div><b>Categoría</b><br>${esc(p.category)}</div><div><b>Ubicación</b><br>${esc(p.location||"Sin ubicación")}</div><div><b>Precio compra</b><br>${money(p.cost_price)}</div><div><b>Estado disponible</b><br>${stockBadge(availableQuantity(p))}</div></div><div style="margin-top:18px;display:flex;gap:8px;flex-wrap:wrap"><button class="primary" onclick="closeModal();editarProducto('${p.id}')">✏️ Editar</button><button class="softbtn" onclick="compartirProducto('${p.id}')">📘 Compartir en Facebook</button></div>`;
 }
 function closeModal(){$("productModal").classList.remove("show")}
 
@@ -970,18 +1016,36 @@ function renderInicio(){
  const units=productos.reduce((s,p)=>s+(Number(p.quantity)||0),0),sold=ventas.reduce((s,v)=>s+(Number(v.quantity)||0),0),gain=ventas.reduce((s,v)=>s+(Number(v.quantity)||0)*(Number(v.sale_price)-Number(v.cost_price)),0);
  $("nProductos").textContent=productos.length;$("nUnidades").textContent=units;$("nVendidos").textContent=sold;$("nGanancia").textContent=money(gain);
  $("heroProducts").textContent=productos.length;$("heroUnits").textContent=units;$("heroSales").textContent=ventas.length;
- const low=productos.filter(p=>(Number(p.quantity)||0)<=2);$("lowCount").textContent=low.length;
- $("stockBajo").innerHTML=low.length?low.slice(0,8).map(p=>`<div class="alert"><div class="rowBetween"><b>${esc(p.code)} — ${esc(p.name)}</b>${stockBadge(p.quantity)}</div><span class="muted">${p.quantity} unidad(es) • ${esc(p.location||"Sin ubicación")}</span></div>`).join(""):'<div class="empty">✓ Todo el inventario tiene más de 2 unidades.</div>';
+ const low=productos.filter(p=>availableQuantity(p)<=2);$("lowCount").textContent=low.length;
+ $("stockBajo").innerHTML=low.length?low.slice(0,8).map(p=>`<div class="alert"><div class="rowBetween"><b>${esc(p.code)} — ${esc(p.name)}</b>${stockBadge(availableQuantity(p))}</div><span class="muted">${availableQuantity(p)} disponible(s) • ${esc(p.location||"Sin ubicación")}</span></div>`).join(""):'<div class="empty">✓ Todo el inventario tiene más de 2 unidades.</div>';
  $("recentSales").innerHTML=ventas.slice(0,6).map(v=>`<div class="listItem"><div class="rowBetween"><b>${esc(v.product_code)} — ${esc(v.product_name)}</b><b>${money(Number(v.quantity)*Number(v.sale_price))}</b></div><span class="muted">${v.sale_date} • ${v.quantity} unidad(es)</span></div>`).join("")||'<div class="empty">No hay ventas todavía.</div>';
 }
 function refrescarSelects(){
- $("vProducto").innerHTML=productos.filter(p=>Number(p.quantity)>0).map(p=>`<option value="${p.id}">${esc(p.code)} — ${esc(p.name)} (${p.quantity})</option>`).join("")||'<option value="">No hay productos con stock</option>';$("vProducto").onchange=()=>{refreshSalePreview();renderVentaCatalogo()};
- refreshSalePreview();refrescarMovimientoSelect();
+ $("vProducto").innerHTML=productos.filter(p=>availableQuantity(p)>0).map(p=>`<option value="${p.id}">${esc(p.code)} — ${esc(p.name)} (${availableQuantity(p)} disponibles)</option>`).join("")||'<option value="">No hay productos con stock</option>';
+ $("vProducto").onchange=()=>{renderSaleVariantSelector();refreshSalePreview();renderVentaCatalogo()};
+ renderSaleVariantSelector();refreshSalePreview();refrescarMovimientoSelect();
 }
+function renderSaleVariantSelector(){
+ const wrap=$("saleVariantWrap"),select=$("vVariant");if(!wrap||!select)return;
+ const p=productos.find(x=>String(x.id)===String($("vProducto")?.value||""));
+ const variants=parseVariants(p?.variants);
+ if(!p||!variants.length){wrap.style.display="none";select.innerHTML="";return}
+ const available=availableVariants(p);
+ wrap.style.display="block";
+ const options=available.map(v=>{
+   const stock=Math.max(0,Number(v.stock)||0),key=variantKey(v.color,v.size);
+   const label=[v.color||"Sin color",v.size||"Única"].join(" / ");
+   return `<option value="${esc(key)}" ${stock<=0?'disabled':''}>${esc(label)} — ${stock} disponible(s)</option>`;
+ }).join("");
+ select.innerHTML=options;
+ const selected=available.find(v=>availableVariantStock(p,v.color,v.size)>0);
+ if(selected)select.value=variantKey(selected.color,selected.size);
+}
+
 async function compartirProducto(id){
  const p=productos.find(x=>String(x.id)===String(id));
  if(!p)return;
- const text=`Variedades JM 👋\n\n📦 ${p.name}\n🔖 Código: ${p.code}\n🏷️ Categoría: ${p.category||"Producto"}\n💰 Precio: ${money(p.sale_price)}\n${Number(p.quantity)>0?"✅ Disponible":"❌ Agotado"}`;
+ const text=`Variedades JM 👋\n\n📦 ${p.name}\n🔖 Código: ${p.code}\n🏷️ Categoría: ${p.category||"Producto"}\n💰 Precio: ${money(p.sale_price)}\n${availableQuantity(p)>0?"✅ Disponible":"❌ Agotado"}`;
  const url=location.href.split("#")[0];
  try{
    if(navigator.share){
@@ -1007,7 +1071,7 @@ async function renderVentaCatalogo(){
  if(!visibles.length){el.innerHTML='<div class="empty" style="grid-column:1/-1">No encontramos productos con esa búsqueda.</div>';return}
  const rows=await Promise.all(visibles.map(async p=>({p,img:await getImageUrl(p.image_url)})));
  el.innerHTML=rows.map(({p,img})=>{
-   const stock=Number(p.quantity)||0,disabled=stock<=0,sel=String(p.id)===String(selected);
+   const stock=availableQuantity(p),disabled=stock<=0,sel=String(p.id)===String(selected);
    return `<button type="button" class="saleProductCard ${disabled?'disabled ':''}${sel?'selected':''}" data-product-id="${esc(String(p.id))}" ${disabled?'disabled':''} title="${disabled?'Sin stock':'Seleccionar '+esc(p.name)}">
      <div class="saleSelected">✓</div>
      ${img?`<img class="saleProductImg" src="${img}" alt="${esc(p.name)}">`:'<div class="saleNoImg">📦</div>'}
@@ -1041,13 +1105,24 @@ function refreshSalePreview(){
  $("salePreview").innerHTML=`<div class="kpi">Precio unitario<b>${money(p.sale_price)}</b></div><div class="kpi">Total venta<b>${money(total)}</b></div><div class="kpi">Ganancia estimada<b>${money(gain)}</b></div>`;
 }
 async function registrarVenta(){
- const pid=$("vProducto").value,q=Number($("vCantidad").value)||0,p=productos.find(x=>x.id===pid);
- if(!p||q<1||Number(p.quantity)<q)return alert("La cantidad no está disponible.");
- const {error}=await sb.from("sales").insert({product_id:p.id,product_code:p.code,product_name:p.name,quantity:q,sale_price:p.sale_price,cost_price:p.cost_price,sale_date:$("vFecha").value});
- if(error)return alert(error.message);
- const {error:e2}=await sb.from("products").update({quantity:Number(p.quantity)-q}).eq("id",p.id);
- if(e2)return alert(e2.message);
- toast("Venta registrada correctamente");$("vCantidad").value=1;await cargarTodo();
+ const pid=$("vProducto").value,q=Number($("vCantidad").value)||0,p=productos.find(x=>String(x.id)===String(pid));
+ if(!p||q<1)return alert("Selecciona un producto y una cantidad válida.");
+ let color="",size="";
+ const variants=parseVariants(p.variants);
+ if(variants.length){
+   const chosen=availableVariants(p).find(v=>variantKey(v.color,v.size)===$("vVariant")?.value);
+   if(!chosen||availableVariantStock(p,chosen.color,chosen.size)<q)return alert("La cantidad de esa variante no está disponible o está reservada temporalmente.");
+   color=chosen.color;size=chosen.size;
+ }else if(availableQuantity(p)<q){
+   return alert("La cantidad no está disponible o está reservada temporalmente.");
+ }
+ const {data,error}=await sb.rpc("register_inventory_sale",{
+   p_product_id:p.id,p_quantity:q,p_sale_date:$("vFecha").value||new Date().toISOString().slice(0,10),p_color:color,p_size:size
+ });
+ if(error)return alert("No se pudo registrar la venta: "+error.message);
+ const result=Array.isArray(data)?data[0]:data;
+ if(!result?.success)return alert(result?.message||"No se pudo registrar la venta.");
+ toast("Venta registrada y stock actualizado correctamente");$("vCantidad").value=1;await cargarTodo();
 }
 function renderVentas(){
  const q=($("buscarVenta")?.value||"").toLowerCase();
@@ -1156,7 +1231,8 @@ applyBrand();
 $("vProducto").addEventListener("change",refreshSalePreview);$("vCantidad").addEventListener("input",refreshSalePreview);
 window.addEventListener("click",e=>{if(e.target===$("productModal"))closeModal()});
 init();
-
+setInterval(refreshPublicAvailability,8000);
+document.addEventListener("visibilitychange",()=>{if(!document.hidden)refreshPublicAvailability()});
 document.addEventListener("DOMContentLoaded",()=>{
   const f=$("pFoto");if(f)f.addEventListener("change",renderPhotoPreview);
 
