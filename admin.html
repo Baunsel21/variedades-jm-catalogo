@@ -333,6 +333,7 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
 <script>
 const SUPABASE_URL="https://hnlbbtnfmbnbkcgegufa.supabase.co";
 const SUPABASE_ANON_KEY="sb_publishable_p2XJjsFd4Hp7LZ1IgfyVAg_hpXnFSSc";
+const IMAGE_WORKER_URL="https://sirevya-images.variedadesjm99.workers.dev";
 let sb=null,editingId=null,productos=[],ventas=[],clientes=[],inventoryMode=localStorage.getItem("jm_inventory_mode")||"cards";
 let proveedores=[],gastos=[],movimientos=[];
 let pedidos=[];
@@ -349,6 +350,62 @@ const $=id=>document.getElementById(id);
 function configured(){return !SUPABASE_URL.startsWith("PEGA_")&&!SUPABASE_ANON_KEY.startsWith("PEGA_")}
 function toast(t){$("toast").textContent=t;$("toast").classList.add("show");clearTimeout(window._toast);window._toast=setTimeout(()=>$("toast").classList.remove("show"),2600)}
 function loginMsg(t,good=false){$("loginMsg").innerHTML=`<div class="status ${good?"ok":"err"}">${esc(t)}</div>`}
+
+// Converts legacy Supabase image paths/URLs to the matching key used in R2.
+// External image URLs are left unchanged for compatibility.
+function imageObjectKey(value){
+ if(!value)return "";
+ let raw=String(value).trim();
+ if(!raw)return "";
+ const original=raw;
+ if(/^https?:\/\//i.test(raw)){
+   try{
+     const u=new URL(raw);
+     if(u.hostname===new URL(IMAGE_WORKER_URL).hostname || /(^|\.)r2\.dev$/i.test(u.hostname)){
+       raw=u.pathname;
+     }else if(u.pathname.includes("/product-images/")){
+       raw=u.pathname.slice(u.pathname.indexOf("/product-images/")+"/product-images/".length);
+     }else{
+       return original;
+     }
+   }catch{return original;}
+ }else{
+   const marker="/product-images/";
+   if(raw.includes(marker))raw=raw.slice(raw.indexOf(marker)+marker.length);
+   else if(raw.startsWith("product-images/"))raw=raw.slice("product-images/".length);
+ }
+ raw=raw.split(/[?#]/)[0].replace(/^\/+/,"");
+ if(!raw)return "";
+ try{raw=raw.split("/").map(part=>decodeURIComponent(part)).join("/")}catch{}
+ return raw;
+}
+function publicWorkerImage(value){
+ const key=imageObjectKey(value);
+ if(!key)return "";
+ if(/^https?:\/\//i.test(key))return key;
+ return IMAGE_WORKER_URL+"/"+key.split("/").map(part=>encodeURIComponent(part)).join("/");
+}
+function workerObjectUrl(key){return IMAGE_WORKER_URL+"/"+String(key||"").split("/").map(part=>encodeURIComponent(part)).join("/")}
+async function uploadImageToR2(path,file){
+ const {data:{session}}=await sb.auth.getSession();
+ if(!session?.access_token)throw new Error("Tu sesión caducó. Cierra sesión y vuelve a entrar.");
+ const ext=String(file.name||"").split(".").pop().toLowerCase();
+ const fallbackType=({jpg:"image/jpeg",jpeg:"image/jpeg",png:"image/png",webp:"image/webp",gif:"image/gif",avif:"image/avif"})[ext]||"image/jpeg";
+ const contentType=file.type||fallbackType;
+ const res=await fetch(workerObjectUrl(path),{method:"PUT",headers:{Authorization:"Bearer "+session.access_token,"Content-Type":contentType},body:file});
+ const body=await res.text();
+ if(!res.ok){let message=body;try{const parsed=JSON.parse(body);message=parsed.message||parsed.error||body}catch{};throw new Error(message||`No se pudo subir la foto (${res.status}).`)}
+ try{return JSON.parse(body)}catch{return {ok:true,key:path}}
+}
+async function deleteProductImagesFromR2(productId){
+ const {data:{session}}=await sb.auth.getSession();
+ if(!session?.access_token)throw new Error("Tu sesión caducó. Vuelve a iniciar sesión.");
+ const url=IMAGE_WORKER_URL+"/_admin/products/"+encodeURIComponent(String(productId));
+ const res=await fetch(url,{method:"DELETE",headers:{Authorization:"Bearer "+session.access_token}});
+ const body=await res.text();
+ if(!res.ok)throw new Error(body||`No se pudieron limpiar las fotos de R2 (${res.status}).`);
+ try{return JSON.parse(body)}catch{return {ok:true,deleted:0}}
+}
 
 
 function applyBrand(){
@@ -379,13 +436,12 @@ async function saveBrand(){
     const ext=(file.name.split(".").pop()||"png").toLowerCase();
     const {data:{user}}=await sb.auth.getUser();
     const path=`branding/${user.id}.${ext}`;
-    const up=await sb.storage.from("product-images").upload(path,file,{upsert:true,contentType:file.type||"image/png"});
-    if(up.error)return alert("No se pudo subir el icono: "+up.error.message);
-    brandIconPath=path;
-    const signed=await sb.storage.from("product-images").createSignedUrl(path,604800);
-    if(signed.error)return alert("Se subió el icono, pero no se pudo preparar la vista: "+signed.error.message);
-    brandIcon=signed.data.signedUrl;
-    finish();
+    try{
+      await uploadImageToR2(path,file);
+      brandIconPath=path;
+      brandIcon=publicWorkerImage(path);
+      finish();
+    }catch(error){return alert("No se pudo subir el icono a Cloudflare R2: "+(error.message||error))}
   }else finish();
 }
 async function resetBrand(){
@@ -422,11 +478,14 @@ async function startApp(){
  if(meta.jm_brand_name)brandName=meta.jm_brand_name;
  if(meta.jm_brand_icon_path){
    brandIconPath=meta.jm_brand_icon_path;
-   const signed=await sb.storage.from("product-images").createSignedUrl(brandIconPath,604800);
-   if(!signed.error) brandIcon=signed.data.signedUrl;
+   brandIcon=publicWorkerImage(brandIconPath);
  }else if(meta.jm_brand_icon){
-   // Compatibilidad con versiones anteriores que guardaron el icono en metadatos.
-   brandIcon=meta.jm_brand_icon;
+   // Compatibilidad con versiones anteriores: convierte rutas de Supabase a la URL de R2.
+   brandIcon=publicWorkerImage(meta.jm_brand_icon);
+ }else if(brandIconPath){
+   brandIcon=publicWorkerImage(brandIconPath);
+ }else if(brandIcon){
+   brandIcon=publicWorkerImage(brandIcon);
  }
  localStorage.setItem("jm_brand_name",brandName);localStorage.setItem("jm_brand_icon",brandIcon);localStorage.setItem("jm_brand_icon_path",brandIconPath);applyBrand();
  $("vFecha").value=new Date().toISOString().slice(0,10);$("gFecha").value=new Date().toISOString().slice(0,10);setDateText();await cargarTodo();await loadCategoriesFromTable();setInventoryMode(inventoryMode,false);
@@ -734,8 +793,7 @@ async function uploadProductImages(productId, files, userId){
    const file=files[i];
    const ext=(file.name.split(".").pop()||"jpg").toLowerCase();
    const path=`products/${productId}/${crypto.randomUUID()}.${ext}`;
-   const up=await sb.storage.from("product-images").upload(path,file,{upsert:false});
-   if(up.error) throw new Error("No se pudo subir una foto: "+up.error.message);
+   await uploadImageToR2(path,file);
    added.push({product_id:productId,user_id:userId,image_path:path,sort_order:i});
  }
  if(added.length){const ins=await sb.from("product_images").insert(added);if(ins.error)throw new Error("No se pudieron guardar las fotos adicionales: "+ins.error.message);}
@@ -807,8 +865,7 @@ async function uploadVariantPhotos(productId, variants, files){
  for(const [key,file] of Object.entries(files)){
    const ext=(file.name.split('.').pop()||'jpg').toLowerCase();
    const path=`products/${productId}/variants/${crypto.randomUUID()}.${ext}`;
-   const up=await sb.storage.from('product-images').upload(path,file,{upsert:false,contentType:file.type||'image/jpeg'});
-   if(up.error)throw new Error('No se pudo subir la foto de la variante: '+up.error.message);
+   await uploadImageToR2(path,file);
    updates[key]=path;
  }
  return variants.map(v=>{
@@ -862,19 +919,22 @@ function editarProducto(id){
  renderVariantEditor(variantDraft);show("producto",document.querySelector('[data-view=producto]'));
 }
 async function borrarProducto(id){
- const p=productos.find(x=>x.id===id);if(!p)return;
+ const p=productos.find(x=>String(x.id)===String(id));if(!p)return;
  if(!confirm(`¿Eliminar ${p.code} — ${p.name}?`))return;
- const {error}=await sb.from("products").delete().eq("id",id);if(error)alert(error.message);else{toast("Producto eliminado");await cargarTodo()}
+ const {error}=await sb.from("products").delete().eq("id",id);
+ if(error){alert(error.message);return;}
+ let cleanupNote="";
+ try{
+   const result=await deleteProductImagesFromR2(id);
+   cleanupNote=` Fotos de R2 eliminadas: ${Number(result.deleted)||0}.`;
+ }catch(cleanupError){
+   console.warn("El producto se borró de la base, pero no se pudieron limpiar sus fotos de R2:",cleanupError);
+   cleanupNote=" El producto se eliminó, pero no se pudo limpiar su carpeta de fotos de R2: "+(cleanupError.message||cleanupError);
+ }
+ await cargarTodo();
+ toast("Producto eliminado."+cleanupNote);
 }
-function getImageUrl(value){
- if(!value)return "";
- let path=value;
- const marker="/product-images/";
- if(path.includes(marker))path=path.split(marker)[1].split("?")[0];
- try{path=decodeURIComponent(path).replace(/^\/+/,"")}catch{}
- const {data}=sb.storage.from("product-images").getPublicUrl(path);
- return data?.publicUrl||"";
-}
+function getImageUrl(value){return publicWorkerImage(value)}
 function stockBadge(q){q=Number(q)||0;return q<=0?'<span class="badge out">Agotado</span>':q<=2?'<span class="badge low">Stock bajo</span>':'<span class="badge ok">Disponible</span>'}
 function populateFilters(){
  const cats=[...new Set(categorias.concat(productos.map(p=>p.category).filter(Boolean)))];$("filtroCat").innerHTML='<option value="">Todas las categorías</option>'+cats.map(c=>`<option>${esc(c)}</option>`).join("");
