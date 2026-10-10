@@ -708,7 +708,7 @@ body{background:linear-gradient(180deg,#fffaf0 0%,#fff6e6 55%,#f8ecd7 100%);colo
 </div>
 <main id="inicio" class="wrap">
 <section class="hero sirevyaHero" aria-label="Promociones Sirevya">
-  <img src="hero-sirevya.webp" width="1536" height="590" alt="Sirevya — Tu estilo, nuestra pasión" fetchpriority="high" decoding="async">
+  <img src="hero-sirevya.webp?v=2" width="1536" height="590" alt="Sirevya — Tu estilo, nuestra pasión" fetchpriority="high" decoding="async">
 </section>
 <section class="benefits"><div class="benefit"><div class="benefitIcon">📍</div><div><b>Cali</b><small>$0 de envío</small></div></div><div class="benefit"><div class="benefitIcon">🎁</div><div><b>Otras ciudades</b><small>Envío gratis desde $130.000</small></div></div><div class="benefit"><div class="benefitIcon">🛡️</div><div><b>Compra segura</b><small>Contra entrega o pago online</small></div></div></section>
 <div id="error" class="error"></div>
@@ -2078,6 +2078,6 @@ async function refreshInventoryStatus(){
 }
 
 load();
-setInterval(()=>{if(document.visibilityState==='visible')refreshInventoryStatus()},15000);
+setInterval(refreshInventoryStatus,8000);
 </script>
 </body></html>
