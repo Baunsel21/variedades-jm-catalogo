@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <link rel="preconnect" href="https://hnlbbtnfmbnbkcgegufa.supabase.co" crossorigin>
 <link rel="dns-prefetch" href="//hnlbbtnfmbnbkcgegufa.supabase.co">
-<!-- V7: carrito más compacto + reserva visual persistente al volver de Wompi. -->
+<!-- V8: reservas Wompi independientes por carrito durante 10 minutos; un nuevo pago no libera reservas anteriores. -->
 <title>Sirevya — Tu estilo, nuestra pasión</title>
 <meta name="description" content="Catálogo de productos de Variedades JM por categorías">
 <link id="favicon" rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect x='4' y='4' width='92' height='92' rx='22' fill='%23101827'/%3E%3Ctext x='50' y='64' text-anchor='middle' font-family='Arial,sans-serif' font-size='42' font-weight='900' fill='white'%3EJM%3C/text%3E%3C/svg%3E">
@@ -891,79 +891,158 @@ const WOMPI_PENDING_TIME_KEY='jm_wompi_pending_time_v4';
 const WOMPI_CART_KEY='jm_wompi_cart_v4';
 const WOMPI_RESERVATION_TIME_KEY='jm_wompi_reservation_time_v4';
 const WOMPI_RESERVATION_REFERENCE_KEY='jm_wompi_reservation_reference_v5';
+const WOMPI_RESERVATION_ITEMS_KEY='jm_wompi_reservation_items_v1';
+// Registro local de todas las reservas activas creadas en este navegador.
+// Cada reserva conserva su propio reloj de 10 minutos y no reemplaza las demás.
+const WOMPI_RESERVATIONS_KEY='jm_wompi_reservations_v2';
+const WOMPI_RESERVATION_TTL=10*60*1000;
 
-function hasActiveLocalReservation(){
- const t=Number(localStorage.getItem(WOMPI_RESERVATION_TIME_KEY)||0);
- if(!t || Date.now()-t>10*60*1000){
-   localStorage.removeItem(WOMPI_RESERVATION_TIME_KEY);
-   return false;
- }
- return true;
+function normalizeReservationItems(items){
+ return (Array.isArray(items)?items:[]).map(x=>({
+   id:String(x.id||''),qty:Math.max(1,Number(x.qty)||1),
+   color:String(x.color||'').trim().toLocaleLowerCase('es'),
+   size:String(x.size||'').trim().toLocaleLowerCase('es')
+ })).sort((x,y)=>x.id.localeCompare(y.id)||x.color.localeCompare(y.color)||x.size.localeCompare(y.size)||x.qty-y.qty);
 }
+function reservationItemsMatch(a,b){
+ const left=normalizeReservationItems(a),right=normalizeReservationItems(b);
+ return left.length===right.length&&left.every((x,i)=>x.id===right[i].id&&x.qty===right[i].qty&&x.color===right[i].color&&x.size===right[i].size);
+}
+function rawReservationItems(){
+ try{const raw=JSON.parse(localStorage.getItem(WOMPI_RESERVATION_ITEMS_KEY)||'[]');return Array.isArray(raw)?raw:[]}
+ catch(e){return []}
+}
+function saveReservationRegistry(records){
+ localStorage.setItem(WOMPI_RESERVATIONS_KEY,JSON.stringify(records));
+}
+function getReservationRegistry(){
+ let records=[],importedLegacy=false;
+ try{
+   const raw=JSON.parse(localStorage.getItem(WOMPI_RESERVATIONS_KEY)||'[]');
+   if(Array.isArray(raw)) records=raw.filter(r=>r&&r.reference&&Number(r.startedAt)>0&&Array.isArray(r.items));
+ }catch(e){console.warn('No se pudo leer el registro local de reservas.',e)}
+ // Compatibilidad: conservar la reserva activa guardada por versiones anteriores.
+ const legacyRef=localStorage.getItem(WOMPI_RESERVATION_REFERENCE_KEY)||'';
+ const legacyTime=Number(localStorage.getItem(WOMPI_RESERVATION_TIME_KEY)||0);
+ const legacyItems=rawReservationItems();
+ if(legacyRef&&legacyTime&&legacyItems.length&&!records.some(r=>String(r.reference)===String(legacyRef))){
+   records.push({reference:String(legacyRef),startedAt:legacyTime,items:legacyItems.map(x=>({id:String(x.id),qty:Number(x.qty)||1,color:String(x.color||''),size:String(x.size||'')}))});
+   importedLegacy=true;
+ }
+ const now=Date.now();
+ const active=records.filter(r=>now-Number(r.startedAt)<=WOMPI_RESERVATION_TTL&&now>=Number(r.startedAt)-60000);
+ if(importedLegacy||active.length!==records.length){
+   try{saveReservationRegistry(active)}catch(e){console.warn('No se pudo actualizar el registro local de reservas.',e)}
+ }
+ return active.sort((a,b)=>Number(a.startedAt)-Number(b.startedAt));
+}
+function findReservationRecordByReference(reference){
+ if(!reference)return null;
+ return getReservationRegistry().find(r=>String(r.reference)===String(reference))||null;
+}
+function findReservationRecordForItems(items){
+ const records=getReservationRegistry();
+ for(let i=records.length-1;i>=0;i--){if(reservationItemsMatch(records[i].items,items))return records[i]}
+ return null;
+}
+function setCurrentReservationRecord(record){
+ if(!record)return;
+ localStorage.setItem(WOMPI_RESERVATION_REFERENCE_KEY,String(record.reference));
+ localStorage.setItem(WOMPI_RESERVATION_ITEMS_KEY,JSON.stringify(record.items||[]));
+ localStorage.setItem(WOMPI_RESERVATION_TIME_KEY,String(record.startedAt));
+ localStorage.removeItem(WOMPI_PENDING_REFERENCE_KEY);
+ localStorage.removeItem(WOMPI_PENDING_TIME_KEY);
+}
+function saveReservationRecord(reference,items,startedAt=Date.now()){
+ const cleanItems=(items||[]).map(x=>({id:String(x.id),qty:Number(x.qty)||1,color:String(x.color||''),size:String(x.size||'')}));
+ let records=getReservationRegistry().filter(r=>String(r.reference)!==String(reference));
+ records.push({reference:String(reference),startedAt:Number(startedAt)||Date.now(),items:cleanItems});
+ // Conserva únicamente reservas vigentes; deja un margen de historial acotado.
+ records=records.filter(r=>Date.now()-Number(r.startedAt)<=WOMPI_RESERVATION_TTL);
+ saveReservationRegistry(records);
+ setCurrentReservationRecord(records[records.length-1]);
+ return records[records.length-1];
+}
+function updateReservationReference(oldReference,newReference){
+ if(!oldReference||!newReference)return;
+ const records=getReservationRegistry();
+ const idx=records.findIndex(r=>String(r.reference)===String(oldReference));
+ if(idx>=0){records[idx]={...records[idx],reference:String(newReference)};saveReservationRegistry(records)}
+}
+function forgetReservationRecord(reference){
+ if(!reference)return;
+ const records=getReservationRegistry().filter(r=>String(r.reference)!==String(reference));
+ try{saveReservationRegistry(records)}catch(e){console.warn('No se pudo quitar una reserva del registro local.',e)}
+ if(String(localStorage.getItem(WOMPI_RESERVATION_REFERENCE_KEY)||'')===String(reference))clearPendingWompiReference();
+}
+function hasActiveLocalReservation(){return getReservationRegistry().length>0}
 
 function getPendingWompiReference(){
  const ref=localStorage.getItem(WOMPI_PENDING_REFERENCE_KEY)||'';
  const time=Number(localStorage.getItem(WOMPI_PENDING_TIME_KEY)||0);
-
- // La reserva del servidor dura 10 minutos.
- if(!ref||!time||Date.now()-time>10*60*1000){
+ if(!ref||!time||Date.now()-time>WOMPI_RESERVATION_TTL){
    localStorage.removeItem(WOMPI_PENDING_REFERENCE_KEY);
    localStorage.removeItem(WOMPI_PENDING_TIME_KEY);
    return '';
  }
  return ref;
 }
-
 function savePendingWompiReference(ref){
  if(!ref)return;
+ const currentRef=localStorage.getItem(WOMPI_RESERVATION_REFERENCE_KEY)||'';
  const startedAt=Number(localStorage.getItem(WOMPI_RESERVATION_TIME_KEY)||0)||Date.now();
+ if(currentRef&&currentRef!==String(ref))updateReservationReference(currentRef,String(ref));
+ const items=rawReservationItems();
+ if(items.length)saveReservationRecord(String(ref),items,startedAt);
  localStorage.setItem(WOMPI_RESERVATION_REFERENCE_KEY,String(ref));
  localStorage.setItem(WOMPI_PENDING_REFERENCE_KEY,String(ref));
- // Mantener el tiempo original de la reserva: volver atrás o recargar no debe
- // fingir que la reserva del servidor tiene otros diez minutos adicionales.
+ // No reiniciar el reloj al regresar o reintentar el pago.
  localStorage.setItem(WOMPI_RESERVATION_TIME_KEY,String(startedAt));
  localStorage.setItem(WOMPI_PENDING_TIME_KEY,String(startedAt));
 }
-
-const WOMPI_RESERVATION_ITEMS_KEY='jm_wompi_reservation_items_v1';
 function getActiveReservationReference(){
  const ref=localStorage.getItem(WOMPI_RESERVATION_REFERENCE_KEY)||'';
  const time=Number(localStorage.getItem(WOMPI_RESERVATION_TIME_KEY)||0);
- if(!ref||!time||Date.now()-time>10*60*1000){
-   localStorage.removeItem(WOMPI_RESERVATION_REFERENCE_KEY);
-   localStorage.removeItem(WOMPI_RESERVATION_ITEMS_KEY);
+ if(!ref||!time||Date.now()-time>WOMPI_RESERVATION_TTL){
+   if(ref){
+     localStorage.removeItem(WOMPI_RESERVATION_REFERENCE_KEY);
+     localStorage.removeItem(WOMPI_RESERVATION_ITEMS_KEY);
+     localStorage.removeItem(WOMPI_RESERVATION_TIME_KEY);
+   }
    return '';
  }
  return ref;
 }
-function saveActiveReservationReference(ref){if(ref)localStorage.setItem(WOMPI_RESERVATION_REFERENCE_KEY,String(ref));}
+function saveActiveReservationReference(ref){
+ if(!ref)return;
+ const current=localStorage.getItem(WOMPI_RESERVATION_REFERENCE_KEY)||'';
+ if(current&&current!==String(ref))updateReservationReference(current,String(ref));
+ localStorage.setItem(WOMPI_RESERVATION_REFERENCE_KEY,String(ref));
+}
 function saveActiveReservationItems(items){
  try{
-   localStorage.setItem(WOMPI_RESERVATION_ITEMS_KEY,JSON.stringify((items||[]).map(x=>({id:String(x.id),qty:Number(x.qty)||1,color:x.color||'',size:x.size||''}))));
+   const clean=(items||[]).map(x=>({id:String(x.id),qty:Number(x.qty)||1,color:x.color||'',size:x.size||''}));
+   localStorage.setItem(WOMPI_RESERVATION_ITEMS_KEY,JSON.stringify(clean));
+   const reference=localStorage.getItem(WOMPI_RESERVATION_REFERENCE_KEY)||'';
+   const startedAt=Number(localStorage.getItem(WOMPI_RESERVATION_TIME_KEY)||0)||Date.now();
+   if(reference)saveReservationRecord(reference,clean,startedAt);
  }catch(e){console.warn('No se pudieron guardar los productos de la reserva.',e)}
 }
 function saveReservationDraft(reference,items){
- // Se guarda ANTES de llamar a Supabase. Si el comprador recarga o vuelve atrás
- // mientras la petición está en curso, el siguiente intento conserva la misma referencia.
+ // Persistir la reserva nueva antes de llamar a Supabase; mantener registros previos.
  try{
-   const startedAt=Date.now();
-   localStorage.setItem(WOMPI_RESERVATION_REFERENCE_KEY,String(reference));
-   localStorage.setItem(WOMPI_RESERVATION_ITEMS_KEY,JSON.stringify((items||[]).map(x=>({id:String(x.id),qty:Number(x.qty)||1,color:String(x.color||''),size:String(x.size||'')}))));
-   localStorage.setItem(WOMPI_RESERVATION_TIME_KEY,String(startedAt));
-   localStorage.removeItem(WOMPI_PENDING_REFERENCE_KEY);
-   localStorage.removeItem(WOMPI_PENDING_TIME_KEY);
+   saveReservationRecord(reference,items,Date.now());
  }catch(e){
-   clearPendingWompiReference();
    throw new Error('No se pudo guardar la reserva en este dispositivo. Comprueba que el almacenamiento del navegador esté habilitado e inténtalo otra vez.');
  }
 }
 function getActiveReservationItems(){
- try{
-   const raw=JSON.parse(localStorage.getItem(WOMPI_RESERVATION_ITEMS_KEY)||'[]');
-   return Array.isArray(raw)?raw:[];
- }catch(e){return []}
+ const ref=localStorage.getItem(WOMPI_RESERVATION_REFERENCE_KEY)||'';
+ const record=findReservationRecordByReference(ref);
+ return record?.items||rawReservationItems();
 }
 function clearPendingWompiReference(){
+ // Limpia solo el puntero de la pantalla actual. No borra otras reservas activas.
  localStorage.removeItem(WOMPI_RESERVATION_REFERENCE_KEY);
  localStorage.removeItem(WOMPI_RESERVATION_ITEMS_KEY);
  localStorage.removeItem(WOMPI_PENDING_REFERENCE_KEY);
@@ -1362,12 +1441,9 @@ function renderVariantOptions(p){
 let detailProduct=null;
 
 function hasOwnActiveReservationForProduct(productId){
- const ownReference=getActiveReservationReference();
- if(!ownReference)return false;
- const inCart=cart.some(x=>String(x.id)===String(productId));
- const inCheckout=(checkoutCart||[]).some(x=>String(x.id)===String(productId));
- const saved=getActiveReservationItems().some(x=>String(x.id)===String(productId));
- return inCart||inCheckout||saved;
+ // Solo considerar propio el producto si existe una reserva vigente que lo incluya.
+ // Estar en el carrito o en checkout no significa que el inventario esté reservado.
+ return getReservationRegistry().some(r=>(r.items||[]).some(x=>String(x.id)===String(productId)));
 }
 function productHasPublicStock(p){
  if(!p)return false;
@@ -1559,7 +1635,7 @@ function render(){
  $('count').textContent=arr.length+' producto'+(arr.length===1?'':'s');
  $('grid').innerHTML=arr.length?arr.map(p=>{
    const imgs=productImages(p);
-   const reservedForThisSession=(!!getPendingWompiReference() || hasActiveLocalReservation()) && cart.some(x=>String(x.id)===String(p.id));
+   const reservedForThisSession=hasOwnActiveReservationForProduct(p.id) && cart.some(x=>String(x.id)===String(p.id));
    const variantTotal=variantList(p).length?variantList(p).reduce((sum,v)=>sum+Number(v.stock||0),0):Number(p.quantity)||0;
    const ok=(Number(p.quantity)||0)>0 || reservedForThisSession;
    const blocked=!ok && !hasOwnActiveReservationForProduct(p.id);
@@ -1801,16 +1877,6 @@ window.addEventListener('pageshow',event=>{
  }
 });
 
-function reservationItemsMatch(a,b){
- const normalize=items=>(Array.isArray(items)?items:[]).map(x=>({
-   id:String(x.id||''),qty:Math.max(1,Number(x.qty)||1),
-   color:String(x.color||'').trim().toLocaleLowerCase('es'),
-   size:String(x.size||'').trim().toLocaleLowerCase('es')
- })).sort((x,y)=>x.id.localeCompare(y.id)||x.color.localeCompare(y.color)||x.size.localeCompare(y.size)||x.qty-y.qty);
- const left=normalize(a),right=normalize(b);
- return left.length===right.length&&left.every((x,i)=>x.id===right[i].id&&x.qty===right[i].qty&&x.color===right[i].color&&x.size===right[i].size);
-}
-
 async function payWithWompi(payload){
  // Evitar dos solicitudes simultáneas por doble toque en celular o doble clic.
  if(window.__sirevyaWompiInProgress)return;
@@ -1833,26 +1899,25 @@ async function payWithWompi(payload){
 
   const storedReference=getActiveReservationReference()||getPendingWompiReference()||'';
   const storedItems=getActiveReservationItems();
+  const matchingRecord=(storedReference&&reservationItemsMatch(storedItems,checkoutItems))
+    ? findReservationRecordByReference(storedReference)
+    : findReservationRecordForItems(checkoutItems);
 
-  if(storedReference&&reservationItemsMatch(storedItems,checkoutItems)){
-    // Reutilizar SIEMPRE la misma referencia. reserve_inventory es idempotente:
-    // si ya existe esta reserva activa no vuelve a bloquear otra unidad.
-    reservationReference=storedReference;
-    const reused=await reserveInventoryServer(reservationReference,checkoutItems);
-    createdReservation=!/reserva existente sigue activa|reserva ya estaba activa/i.test(String(reused.message||''));
+  if(matchingRecord){
+    // Reutilizar la reserva de ESTE conjunto de productos si sigue vigente.
+    // Las reservas de otros carritos se conservan independientemente hasta que
+    // cada una cumpla sus 10 minutos; iniciar otro pago no libera las anteriores.
+    reservationReference=String(matchingRecord.reference);
+    setCurrentReservationRecord(matchingRecord);
+    await reserveInventoryServer(reservationReference,checkoutItems);
+    // Es una reserva que ya estaba registrada localmente. Si falla la preparación
+    // del pago, no liberar este hold previo: debe conservar su plazo original.
+    createdReservation=false;
     saveActiveReservationReference(reservationReference);
     saveActiveReservationItems(checkoutItems);
   }else{
-    // Si el carrito cambió, liberar el hold anterior ANTES de crear otro.
-    // Antes se borraba el identificador local sin liberar la reserva del servidor,
-    // dejando el hold viejo activo y creando otro al continuar/recargar.
-    if(storedReference){
-      await releaseInventoryReservation(storedReference);
-    }
-    if(storedReference||storedItems.length)clearPendingWompiReference();
-
+    // Carrito diferente: crear una reserva independiente sin liberar las anteriores.
     reservationReference=generateReservationReference();
-    // Persistir referencia + productos + reloj ANTES del primer await a Supabase.
     saveReservationDraft(reservationReference,checkoutItems);
     createdReservation=true;
     await reserveInventoryServer(reservationReference,checkoutItems);
@@ -1948,11 +2013,18 @@ async function payWithWompi(payload){
   // Si este intento creó una reserva nueva, liberarla al fallar la preparación.
   // Las reservas reutilizadas se conservan para que el cliente pueda reintentar.
   if(createdReservation&&reservationReference){
+    let released=false;
     try{
       await releaseInventoryReservation(reservationReference);
-      clearPendingWompiReference();
+      released=true;
     }catch(releaseError){
+      // Si Supabase no confirma la liberación, conservar el registro local hasta
+      // que venza el plazo evita tratar como libre una reserva posiblemente activa.
       console.warn('No se pudo liberar la reserva tras el error.',releaseError);
+    }
+    if(released){
+      // Quitar solo el registro que sí se liberó; los demás holds siguen vigentes.
+      forgetReservationRecord(reservationReference);
     }
   }
 
@@ -2078,6 +2150,6 @@ async function refreshInventoryStatus(){
 }
 
 load();
-setInterval(()=>{if(document.visibilityState==='visible')refreshInventoryStatus()},15000);
+setInterval(()=>{if(document.visibilityState==='visible')refreshInventoryStatus()},8000);
 </script>
 </body></html>
