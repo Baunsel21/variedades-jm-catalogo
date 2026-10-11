@@ -472,29 +472,59 @@ async function uploadImageToR2(path,file){
  const uploadPath=String(path).replace(/\.[^/.]+$/, "."+ext);
  const contentType=R2_ALLOWED_IMAGE_TYPES.has(uploadFile.type)?uploadFile.type:(R2_EXTENSION_MIME[ext]||"image/jpeg");
  let lastError=null;
- for(let attempt=0;attempt<3;attempt++){
+ // Las redes móviles pueden tardar en establecer la conexión. Reintentar la misma
+ // clave es seguro: R2 reemplaza el mismo objeto en lugar de crear duplicados.
+ const maxAttempts=4;
+ for(let attempt=0;attempt<maxAttempts;attempt++){
    const controller=new AbortController();
-   const timeout=setTimeout(()=>controller.abort(),45000);
+   const timeout=setTimeout(()=>controller.abort(),90000);
    let res;
-   try{res=await fetch(workerObjectUrl(uploadPath),{method:"PUT",headers:{Authorization:"Bearer "+session.access_token,"Content-Type":contentType},body:uploadFile,signal:controller.signal});}
-   catch(error){
-     lastError=error;clearTimeout(timeout);
-     if(attempt<2){await waitForUploadRetry(350*(attempt+1));continue;}
-     throw new Error(`No se pudo conectar con Cloudflare para subir “${file.name||"la foto"}”. Comprueba la conexión e inténtalo de nuevo. ${error?.name==="AbortError"?"La subida tardó demasiado.":""}`.trim());
+   try{
+     res=await fetch(workerObjectUrl(uploadPath),{
+       method:"PUT",
+       headers:{Authorization:"Bearer "+session.access_token,"Content-Type":contentType},
+       body:uploadFile,
+       signal:controller.signal,
+       cache:"no-store"
+     });
+   }catch(error){
+     lastError=error;
+     if(attempt<maxAttempts-1){
+       clearTimeout(timeout);
+       await waitForUploadRetry(Math.min(1000*Math.pow(2,attempt),6000));
+       continue;
+     }
+     clearTimeout(timeout);
+     throw new Error(`No se pudo completar la conexión para subir “${file.name||"la foto"}” después de ${maxAttempts} intentos. La conexión móvil pudo interrumpirse${error?.name==="AbortError"?" o la subida tardó más de 90 segundos":""}. El producto puede estar guardado sin foto: no lo crees de nuevo; entra a “Completar/Editar producto” y vuelve a subirla cuando tengas mejor conexión.`);
+   }
+   let body="";
+   try{body=await res.text()}catch(error){
+     clearTimeout(timeout);
+     lastError=error;
+     if(attempt<maxAttempts-1){await waitForUploadRetry(Math.min(1000*Math.pow(2,attempt),6000));continue;}
+     throw new Error("La conexión se interrumpió al confirmar la foto. No crees el producto otra vez: entra a “Completar/Editar producto” y vuelve a subirla.");
    }
    clearTimeout(timeout);
-   let body;
-   try{body=await res.text()}catch(error){
-     lastError=error;
-     if(attempt<2){await waitForUploadRetry(350*(attempt+1));continue;}
-     throw new Error("La conexión se interrumpió al confirmar la foto. Vuelve a intentarlo; no crees el producto otra vez.");
-   }
    if(!res.ok){
-     let message=body;try{const parsed=JSON.parse(body);message=parsed.message||parsed.error||body}catch{}
-     if((res.status>=500||res.status===429)&&attempt<2){lastError=new Error(message||`Error ${res.status}`);await waitForUploadRetry(350*(attempt+1));continue;}
+     let message=body;
+     try{const parsed=JSON.parse(body);message=parsed.message||parsed.error||body}catch{}
+     // Reintentar solo errores transitorios; errores de sesión/permisos/formato
+     // deben mostrarse enseguida para no ocultar su causa.
+     if((res.status>=500||res.status===429||res.status===408)&&attempt<maxAttempts-1){
+       lastError=new Error(message||`Error ${res.status}`);
+       await waitForUploadRetry(Math.min(1000*Math.pow(2,attempt),6000));
+       continue;
+     }
      throw new Error(message||`No se pudo subir la foto (${res.status}).`);
    }
-   try{const result=JSON.parse(body);return {...result,key:result.key||uploadPath}}catch{return {ok:true,key:uploadPath}}
+   try{
+     const result=JSON.parse(body);
+     if(result.ok===false)throw new Error(result.message||result.error||"Cloudflare no confirmó la foto.");
+     return {...result,key:result.key||uploadPath};
+   }catch(error){
+     if(error instanceof SyntaxError)return {ok:true,key:uploadPath};
+     throw error;
+   }
  }
  throw new Error("No se pudo subir la foto a Cloudflare R2. "+(lastError?.message||"Comprueba tu conexión e inténtalo de nuevo."));
 }
