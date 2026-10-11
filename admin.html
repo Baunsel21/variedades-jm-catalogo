@@ -387,16 +387,107 @@ function publicWorkerImage(value){
  return IMAGE_WORKER_URL+"/"+key.split("/").map(part=>encodeURIComponent(part)).join("/");
 }
 function workerObjectUrl(key){return IMAGE_WORKER_URL+"/"+String(key||"").split("/").map(part=>encodeURIComponent(part)).join("/")}
+const R2_ALLOWED_IMAGE_TYPES=new Set(["image/jpeg","image/png","image/webp","image/gif","image/avif"]);
+const R2_EXTENSION_MIME={jpg:"image/jpeg",jpeg:"image/jpeg",png:"image/png",webp:"image/webp",gif:"image/gif",avif:"image/avif"};
+const R2_MIME_EXTENSION={"image/jpeg":"jpg","image/png":"png","image/webp":"webp","image/gif":"gif","image/avif":"avif"};
+function uploadExtension(file){return String(file?.name||"").split(".").pop().toLowerCase()}
+function uploadBaseName(file){return String(file?.name||"foto").replace(/\.[^.]*$/,'').replace(/[^a-zA-Z0-9_-]/g,'_').slice(0,70)||"foto"}
+function decodeUploadImage(file){
+ if(typeof createImageBitmap==="function")return createImageBitmap(file).catch(()=>decodeWithImageElement(file));
+ return decodeWithImageElement(file);
+}
+function decodeWithImageElement(file){
+ return new Promise((resolve,reject)=>{
+   const url=URL.createObjectURL(file),img=new Image();
+   img.onload=()=>{URL.revokeObjectURL(url);resolve({width:img.naturalWidth,height:img.naturalHeight,source:img,close(){}})};
+   img.onerror=()=>{URL.revokeObjectURL(url);reject(new Error("El navegador no pudo leer este formato de imagen."))};
+   img.src=url;
+ });
+}
+async function prepareImageForUpload(file){
+ const originalExt=uploadExtension(file);
+ const suppliedType=String(file?.type||"").split(";")[0].trim().toLowerCase();
+ const inferredType=R2_EXTENSION_MIME[originalExt]||"";
+ const contentType=(suppliedType && suppliedType!=="application/octet-stream")?suppliedType:inferredType;
+ const supported=R2_ALLOWED_IMAGE_TYPES.has(contentType);
+ const normalExtension=R2_MIME_EXTENSION[contentType]||"";
+ const extensionMatches=contentType==="image/jpeg"?(originalExt==="jpg"||originalExt==="jpeg"):originalExt===normalExtension;
+ // Keep normal-sized supported photos untouched to preserve their original quality.
+ if(supported && file.size<=3.5*1024*1024 && extensionMatches && suppliedType===contentType)return file;
+ if(contentType==="image/gif" && supported){
+   // Do not silently turn an animated product GIF into a still image.
+   if(file.size>15*1024*1024)throw new Error("El GIF supera 15 MB. Para conservar la animación, reduce su tamaño o usa una versión JPG/WEBP menor de 15 MB.");
+   return new File([file],uploadBaseName(file)+".gif",{type:"image/gif",lastModified:file.lastModified||Date.now()});
+ }
+ if(supported && file.size<=3.5*1024*1024){
+   return new File([file],uploadBaseName(file)+"."+normalExtension,{type:contentType,lastModified:file.lastModified||Date.now()});
+ }
+ let decoded;
+ try{decoded=await decodeUploadImage(file)}catch{
+   const ext=originalExt||"desconocido";
+   throw new Error(`No se pudo preparar la foto “${file.name||"seleccionada"}” (formato ${ext}). En el celular, selecciona una copia JPG, PNG o WEBP y vuelve a intentarlo.`);
+ }
+ try{
+   const width=Number(decoded.width)||0,height=Number(decoded.height)||0;
+   if(!width||!height)throw new Error("La imagen no tiene dimensiones válidas.");
+   const maxSide=1920,scale=Math.min(1,maxSide/Math.max(width,height));
+   const canvas=document.createElement("canvas");
+   canvas.width=Math.max(1,Math.round(width*scale));canvas.height=Math.max(1,Math.round(height*scale));
+   const ctx=canvas.getContext("2d");if(!ctx)throw new Error("No se pudo preparar la imagen en este navegador.");
+   // Preserve transparency for PNG/WEBP/AVIF sources by encoding WEBP with alpha.
+   const targetType=["image/png","image/webp","image/avif"].includes(contentType)?"image/webp":"image/jpeg";
+   if(targetType==="image/jpeg"){
+     // JPEG has no alpha channel; use a white background only for JPEG output.
+     ctx.fillStyle="#ffffff";ctx.fillRect(0,0,canvas.width,canvas.height);
+   }
+   ctx.drawImage(decoded.source||decoded,0,0,canvas.width,canvas.height);
+   let outputType=targetType;
+   let blob=await new Promise(resolve=>canvas.toBlob(resolve,outputType,0.88));
+   // If WEBP encoding is unavailable in this browser, PNG still preserves alpha.
+   if(!blob && outputType==="image/webp"){
+     outputType="image/png";
+     blob=await new Promise(resolve=>canvas.toBlob(resolve,outputType));
+   }
+   if(!blob)throw new Error("No se pudo comprimir la imagen.");
+   if(!blob.size)throw new Error("La imagen preparada quedó vacía.");
+   const outputExtension=outputType==="image/webp"?"webp":outputType==="image/png"?"png":"jpg";
+   return new File([blob],uploadBaseName(file)+"."+outputExtension,{type:outputType,lastModified:file.lastModified||Date.now()});
+ }finally{try{decoded.close?.()}catch{}}
+}
+const waitForUploadRetry=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 async function uploadImageToR2(path,file){
  const {data:{session}}=await sb.auth.getSession();
  if(!session?.access_token)throw new Error("Tu sesión caducó. Cierra sesión y vuelve a entrar.");
- const ext=String(file.name||"").split(".").pop().toLowerCase();
- const fallbackType=({jpg:"image/jpeg",jpeg:"image/jpeg",png:"image/png",webp:"image/webp",gif:"image/gif",avif:"image/avif"})[ext]||"image/jpeg";
- const contentType=file.type||fallbackType;
- const res=await fetch(workerObjectUrl(path),{method:"PUT",headers:{Authorization:"Bearer "+session.access_token,"Content-Type":contentType},body:file});
- const body=await res.text();
- if(!res.ok){let message=body;try{const parsed=JSON.parse(body);message=parsed.message||parsed.error||body}catch{};throw new Error(message||`No se pudo subir la foto (${res.status}).`)}
- try{return JSON.parse(body)}catch{return {ok:true,key:path}}
+ const uploadFile=await prepareImageForUpload(file);
+ const ext=uploadExtension(uploadFile)||R2_MIME_EXTENSION[uploadFile.type]||"jpg";
+ const uploadPath=String(path).replace(/\.[^/.]+$/, "."+ext);
+ const contentType=R2_ALLOWED_IMAGE_TYPES.has(uploadFile.type)?uploadFile.type:(R2_EXTENSION_MIME[ext]||"image/jpeg");
+ let lastError=null;
+ for(let attempt=0;attempt<3;attempt++){
+   const controller=new AbortController();
+   const timeout=setTimeout(()=>controller.abort(),45000);
+   let res;
+   try{res=await fetch(workerObjectUrl(uploadPath),{method:"PUT",headers:{Authorization:"Bearer "+session.access_token,"Content-Type":contentType},body:uploadFile,signal:controller.signal});}
+   catch(error){
+     lastError=error;clearTimeout(timeout);
+     if(attempt<2){await waitForUploadRetry(350*(attempt+1));continue;}
+     throw new Error(`No se pudo conectar con Cloudflare para subir “${file.name||"la foto"}”. Comprueba la conexión e inténtalo de nuevo. ${error?.name==="AbortError"?"La subida tardó demasiado.":""}`.trim());
+   }
+   clearTimeout(timeout);
+   let body;
+   try{body=await res.text()}catch(error){
+     lastError=error;
+     if(attempt<2){await waitForUploadRetry(350*(attempt+1));continue;}
+     throw new Error("La conexión se interrumpió al confirmar la foto. Vuelve a intentarlo; no crees el producto otra vez.");
+   }
+   if(!res.ok){
+     let message=body;try{const parsed=JSON.parse(body);message=parsed.message||parsed.error||body}catch{}
+     if((res.status>=500||res.status===429)&&attempt<2){lastError=new Error(message||`Error ${res.status}`);await waitForUploadRetry(350*(attempt+1));continue;}
+     throw new Error(message||`No se pudo subir la foto (${res.status}).`);
+   }
+   try{const result=JSON.parse(body);return {...result,key:result.key||uploadPath}}catch{return {ok:true,key:uploadPath}}
+ }
+ throw new Error("No se pudo subir la foto a Cloudflare R2. "+(lastError?.message||"Comprueba tu conexión e inténtalo de nuevo."));
 }
 async function deleteProductImagesFromR2(productId){
  const {data:{session}}=await sb.auth.getSession();
@@ -438,9 +529,9 @@ async function saveBrand(){
     const {data:{user}}=await sb.auth.getUser();
     const path=`branding/${user.id}.${ext}`;
     try{
-      await uploadImageToR2(path,file);
-      brandIconPath=path;
-      brandIcon=publicWorkerImage(path);
+      const uploaded=await uploadImageToR2(path,file);
+      brandIconPath=uploaded.key||path;
+      brandIcon=publicWorkerImage(brandIconPath);
       finish();
     }catch(error){return alert("No se pudo subir el icono a Cloudflare R2: "+(error.message||error))}
   }else finish();
@@ -825,8 +916,8 @@ async function uploadProductImages(productId, files, userId){
    const file=files[i];
    const ext=(file.name.split(".").pop()||"jpg").toLowerCase();
    const path=`products/${productId}/${crypto.randomUUID()}.${ext}`;
-   await uploadImageToR2(path,file);
-   added.push({product_id:productId,user_id:userId,image_path:path,sort_order:i});
+   const uploaded=await uploadImageToR2(path,file);
+   added.push({product_id:productId,user_id:userId,image_path:uploaded.key||path,sort_order:i});
  }
  if(added.length){const ins=await sb.from("product_images").insert(added);if(ins.error)throw new Error("No se pudieron guardar las fotos adicionales: "+ins.error.message);}
  return added;
@@ -874,17 +965,19 @@ function renderVariantEditor(existing=variantDraft){
  const colorsWithPhoto=colors.length?colors:["Sin color"];
  rows.innerHTML=`<div class="variantAdminTable">
  <div class="variantAdminRow variantAdminHead"><div>Color</div><div>Talla</div><div>Stock</div><div>📸 Foto de esta referencia</div></div>`+
- colorsWithPhoto.flatMap(c=>ss.map(sz=>{
-   const k=variantKey(c,sz),v=map.get(k)||{color:c,size:sz,stock:0,image_path:''};
+ colorsWithPhoto.flatMap(displayColor=>ss.map(sz=>{
+   const colorValue=colors.length?displayColor:"";
+   const k=variantKey(colorValue,sz),legacyKey=variantKey("Sin color",sz);
+   const v=map.get(k)||(!colors.length?map.get(legacyKey):null)||{color:colorValue,size:sz,stock:0,image_path:''};
    const existingPhoto=v.image_path||'';
    const preview=existingPhoto?`<div class="variantPhotoPreview"><span class="variantCurrentPhoto">✓ Foto guardada</span></div>`:'';
    return `<div class="variantAdminRow">
-     <div class="variantAdminCell">${esc(c)}</div>
+     <div class="variantAdminCell">${esc(displayColor)}</div>
      <div class="variantAdminCell">${esc(sz)}</div>
-     <input class="variantAdminStock" type="number" min="0" value="${Number(v.stock)||0}" data-var-color="${esc(c)}" data-var-size="${esc(sz)}">
+     <input class="variantAdminStock" type="number" min="0" value="${Number(v.stock)||0}" data-var-color="${esc(colorValue)}" data-var-size="${esc(sz)}">
      <div class="variantPhotoCell">
-       <input class="variantColorPhoto" type="file" accept="image/*" data-var-photo-color="${esc(c)}" data-var-photo-size="${esc(sz)}">
-       <div class="variantPhotoHint">Selecciona la foto correspondiente a ${esc(c)} / ${esc(sz)}</div>
+       <input class="variantColorPhoto" type="file" accept="image/*" data-var-photo-color="${esc(colorValue)}" data-var-photo-size="${esc(sz)}">
+       <div class="variantPhotoHint">Selecciona la foto correspondiente a ${esc(displayColor)} / ${esc(sz)}</div>
        ${preview}
      </div>
    </div>`;
@@ -893,7 +986,7 @@ function renderVariantEditor(existing=variantDraft){
 function collectVariantDraft(){
  const rows=[...document.querySelectorAll('#variantEditorRows .variantAdminStock')];
  const prev=new Map(parseVariants(variantDraft).map(x=>[variantKey(x.color,x.size),x]));
- return rows.map(inp=>{const color=inp.dataset.varColor||'',size=inp.dataset.varSize||'',old=prev.get(variantKey(color,size));return {color,size,stock:Math.max(0,Number(inp.value)||0),image_path:old?.image_path||''}});
+ return rows.map(inp=>{const color=inp.dataset.varColor||'',size=inp.dataset.varSize||'',old=prev.get(variantKey(color,size))||(!color?prev.get(variantKey("Sin color",size)):null);return {color,size,stock:Math.max(0,Number(inp.value)||0),image_path:old?.image_path||''}});
 }
 function totalVariantStock(list){return list.reduce((s,x)=>s+Math.max(0,Number(x.stock)||0),0)}
 function selectedVariantFiles(){
@@ -911,8 +1004,8 @@ async function uploadVariantPhotos(productId, variants, files){
  for(const [key,file] of Object.entries(files)){
    const ext=(file.name.split('.').pop()||'jpg').toLowerCase();
    const path=`products/${productId}/variants/${crypto.randomUUID()}.${ext}`;
-   await uploadImageToR2(path,file);
-   updates[key]=path;
+   const uploaded=await uploadImageToR2(path,file);
+   updates[key]=uploaded.key||path;
  }
  return variants.map(v=>{
    const key=variantKey(normalizeVariantText(v.color),normalizeVariantText(v.size));
@@ -926,7 +1019,12 @@ document.addEventListener('input',e=>{if(e.target?.classList?.contains('variantA
 async function guardarProducto(agregarOtro=false){
  const nombre=$("pNombre").value.trim();if(!nombre)return alert("Escribe el nombre del producto.");
  const files=[...($('pFoto').files||[])];
- let fotoUrl=editingId?productos.find(x=>x.id===editingId)?.image_url||null:null;
+ let fotoUrl=editingId?productos.find(x=>String(x.id)===String(editingId))?.image_url||null:null;
+ // If a previous photo upload failed after creating the product, the new row
+ // may not yet exist in the local products array. Preserve its saved main photo.
+ if(editingId&&!productos.some(x=>String(x.id)===String(editingId))){
+   try{const existing=await sb.from("products").select("image_url").eq("id",editingId).maybeSingle();if(!existing.error)fotoUrl=existing.data?.image_url||null}catch{}
+ }
  const splitList=v=>[...new Set(String(v||'').split(',').map(x=>x.trim()).filter(Boolean))];
  if(!document.querySelector('#variantEditorRows .variantAdminStock') && (String($("pColores").value||'').trim()||String($("pTallas").value||'').trim())) renderVariantEditor(variantDraft);
  variantDraft=collectVariantDraft();
@@ -944,11 +1042,17 @@ async function guardarProducto(agregarOtro=false){
      let code=await nextCode(obj.category),error=null,data=null;
      for(let intento=0;intento<100;intento++){obj.code=code;const r=await sb.from("products").insert(obj).select().single();data=r.data;error=r.error;if(!error)break;if(!esErrorCodigoDuplicado(error))break;const numero=(parseInt(code.split("-")[1])||0)+1;code=(pref[obj.category]||"OTR")+"-"+String(numero).padStart(3,"0")}
      if(error)throw error;
+     editingId=data.id;
+     $("formTitle").textContent="Completar producto "+(obj.code||"");
      if(files.length){const added=await uploadProductImages(data.id,files,user.id);if(added[0]){await sb.from("products").update({image_url:added[0].image_path}).eq("id",data.id)}}
      if(Object.keys(variantFiles).length){const updatedVariants=await uploadVariantPhotos(data.id,variantDraft,variantFiles);await sb.from("products").update({variants:updatedVariants,quantity:totalVariantStock(updatedVariants)}).eq("id",data.id)}
      toast("Producto guardado con "+(files.length||0)+" foto"+(files.length===1?'':'s')+" y variantes");
    }
- }catch(error){return alert(error.message||String(error))}
+ }catch(error){
+   const message=error?.message||String(error);
+   const retryHint=editingId?"\n\nEl producto puede haber quedado guardado. No lo crees de nuevo: verifica que el formulario siga en modo “Completar/Editar producto” y vuelve a intentar la subida.":"";
+   return alert(message+retryHint);
+ }
  editingId=null;limpiarProducto();await cargarTodo();
 if(agregarOtro){
   show("producto",document.querySelector('[data-view=producto]'));
