@@ -35,7 +35,7 @@
 .empty,.loading{padding:50px;text-align:center;color:#aaa;grid-column:1/-1;background:#0d0d0f;border:1px dashed #3a3a3f;border-radius:18px}.footer{position:relative;overflow:hidden;border-top:1px solid rgba(231,25,63,.55);padding:34px 0 55px;color:#ddd;background:#050505;margin-top:18px;text-align:center}.footer:before,.footer:after{content:"";position:absolute;width:48%;height:25px;border-top:9px solid rgba(231,25,63,.45);border-radius:50%;top:42px}.footer:before{left:-7%;transform:rotate(5deg)}.footer:after{right:-7%;transform:rotate(-5deg)}.footerBrand{font-family:Georgia,serif;font-style:italic;font-size:32px;color:#f5e4b7;margin-top:35px}.footerSub{font-size:11px;letter-spacing:3px;color:#d9d9dc;margin-top:7px}.footerFeatures{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;max-width:950px;margin:0 auto 20px}.footerFeature{font-size:13px;color:#eee}.footerFeature b{display:block;color:#f3d18b;margin-bottom:4px}.error{display:none;background:#28090f;color:#ffb4c0;border:1px solid #6c1728;border-radius:15px;padding:14px;margin:15px 0}.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(14px);background:linear-gradient(135deg,#fffaf0,#f7e6c9);color:#2b2520;border:2px solid #d7193f;padding:14px 22px;border-radius:18px;display:none;z-index:250;box-shadow:0 10px 28px rgba(85,52,25,.22),0 0 0 4px rgba(215,25,63,.08);font-weight:800;font-size:15px;letter-spacing:.1px;max-width:calc(100vw - 32px);text-align:center;opacity:0;transition:opacity .22s ease,transform .22s ease}.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 .productDetailModal{position:fixed;inset:0;background:rgba(20,16,12,.72);backdrop-filter:blur(5px);display:none;align-items:center;justify-content:center;z-index:220;padding:16px}.productDetailModal.open{display:flex}.productDetailBox{position:relative;width:min(94vw,720px);max-height:92vh;overflow:auto;background:#fffaf3;border:1px solid #eadfd3;border-radius:22px;box-shadow:0 24px 70px rgba(0,0,0,.28);display:grid;grid-template-columns:minmax(0,1fr) minmax(260px,.85fr);gap:20px;padding:18px}.detailClose{position:absolute;right:12px;top:12px;width:42px;height:42px;border-radius:50%;background:#fff;color:#222;font-size:28px;z-index:4;box-shadow:0 4px 14px rgba(0,0,0,.15)}.detailImageWrap{min-height:360px;background:#f2eee9;border-radius:16px;overflow:hidden;display:flex;align-items:center;justify-content:center}.detailImage{width:100%;height:100%;max-height:68vh;object-fit:contain;display:block}.detailInfo{padding:20px 8px 8px}.detailName{font-size:26px;font-weight:950;color:#2b2520;margin-bottom:8px}.detailPrice{font-size:24px;font-weight:950;color:#7b1730;margin-bottom:16px}.detailVariants .variantBox{background:#fff;border-color:#e4d7ca}.detailAdd{width:100%;margin-top:18px;padding:14px;border-radius:13px;background:linear-gradient(135deg,#e7193f,#a60d2a);color:#fff;font-weight:950;font-size:16px;border:0}.cardColorsOnly{margin-top:8px;padding:7px 9px}.cardColorsOnly .variantLabel{margin:2px 0 5px}.cardColorsOnly .colorDots{gap:5px}.cardColorsOnly .colorDot{width:23px;height:23px}.cardColorsOnly .colorName{font-size:10px}.card .buyRow{margin-top:8px}.card .addOrder,.card .buy{padding:9px}.card .stock{font-size:11px;padding:7px 10px}.card .body{min-height:0}@media(max-width:700px){.productDetailBox{grid-template-columns:1fr;gap:8px;padding:12px;border-radius:18px}.detailImageWrap{min-height:250px;max-height:48vh}.detailInfo{padding:8px 5px 12px}.detailName{font-size:22px}.detailPrice{font-size:21px}.photo{aspect-ratio:4/3}.card .body{padding:9px 10px 10px}}.galleryModal{position:fixed;inset:0;background:rgba(0,0,0,.92);display:none;align-items:center;justify-content:center;z-index:500;padding:18px}.galleryModal.open{display:flex}.galleryBox{position:relative;width:min(96vw,1000px);height:min(92vh,850px);display:flex;align-items:center;justify-content:center}.galleryMain{max-width:100%;max-height:100%;object-fit:contain;border-radius:14px}.galleryClose{position:absolute;right:0;top:-8px;width:46px;height:46px;border-radius:50%;background:#fff;color:#111;font-size:30px;z-index:3}.galleryNav{position:absolute;top:50%;transform:translateY(-50%);width:50px;height:50px;border-radius:50%;background:rgba(255,255,255,.92);color:#111;font-size:36px;z-index:3}.galleryPrev{left:8px}.galleryNext{right:8px}.galleryInfo{position:absolute;bottom:10px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.72);color:#2b2520;padding:7px 13px;border-radius:999px;font-size:13px}
 .cartBar{display:none;margin:18px 0;padding:16px;border:1px solid #3a3a3f;border-radius:18px;background:#0d0d0f;box-shadow:0 8px 24px rgba(0,0,0,.28);position:sticky;top:8px;z-index:30}.cartHead{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}.cartTitle{font-size:18px;font-weight:800}.cartSummary{font-size:13px;color:#9c9ca3;margin-top:3px}.cartItems{display:grid;gap:8px;margin-top:12px;max-height:124px;overflow-y:auto;overflow-x:hidden;padding-right:4px;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}.cartItems::-webkit-scrollbar{width:6px}.cartItems::-webkit-scrollbar-thumb{background:#4a4a50;border-radius:999px}.cartItems::-webkit-scrollbar-track{background:transparent}.cartItem{display:flex;align-items:center;justify-content:space-between;gap:10px;background:#151518;border-radius:12px;padding:9px 11px;min-height:54px;box-sizing:border-box}.cartName{font-weight:750}.cartMeta{font-size:13px;color:#9c9ca3;margin-top:2px}.cartActions{display:flex;align-items:center;gap:5px}.cartActions button{width:31px;height:31px;border:1px solid #3d3d43;border-radius:9px;background:#0d0d0f;color:#2b2520;font-size:18px}.cartRemove{color:#ff6b7f!important;background:#320c14!important}.cartSend{border-radius:12px;padding:12px 16px;background:linear-gradient(135deg,#e7193f,#a60d2a);color:#2b2520;font-weight:800}.cartClose{width:34px;height:34px;border-radius:50%;background:#fff;color:#222;border:1px solid #ddd;font-size:24px;line-height:1;box-shadow:0 2px 8px rgba(0,0,0,.1)}@media(max-width:700px){.cartBar{max-height:none;overflow:visible}.cartItems{max-height:124px}}
-.checkoutModal{position:fixed;inset:0;background:rgba(0,0,0,.72);display:none;align-items:center;justify-content:center;z-index:200;padding:16px}.checkoutModal.open{display:flex}.checkoutBox{width:min(96vw,560px);max-height:92vh;overflow:auto;background:#111114;color:#2b2520;border:1px solid #3b3b40;border-radius:22px;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,.55)}.checkoutHead{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}.checkoutTitle{font-size:21px;font-weight:900}.checkoutClose{width:40px;height:40px;border-radius:50%;background:#fff;color:#222;border:1px solid #ddd;font-size:25px;box-shadow:0 2px 8px rgba(0,0,0,.12)}.checkoutNote{font-size:13px;color:#aaa;margin:0 0 16px}.checkoutGrid{display:grid;gap:10px}.checkoutGrid label{font-size:13px;font-weight:800;color:#ddd}.checkoutGrid input,.checkoutGrid select{width:100%;min-width:0;border:1px solid #3b3b40;border-radius:12px;padding:12px;background:#09090a;color:#2b2520;outline:none}.shippingBox{padding:13px;border-radius:14px;background:#18090e;border:1px solid #5a1729}.shippingLine{display:flex;justify-content:space-between;gap:10px;font-weight:800}.shippingSmall{font-size:12px;color:#aaa;margin-top:4px}.paymentOptions{display:grid;gap:8px}.paymentOption{display:flex;align-items:center;gap:10px;padding:12px;border:1px solid #3b3b40;border-radius:13px;cursor:pointer;background:#0b0b0d}.paymentOption input{width:auto!important}.checkoutTotal{display:flex;justify-content:space-between;gap:10px;padding:14px 0;border-top:1px solid #303036;border-bottom:1px solid #303036;font-size:18px;font-weight:900}.checkoutActions{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:14px}.checkoutCancel{padding:12px;border-radius:12px;background:#26262b;color:#2b2520;font-weight:800}.checkoutConfirm{padding:12px;border-radius:12px;background:linear-gradient(135deg,#e7193f,#a60d2a);color:#2b2520;font-weight:900}
+.checkoutModal{position:fixed;inset:0;background:rgba(0,0,0,.72);display:none;align-items:center;justify-content:center;z-index:200;padding:16px}.checkoutModal.open{display:flex}.checkoutBox{width:min(96vw,560px);max-height:92vh;overflow:auto;background:#111114;color:#2b2520;border:1px solid #3b3b40;border-radius:22px;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,.55)}.checkoutHead{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}.checkoutTitle{font-size:21px;font-weight:900}.checkoutClose{width:40px;height:40px;border-radius:50%;background:#fff;color:#222;border:1px solid #ddd;font-size:25px;box-shadow:0 2px 8px rgba(0,0,0,.12)}.checkoutNote{font-size:13px;color:#aaa;margin:0 0 16px}.checkoutGrid{display:grid;gap:10px}.checkoutGrid label{font-size:13px;font-weight:800;color:#ddd}.checkoutGrid input,.checkoutGrid select{width:100%;min-width:0;border:1px solid #3b3b40;border-radius:12px;padding:12px;background:#09090a;color:#2b2520;outline:none}.shippingBox{padding:13px;border-radius:14px;background:#18090e;border:1px solid #5a1729}.shippingLine{display:flex;justify-content:space-between;gap:10px;font-weight:800}.shippingSmall{font-size:12px;color:#aaa;margin-top:4px}.paymentOptions{display:grid;gap:8px}.paymentOption{display:flex;align-items:center;gap:10px;padding:12px;border:1px solid #3b3b40;border-radius:13px;cursor:pointer;background:#0b0b0d}.paymentOption input{width:auto!important}.paymentOption.paymentUnavailable{opacity:.68;background:#f3f0f2;border-color:#e4dce1}.paymentOption.paymentUnavailable small{color:#8a7c85}.paymentOption input:disabled{cursor:not-allowed}.checkoutTotal{display:flex;justify-content:space-between;gap:10px;padding:14px 0;border-top:1px solid #303036;border-bottom:1px solid #303036;font-size:18px;font-weight:900}.checkoutActions{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:14px}.checkoutCancel{padding:12px;border-radius:12px;background:#26262b;color:#2b2520;font-weight:800}.checkoutConfirm{padding:12px;border-radius:12px;background:linear-gradient(135deg,#e7193f,#a60d2a);color:#2b2520;font-weight:900}
 @media(max-width:950px){.grid{grid-template-columns:repeat(3,minmax(0,1fr))}.heroInner{grid-template-columns:.8fr 1.5fr .8fr}.heroProduct{height:240px}}
 @media(max-width:760px){.categoryPanel{top:64px;padding-top:10px;padding-bottom:10px}.mainNav{display:none}.brand{min-width:0}.brandName{font-size:16px}.headerActions{margin-left:auto}.hero{min-height:auto;border-radius:20px 20px 0 0}.heroInner{grid-template-columns:1fr;gap:0;padding:30px 10px}.heroSide{display:none}.heroCenter{padding:12px 8px 22px}.heroBrand{font-size:42px}.heroJM{font-size:74px}.heroShipping{font-size:29px}.benefits{grid-template-columns:1fr}.benefit{border-right:0;border-bottom:1px solid #252529;justify-content:flex-start;padding:13px 18px}.benefit:last-child{border-bottom:0}.categoryPanel{padding-top:18px}.categoryButtons{justify-content:flex-start;flex-wrap:nowrap;overflow-x:auto;padding:2px 2px 8px}.categoryBtn{min-width:94px}.grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}.body{padding:11px}.name{font-size:14px}.price{font-size:18px}.buy{padding:10px 6px;font-size:12px}.search{min-width:100%}.count{margin-left:0;width:100%}.footerFeatures{grid-template-columns:repeat(2,1fr)}.checkoutActions{grid-template-columns:1fr}.checkoutBox{padding:18px}}
 @media(max-width:390px){.grid{grid-template-columns:1fr}.brandSub{display:none}.footerFeatures{grid-template-columns:1fr}}
@@ -268,6 +268,8 @@
   .referenceCenter .heroSub{font-size:9px}
 }
 
+</style>
+
 <style>
 /* ===== TEMA CLARO VARIEDADES JM ===== */
 :root{--bg:#f7f7f8;--surface:#fff;--text:#202124;--muted:#6b6f76;--border:#e5e5e8;--red:#d9163b;--gold:#b88924}
@@ -360,6 +362,10 @@ body{background:linear-gradient(180deg,#fffaf0 0%,#fff6e6 55%,#f8ecd7 100%);colo
 .detailThumb.active{border-color:#a75f58}
 .detailThumb img{width:100%;height:100%;object-fit:cover;display:block}
 .detailInfo{padding:12px 8px 8px}
+.detailStockNotice{padding:10px 12px;margin:-4px 0 14px;border-radius:10px;background:#fff4df;border:1px solid #f1d7a6;color:#87500a;font-size:13px;font-weight:850;line-height:1.4}
+.detailStockNotice[hidden]{display:none!important}
+.detailDescription{white-space:pre-line;overflow-wrap:anywhere;font-size:14px;line-height:1.55;color:#655d58;margin:0 0 16px;padding:0 0 14px;border-bottom:1px solid #eee3d8}
+.detailDescription[hidden]{display:none!important}
 .detailName{font-size:28px}
 .detailPrice{font-size:25px}
 @media(max-width:700px){
@@ -384,26 +390,50 @@ body{background:linear-gradient(180deg,#fffaf0 0%,#fff6e6 55%,#f8ecd7 100%);colo
 .categoryBtn .catIcon{display:none!important}
 .categoryBtn .catLabel{font-size:12px;line-height:1}
 .productsHeading{display:none!important}
-/* carrito como ventana/modal */
-#cartBar{position:fixed!important;inset:0!important;margin:0!important;padding:0!important;background:rgba(20,16,12,.58)!important;backdrop-filter:blur(3px);border:0!important;border-radius:0!important;box-shadow:none!important;z-index:230!important;align-items:center;justify-content:center;overflow:hidden!important}
+/* carrito lateral derecho: panel deslizable, fondo tenue y barra de envío gratis */
+#cartBar{position:fixed!important;inset:0!important;margin:0!important;padding:0!important;background:rgba(35,28,30,.38)!important;backdrop-filter:blur(3px);border:0!important;border-radius:0!important;box-shadow:none!important;z-index:230!important;align-items:stretch;justify-content:flex-end;overflow:hidden!important}
 #cartBar.cartOpen{display:flex!important}
-.cartPanel{width:min(94vw,620px);max-height:86vh;overflow:hidden;background:#fffaf3;border:1px solid #eadfd3;border-radius:22px;box-shadow:0 24px 70px rgba(0,0,0,.28);padding:18px;color:#2b2520}
-.cartHead{margin-bottom:4px}.cartTitle{font-size:22px;color:#2b2520}.cartSummary{color:#777}
-.cartItems{max-height:55vh;overflow-y:auto;margin-top:14px;padding-right:5px}
+.cartPanel{width:min(92vw,520px);height:100vh;height:100dvh;max-height:none;overflow:hidden;background:#fffaf3;border:0;border-left:1px solid #eadfd3;border-radius:22px 0 0 22px;box-shadow:-18px 0 55px rgba(0,0,0,.2);padding:0;color:#2b2520;margin-left:auto;transform:translateX(102%);transition:transform .24s ease;will-change:transform}
+#cartBar.cartOpen .cartPanel{transform:translateX(0)}
+.cartDrawerBody{height:100%;display:flex;flex-direction:column;min-height:0}
+.cartHead{margin:0;padding:24px 22px 14px;flex:none;align-items:center}.cartTitle{font-size:25px;color:#2b2520;font-weight:800}.cartSummary{color:#777}
+.cartClose{width:42px;height:42px;flex:none;background:#fff!important;color:#222!important;border:1px solid #eee!important;font-size:30px!important}
+.cartShippingBox{margin:2px 18px 10px;padding:17px 18px 14px;border-radius:16px;background:linear-gradient(135deg,#fbf6ff,#fff8f0);border:1px solid #eee3f2;box-shadow:0 5px 18px rgba(80,52,95,.06);flex:none}
+.cartShippingMessage{font-size:14px;line-height:1.4;font-weight:850;color:#39313e;margin-bottom:14px}
+.cartShippingMessage strong{color:#8865ae}
+.cartShippingTrack{height:11px;border-radius:99px;position:relative;background:#e6deea;box-shadow:inset 0 1px 3px rgba(45,29,53,.08);margin:0 5px 10px}
+.cartShippingFill{height:100%;width:0;border-radius:inherit;background:linear-gradient(90deg,#a98acb,#8060a8);transition:width .25s ease}
+.cartShippingTruck{position:absolute;top:50%;left:0;transform:translate(-50%,-50%);width:36px;height:36px;border-radius:50%;display:grid;place-items:center;background:#fff;border:3px solid #a48ac1;box-shadow:0 2px 8px rgba(69,48,87,.17);font-size:17px;transition:left .25s ease}
+.cartShippingFoot{font-size:11px;color:#7a7180;display:flex;justify-content:space-between;gap:8px;align-items:center}
+.cartShippingLocalNote{font-size:11px;color:#7a7180;font-weight:750;margin-top:6px;line-height:1.4}
+.cartItems{flex:1 1 auto;min-height:90px;max-height:none;overflow-y:auto;overflow-x:hidden;margin:0;padding:10px 18px 18px;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+.cartItems::-webkit-scrollbar{width:5px}.cartItems::-webkit-scrollbar-thumb{background:#d7cbdc;border-radius:99px}
 .cartItem{background:#fff;border:1px solid #eadfd3;border-radius:14px;padding:10px;min-height:82px;align-items:center}
 .cartThumb{width:62px;height:78px;object-fit:cover;border-radius:10px;flex:none;background:#f1ece6}
-.cartItemInfo{min-width:0;flex:1}.cartName{color:#2b2520;font-size:15px}.cartMeta{color:#777}
-.cartActions button{background:#fff;color:#333;border-color:#ddd}.cartRemove{color:#d9163b!important;background:#fff0f2!important}
-.cartClose{background:#fff!important;color:#222!important;border:1px solid #ddd!important}
-.cartSend{color:#fff!important}
+.cartItemInfo{min-width:0;flex:1}.cartName{color:#2b2520;font-size:15px;overflow-wrap:anywhere}.cartMeta{color:#777}
+.cartActions{flex:none;gap:4px}.cartActions button{background:#fff;color:#333;border-color:#ddd;flex:none}.cartRemove{color:#d9163b!important;background:#fff0f2!important}
+.cartFooter{flex:none;padding:16px 22px calc(18px + env(safe-area-inset-bottom,0px));background:rgba(255,250,243,.98);border-top:1px solid #eee3d8;box-shadow:0 -5px 20px rgba(55,42,30,.04)}
+.cartFooterTotal{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:16px;margin-bottom:8px;color:#8d7a99}.cartFooterTotal strong{color:#8060a8;font-size:21px;white-space:nowrap}
+.cartFooterNote{margin:0 0 15px;font-size:12px;line-height:1.45;color:#777}
+.cartSend{display:block;width:100%;border:0;border-radius:999px;padding:15px 18px;background:linear-gradient(135deg,#8e6bb2,#6f4d99);color:#fff!important;font-weight:850;font-size:15px;letter-spacing:.02em;box-shadow:0 5px 13px rgba(111,77,153,.2)}
+.cartSend:active{transform:scale(.99)}
 @media(max-width:700px){
   .categoryPanel{top:64px;padding:7px 0;background:rgba(255,255,255,.98)}
   .categoryButtons{gap:9px;padding-left:10px;padding-right:10px}
   .categoryBtn{height:40px;min-height:40px;padding:7px 14px}
-  .cartPanel{width:calc(100vw - 24px);max-height:82vh;padding:14px;border-radius:18px}
-  .cartItems{max-height:55vh}
-  .cartThumb{width:56px;height:70px}
+  .cartPanel{width:min(94vw,460px);border-radius:18px 0 0 18px}
+  .cartHead{padding:20px 16px 12px}.cartTitle{font-size:23px}
+  .cartShippingBox{margin:2px 12px 8px;padding:14px 14px 12px}
+  .cartShippingMessage{font-size:13px;margin-bottom:13px}
+  .cartItems{padding:9px 12px 14px}
+  .cartItem{gap:8px;padding:8px}
+  .cartThumb{width:54px;height:68px}
+  .cartActions{gap:3px}.cartActions button{width:28px;height:29px;font-size:16px}
+  .cartFooter{padding:13px 16px calc(14px + env(safe-area-inset-bottom,0px))}
+  .cartFooterTotal strong{font-size:19px}
 }
+@media(max-width:380px){.cartPanel{width:100vw;border-radius:0}.cartHead{padding-left:14px;padding-right:14px}.cartShippingBox{margin-left:10px;margin-right:10px}.cartItems{padding-left:10px;padding-right:10px}.cartItem{gap:6px}.cartThumb{width:48px;height:62px}.cartActions button{width:25px}}
+@media(prefers-reduced-motion:reduce){.cartPanel,.cartShippingFill,.cartShippingTruck{transition:none}}
 
 /* ===== AJUSTES FINALES: CATEGORIAS + COMPRA DIRECTA ===== */
 @media(max-width:760px){
@@ -535,7 +565,6 @@ body{background:linear-gradient(180deg,#fffaf0 0%,#fff6e6 55%,#f8ecd7 100%);colo
 @media(max-width:700px){.waHelpFloat{right:12px;bottom:12px;padding:5px 3px;gap:5px}.waHelpIcon{width:23px;height:23px}.waHelpIcon:before{width:23px;height:23px}.waHelpLabel b{font-size:12px}}
 
 .footerPolicyLinks{display:flex;justify-content:center;gap:12px;flex-wrap:wrap;margin-top:12px}.footerPolicyLink{background:transparent;color:#cbb7bc;text-decoration:underline;font-size:12px;padding:5px}
-</style>
 </style>
 
 <style>
@@ -763,7 +792,7 @@ body{background:linear-gradient(180deg,#fffaf0 0%,#fff6e6 55%,#f8ecd7 100%);colo
   </label>
   <button class="filterClear" type="button" onclick="clearCatalogFilters()">Limpiar filtros</button>
 </div>
-<section id="cartBar" class="cartBar"><div class="cartPanel"><div class="cartHead"><div><div class="cartTitle">🛒 Mi pedido</div><div id="cartSummary" class="cartSummary">0 productos</div></div><div style="display:flex;align-items:center;gap:8px"><button class="cartClose" type="button" onclick="hideCart()" aria-label="Cerrar carrito">×</button><button id="cartSend" class="cartSend" type="button" onclick="sendCart()">Finalizar pedido</button></div></div><div id="cartItems" class="cartItems"></div></div></section>
+<section id="cartBar" class="cartBar" aria-hidden="true" onclick="if(event.target===this)hideCart()"><div class="cartPanel" role="dialog" aria-modal="true" aria-labelledby="cartDrawerTitle"><div class="cartDrawerBody"><div class="cartHead"><div><div id="cartDrawerTitle" class="cartTitle">Tu carrito</div><div id="cartSummary" class="cartSummary">0 productos</div></div><button class="cartClose" type="button" onclick="hideCart()" aria-label="Cerrar carrito">×</button></div><div class="cartShippingBox" aria-live="polite"><div id="cartShippingMessage" class="cartShippingMessage">Envío gratis en Cali y desde $130.000 en otras ciudades.</div><div class="cartShippingTrack" role="progressbar" aria-label="Progreso para envío gratis fuera de Cali" aria-valuemin="0" aria-valuemax="130000" aria-valuenow="0"><div id="cartShippingFill" class="cartShippingFill"></div><span id="cartShippingTruck" class="cartShippingTruck" aria-hidden="true">🚚</span></div><div class="cartShippingFoot"><span>Envío gratis desde $130.000 fuera de Cali</span><span id="cartShippingPercent">0%</span></div><div class="cartShippingLocalNote">🚚 Envío gratis a Cali también</div></div><div id="cartItems" class="cartItems"></div><div class="cartFooter"><div class="cartFooterTotal"><span>Total estimado</span><strong id="cartDrawerTotal">$0</strong></div><p class="cartFooterNote">El envío se confirma según tu ciudad en el siguiente paso.</p><button id="cartSend" class="cartSend" type="button" onclick="sendCart()">Pagar pedido</button></div></div></div></section>
 <section id="grid" class="grid"><div class="loading">Cargando catálogo...</div></section>
 </main>
 <footer class="footer" id="contactanos"><div class="footerFeatures"><div class="footerFeature"><b>🚚 Envíos</b>Envíos a toda Colombia</div><div class="footerFeature"><b>💳 Pagos</b>Múltiples medios de pago</div><div class="footerFeature"><b>🛡️ Compra segura</b>Tu compra protegida</div><div class="footerFeature"><b>🎧 Atención</b>Soporte personalizado</div></div><div class="footerBrand">Sirevya</div><div class="footerSub">TU ESTILO, NUESTRA PASIÓN ♥</div><div class="contactInfo"><b>📞 Contáctanos</b><a href="tel:+573128561773">+57 312 856 1773</a><a href="tel:+573025469983">+57 302 546 9983</a><a href="mailto:alex21991021@gmail.com">alex21991021@gmail.com</a></div><div style="margin-top:24px;color:#777;font-size:12px">Catálogo actualizado desde el inventario · © Sirevya</div><div class="footerPolicyLinks"><button type="button" class="footerPolicyLink" onclick="openPrivacy(event)">Política de privacidad y datos personales</button></div></footer>
@@ -791,7 +820,7 @@ body{background:linear-gradient(180deg,#fffaf0 0%,#fff6e6 55%,#f8ecd7 100%);colo
         <label class="paymentOption onlinePaymentOption"><input type="radio" name="paymentMethod" value="Tarjeta"> 💳 <span><b>Tarjeta débito o crédito</b><small>Visa, Mastercard o American Express</small></span></label>
         <label class="paymentOption onlinePaymentOption"><input type="radio" name="paymentMethod" value="Nequi"> 📱 <span><b>Pago con Nequi</b><small>Pago en línea mediante Wompi</small></span></label>
         <label class="paymentOption onlinePaymentOption"><input type="radio" name="paymentMethod" value="Bancolombia"> 🏦 <span><b>Botón Bancolombia</b><small>Pago en línea mediante Wompi</small></span></label>
-        <label class="paymentOption"><input type="radio" name="paymentMethod" value="Contra entrega"> 💵 <span><b>Pago contra entrega</b><small>Pagas al recibir tu pedido</small></span></label>
+        <label class="paymentOption paymentContraEntrega"><input type="radio" name="paymentMethod" value="Contra entrega" disabled> 💵 <span><b>Pago contra entrega (solo disponible en Cali)</b><small id="contraEntregaNote">Solo disponible al seleccionar Cali como ciudad de destino.</small></span></label>
       </div>
 <div class="checkoutTotal"><span>Total</span><span id="checkoutTotal">$0</span></div>
       <div class="checkoutActions"><button class="checkoutCancel" type="button" onclick="closeCheckout()">Cancelar</button><button id="checkoutConfirmBtn" class="checkoutConfirm" type="button" onclick="confirmCheckout()">✅ Confirmar pedido</button></div>
@@ -864,6 +893,8 @@ body{background:linear-gradient(180deg,#fffaf0 0%,#fff6e6 55%,#f8ecd7 100%);colo
     <div class="detailInfo">
       <div id="detailName" class="detailName"></div>
       <div id="detailPrice" class="detailPrice"></div>
+      <div id="detailStockNotice" class="detailStockNotice" hidden></div>
+      <div id="detailDescription" class="detailDescription" hidden></div>
       <div id="detailVariants" class="detailVariants"></div>
       <div class="detailPurchaseActions"><button id="detailAdd" class="detailAdd" type="button" onclick="detailAddToCart(event)">🛒 Agregar al carrito</button><button id="detailBuyNow" class="detailBuyNow" type="button" onclick="detailBuyNow(event)">⚡ Comprar ahora</button></div>
     </div>
@@ -1055,6 +1086,9 @@ function clearPendingWompiReference(){
 
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 let productos=[];
+// Descripciones opcionales vienen por una RPC separada para no bloquear el catálogo
+// si aún no se ha aplicado la migración o si esa consulta falla.
+let publicProductDescriptions=new Map();
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money=n=>new Intl.NumberFormat('es-CO',{style:'currency',currency:'COP',maximumFractionDigits:0}).format(Number(n)||0);
@@ -1451,13 +1485,9 @@ function updateVariantAvailability(card,p){
  card.querySelectorAll('.sizeOption').forEach(b=>{const stock=sizeStockForColor(p,color,b.dataset.value||'');b.disabled=!!variantList(p).length&&stock<=0;b.classList.toggle('disabled',b.disabled);b.title=b.disabled?'Agotada':`${b.dataset.value} — ${stock} disponible(s)`});
 }
 function renderVariantOptions(p){
- const colors=parseVariantList(p.colors),vs=variantList(p);
- if(!colors.length)return '';
- const colorHtml=`<div class="variantLabel">Color</div><div class="colorDots">${colors.map((c,i)=>{
-   const stock=vs.length?colorStock(p,c):Number(p.quantity)||0;
-   return `<span class="colorChoice"><button type="button" class="colorDot ${i===0?'active':''}" ${stock<=0?'disabled':''} data-variant-type="color" data-value="${esc(c)}" title="${esc(c)} — ${stock>0?stock+' disponible(s)':'Agotado'}" aria-label="${esc(c)}" style="background:${colorToCss(c)}" onclick="selectVariantButton(this,event)"></button><span class="colorName">${esc(c)}${stock<=0?' (agotado)':''}</span></span>`;
- }).join('')}</div>`;
- return `<div class="variantBox cardColorsOnly" onclick="event.stopPropagation()">${colorHtml}</div>`;
+ // La tarjeta principal solo muestra foto, nombre y precio. Las variantes de
+ // color y talla se seleccionan dentro de la ficha al abrir el producto.
+ return '';
 }
 let detailProduct=null;
 
@@ -1484,6 +1514,7 @@ function openProductDetail(id,event){
  const modal=$('productDetailModal');if(!modal)return;
  $('detailName').textContent=p.name||'Producto';
  $('detailPrice').textContent=money(p.sale_price);
+ updateDetailDescription(p);
  const imgs=productImages(p);
  const colors=parseVariantList(p.colors),sizes=parseVariantList(p.sizes);
  const firstColor=colors.find(c=>colorStock(p,c)>0)||colors[0]||'';
@@ -1493,7 +1524,33 @@ function openProductDetail(id,event){
  renderDetailGallery(p,image);
  $('detailVariants').innerHTML=`<div class="detailCard" data-product-id="${esc(p.id)}">${renderDetailVariants(p,firstColor,firstSize)}</div>`;
  updateDetailVariantAvailability();
+ updateDetailStockNotice(p);
  modal.classList.add('open');modal.setAttribute('aria-hidden','false');document.body.style.overflow='hidden';
+}
+function updateDetailStockNotice(p){
+ const el=$('detailStockNotice');if(!el||!p)return;
+ const box=document.querySelector('#productDetailModal .detailCard');
+ const color=box?.querySelector('.colorDot.active')?.dataset.value||'';
+ const size=box?.querySelector('.sizeOption.active')?.dataset.value||'';
+ const variants=variantList(p);
+ let stock;
+ if(variants.length){
+   const sizes=parseVariantList(p.sizes),colors=parseVariantList(p.colors);
+   if(sizes.length)stock=variantStock(p,color,size);
+   else if(colors.length)stock=colorStock(p,color);
+   else stock=productStockTotal(p);
+ }else stock=Math.max(0,Number(p.quantity)||0);
+ stock=Math.max(0,Number(stock)||0);
+ if(stock>0&&stock<=5){
+   el.textContent=stock===1?'⚠️ ¡Solo queda 1 unidad! Pídelo pronto.':`⚠️ ¡Solo quedan ${stock} unidades! Pídelas pronto.`;
+   el.hidden=false;
+ }else{el.textContent='';el.hidden=true}
+}
+function updateDetailDescription(p){
+ const el=$('detailDescription');if(!el)return;
+ const description=String(p?.description||'').trim();
+ el.textContent=description;
+ el.hidden=!description;
 }
 function renderDetailGallery(p,activeUrl){
  const box=$('detailGalleryThumbs');if(!box)return;
@@ -1542,12 +1599,14 @@ function detailSelectColor(btn,event){
  renderDetailGallery(detailProduct,image);
  box.innerHTML=renderDetailVariants(detailProduct,color,size);
  updateDetailVariantAvailability();
+ updateDetailStockNotice(detailProduct);
 }
 function detailSelectSize(btn,event){
  if(event){event.preventDefault();event.stopPropagation()}
  if(btn.disabled)return;
  const box=btn.closest('.detailCard');if(!box)return;
  box.querySelectorAll('.sizeOption').forEach(x=>x.classList.remove('active'));btn.classList.add('active');
+ updateDetailStockNotice(detailProduct);
 }
 function detailAddToCart(event){
  if(!detailProduct)return;
@@ -1734,13 +1793,32 @@ function toggleCart(){
  if(!bar||!cart.length){ if(!cart.length)showToast('Tu carrito está vacío.'); return; }
  cartOpen=true;
  renderCart();
+ bar.setAttribute('aria-hidden','false');
+ document.body.style.overflow='hidden';
 }
 function hideCart(){
  const bar=$('cartBar');
  cartOpen=false;
- if(bar)bar.classList.remove('cartOpen');
+ if(bar){bar.classList.remove('cartOpen');bar.setAttribute('aria-hidden','true');}
+ if(!$('checkoutModal')?.classList.contains('open'))document.body.style.overflow='';
 }
-
+function updateCartShippingProgress(total){
+ const target=130000;
+ const safeTotal=Math.max(0,Number(total)||0);
+ const progress=Math.max(0,Math.min(100,safeTotal/target*100));
+ const missing=Math.max(0,target-safeTotal);
+ const message=$('cartShippingMessage'),fill=$('cartShippingFill'),truck=$('cartShippingTruck'),percent=$('cartShippingPercent');
+ const track=fill?.parentElement;
+ if(message){
+   message.innerHTML=safeTotal>=target
+     ? '¡Excelente! <strong>Tu pedido ya tiene envío gratis</strong> fuera de Cali. 🚚'
+     : `¡Agrega <strong>${money(missing)}</strong> más para obtener envío gratis fuera de Cali!`;
+ }
+ if(fill)fill.style.width=progress+'%';
+ if(truck)truck.style.left=Math.max(3,Math.min(97,progress))+'%';
+ if(percent)percent.textContent=Math.round(progress)+'%';
+ if(track){track.setAttribute('aria-valuenow',String(Math.round(Math.min(target,safeTotal))));track.setAttribute('aria-valuetext',safeTotal>=target?'Envío gratis desbloqueado':money(missing)+' para envío gratis');}
+}
 function renderCart(){
  const bar=$('cartBar'),items=$('cartItems'),sum=$('cartSummary');
  updateCartBadge();
@@ -1748,15 +1826,21 @@ function renderCart(){
  if(!cart.length){
    cartOpen=false;
    bar.classList.remove('cartOpen');
+   bar.setAttribute('aria-hidden','true');
    items.innerHTML='';
    sum.textContent='0 productos';
+   if($('cartDrawerTotal'))$('cartDrawerTotal').textContent=money(0);
+   updateCartShippingProgress(0);
+   if(!$('checkoutModal')?.classList.contains('open'))document.body.style.overflow='';
    return;
  }
- if(cartOpen) bar.classList.add('cartOpen');
- else bar.classList.remove('cartOpen');
+ if(cartOpen){bar.classList.add('cartOpen');bar.setAttribute('aria-hidden','false');}
+ else{bar.classList.remove('cartOpen');bar.setAttribute('aria-hidden','true');}
  const qty=cart.reduce((a,x)=>a+x.qty,0),total=cart.reduce((a,x)=>a+x.qty*x.price,0);
  sum.textContent=qty+' '+(qty===1?'unidad':'unidades')+' • '+money(total);
- items.innerHTML=cart.map((x,i)=>{const p=productos.find(p=>String(p.id)===String(x.id));const img=p?productImages(p)[0]:'';return `<div class="cartItem">${img?`<img class="cartThumb" src="${esc(img)}" alt="${esc(x.name)}" decoding="async">`:''}<div class="cartItemInfo"><div class="cartName">${esc(x.name)}</div><div class="cartMeta">${esc(x.code)}${x.size?' • Talla '+esc(x.size):''}${x.color?' • '+esc(x.color):''} • ${x.qty} × ${money(x.price)}</div></div><div class="cartActions"><button type="button" onclick="changeCart(${i},-1)">−</button><b>${x.qty}</b><button type="button" onclick="changeCart(${i},1)">+</button><button type="button" class="cartRemove" onclick="removeCart(${i})">×</button></div></div>`}).join('');
+ if($('cartDrawerTotal'))$('cartDrawerTotal').textContent=money(total);
+ updateCartShippingProgress(total);
+ items.innerHTML=cart.map((x,i)=>{const p=productos.find(p=>String(p.id)===String(x.id));const img=p?productImages(p)[0]:'';return `<div class="cartItem">${img?`<img class="cartThumb" src="${esc(img)}" alt="${esc(x.name)}" loading="lazy" decoding="async">`:''}<div class="cartItemInfo"><div class="cartName">${esc(x.name)}</div><div class="cartMeta">${esc(x.code)}${x.size?' • Talla '+esc(x.size):''}${x.color?' • '+esc(x.color):''} • ${x.qty} × ${money(x.price)}</div></div><div class="cartActions"><button type="button" aria-label="Disminuir cantidad" onclick="changeCart(${i},-1)">−</button><b>${x.qty}</b><button type="button" aria-label="Aumentar cantidad" onclick="changeCart(${i},1)">+</button><button type="button" class="cartRemove" aria-label="Eliminar producto" onclick="removeCart(${i})">×</button></div></div>`}).join('');
 }
 
 function sendCart(){
@@ -1793,8 +1877,20 @@ function closePrivacy(event){
 }
 
 function closeCheckout(event){if(event&&event.target!==$('checkoutModal'))return;$('checkoutModal').classList.remove('open');checkoutCart=null;document.body.style.overflow=''}
+function updateContraEntregaAvailability(city){
+ const radio=document.querySelector('input[name="paymentMethod"][value="Contra entrega"]');
+ if(!radio)return;
+ const label=radio.closest('.paymentOption');
+ const note=$('contraEntregaNote');
+ const allowed=city==='Cali';
+ radio.disabled=!allowed;
+ if(label)label.classList.toggle('paymentUnavailable',!allowed);
+ if(note)note.textContent=allowed?'Disponible para pedidos con destino en Cali.':(city?'Solo disponible en Cali. Para otras ciudades, selecciona un pago en línea.':'Solo disponible al seleccionar Cali como ciudad de destino.');
+ if(!allowed&&radio.checked){const online=document.querySelector('input[name="paymentMethod"][value="PSE"]');if(online)online.checked=true;}
+}
 function updateShipping(){
  const city=$('customerCity')?.value||'';
+ updateContraEntregaAvailability(city);
  const checkoutItems=getCheckoutItems();
  const productsTotal=checkoutItems.reduce((sum,item)=>sum+(Number(item.qty)||0)*(Number(item.price)||0),0);
 
@@ -2068,12 +2164,20 @@ async function confirmCheckout(){
  if(!checkoutItems.length)return;
  const name=$('customerName').value.trim(),cedula=$('customerCedula').value.trim(),phone=$('customerPhone').value.trim(),email=$('customerEmail').value.trim(),city=$('customerCity').value,address=$('customerAddress').value.trim(),neighborhood=$('customerNeighborhood').value.trim();
  if(!name||!cedula||!phone||!email||!city||!address||!neighborhood){showToast('Completa todos los datos obligatorios del pedido.');return}
- const payment=selectedPayment();updateShipping();const payload=buildOrderPayload();
+ updateShipping();
+ const payment=selectedPayment();
+ if(payment==='Contra entrega'&&city!=='Cali'){
+   const online=document.querySelector('input[name="paymentMethod"][value="PSE"]');if(online)online.checked=true;
+   showToast('El pago contra entrega solo está disponible en Cali. Para otras ciudades, selecciona un pago en línea.');
+   updateContraEntregaAvailability(city);
+   return;
+ }
+ const payload=buildOrderPayload();
  if(payment!=='Contra entrega'){payWithWompi(payload);return}
  await saveContraEntregaOrder(payload);
 }
 
-document.addEventListener('keydown',e=>{if($('privacyModal')?.classList.contains('open')&&e.key==='Escape'){closePrivacy();return}if($('checkoutModal')?.classList.contains('open')&&e.key==='Escape'){closeCheckout();return}if(!$('galleryModal')?.classList.contains('open'))return;if(e.key==='Escape')closeGallery();if(e.key==='ArrowLeft')galleryMove(-1);if(e.key==='ArrowRight')galleryMove(1)});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('cartBar')?.classList.contains('cartOpen')){hideCart();return}if($('privacyModal')?.classList.contains('open')&&e.key==='Escape'){closePrivacy();return}if($('checkoutModal')?.classList.contains('open')&&e.key==='Escape'){closeCheckout();return}if(!$('galleryModal')?.classList.contains('open'))return;if(e.key==='Escape')closeGallery();if(e.key==='ArrowLeft')galleryMove(-1);if(e.key==='ArrowRight')galleryMove(1)});
 
 async function load(){
  try{
@@ -2081,9 +2185,22 @@ async function load(){
   const baseTask=(async()=>await sb.rpc('get_public_catalog'))();
   const multiTask=(async()=>await sb.rpc('get_public_catalog_multifotos'))();
   const categoriesTask=(async()=>await sb.from('categories').select('name,sort_order').order('sort_order',{ascending:true}).order('name',{ascending:true}))();
+  const descriptionsTask=(async()=>await sb.rpc('get_public_product_descriptions'))();
+  descriptionsTask.then(result=>{
+    if(result?.error||!Array.isArray(result?.data))return;
+    publicProductDescriptions=new Map(result.data.map(row=>[String(row.id),String(row.description||'')]).filter(([id,description])=>id&&description.trim()));
+    productos=productos.map(p=>{
+      const description=String(p.description||'').trim()||publicProductDescriptions.get(String(p.id))||'';
+      return description===String(p.description||'')?p:{...p,description};
+    });
+    if(detailProduct){
+      const fresh=productos.find(p=>String(p.id)===String(detailProduct.id));
+      if(fresh){detailProduct=fresh;updateDetailDescription(fresh)}
+    }
+  }).catch(()=>{/* Las descripciones son opcionales; el catálogo normal sigue funcionando. */});
   const base=await baseTask;
   if(base.error)throw base.error;
-  productos=(base.data||[]).map(p=>{const variants=normalizeVariants(p.variants);return {...p,quantity:Number(p.quantity)||0,colors:parseVariantList(p.colors),sizes:parseVariantList(p.sizes),variants,image_paths:[]};});
+  productos=(base.data||[]).map(p=>{const variants=normalizeVariants(p.variants);return {...p,description:String(p.description||'').trim()||publicProductDescriptions.get(String(p.id))||'',quantity:Number(p.quantity)||0,colors:parseVariantList(p.colors),sizes:parseVariantList(p.sizes),variants,image_paths:[]};});
   try{
    const multi=await multiTask;
    if(!multi.error&&Array.isArray(multi.data)){
