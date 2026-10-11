@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <link rel="preconnect" href="https://hnlbbtnfmbnbkcgegufa.supabase.co" crossorigin>
 <link rel="dns-prefetch" href="//hnlbbtnfmbnbkcgegufa.supabase.co">
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="preconnect" href="https://sirevya-images.variedadesjm99.workers.dev" crossorigin>
+<link rel="dns-prefetch" href="//sirevya-images.variedadesjm99.workers.dev">
 <!-- V8: reservas Wompi independientes por carrito durante 10 minutos; un nuevo pago no libera reservas anteriores. -->
 <title>Sirevya — Tu estilo, nuestra pasión</title>
 <meta name="description" content="Catálogo de productos de Variedades JM por categorías">
@@ -1374,15 +1377,33 @@ function normalizeVariants(value){
 function variantList(p){
   return normalizeVariants(p?.variants);
 }
+function productStockTotal(p){
+ const variants=variantList(p);
+ return variants.length?variants.reduce((sum,v)=>sum+Math.max(0,Number(v.stock)||0),0):Math.max(0,Number(p?.quantity)||0);
+}
 function variantStock(p,color,size){
  const vs=variantList(p); if(!vs.length)return Number(p.quantity)||0;
- const v=vs.find(x=>normalizeText(x.color)===normalizeText(color)&&normalizeText(x.size)===normalizeText(size));
+ const hasDeclaredColors=parseVariantList(p?.colors).length>0;
+ const targetColor=normalizeText(color),targetSize=normalizeText(size);
+ // Older administrator builds stored the placeholder "Sin color" as a real
+ // variant color. For products without configured colors, treat it like empty.
+ const v=vs.find(x=>{
+   let currentColor=normalizeText(x.color);
+   if(!hasDeclaredColors && currentColor==='sin color')currentColor='';
+   return currentColor===targetColor && normalizeText(x.size)===targetSize;
+ });
  return v?Number(v.stock)||0:0;
 }
 function colorStock(p,color){const vs=variantList(p);if(!vs.length)return Number(p.quantity)||0;return vs.filter(x=>normalizeText(x.color)===normalizeText(color)).reduce((s,x)=>s+Number(x.stock||0),0)}
 function sizeStockForColor(p,color,size){return variantStock(p,color,size)}
 function variantImageUrl(p,color){
- const v=variantList(p).find(x=>normalizeText(x.color)===normalizeText(color)&&x.image_path);
+ const hasDeclaredColors=parseVariantList(p?.colors).length>0;
+ const targetColor=normalizeText(color);
+ const v=variantList(p).find(x=>{
+   let currentColor=normalizeText(x.color);
+   if(!hasDeclaredColors&&currentColor==='sin color')currentColor='';
+   return currentColor===targetColor&&!!x.image_path;
+ });
  return v?.image_path?publicImage(v.image_path):'';
 }
 function setCardVariantPhoto(card,p,color){
@@ -1446,12 +1467,7 @@ function hasOwnActiveReservationForProduct(productId){
  return getReservationRegistry().some(r=>(r.items||[]).some(x=>String(x.id)===String(productId)));
 }
 function productHasPublicStock(p){
- if(!p)return false;
- const variants=variantList(p);
- if(variants.length){
-   return variants.some(v=>Number(v.stock||0)>0);
- }
- return Number(p.quantity||0)>0;
+ return !!p&&productStockTotal(p)>0;
 }
 function productIsBlockedForThisDevice(p){
  return !!p && !productHasPublicStock(p) && !hasOwnActiveReservationForProduct(p.id);
@@ -1622,22 +1638,23 @@ function render(){
  if(title) title.textContent=cat?cat:'Todos los productos';
  let arr=productos.filter(p=>{
  const text=(p.code+' '+p.name+' '+p.category).toLowerCase();
- // Los productos sin unidades disponibles no se muestran en el catálogo.
- if((Number(p.quantity)||0)<=0)return false;
+ // Use variant stock when size/color combinations are configured, even if
+ // older product records have a stale aggregate quantity field.
+ if(productStockTotal(p)<=0)return false;
  return text.includes(q)&&(!cat||p.category===cat)&&(!av||av==='available');
 });
  if(sort==='best_selling') arr.sort((a,b)=>(Number(b.sales_count??b.sold_count??b.units_sold??b.total_sold??0)-Number(a.sales_count??a.sold_count??a.units_sold??a.total_sold??0)));
  else if(sort==='name_asc') arr.sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'es',{sensitivity:'base'}));
  else if(sort==='price_asc') arr.sort((a,b)=>(Number(a.sale_price)||0)-(Number(b.sale_price)||0));
  else if(sort==='price_desc') arr.sort((a,b)=>(Number(b.sale_price)||0)-(Number(a.sale_price)||0));
- else if(sort==='stock_desc') arr.sort((a,b)=>(Number(b.quantity)||0)-(Number(a.quantity)||0));
+ else if(sort==='stock_desc') arr.sort((a,b)=>productStockTotal(b)-productStockTotal(a));
  else arr=[...arr];
  $('count').textContent=arr.length+' producto'+(arr.length===1?'':'s');
  $('grid').innerHTML=arr.length?arr.map(p=>{
    const imgs=productImages(p);
    const reservedForThisSession=hasOwnActiveReservationForProduct(p.id) && cart.some(x=>String(x.id)===String(p.id));
-   const variantTotal=variantList(p).length?variantList(p).reduce((sum,v)=>sum+Number(v.stock||0),0):Number(p.quantity)||0;
-   const ok=(Number(p.quantity)||0)>0 || reservedForThisSession;
+   const variantTotal=productStockTotal(p);
+   const ok=variantTotal>0 || reservedForThisSession;
    const blocked=!ok && !hasOwnActiveReservationForProduct(p.id);
    const msg='Hola, Variedades JM 👋\n\nMe interesa este producto:\n📦 Producto: '+p.name+'\n🔖 Código: '+p.code+'\n💰 Precio: '+money(p.sale_price)+'\n\n¿Está disponible?';
    const key='photo_'+p.id;
@@ -2060,11 +2077,15 @@ document.addEventListener('keydown',e=>{if($('privacyModal')?.classList.contains
 
 async function load(){
  try{
-  const base=await sb.rpc('get_public_catalog');
+  // Start independent requests together to reduce catalog startup waiting time.
+  const baseTask=(async()=>await sb.rpc('get_public_catalog'))();
+  const multiTask=(async()=>await sb.rpc('get_public_catalog_multifotos'))();
+  const categoriesTask=(async()=>await sb.from('categories').select('name,sort_order').order('sort_order',{ascending:true}).order('name',{ascending:true}))();
+  const base=await baseTask;
   if(base.error)throw base.error;
   productos=(base.data||[]).map(p=>{const variants=normalizeVariants(p.variants);return {...p,quantity:Number(p.quantity)||0,colors:parseVariantList(p.colors),sizes:parseVariantList(p.sizes),variants,image_paths:[]};});
   try{
-   const multi=await sb.rpc('get_public_catalog_multifotos');
+   const multi=await multiTask;
    if(!multi.error&&Array.isArray(multi.data)){
     const byId=new Map(multi.data.map(x=>[String(x.id),x]));
     productos=productos.map(p=>{const m=byId.get(String(p.id));return m?{...p,image_paths:Array.isArray(m.image_paths)?m.image_paths:[],image_url:m.image_url||p.image_url}:p});
@@ -2073,7 +2094,7 @@ async function load(){
   const productCats=[...new Set(productos.map(p=>String(p.category||'').trim()).filter(Boolean))];
   let cats=[...productCats].sort((a,b)=>a.localeCompare(b,'es'));
   try{
-    const cr=await sb.from('categories').select('name,sort_order').order('sort_order',{ascending:true}).order('name',{ascending:true});
+    const cr=await categoriesTask;
     if(!cr.error){
       const active=(cr.data||[]).map(x=>String(x.name||'').trim()).filter(Boolean);
       const activeSet=new Set(active.map(x=>normalizeText(x)));
@@ -2150,6 +2171,6 @@ async function refreshInventoryStatus(){
 }
 
 load();
-setInterval(()=>{if(document.visibilityState==='visible')refreshInventoryStatus()},8000);
+setInterval(()=>{if(document.visibilityState==='visible')refreshInventoryStatus()},15000);
 </script>
 </body></html>
