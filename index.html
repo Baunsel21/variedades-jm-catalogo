@@ -781,7 +781,7 @@ body{background:linear-gradient(180deg,#fffaf0 0%,#fff6e6 55%,#f8ecd7 100%);colo
 .detailAccordion[open] .detailAccordionChevron{transform:rotate(180deg)}
 .detailAccordionBody{padding:0 16px 16px;color:#665a51;font-size:14px;line-height:1.6;overflow-wrap:anywhere}
 .detailLongText{margin:0;white-space:pre-line}
-.detailSizeGuideFigure{margin:0 0 10px;text-align:center}.detailSizeGuideImage{display:block;width:auto;max-width:100%;height:auto;max-height:72vh;object-fit:contain;margin:0 auto;border-radius:10px;background:#f5f0e8}.detailSizeGuideTextAfterImage{margin-top:8px}
+.detailSizeGuideFigure{margin:0 0 10px;text-align:center}.detailSizeGuideImage{display:block;width:auto;max-width:100%;height:auto;max-height:72vh;object-fit:contain;margin:0 auto;border-radius:10px;background:#f5f0e8;cursor:zoom-in;touch-action:manipulation}.detailSizeGuideImage:focus-visible{outline:3px solid #a87570;outline-offset:3px}.detailSizeGuideTextAfterImage{margin-top:8px}
 .detailRelatedSection{margin-top:24px;padding-bottom:10px}
 .detailSectionHeading{display:flex;flex-direction:column;align-items:center;gap:10px;margin:0 0 16px}
 .detailSectionHeading h3{margin:0;text-align:center;color:#332923;font-size:21px;font-weight:850;letter-spacing:-.02em;text-transform:lowercase}
@@ -851,6 +851,66 @@ body{background:linear-gradient(180deg,#fffaf0 0%,#fff6e6 55%,#f8ecd7 100%);colo
 @media(prefers-reduced-motion:reduce){.detailAccordionChevron,.detailRelatedCard{transition:none!important}}
 </style>
 
+<style id="sirevya-product-photo-professional-sizing">
+/* Ajuste exclusivamente visual: un poco más de espacio para la foto principal y miniaturas. */
+@media (max-width:700px){
+  .productDetailMain{
+    height:min(83dvh,760px)!important;
+    max-height:86dvh!important;
+  }
+  .detailGalleryThumbs{
+    box-sizing:border-box!important;
+    flex:0 0 49px!important;
+    max-height:49px!important;
+    padding-top:5px!important;
+    gap:7px!important;
+  }
+  .detailThumb{
+    width:35px!important;
+    height:42px!important;
+    flex:0 0 35px!important;
+    border-radius:8px!important;
+  }
+}
+@media (max-width:390px){
+  .productDetailMain{height:min(83dvh,760px)!important;}
+  .detailThumb{width:34px!important;height:41px!important;flex-basis:34px!important;}
+  .detailGalleryThumbs{flex-basis:48px!important;max-height:48px!important;}
+}
+@media (max-height:640px) and (max-width:700px){
+  .productDetailMain{height:84dvh!important;max-height:87dvh!important;}
+  .detailGalleryThumbs{flex-basis:46px!important;max-height:46px!important;}
+  .detailThumb{width:33px!important;height:39px!important;flex-basis:33px!important;}
+}
+</style>
+<style id="detail-gallery-touch-swipe">
+/* Permite deslizar horizontalmente la foto principal sin interferir con el scroll vertical de la ficha. */
+#detailImageWrap{touch-action:pan-y;user-select:none;-webkit-user-select:none}
+#detailImageWrap img{user-select:none;-webkit-user-drag:none}
+</style>
+<style id="product-detail-scroll-from-anywhere">
+/* En móvil, desplazar verticalmente desde cualquier sección de la ficha debe mover
+   el contenedor completo. Evita que el selector de talla quede como un scroll anidado. */
+@media (max-width:700px){
+  #productDetailModal .productDetailBox{
+    overflow-y:auto!important;
+    overflow-x:hidden!important;
+    -webkit-overflow-scrolling:touch!important;
+    overscroll-behavior-y:contain!important;
+    touch-action:pan-y pinch-zoom!important;
+  }
+  #productDetailModal .detailInfo{overflow:visible!important}
+  #productDetailModal .detailVariants{
+    max-height:none!important;
+    overflow:visible!important;
+    overflow-y:visible!important;
+    overflow-x:visible!important;
+    overscroll-behavior: auto!important;
+    -webkit-overflow-scrolling:auto!important;
+    touch-action:pan-y!important;
+  }
+}
+</style>
 </head>
 <body>
 <header class="top">
@@ -1371,10 +1431,11 @@ function photoHoverLeave(event){
 
 function changePhoto(i,d,event){if(event){event.preventDefault();event.stopPropagation()}const p=productos.find(x=>String(x.id)===String(i));if(!p)return;const imgs=productImages(p);if(imgs.length<2)return;const key='photo_'+i;let n=Number(document.querySelector('[data-photo="'+CSS.escape(key)+'"]')?.dataset.index||0);n=(n+d+imgs.length)%imgs.length;const el=document.querySelector('[data-photo="'+CSS.escape(key)+'"]');if(!el)return;el.dataset.index=n;const photoImg=el.querySelector('img');if(photoImg){photoImg.src=imgs[n];photoImg.removeAttribute('data-src')}el.querySelectorAll('.photoDot').forEach((x,j)=>x.classList.toggle('active',j===n))}
 function openGallery(id,event){if(event){event.preventDefault();event.stopPropagation()}const p=productos.find(x=>String(x.id)===String(id));if(!p)return;const imgs=productImages(p);if(!imgs.length)return;galleryProduct=p;galleryIndex=0;galleryImages=imgs;renderGallery();$('galleryModal').classList.add('open');document.body.style.overflow='hidden'}
+function openSizeGuideZoom(image,event){if(event){event.preventDefault();event.stopPropagation()}const src=String(image?.currentSrc||image?.src||'').trim();if(!src)return;galleryProduct={name:image?.alt||'Guía de tallas'};galleryIndex=0;galleryImages=[src];renderGallery();$('galleryModal').classList.add('open');document.body.style.overflow='hidden'}
 let galleryProduct=null,galleryImages=[],galleryIndex=0;
 function renderGallery(){if(!galleryImages.length)return;$('galleryMain').loading='lazy';$('galleryMain').decoding='async';$('galleryMain').src=galleryImages[galleryIndex];$('galleryMain').alt=galleryProduct?.name||'Producto';$('galleryInfo').textContent=(galleryIndex+1)+' / '+galleryImages.length;const multi=galleryImages.length>1;$('galleryPrev').style.display=multi?'block':'none';$('galleryNext').style.display=multi?'block':'none'}
 function galleryMove(d,event){if(event){event.preventDefault();event.stopPropagation()}if(galleryImages.length<2)return;galleryIndex=(galleryIndex+d+galleryImages.length)%galleryImages.length;renderGallery()}
-function closeGallery(event){if(event&&event.target!==$('galleryModal'))return;$('galleryModal').classList.remove('open');document.body.style.overflow=''}
+function closeGallery(event){if(event&&event.target!==$('galleryModal'))return;$('galleryModal').classList.remove('open');document.body.style.overflow=$('productDetailModal')?.classList.contains('open')?'hidden':''}
 
 function activateCatalogLazyImages(){
  const imgs=document.querySelectorAll('#grid img[data-src]');
@@ -1654,7 +1715,7 @@ function openProductDetail(id,event){
  updateDetailDescription(p);
  // Si el listado público no devolvió los textos opcionales, intenta recuperarlos
  // para este producto al abrir la ficha. No bloquea fotos, variantes ni botones.
- if(publicProductDetailsNeedsFallback||(!String(p.description||'').trim()&&!String(p.size_guide||'').trim()&&!String(p.size_guide_image||'').trim())){
+ if(publicProductDetailsNeedsFallback||!String(p.description||'').trim()||!String(p.size_guide||'').trim()||!String(p.size_guide_image||'').trim()){
    void refreshProductDetailsOnDemand(p.id);
  }
  const imgs=productImages(p);
@@ -1676,32 +1737,102 @@ function openRelatedProduct(button,event){
 }
 const productDetailLookupInFlight=new Map();
 const productDetailLookupCompleted=new Set();
+function normalizeDetailId(value){return String(value??'').trim().toLowerCase()}
+function normalizeDetailFields(row){
+ return {
+   description:String(row?.description??'').trim(),
+   size_guide:String(row?.size_guide??'').trim(),
+   size_guide_image:String(row?.size_guide_image??'').trim()
+ };
+}
+function hasAnyProductDetails(details){
+ return !!(details&&(String(details.description||'').trim()||String(details.size_guide||'').trim()||String(details.size_guide_image||'').trim()));
+}
+async function getPublicProductDetailsRow(productId){
+ const id=String(productId??'').trim();
+ const idKey=normalizeDetailId(id);
+ if(!idKey)return null;
+ const combined={description:'',size_guide:'',size_guide_image:''};
+ const mergeMatchingRow=row=>{
+   if(!row||normalizeDetailId(row.id)!==idKey)return false;
+   const fields=normalizeDetailFields(row);
+   for(const key of ['description','size_guide','size_guide_image']){
+     if(fields[key]&&!combined[key])combined[key]=fields[key];
+   }
+   return hasAnyProductDetails(fields);
+ };
+ const allFieldsPresent=()=>!!(combined.description&&combined.size_guide&&combined.size_guide_image);
+ const absorbRows=rows=>{
+   if(!Array.isArray(rows))return false;
+   const row=rows.find(item=>normalizeDetailId(item?.id)===idKey);
+   return mergeMatchingRow(row);
+ };
+ // 1) Prefer the narrow RPC, if it exists in the current Supabase schema.
+ try{
+   const result=await sb.rpc('get_public_product_details_for_product',{p_product_id:id});
+   if(!result?.error)absorbRows(result?.data);
+   else console.warn('RPC individual de detalles no disponible; se probará la consulta general.',result.error.message||result.error);
+ }catch(error){console.warn('No se pudo ejecutar la RPC individual de detalles.',error)}
+ if(allFieldsPresent())return {id,...combined};
+ // 2) The general RPC is verified in the SQL Editor and includes all 3 fields.
+ try{
+   const result=await sb.rpc('get_public_product_details');
+   if(!result?.error)absorbRows(result?.data);
+   else console.warn('RPC general de detalles no disponible.',result.error.message||result.error);
+ }catch(error){console.warn('No se pudo ejecutar la RPC general de detalles.',error)}
+ if(allFieldsPresent())return {id,...combined};
+ // 3) Compatibility with older deployments where only the description RPC exists.
+ try{
+   const result=await sb.rpc('get_public_product_descriptions');
+   if(!result?.error)absorbRows(result?.data);
+   else console.warn('RPC antigua de descripciones no disponible.',result.error.message||result.error);
+ }catch(error){console.warn('No se pudo ejecutar la RPC antigua de descripciones.',error)}
+ if(allFieldsPresent())return {id,...combined};
+ // 4) Last-resort read of only the public-facing optional fields, restricted to
+ // this product ID. RLS may deny it; if so, all other catalog functionality remains intact.
+ try{
+   const result=await sb.from('products')
+     .select('id,description,size_guide,size_guide_image')
+     .eq('id',id)
+     .maybeSingle();
+   if(!result?.error&&result?.data)mergeMatchingRow(result.data);
+   else if(result?.error)console.warn('Lectura directa de detalles bloqueada o no disponible por RLS.',result.error.message||result.error);
+ }catch(error){console.warn('No se pudo leer el respaldo directo de los detalles.',error)}
+ return hasAnyProductDetails(combined)?{id,...combined}:null;
+}
 async function refreshProductDetailsOnDemand(productId){
- const id=String(productId||'');if(!id)return false;
- if(productDetailLookupCompleted.has(id))return true;
- if(productDetailLookupInFlight.has(id))return productDetailLookupInFlight.get(id);
+ const id=String(productId??'').trim();
+ const idKey=normalizeDetailId(id);
+ if(!idKey)return false;
+ if(productDetailLookupCompleted.has(idKey))return true;
+ if(productDetailLookupInFlight.has(idKey))return productDetailLookupInFlight.get(idKey);
  const task=(async()=>{
    try{
-     const result=await sb.rpc('get_public_product_details_for_product',{p_product_id:id});
-     if(result?.error||!Array.isArray(result?.data)||!result.data.length){
-       if(result?.error)console.warn('No se pudieron consultar los detalles de este producto. Ejecuta la migración SQL actualizada en Supabase.',result.error);
-       return false;
-     }
-     const row=result.data.find(item=>String(item.id)===id)||result.data[0];
+     const row=await getPublicProductDetailsRow(id);
      if(!row)return false;
-     const incoming={description:String(row.description||'').trim(),size_guide:String(row.size_guide||'').trim(),size_guide_image:String(row.size_guide_image||'').trim()};
-     const existing=publicProductDetails.get(id)||{};
-     const merged={description:incoming.description||String(existing.description||''),size_guide:incoming.size_guide||String(existing.size_guide||''),size_guide_image:incoming.size_guide_image||String(existing.size_guide_image||'')};
-     publicProductDetails.set(id,merged);
-     productDetailLookupCompleted.add(id);
-     productos=productos.map(item=>String(item.id)===id?{...item,description:merged.description||String(item.description||''),size_guide:merged.size_guide||String(item.size_guide||''),size_guide_image:merged.size_guide_image||String(item.size_guide_image||'')}:item);
-     const current=productos.find(item=>String(item.id)===id);
-     if(current&&String(detailProduct?.id)===id&&$('productDetailModal')?.classList.contains('open'))updateDetailDescription(current);
-     return !!(merged.description||merged.size_guide||merged.size_guide_image);
+     const incoming=normalizeDetailFields(row);
+     const oldProduct=productos.find(item=>normalizeDetailId(item.id)===idKey)||{};
+     const existing=publicProductDetails.get(idKey)||{};
+     // Prefer fresh non-empty data, but never erase previously loaded fields with
+     // omitted/blank fields from a fallback response.
+     const merged={
+       description:incoming.description||String(existing.description||'').trim()||String(oldProduct.description||'').trim(),
+       size_guide:incoming.size_guide||String(existing.size_guide||'').trim()||String(oldProduct.size_guide||'').trim(),
+       size_guide_image:incoming.size_guide_image||String(existing.size_guide_image||'').trim()||String(oldProduct.size_guide_image||'').trim()
+     };
+     publicProductDetails.set(idKey,merged);
+     productos=productos.map(item=>normalizeDetailId(item.id)===idKey?{...item,...merged}:item);
+     const current=productos.find(item=>normalizeDetailId(item.id)===idKey);
+     if(hasAnyProductDetails(merged))productDetailLookupCompleted.add(idKey);
+     if(current&&normalizeDetailId(detailProduct?.id)===idKey&&$('productDetailModal')?.classList.contains('open')){
+       detailProduct=current;
+       updateDetailDescription(current);
+     }
+     return hasAnyProductDetails(merged);
    }catch(error){console.warn('No se pudieron recuperar los detalles opcionales del producto.',error);return false}
-   finally{productDetailLookupInFlight.delete(id)}
+   finally{productDetailLookupInFlight.delete(idKey)}
  })();
- productDetailLookupInFlight.set(id,task);
+ productDetailLookupInFlight.set(idKey,task);
  return task;
 }
 function updateDetailStockNotice(p){
@@ -1733,11 +1864,18 @@ function updateDetailDescription(p){
  const categoryKey=normalizeText(p.category||'');
  const related=categoryKey?productos.filter(item=>String(item.id)!==String(p.id)&&normalizeText(item.category||'')===categoryKey&&productStockTotal(item)>0).slice(0,8):[];
  const accordion=(title,content,cls='')=>`<details class="detailAccordion ${cls}" data-detail-section="${esc(title)}"><summary>${esc(title)}<span class="detailAccordionChevron" aria-hidden="true">⌄</span></summary><div class="detailAccordionBody">${content}</div></details>`;
- const descriptionSection=description?accordion('Descripción',`<p class="detailLongText">${esc(description)}</p>`,'detailDescriptionAccordion'):'';
+ // Solo mostrar cada apartado opcional cuando el administrador haya guardado contenido.
+ // Si se recuperan detalles de forma asíncrona, esta función reconstruye la ficha y
+ // añade los apartados en ese momento; si se dejan vacíos, no deja desplegables vacíos.
+ const descriptionSection=description
+   ?accordion('Información del producto',`<p class="detailLongText">${esc(description)}</p>`,'detailDescriptionAccordion')
+   :'';
  const guideImageUrl=sizeGuideImage?publicImage(sizeGuideImage):'';
- const guideImageMarkup=guideImageUrl?`<figure class="detailSizeGuideFigure"><img class="detailSizeGuideImage" src="${esc(guideImageUrl)}" alt="Guía de tallas${p.name?` de ${esc(p.name)}`:''}" loading="lazy" decoding="async"></figure>`:'';
+ const guideImageMarkup=guideImageUrl?`<figure class="detailSizeGuideFigure"><img class="detailSizeGuideImage" src="${esc(guideImageUrl)}" alt="Guía de tallas${p.name?` de ${esc(p.name)}`:''}" loading="lazy" decoding="async" role="button" tabindex="0" aria-label="Ampliar guía de tallas" title="Toca para ampliar" onclick="openSizeGuideZoom(this,event)" onkeydown="if(event.key==='Enter'||event.key===' '){openSizeGuideZoom(this,event)}" onerror="this.style.display='none'"></figure>`:'';
  const guideTextMarkup=sizeGuide?`<p class="detailLongText ${guideImageUrl?'detailSizeGuideTextAfterImage':''}">${esc(sizeGuide)}</p>`:'';
- const sizeGuideSection=(sizeGuide||guideImageUrl)?accordion('Guía de tallas',`${guideImageMarkup}${guideTextMarkup}`,'detailSizeGuideAccordion'):'';
+ const sizeGuideSection=(guideImageUrl||sizeGuide)
+   ?accordion('Guía de tallas',`${guideImageMarkup}${guideTextMarkup}`,'detailSizeGuideAccordion')
+   :'';
  const deliverySection=accordion('Tiempo de entrega',`<p class="detailLongText">${esc(deliveryText)}</p>`,'detailDeliveryAccordion');
  const relatedSection=related.length?`<section class="detailRelatedSection"><div class="detailSectionHeading"><h3>Productos relacionados</h3><span></span></div><div class="detailRelatedGrid">${related.map(item=>{const image=productImages(item)[0]||'';return `<button type="button" class="detailRelatedCard" data-related-product-id="${esc(item.id)}" onclick="openRelatedProduct(this,event)">${image?`<img src="${esc(image)}" alt="${esc(item.name||'Producto relacionado')}" loading="lazy" decoding="async">`:'<span class="detailRelatedNoImage">✦</span>'}<span class="detailRelatedName">${esc(item.name||'Producto')}</span><span class="detailRelatedPrice">${money(item.sale_price)}</span></button>`}).join('')}</div></section>`:'';
  host.innerHTML=`<div class="detailAccordionGroup">${descriptionSection}${sizeGuideSection}${deliverySection}</div>${relatedSection}`;
@@ -1751,11 +1889,50 @@ function renderDetailGallery(p,activeUrl){
 }
 function selectDetailImage(url,event){
  if(event){event.preventDefault();event.stopPropagation()}
- $('detailImage').src=url;
+ const image=$('detailImage');if(!image)return;
+ image.src=url;
  document.querySelectorAll('.detailThumb').forEach(b=>b.classList.toggle('active',b.querySelector('img')?.src===url));
+}
+// Deslizar sobre la foto principal permite cambiar de imagen sin tener que tocar las miniaturas.
+let detailImageTouchStart=null;
+let detailSwipeSuppressClickUntil=0;
+function startDetailImageSwipe(event){
+ if(!event.touches||event.touches.length!==1){detailImageTouchStart=null;return}
+ const touch=event.touches[0];
+ detailImageTouchStart={x:touch.clientX,y:touch.clientY};
+}
+function endDetailImageSwipe(event){
+ if(!detailImageTouchStart||!event.changedTouches||!event.changedTouches.length){detailImageTouchStart=null;return}
+ const start=detailImageTouchStart;detailImageTouchStart=null;
+ const touch=event.changedTouches[0];
+ const dx=touch.clientX-start.x,dy=touch.clientY-start.y;
+ // Ignora taps y movimientos verticales para mantener el zoom por toque y el scroll normal.
+ if(Math.abs(dx)<42||Math.abs(dx)<Math.abs(dy)*1.25)return;
+ if(!detailProduct)return;
+ const images=productImages(detailProduct);
+ if(images.length<2)return;
+ const current=String($('detailImage')?.currentSrc||$('detailImage')?.src||'');
+ const normalized=url=>{try{return new URL(url,document.baseURI).href}catch{return String(url||'')}};
+ let index=images.findIndex(url=>normalized(url)===normalized(current));
+ const direction=dx<0?1:-1;
+ // Si la foto inicial viene de una variante y no figura en la lista general, entra por el extremo correcto.
+ if(index<0)index=direction>0?-1:0;
+ const next=(index+direction+images.length)%images.length;
+ detailSwipeSuppressClickUntil=Date.now()+500;
+ if(event.cancelable)event.preventDefault();
+ selectDetailImage(images[next]);
+}
+function cancelDetailImageSwipe(){detailImageTouchStart=null}
+const detailImageSwipeArea=$('detailImageWrap');
+if(detailImageSwipeArea){
+ detailImageSwipeArea.addEventListener('touchstart',startDetailImageSwipe,{passive:true});
+ detailImageSwipeArea.addEventListener('touchend',endDetailImageSwipe,{passive:false});
+ detailImageSwipeArea.addEventListener('touchcancel',cancelDetailImageSwipe,{passive:true});
 }
 function openDetailGallery(event){
  if(event){event.preventDefault();event.stopPropagation()}
+ // Los navegadores pueden emitir un click al terminar un gesto de deslizar; no abrir zoom en ese caso.
+ if(Date.now()<detailSwipeSuppressClickUntil)return;
  if(!detailProduct)return;
  openGallery(detailProduct.id,event);
 }
@@ -2399,9 +2576,9 @@ async function load(){
     }catch(fallbackError){console.warn('La consulta opcional de detalles no está disponible; el catálogo principal seguirá cargando.',fallbackError)}
   }
   if(Array.isArray(detailRows)){
-    publicProductDetails=new Map(detailRows.map(row=>[String(row.id),{description:String(row.description||''),size_guide:String(row.size_guide||''),size_guide_image:String(row.size_guide_image||'')}]).filter(([id,details])=>id&&(details.description.trim()||details.size_guide.trim()||details.size_guide_image.trim())));
+    publicProductDetails=new Map(detailRows.map(row=>[normalizeDetailId(row.id),normalizeDetailFields(row)]).filter(([id,details])=>id&&hasAnyProductDetails(details)));
   }
-  productos=(base.data||[]).map(p=>{const variants=normalizeVariants(p.variants),details=publicProductDetails.get(String(p.id))||{};return {...p,description:String(p.description||'').trim()||details.description||'',size_guide:String(p.size_guide||'').trim()||details.size_guide||'',size_guide_image:String(p.size_guide_image||'').trim()||details.size_guide_image||'',quantity:Number(p.quantity)||0,colors:parseVariantList(p.colors),sizes:parseVariantList(p.sizes),variants,image_paths:[]};});
+  productos=(base.data||[]).map(p=>{const variants=normalizeVariants(p.variants),details=publicProductDetails.get(normalizeDetailId(p.id))||{};return {...p,description:String(p.description||'').trim()||details.description||'',size_guide:String(p.size_guide||'').trim()||details.size_guide||'',size_guide_image:String(p.size_guide_image||'').trim()||details.size_guide_image||'',quantity:Number(p.quantity)||0,colors:parseVariantList(p.colors),sizes:parseVariantList(p.sizes),variants,image_paths:[]};});
   try{
    const multi=await multiTask;
    if(!multi.error&&Array.isArray(multi.data)){
@@ -2448,11 +2625,11 @@ async function refreshInventoryStatus(){
        variants
      };
    });
-   const freshMap=new Map(fresh.map(p=>[String(p.id),p]));
+   const freshMap=new Map(fresh.map(p=>[normalizeDetailId(p.id),p]));
    let inventoryChanged=false;
 
    productos=productos.map(old=>{
-     const f=freshMap.get(String(old.id));
+     const f=freshMap.get(normalizeDetailId(old.id));
      if(!f)return old;
 
      const oldState=JSON.stringify({
@@ -2470,7 +2647,16 @@ async function refreshInventoryStatus(){
 
      if(oldState!==newState)inventoryChanged=true;
 
-     return f?{...old,...f,image_paths:old.image_paths||[]}:old;
+     if(!f)return old;
+
+     const detailKey=normalizeDetailId(old.id);
+     const storedDetails=publicProductDetails.get(detailKey)||{};
+     const preservedDetails={
+       description:String(old.description||'').trim()||String(storedDetails.description||'').trim()||String(f.description||'').trim(),
+       size_guide:String(old.size_guide||'').trim()||String(storedDetails.size_guide||'').trim()||String(f.size_guide||'').trim(),
+       size_guide_image:String(old.size_guide_image||'').trim()||String(storedDetails.size_guide_image||'').trim()||String(f.size_guide_image||'').trim()
+     };
+     return {...old,...f,...preservedDetails,image_paths:old.image_paths||[]};
    });
 
    // IMPORTANT: the 8-second check does NOT rebuild the catalog
@@ -2478,8 +2664,8 @@ async function refreshInventoryStatus(){
    if(inventoryChanged)render();
 
    if(detailProduct){
-     const updated=freshMap.get(String(detailProduct.id));
-     if(updated)detailProduct=productos.find(p=>String(p.id)===String(updated.id))||detailProduct;
+     const updated=freshMap.get(normalizeDetailId(detailProduct.id));
+     if(updated)detailProduct=productos.find(p=>normalizeDetailId(p.id)===normalizeDetailId(updated.id))||detailProduct;
    }
  }catch(e){
    console.warn('No se pudo actualizar el inventario en tiempo real.',e);
