@@ -65,10 +65,12 @@ button{cursor:pointer;border:0}
 .rowBetween{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .muted{color:var(--muted)}
 .searchbar{display:flex;gap:9px;align-items:center;margin:14px 0}.searchbar input{flex:1}
-input,select{
-  width:100%;padding:11px 12px;border:1px solid #d9dce6;border-radius:11px;background:#fff;color:var(--text);outline:none
+input,select,textarea{
+  width:100%;padding:11px 12px;border:1px solid #d9dce6;border-radius:11px;background:#fff;color:var(--text);outline:none;box-sizing:border-box
 }
-input:focus,select:focus{border-color:#9b6bf2;box-shadow:0 0 0 3px #7c3aed18}
+textarea{resize:vertical;min-height:96px;line-height:1.5;font-family:inherit;font-size:14px;font-weight:400}
+label textarea{margin-top:6px}
+input:focus,select:focus,textarea:focus{border-color:#9b6bf2;box-shadow:0 0 0 3px #7c3aed18}
 .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:13px}.full{grid-column:1/-1}
 label{font-size:12px;font-weight:800;color:#555c6e}label input,label select{margin-top:6px}
 .tableWrap{overflow:auto;border:1px solid var(--border);border-radius:14px}
@@ -120,11 +122,12 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
 @media(max-width:780px){.ordersSummary{grid-template-columns:repeat(2,1fr)}.orderFilters{grid-template-columns:1fr}.orderHead{flex-direction:column}}
 
 .photoPreview{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}.photoPreview img{width:78px;height:78px;object-fit:cover;border-radius:12px;border:1px solid var(--border);background:#f3f4f6}.photoPreview .photoItem{position:relative}.photoPreview .photoItem span{position:absolute;left:4px;bottom:4px;background:#111827cc;color:#fff;border-radius:7px;padding:2px 5px;font-size:10px}.multiGallery{display:flex;gap:7px;overflow-x:auto;margin-top:8px}.multiGallery img{width:54px;height:54px;object-fit:cover;border-radius:9px;border:1px solid var(--border)}
+</style>
+
 <style>
 .categoryInlineActions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:7px}.categoryInlineActions .softbtn{padding:7px 10px;font-size:12px}.categoryInlineActions small{font-size:11px}
 #pCategoria:disabled{opacity:.7;cursor:wait}
 .variantAdminTable{display:grid;gap:7px}.variantAdminRow{display:grid;grid-template-columns:minmax(90px,1fr) minmax(70px,1fr) 100px minmax(150px,1.4fr);gap:7px;align-items:center}.variantAdminHead{font-size:11px;font-weight:900;color:var(--muted);text-transform:uppercase}.variantAdminCell{padding:7px 9px;background:#fff;border:1px solid var(--border);border-radius:9px;font-size:12px}.variantAdminStock{width:100%;padding:8px;border:1px solid var(--border);border-radius:9px}.variantColorPhoto{width:100%;font-size:11px}.variantCurrentPhoto{font-size:10px;color:var(--success);margin-top:3px;font-weight:800}.variantPhotoHint{font-size:10px;color:var(--muted);margin-top:3px}.variantPhotoPreview{display:flex;align-items:center;gap:6px;margin-top:5px}.variantPhotoPreview img{width:42px;height:42px;object-fit:cover;border-radius:8px;border:1px solid var(--border)}@media(max-width:700px){.variantAdminRow{grid-template-columns:1fr 1fr}.variantAdminRow .variantPhotoCell{grid-column:1/-1}}
-</style>
 </style>
 </head>
 <body>
@@ -212,6 +215,7 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
           <label>Precio de compra<input id="pCompra" type="number" min="0" value="0"></label>
           <label>Precio de venta<input id="pVenta" type="number" min="0" value="0"></label>
           <label>Ubicación<input id="pUbicacion" placeholder="Ej. Caja A / Estante 2"></label>
+          <label class="full">Descripción del producto (opcional)<textarea id="pDescripcion" rows="4" maxlength="4000" placeholder="Agrega detalles, materiales, cuidados, recomendaciones o información útil del producto..."></textarea><small class="muted">Si la dejas vacía, no aparecerá ninguna descripción en el catálogo.</small></label>
           <label class="full">Fotos del producto<input id="pFoto" type="file" accept="image/*" multiple><small class="muted">Puedes seleccionar varias fotos a la vez. La primera será la foto principal.</small><div id="photoPreview" class="photoPreview"></div></label>
         </div><div style="margin-top:17px;display:flex;gap:9px"><button class="primary" onclick="guardarProducto()">💾 Guardar producto</button><button class="primary" onclick="guardarProducto(true)">💾 Guardar y agregar otro</button><button class="softbtn" onclick="limpiarProducto()">Limpiar</button></div></div>
       </section>
@@ -450,6 +454,11 @@ async function prepareImageForUpload(file){
    }
    if(!blob)throw new Error("No se pudo comprimir la imagen.");
    if(!blob.size)throw new Error("La imagen preparada quedó vacía.");
+   // Some browsers silently fall back to PNG when WEBP encoding is unsupported.
+   // Match the filename and Content-Type to the actual encoded Blob, not the requested type.
+   const actualType=String(blob.type||"").toLowerCase();
+   if(outputType==="image/webp"&&actualType==="image/png")outputType="image/png";
+   else if(actualType&&actualType!==outputType)throw new Error("El navegador generó un formato de imagen inesperado ("+actualType+"). Vuelve a intentarlo con una foto JPG o PNG.");
    const outputExtension=outputType==="image/webp"?"webp":outputType==="image/png"?"png":"jpg";
    return new File([blob],uploadBaseName(file)+"."+outputExtension,{type:outputType,lastModified:file.lastModified||Date.now()});
  }finally{try{decoded.close?.()}catch{}}
@@ -1030,7 +1039,7 @@ async function guardarProducto(agregarOtro=false){
  variantDraft=collectVariantDraft();
  const variantFiles=selectedVariantFiles();
  const variantStock=variantDraft.length?totalVariantStock(variantDraft):(+$("pCantidad").value||0);
- const obj={name:nombre,category:$("pCategoria").value,colors:splitList($("pColores").value),sizes:splitList($("pTallas").value),variants:variantDraft,quantity:variantStock,cost_price:+$("pCompra").value||0,sale_price:+$("pVenta").value||0,location:$("pUbicacion").value.trim(),image_url:fotoUrl};
+ const obj={name:nombre,category:$("pCategoria").value,colors:splitList($("pColores").value),sizes:splitList($("pTallas").value),variants:variantDraft,quantity:variantStock,cost_price:+$("pCompra").value||0,sale_price:+$("pVenta").value||0,location:$("pUbicacion").value.trim(),description:$("pDescripcion").value.trim(),image_url:fotoUrl};
  const {data:{user}}=await sb.auth.getUser();if(!user)return alert("Sesión no encontrada. Vuelve a entrar.");
  try{
    if(editingId){
@@ -1050,8 +1059,9 @@ async function guardarProducto(agregarOtro=false){
    }
  }catch(error){
    const message=error?.message||String(error);
+   const descriptionHint=/description|descripci[oó]n|schema cache/i.test(message)?"\n\nPara habilitar las descripciones, ejecuta primero el archivo SQL incluido en el paquete desde Supabase → SQL Editor.":"";
    const retryHint=editingId?"\n\nEl producto puede haber quedado guardado. No lo crees de nuevo: verifica que el formulario siga en modo “Completar/Editar producto” y vuelve a intentar la subida.":"";
-   return alert(message+retryHint);
+   return alert(message+descriptionHint+retryHint);
  }
  editingId=null;limpiarProducto();await cargarTodo();
 if(agregarOtro){
@@ -1062,10 +1072,10 @@ if(agregarOtro){
   show("inventario",document.querySelector('[data-view=inventario]'));
 }
 }
-function limpiarProducto(){variantDraft=[];editingId=null;$("formTitle").textContent="➕ Nuevo producto";$("pNombre").value="";$("pColores").value="";$("pTallas").value="";$("pCantidad").value=1;$("pCompra").value=0;$("pVenta").value=0;$("pUbicacion").value="";$("pFoto").value="";renderVariantEditor([]);refreshCategorySelects()}
+function limpiarProducto(){variantDraft=[];editingId=null;$("formTitle").textContent="➕ Nuevo producto";$("pNombre").value="";$("pColores").value="";$("pTallas").value="";$("pCantidad").value=1;$("pCompra").value=0;$("pVenta").value=0;$("pUbicacion").value="";$("pDescripcion").value="";$("pFoto").value="";renderVariantEditor([]);refreshCategorySelects()}
 function editarProducto(id){
  const p=productos.find(x=>x.id===id);if(!p)return;editingId=id;
- $("formTitle").textContent="✏️ Editar "+p.code;$("pNombre").value=p.name;$("pCategoria").value=p.category;$("pColores").value=Array.isArray(p.colors)?p.colors.join(', '):(p.colors||'');$("pTallas").value=Array.isArray(p.sizes)?p.sizes.join(', '):(p.sizes||'');variantDraft=parseVariants(p.variants);$("pCantidad").value=p.quantity;$("pCompra").value=p.cost_price;$("pVenta").value=p.sale_price;$("pUbicacion").value=p.location||"";$("pFoto").value="";
+ $("formTitle").textContent="✏️ Editar "+p.code;$("pNombre").value=p.name;$("pCategoria").value=p.category;$("pColores").value=Array.isArray(p.colors)?p.colors.join(', '):(p.colors||'');$("pTallas").value=Array.isArray(p.sizes)?p.sizes.join(', '):(p.sizes||'');variantDraft=parseVariants(p.variants);$("pCantidad").value=p.quantity;$("pCompra").value=p.cost_price;$("pVenta").value=p.sale_price;$("pUbicacion").value=p.location||"";$("pDescripcion").value=p.description||"";$("pFoto").value="";
  renderVariantEditor(variantDraft);show("producto",document.querySelector('[data-view=producto]'));
 }
 async function borrarProducto(id){
@@ -1112,7 +1122,7 @@ async function openProduct(id){
  const p=productos.find(x=>x.id===id);if(!p)return;
  $("modalTitle").textContent=p.code+" — "+p.name;$("modalBody").innerHTML='<div class="empty">Cargando…</div>';$("productModal").classList.add("show");
  const img=await getImageUrl(p.image_url),margin=Number(p.sale_price)-Number(p.cost_price);
- $("modalBody").innerHTML=`${img?`<img src="${img}" style="width:100%;max-height:320px;object-fit:contain;border-radius:15px;background:#f1f2f6">`:''}<div class="kpis" style="margin-top:15px"><div class="kpi">Disponible<b>${availableQuantity(p)}</b></div><div class="kpi">Stock físico<b>${Number(p.quantity)||0}</b></div><div class="kpi">Venta<b>${money(p.sale_price)}</b></div><div class="kpi">Ganancia/unid.<b>${money(margin)}</b></div></div><div style="margin-top:15px" class="grid"><div><b>Categoría</b><br>${esc(p.category)}</div><div><b>Ubicación</b><br>${esc(p.location||"Sin ubicación")}</div><div><b>Precio compra</b><br>${money(p.cost_price)}</div><div><b>Estado disponible</b><br>${stockBadge(availableQuantity(p))}</div></div><div style="margin-top:18px;display:flex;gap:8px;flex-wrap:wrap"><button class="primary" onclick="closeModal();editarProducto('${p.id}')">✏️ Editar</button><button class="softbtn" onclick="compartirProducto('${p.id}')">📘 Compartir en Facebook</button></div>`;
+ $("modalBody").innerHTML=`${img?`<img src="${img}" style="width:100%;max-height:320px;object-fit:contain;border-radius:15px;background:#f1f2f6">`:''}<div class="kpis" style="margin-top:15px"><div class="kpi">Disponible<b>${availableQuantity(p)}</b></div><div class="kpi">Stock físico<b>${Number(p.quantity)||0}</b></div><div class="kpi">Venta<b>${money(p.sale_price)}</b></div><div class="kpi">Ganancia/unid.<b>${money(margin)}</b></div></div><div style="margin-top:15px" class="grid"><div><b>Categoría</b><br>${esc(p.category)}</div><div><b>Ubicación</b><br>${esc(p.location||"Sin ubicación")}</div><div><b>Precio compra</b><br>${money(p.cost_price)}</div><div><b>Estado disponible</b><br>${stockBadge(availableQuantity(p))}</div></div>${String(p.description||'').trim()?`<div style="margin-top:15px;white-space:pre-line;line-height:1.5"><b>Descripción</b><br>${esc(p.description)}</div>`:''}<div style="margin-top:18px;display:flex;gap:8px;flex-wrap:wrap"><button class="primary" onclick="closeModal();editarProducto('${p.id}')">✏️ Editar</button><button class="softbtn" onclick="compartirProducto('${p.id}')">📘 Compartir en Facebook</button></div>`;
 }
 function closeModal(){$("productModal").classList.remove("show")}
 
