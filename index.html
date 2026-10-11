@@ -1224,6 +1224,7 @@ let productos=[];
 // Descripciones opcionales vienen por una RPC separada para no bloquear el catálogo
 // si aún no se ha aplicado la migración o si esa consulta falla.
 let publicProductDetails=new Map();
+let publicProductDetailsNeedsFallback=false;
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money=n=>new Intl.NumberFormat('es-CO',{style:'currency',currency:'COP',maximumFractionDigits:0}).format(Number(n)||0);
@@ -1651,6 +1652,11 @@ function openProductDetail(id,event){
  $('detailName').textContent=p.name||'Producto';
  $('detailPrice').textContent=money(p.sale_price);
  updateDetailDescription(p);
+ // Si el listado público no devolvió los textos opcionales, intenta recuperarlos
+ // para este producto al abrir la ficha. No bloquea fotos, variantes ni botones.
+ if(publicProductDetailsNeedsFallback||(!String(p.description||'').trim()&&!String(p.size_guide||'').trim()&&!String(p.size_guide_image||'').trim())){
+   void refreshProductDetailsOnDemand(p.id);
+ }
  const imgs=productImages(p);
  const colors=parseVariantList(p.colors),sizes=parseVariantList(p.sizes);
  const firstColor=colors.find(c=>colorStock(p,c)>0)||colors[0]||'';
@@ -1667,6 +1673,36 @@ function openRelatedProduct(button,event){
  if(event){event.preventDefault();event.stopPropagation()}
  const id=button?.dataset?.relatedProductId;
  if(id)openProductDetail(id,event);
+}
+const productDetailLookupInFlight=new Map();
+const productDetailLookupCompleted=new Set();
+async function refreshProductDetailsOnDemand(productId){
+ const id=String(productId||'');if(!id)return false;
+ if(productDetailLookupCompleted.has(id))return true;
+ if(productDetailLookupInFlight.has(id))return productDetailLookupInFlight.get(id);
+ const task=(async()=>{
+   try{
+     const result=await sb.rpc('get_public_product_details_for_product',{p_product_id:id});
+     if(result?.error||!Array.isArray(result?.data)||!result.data.length){
+       if(result?.error)console.warn('No se pudieron consultar los detalles de este producto. Ejecuta la migración SQL actualizada en Supabase.',result.error);
+       return false;
+     }
+     const row=result.data.find(item=>String(item.id)===id)||result.data[0];
+     if(!row)return false;
+     const incoming={description:String(row.description||'').trim(),size_guide:String(row.size_guide||'').trim(),size_guide_image:String(row.size_guide_image||'').trim()};
+     const existing=publicProductDetails.get(id)||{};
+     const merged={description:incoming.description||String(existing.description||''),size_guide:incoming.size_guide||String(existing.size_guide||''),size_guide_image:incoming.size_guide_image||String(existing.size_guide_image||'')};
+     publicProductDetails.set(id,merged);
+     productDetailLookupCompleted.add(id);
+     productos=productos.map(item=>String(item.id)===id?{...item,description:merged.description||String(item.description||''),size_guide:merged.size_guide||String(item.size_guide||''),size_guide_image:merged.size_guide_image||String(item.size_guide_image||'')}:item);
+     const current=productos.find(item=>String(item.id)===id);
+     if(current&&String(detailProduct?.id)===id&&$('productDetailModal')?.classList.contains('open'))updateDetailDescription(current);
+     return !!(merged.description||merged.size_guide||merged.size_guide_image);
+   }catch(error){console.warn('No se pudieron recuperar los detalles opcionales del producto.',error);return false}
+   finally{productDetailLookupInFlight.delete(id)}
+ })();
+ productDetailLookupInFlight.set(id,task);
+ return task;
 }
 function updateDetailStockNotice(p){
  const el=$('detailStockNotice');if(!el||!p)return;
@@ -2342,31 +2378,29 @@ async function load(){
   const multiTask=(async()=>await sb.rpc('get_public_catalog_multifotos'))();
   const categoriesTask=(async()=>await sb.from('categories').select('name,sort_order').order('sort_order',{ascending:true}).order('name',{ascending:true}))();
   const detailsTask=(async()=>await sb.rpc('get_public_product_details'))();
-  detailsTask.then(async result=>{
-    let rows=(!result?.error&&Array.isArray(result?.data))?result.data:null;
-    if(!rows){
-      // Compatibilidad temporal: si la RPC nueva no se ha instalado, conservar las descripciones existentes.
-      try{
-        const fallback=await sb.rpc('get_public_product_descriptions');
-        if(!fallback.error&&Array.isArray(fallback.data))rows=fallback.data.map(row=>({...row,size_guide:''}));
-      }catch(fallbackError){/* Se mantiene el catálogo aunque la lectura opcional no esté disponible. */}
-    }
-    if(!Array.isArray(rows))return;
-    publicProductDetails=new Map(rows.map(row=>[String(row.id),{description:String(row.description||''),size_guide:String(row.size_guide||''),size_guide_image:String(row.size_guide_image||'')}]).filter(([id,details])=>id&&(details.description.trim()||details.size_guide.trim()||details.size_guide_image.trim())));
-    productos=productos.map(p=>{
-      const details=publicProductDetails.get(String(p.id))||{};
-      const description=String(p.description||'').trim()||details.description||'';
-      const size_guide=String(p.size_guide||'').trim()||details.size_guide||'';
-      const size_guide_image=String(p.size_guide_image||'').trim()||details.size_guide_image||'';
-      return description===String(p.description||'')&&size_guide===String(p.size_guide||'')&&size_guide_image===String(p.size_guide_image||'')?p:{...p,description,size_guide,size_guide_image};
-    });
-    if(detailProduct){
-      const fresh=productos.find(p=>String(p.id)===String(detailProduct.id));
-      if(fresh){detailProduct=fresh;updateDetailDescription(fresh)}
-    }
-  }).catch(()=>{/* Descripción y guía son opcionales; el catálogo normal sigue funcionando. */});
   const base=await baseTask;
   if(base.error)throw base.error;
+  // Espera la consulta opcional de detalles antes del primer render para evitar
+  // que la ficha abra sin descripción/guía cuando esa RPC termina más tarde.
+  let detailResult=null;
+  try{detailResult=await detailsTask}catch(detailError){console.warn('No se pudo consultar la guía y descripción públicas.',detailError)}
+  let detailRows=(!detailResult?.error&&Array.isArray(detailResult?.data))?detailResult.data:null;
+  publicProductDetailsNeedsFallback=!!detailResult?.error||!Array.isArray(detailResult?.data)||detailResult.data.length===0;
+  if(!detailRows||detailRows.length===0){
+    // Compatibilidad con instalaciones que todavía tienen la RPC anterior,
+    // y con respuestas vacías causadas por un esquema RPC desactualizado.
+    try{
+      const fallback=await sb.rpc('get_public_product_descriptions');
+      if(!fallback.error&&Array.isArray(fallback.data)){
+        const combined=new Map((detailRows||[]).map(row=>[String(row.id),row]));
+        fallback.data.forEach(row=>{const key=String(row.id);combined.set(key,{...(combined.get(key)||{}),...row,size_guide:(combined.get(key)||{}).size_guide||'',size_guide_image:(combined.get(key)||{}).size_guide_image||''})});
+        detailRows=[...combined.values()];
+      }else if(detailResult?.error)console.warn('La RPC pública de detalles falló. Ejecuta la migración SQL actualizada.',detailResult.error);
+    }catch(fallbackError){console.warn('La consulta opcional de detalles no está disponible; el catálogo principal seguirá cargando.',fallbackError)}
+  }
+  if(Array.isArray(detailRows)){
+    publicProductDetails=new Map(detailRows.map(row=>[String(row.id),{description:String(row.description||''),size_guide:String(row.size_guide||''),size_guide_image:String(row.size_guide_image||'')}]).filter(([id,details])=>id&&(details.description.trim()||details.size_guide.trim()||details.size_guide_image.trim())));
+  }
   productos=(base.data||[]).map(p=>{const variants=normalizeVariants(p.variants),details=publicProductDetails.get(String(p.id))||{};return {...p,description:String(p.description||'').trim()||details.description||'',size_guide:String(p.size_guide||'').trim()||details.size_guide||'',size_guide_image:String(p.size_guide_image||'').trim()||details.size_guide_image||'',quantity:Number(p.quantity)||0,colors:parseVariantList(p.colors),sizes:parseVariantList(p.sizes),variants,image_paths:[]};});
   try{
    const multi=await multiTask;
