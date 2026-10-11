@@ -122,6 +122,7 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
 @media(max-width:780px){.ordersSummary{grid-template-columns:repeat(2,1fr)}.orderFilters{grid-template-columns:1fr}.orderHead{flex-direction:column}}
 
 .photoPreview{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}.photoPreview img{width:78px;height:78px;object-fit:cover;border-radius:12px;border:1px solid var(--border);background:#f3f4f6}.photoPreview .photoItem{position:relative}.photoPreview .photoItem span{position:absolute;left:4px;bottom:4px;background:#111827cc;color:#fff;border-radius:7px;padding:2px 5px;font-size:10px}.multiGallery{display:flex;gap:7px;overflow-x:auto;margin-top:8px}.multiGallery img{width:54px;height:54px;object-fit:cover;border-radius:9px;border:1px solid var(--border)}
+.sizeGuideUploadBox{padding:13px;border:1px solid var(--border);border-radius:13px;background:#faf8f5}.sizeGuideUploadLabel{display:block;font-weight:800;margin-bottom:8px}.sizeGuideUploadBox input[type=file]{display:block;width:100%;max-width:100%;margin:4px 0 8px}.sizeGuidePreviewItem{display:inline-flex;flex-direction:column;align-items:flex-start;gap:5px;max-width:100%}.sizeGuidePreviewItem img{display:block;width:auto;max-width:min(220px,100%);height:auto;max-height:220px;object-fit:contain;border:1px solid var(--border);border-radius:10px;background:#fff}.sizeGuidePreviewItem span{font-size:11px;color:var(--muted,#777)}
 </style>
 
 <style>
@@ -216,6 +217,14 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
           <label>Precio de venta<input id="pVenta" type="number" min="0" value="0"></label>
           <label>Ubicación<input id="pUbicacion" placeholder="Ej. Caja A / Estante 2"></label>
           <label class="full">Descripción del producto (opcional)<textarea id="pDescripcion" rows="4" maxlength="4000" placeholder="Agrega detalles, materiales, cuidados, recomendaciones o información útil del producto..."></textarea><small class="muted">Si la dejas vacía, no aparecerá ninguna descripción en el catálogo.</small></label>
+          <label class="full">Guía de tallas en texto (opcional)<textarea id="pGuiaTallas" rows="3" maxlength="3000" placeholder="Escribe medidas, equivalencias o consejos para elegir talla..."></textarea><small class="muted">Puedes escribir la guía aquí, subir una foto abajo o usar ambas opciones. El apartado público aparecerá si hay texto o una imagen.</small></label>
+          <div class="full sizeGuideUploadBox">
+            <label for="pGuiaTallasFoto" class="sizeGuideUploadLabel">Foto de la guía de tallas (opcional)</label>
+            <input id="pGuiaTallasFoto" type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/avif">
+            <small class="muted">La foto se mostrará completa y adaptada al ancho del apartado “Guía de tallas” del catálogo.</small>
+            <div id="sizeGuidePhotoPreview" class="photoPreview" hidden></div>
+            <button id="clearSizeGuidePhoto" type="button" class="softbtn" style="display:none;margin-top:8px" onclick="removeSizeGuidePhoto()">Quitar foto de guía</button>
+          </div>
           <label class="full">Fotos del producto<input id="pFoto" type="file" accept="image/*" multiple><small class="muted">Puedes seleccionar varias fotos a la vez. La primera será la foto principal.</small><div id="photoPreview" class="photoPreview"></div></label>
         </div><div style="margin-top:17px;display:flex;gap:9px"><button class="primary" onclick="guardarProducto()">💾 Guardar producto</button><button class="primary" onclick="guardarProducto(true)">💾 Guardar y agregar otro</button><button class="softbtn" onclick="limpiarProducto()">Limpiar</button></div></div>
       </section>
@@ -340,6 +349,7 @@ const SUPABASE_URL="https://hnlbbtnfmbnbkcgegufa.supabase.co";
 const SUPABASE_ANON_KEY="sb_publishable_p2XJjsFd4Hp7LZ1IgfyVAg_hpXnFSSc";
 const IMAGE_WORKER_URL="https://sirevya-images.variedadesjm99.workers.dev";
 let sb=null,editingId=null,productos=[],ventas=[],clientes=[],inventoryMode=localStorage.getItem("jm_inventory_mode")||"cards";
+let editingSizeGuideImagePath="",sizeGuideImageRemoveRequested=false,sizeGuidePreviewObjectUrl=null;
 let proveedores=[],gastos=[],movimientos=[];
 let pedidos=[];
 let brandName=localStorage.getItem("jm_brand_name")||"Variedades JM";
@@ -965,6 +975,34 @@ function renderPhotoPreview(){
  const box=$("photoPreview");if(!box)return;const files=[...($('pFoto').files||[])];
  box.innerHTML=files.map((f,i)=>`<div class="photoItem"><img src="${URL.createObjectURL(f)}" alt="Foto ${i+1}"><span>${i===0?'Principal':i+1}</span></div>`).join('');
 }
+function renderSizeGuidePhotoPreview(){
+ const box=$("sizeGuidePhotoPreview"),input=$("pGuiaTallasFoto"),clearBtn=$("clearSizeGuidePhoto");
+ if(!box)return;
+ if(sizeGuidePreviewObjectUrl){try{URL.revokeObjectURL(sizeGuidePreviewObjectUrl)}catch{}sizeGuidePreviewObjectUrl=null}
+ const file=input?.files?.[0]||null;
+ let url="",caption="";
+ if(file){sizeGuidePreviewObjectUrl=URL.createObjectURL(file);url=sizeGuidePreviewObjectUrl;caption="Nueva foto seleccionada"}
+ else if(editingSizeGuideImagePath&&!sizeGuideImageRemoveRequested){url=publicWorkerImage(editingSizeGuideImagePath);caption="Foto de guía guardada"}
+ if(url){box.innerHTML=`<div class="sizeGuidePreviewItem"><img src="${esc(url)}" alt="Vista previa de guía de tallas"><span>${caption}</span></div>`;box.hidden=false}
+ else{box.innerHTML="";box.hidden=true}
+ if(clearBtn)clearBtn.style.display=(file||(editingSizeGuideImagePath&&!sizeGuideImageRemoveRequested))?"inline-flex":"none";
+}
+function removeSizeGuidePhoto(){
+ const input=$("pGuiaTallasFoto");if(input)input.value="";
+ editingSizeGuideImagePath="";sizeGuideImageRemoveRequested=true;
+ renderSizeGuidePhotoPreview();
+}
+async function uploadSizeGuidePhoto(productId,file){
+ if(!productId||!file)return "";
+ const ext=(file.name.split('.').pop()||'jpg').toLowerCase();
+ const path=`products/${productId}/size-guide/${crypto.randomUUID()}.${ext}`;
+ const uploaded=await uploadImageToR2(path,file);
+ const key=uploaded.key||path;
+ const {error}=await sb.from("products").update({size_guide_image:key}).eq("id",productId);
+ if(error)throw new Error("La foto se subió, pero no se pudo guardar su referencia en el producto: "+error.message);
+ editingSizeGuideImagePath=key;sizeGuideImageRemoveRequested=false;
+ return key;
+}
 async function getProductImages(productId, primary){
  const paths=[];if(primary)paths.push(primary);
  try{const {data}=await sb.from("product_images").select("image_path,sort_order").eq("product_id",productId).order("sort_order",{ascending:true});for(const x of (data||[])){if(x.image_path&&!paths.includes(x.image_path))paths.push(x.image_path)}}catch{}
@@ -1058,25 +1096,28 @@ document.addEventListener('input',e=>{if(e.target?.classList?.contains('variantA
 async function guardarProducto(agregarOtro=false){
  const nombre=$("pNombre").value.trim();if(!nombre)return alert("Escribe el nombre del producto.");
  const files=[...($('pFoto').files||[])];
+ const sizeGuideFile=$("pGuiaTallasFoto")?.files?.[0]||null;
  let fotoUrl=editingId?productos.find(x=>String(x.id)===String(editingId))?.image_url||null:null;
+ let existingGuideImage=editingId?(editingSizeGuideImagePath||productos.find(x=>String(x.id)===String(editingId))?.size_guide_image||""):"";
  // If a previous photo upload failed after creating the product, the new row
  // may not yet exist in the local products array. Preserve its saved main photo.
  if(editingId&&!productos.some(x=>String(x.id)===String(editingId))){
-   try{const existing=await sb.from("products").select("image_url").eq("id",editingId).maybeSingle();if(!existing.error)fotoUrl=existing.data?.image_url||null}catch{}
+   try{const existing=await sb.from("products").select("image_url,size_guide_image").eq("id",editingId).maybeSingle();if(!existing.error){fotoUrl=existing.data?.image_url||null;existingGuideImage=existing.data?.size_guide_image||existingGuideImage;editingSizeGuideImagePath=existingGuideImage}}catch{}
  }
  const splitList=v=>[...new Set(String(v||'').split(',').map(x=>x.trim()).filter(Boolean))];
  if(!document.querySelector('#variantEditorRows .variantAdminStock') && (String($("pColores").value||'').trim()||String($("pTallas").value||'').trim())) renderVariantEditor(variantDraft);
  variantDraft=collectVariantDraft();
  const variantFiles=selectedVariantFiles();
  const variantStock=variantDraft.length?totalVariantStock(variantDraft):(+$("pCantidad").value||0);
- const obj={name:nombre,category:$("pCategoria").value,colors:splitList($("pColores").value),sizes:splitList($("pTallas").value),variants:variantDraft,quantity:variantStock,cost_price:+$("pCompra").value||0,sale_price:+$("pVenta").value||0,location:$("pUbicacion").value.trim(),description:$("pDescripcion").value.trim(),image_url:fotoUrl};
+ const obj={name:nombre,category:$("pCategoria").value,colors:splitList($("pColores").value),sizes:splitList($("pTallas").value),variants:variantDraft,quantity:variantStock,cost_price:+$("pCompra").value||0,sale_price:+$("pVenta").value||0,location:$("pUbicacion").value.trim(),description:$("pDescripcion").value.trim(),size_guide:$("pGuiaTallas").value.trim(),size_guide_image:sizeGuideImageRemoveRequested?"":existingGuideImage,image_url:fotoUrl};
  const {data:{user}}=await sb.auth.getUser();if(!user)return alert("Sesión no encontrada. Vuelve a entrar.");
  try{
    if(editingId){
      const {error}=await sb.from("products").update(obj).eq("id",editingId);if(error)throw error;
      if(files.length){const added=await uploadProductImages(editingId,files,user.id);if(!fotoUrl&&added[0]){await sb.from("products").update({image_url:added[0].image_path}).eq("id",editingId)}}
      if(Object.keys(variantFiles).length){const updatedVariants=await uploadVariantPhotos(editingId,variantDraft,variantFiles);await sb.from("products").update({variants:updatedVariants,quantity:totalVariantStock(updatedVariants)}).eq("id",editingId)}
-     toast(files.length||Object.keys(variantFiles).length?"Producto actualizado con fotos y variantes":"Producto actualizado");
+     if(sizeGuideFile)await uploadSizeGuidePhoto(editingId,sizeGuideFile);
+     toast("Producto actualizado correctamente");
    }else{
      let code=await nextCode(obj.category),error=null,data=null;
      for(let intento=0;intento<100;intento++){obj.code=code;const r=await sb.from("products").insert(obj).select().single();data=r.data;error=r.error;if(!error)break;if(!esErrorCodigoDuplicado(error))break;const numero=(parseInt(code.split("-")[1])||0)+1;code=(pref[obj.category]||"OTR")+"-"+String(numero).padStart(3,"0")}
@@ -1085,11 +1126,12 @@ async function guardarProducto(agregarOtro=false){
      $("formTitle").textContent="Completar producto "+(obj.code||"");
      if(files.length){const added=await uploadProductImages(data.id,files,user.id);if(added[0]){await sb.from("products").update({image_url:added[0].image_path}).eq("id",data.id)}}
      if(Object.keys(variantFiles).length){const updatedVariants=await uploadVariantPhotos(data.id,variantDraft,variantFiles);await sb.from("products").update({variants:updatedVariants,quantity:totalVariantStock(updatedVariants)}).eq("id",data.id)}
-     toast("Producto guardado con "+(files.length||0)+" foto"+(files.length===1?'':'s')+" y variantes");
+     if(sizeGuideFile)await uploadSizeGuidePhoto(data.id,sizeGuideFile);
+     toast("Producto guardado correctamente");
    }
  }catch(error){
    const message=error?.message||String(error);
-   const descriptionHint=/description|descripci[oó]n|schema cache/i.test(message)?"\n\nPara habilitar las descripciones, ejecuta primero el archivo SQL incluido en el paquete desde Supabase → SQL Editor.":"";
+   const descriptionHint=/description|descripci[oó]n|size_guide(?:_image)?|gu[ií]a de tallas|schema cache/i.test(message)?"\n\nPara habilitar la descripción y la guía de tallas, ejecuta primero el archivo SQL incluido en el paquete desde Supabase → SQL Editor.":"";
    const retryHint=editingId?"\n\nEl producto puede haber quedado guardado. No lo crees de nuevo: verifica que el formulario siga en modo “Completar/Editar producto” y vuelve a intentar la subida.":"";
    return alert(message+descriptionHint+retryHint);
  }
@@ -1102,10 +1144,10 @@ if(agregarOtro){
   show("inventario",document.querySelector('[data-view=inventario]'));
 }
 }
-function limpiarProducto(){variantDraft=[];editingId=null;$("formTitle").textContent="➕ Nuevo producto";$("pNombre").value="";$("pColores").value="";$("pTallas").value="";$("pCantidad").value=1;$("pCompra").value=0;$("pVenta").value=0;$("pUbicacion").value="";$("pDescripcion").value="";$("pFoto").value="";renderVariantEditor([]);refreshCategorySelects()}
+function limpiarProducto(){variantDraft=[];editingId=null;editingSizeGuideImagePath="";sizeGuideImageRemoveRequested=false;const guideInput=$("pGuiaTallasFoto");if(guideInput)guideInput.value="";renderSizeGuidePhotoPreview();$("formTitle").textContent="➕ Nuevo producto";$("pNombre").value="";$("pColores").value="";$("pTallas").value="";$("pCantidad").value=1;$("pCompra").value=0;$("pVenta").value=0;$("pUbicacion").value="";$("pDescripcion").value="";$("pGuiaTallas").value="";$("pFoto").value="";renderVariantEditor([]);refreshCategorySelects()}
 function editarProducto(id){
- const p=productos.find(x=>x.id===id);if(!p)return;editingId=id;
- $("formTitle").textContent="✏️ Editar "+p.code;$("pNombre").value=p.name;$("pCategoria").value=p.category;$("pColores").value=Array.isArray(p.colors)?p.colors.join(', '):(p.colors||'');$("pTallas").value=Array.isArray(p.sizes)?p.sizes.join(', '):(p.sizes||'');variantDraft=parseVariants(p.variants);$("pCantidad").value=p.quantity;$("pCompra").value=p.cost_price;$("pVenta").value=p.sale_price;$("pUbicacion").value=p.location||"";$("pDescripcion").value=p.description||"";$("pFoto").value="";
+ const p=productos.find(x=>x.id===id);if(!p)return;editingId=id;editingSizeGuideImagePath=String(p.size_guide_image||"");sizeGuideImageRemoveRequested=false;
+ $("formTitle").textContent="✏️ Editar "+p.code;$("pNombre").value=p.name;$("pCategoria").value=p.category;$("pColores").value=Array.isArray(p.colors)?p.colors.join(', '):(p.colors||'');$("pTallas").value=Array.isArray(p.sizes)?p.sizes.join(', '):(p.sizes||'');variantDraft=parseVariants(p.variants);$("pCantidad").value=p.quantity;$("pCompra").value=p.cost_price;$("pVenta").value=p.sale_price;$("pUbicacion").value=p.location||"";$("pDescripcion").value=p.description||"";$("pGuiaTallas").value=p.size_guide||"";$("pFoto").value="";const guideInput=$("pGuiaTallasFoto");if(guideInput)guideInput.value="";renderSizeGuidePhotoPreview();
  renderVariantEditor(variantDraft);show("producto",document.querySelector('[data-view=producto]'));
 }
 async function borrarProducto(id){
@@ -1379,6 +1421,7 @@ setInterval(refreshPublicAvailability,8000);
 document.addEventListener("visibilitychange",()=>{if(!document.hidden)refreshPublicAvailability()});
 document.addEventListener("DOMContentLoaded",()=>{
   const f=$("pFoto");if(f)f.addEventListener("change",renderPhotoPreview);
+  const guideFile=$("pGuiaTallasFoto");if(guideFile)guideFile.addEventListener("change",()=>{if(guideFile.files?.length)sizeGuideImageRemoveRequested=false;renderSizeGuidePhotoPreview()});
 
   const box=$("categoryManager");
   if(box){
