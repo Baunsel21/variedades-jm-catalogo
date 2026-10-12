@@ -82,13 +82,14 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
 .salesCatalog{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:14px;margin-top:15px;min-width:0;max-width:100%;overflow:hidden}
 .saleProductCard{appearance:none;-webkit-appearance:none;width:100%;text-align:left;font:inherit;color:inherit;padding:0;background:var(--surface);border:1px solid var(--border);border-radius:16px;overflow:hidden;box-shadow:var(--shadow);transition:transform .16s ease,box-shadow .16s ease,border-color .16s ease;cursor:pointer;position:relative}
 .saleProductCard:hover{transform:translateY(-3px);box-shadow:0 14px 32px rgba(31,35,50,.13);border-color:#b9a3f5}
-.saleProductCard.selected{border:2px solid #7c3aed;box-shadow:0 0 0 4px #7c3aed18}
+.saleProductCard.selected{border:2px solid #7c3aed;outline:2px solid #c4b5fd;outline-offset:2px;box-shadow:0 0 0 5px #7c3aed20;background:#fcfaff}
 .saleProductCard.disabled{opacity:.55;cursor:not-allowed;filter:grayscale(.2)}
 .saleProductImg{pointer-events:none;width:100%;max-width:100%;height:150px;object-fit:cover;background:#f1f2f6;display:block}
 .saleNoImg{height:150px;background:linear-gradient(135deg,#f3f4f8,#e8eaf0);display:grid;place-items:center;font-size:42px;color:#8a90a0}
 .saleProductBody{pointer-events:none;padding:11px}.saleProductCode{font-size:10px;font-weight:900;color:var(--primary);letter-spacing:.6px}.saleProductName{font-weight:900;font-size:14px;margin:4px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.saleProductPrice{font-size:17px;font-weight:900}.saleProductStock{font-size:11px;color:var(--muted);margin-top:3px}.saleSelected{position:absolute;right:9px;top:9px;width:28px;height:28px;border-radius:50%;background:#7c3aed;color:#fff;display:none;place-items:center;font-weight:900}.saleProductCard.selected .saleSelected{display:grid}
-.salesHint{padding:12px 14px;border-radius:13px;background:#f7f5ff;border:1px solid #e7ddff;color:#5b21b6;font-weight:700;font-size:12px}
+.salesHint{padding:12px 14px;border-radius:13px;background:#f7f5ff;border:1px solid #e7ddff;color:#5b21b6;font-weight:700;font-size:12px}.saleVariantPreview{border:2px solid #7c3aed!important;background:#faf5ff!important}.saleVariantPreview b{font-size:14px!important}.saleVariantPreview small{display:block;margin-top:3px;color:var(--muted)}
 @media(max-width:1100px){.salesCatalog{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media(max-width:700px){.salesCatalog{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.saleProductImg,.saleNoImg{height:132px}.saleProductBody{padding:9px}.saleProductName{white-space:normal;min-height:2.35em;line-height:1.2}.saleProductPrice{font-size:15px}.saleSelected{right:7px;top:7px;width:25px;height:25px}}
 .productCode{font-size:10px;font-weight:900;color:var(--primary);letter-spacing:.7px}.productName{font-weight:900;margin:5px 0}.price{font-size:18px;font-weight:900}.mini{font-size:11px;color:var(--muted)}
 .alert{padding:11px 13px;border-radius:12px;margin:7px 0;background:#fff7e7;border:1px solid #ffe0a5}.empty{text-align:center;padding:35px;color:var(--muted)}
 .listItem{padding:12px 0;border-bottom:1px solid var(--border)}.listItem:last-child{border-bottom:0}
@@ -151,6 +152,8 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
     <button class="navbtn" data-view="inventario" onclick="show('inventario',this)">📦 <span>Inventario</span></button>
     <button class="navbtn" data-view="ventas" onclick="show('ventas',this)">🛒 <span>Ventas</span></button>
     <button class="navbtn" data-view="pedidos" onclick="show('pedidos',this)">📋 <span>Pedidos</span></button>
+    <button class="navbtn" data-view="clientes" onclick="show('clientes',this)">👥 <span>Clientes</span></button>
+    <button class="navbtn" data-view="proveedores" onclick="show('proveedores',this)">🏭 <span>Proveedores</span></button>
     <button class="navbtn" data-view="gastos" onclick="show('gastos',this)">💸 <span>Gastos</span></button>
     <button class="navbtn" data-view="movimientos" onclick="show('movimientos',this)">🔄 <span>Movimientos</span></button>
     <div class="navtitle">Análisis</div>
@@ -269,6 +272,27 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
   </div>
 </section>
 
+<section id="clientes" class="view">
+  <div><h2 style="margin:0">👥 Clientes</h2><p class="muted">Guarda y consulta clientes registrados para las ventas del negocio.</p></div>
+  <div class="box" style="margin-top:15px"><div class="grid">
+    <label>Nombre *<input id="cNombre" maxlength="120" placeholder="Nombre del cliente"></label>
+    <label>Teléfono<input id="cTelefono" type="tel" maxlength="40" placeholder="Número de contacto"></label>
+    <label class="full">Nota<input id="cNota" maxlength="500" placeholder="Referencia o nota opcional"></label>
+  </div><div style="margin-top:14px"><button class="primary" onclick="agregarCliente()">＋ Guardar cliente</button></div></div>
+  <div class="box" style="margin-top:15px"><h3>Clientes registrados</h3><div id="listaClientes"></div></div>
+</section>
+
+<section id="proveedores" class="view">
+  <div><h2 style="margin:0">🏭 Proveedores</h2><p class="muted">Administra proveedores y sus datos de contacto.</p></div>
+  <div class="box" style="margin-top:15px"><div class="grid">
+    <label>Nombre *<input id="prNombre" maxlength="120" placeholder="Nombre del proveedor"></label>
+    <label>Teléfono<input id="prTelefono" type="tel" maxlength="40" placeholder="Número de contacto"></label>
+    <label>Contacto<input id="prContacto" maxlength="120" placeholder="Persona de contacto"></label>
+    <label>Nota<input id="prNota" maxlength="500" placeholder="Nota opcional"></label>
+  </div><div style="margin-top:14px"><button class="primary" onclick="agregarProveedor()">＋ Guardar proveedor</button></div></div>
+  <div class="box" style="margin-top:15px"><h3>Proveedores registrados</h3><div id="listaProveedores"></div></div>
+</section>
+
 <section id="gastos" class="view">
         <div><h2 style="margin:0">💸 Gastos</h2><p class="muted">Registra gastos del negocio para conocer la ganancia real.</p></div>
         <div class="box" style="margin-top:15px"><div class="grid">
@@ -283,10 +307,11 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
       <section id="movimientos" class="view">
         <div><h2 style="margin:0">🔄 Movimientos de inventario</h2><p class="muted">Registra entradas, salidas, ajustes y correcciones de stock.</p></div>
         <div class="box" style="margin-top:15px"><div class="grid">
-          <label>Producto<select id="mProducto"></select></label>
+          <label>Producto<select id="mProducto" onchange="renderMovementVariantSelect()"></select></label>
+          <label id="mVarianteWrap" hidden>Variante (color / talla)<select id="mVariante"></select></label>
           <label>Tipo<select id="mTipo"><option value="entrada">Entrada</option><option value="salida">Salida</option><option value="ajuste">Ajuste</option></select></label>
-          <label>Cantidad<input id="mCantidad" type="number" min="1" value="1"></label>
-          <label>Motivo<input id="mMotivo" placeholder="Ej. Compra, pérdida, corrección"></label>
+          <label>Cantidad<input id="mCantidad" type="number" min="1" step="1" value="1"></label>
+          <label class="full">Motivo<input id="mMotivo" maxlength="300" placeholder="Ej. Compra, pérdida, corrección"></label>
         </div><div style="margin-top:15px"><button class="primary" onclick="registrarMovimiento()">🔄 Registrar movimiento</button></div></div>
         <div class="box" style="margin-top:15px"><h3>Últimos movimientos</h3><div id="listaMovimientos"></div></div>
       </section>
@@ -324,16 +349,16 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
             <div id="categoryManager"></div>
           </div>
           <div class="box"><h3>🎨 Apariencia</h3><button class="softbtn" onclick="toggleCompact()">Cambiar modo compacto</button><p class="muted" style="font-size:12px">La preferencia queda guardada en este dispositivo.</p></div>
-          <div class="box"><h3>💾 Copia de respaldo</h3><p class="muted">Descarga una copia de los datos que tienes cargados actualmente.</p><button class="primary" onclick="exportBackup()">⬇️ Descargar respaldo JSON</button><button class="softbtn" style="margin-left:6px" onclick="exportCSV()">📄 Exportar inventario CSV</button></div>
+          <div class="box"><h3>💾 Copia de respaldo</h3><p class="muted">Descarga una copia de los datos que tienes cargados actualmente.</p><button class="primary" onclick="exportBackup(event)">⬇️ Descargar respaldo JSON</button><button class="softbtn" style="margin-left:6px" onclick="exportCSV()">📄 Exportar inventario CSV</button></div>
           <div class="box"><h3>🔐 Sesión</h3><p class="muted">Cuenta actualmente conectada:</p><b id="accountEmail">—</b><div style="margin-top:12px"><button class="dangerbtn" onclick="logout()">Cerrar sesión</button></div></div>
           <div class="box" style="grid-column:1/-1;border-color:#ffd2d5"><h3>🧹 Limpiar datos de prueba</h3>
             <p class="muted">Si hiciste ventas de prueba, puedes eliminar <b>solo el historial de ventas</b>. Tus productos, cantidades, fotos y clientes no se borrarán.</p>
             <button class="dangerbtn" onclick="limpiarVentas()">🗑️ Borrar historial de ventas</button>
             <p class="muted" style="font-size:11px;margin-bottom:0">Los reportes de ingresos, costos y ganancias quedarán en $0 porque se calculan a partir de las ventas.</p>
           </div>
-          <div class="box" style="grid-column:1/-1;border-color:#ffd2d5"><h3>☢️ Empezar completamente de cero</h3>
-            <p class="muted">Elimina productos, ventas y clientes de esta cuenta. <b>Esta acción no se puede deshacer.</b></p>
-            <button class="dangerbtn" onclick="borrarTodo()">⚠️ Borrar todos los datos</button>
+          <div class="box" style="grid-column:1/-1;border-color:#ffd2d5"><h3>🧹 Borrar productos, ventas y clientes</h3>
+            <p class="muted">Elimina únicamente productos, ventas y clientes de esta cuenta. No elimina pedidos web, proveedores, gastos, movimientos ni categorías. <b>Esta acción no se puede deshacer.</b></p>
+            <button class="dangerbtn" onclick="borrarTodo()">⚠️ Eliminar productos, ventas y clientes</button>
           </div>
         </div>
       </section>
@@ -356,7 +381,20 @@ let brandName=localStorage.getItem("jm_brand_name")||"Variedades JM";
 let brandIcon=localStorage.getItem("jm_brand_icon")||"";
 let brandIconPath=localStorage.getItem("jm_brand_icon_path")||"";
 const defaultCategories=["Cadenas","Accesorios","Zapatos","Otros","CADENAS BODY","CAMISONES","CORSET","MONEDAS COLECCIONABLES","111"];
-const pref={Corsets:"COR",Cadenas:"CAD",Accesorios:"ACC",Zapatos:"ZAP",Otros:"OTR"};
+const pref={Corsets:"COR",Corset:"COR",CORSET:"COR",Cadenas:"CAD",CADENAS:"CAD",Accesorios:"ACC",ACCESORIOS:"ACC",Zapatos:"ZAP",ZAPATOS:"ZAP",Otros:"OTR",OTROS:"OTR",CAMISONES:"CAM",Camisones:"CAM","CADENAS BODY":"CBD","Cadenas Body":"CBD","MONEDAS COLECCIONABLES":"MCO","Monedas coleccionables":"MCO"};
+function categoryPrefix(cat){
+ const raw=String(cat||'').trim();
+ if(pref[raw])return pref[raw];
+ const normalized=raw.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+ if(normalized.includes('corset'))return 'COR';
+ if(normalized.includes('camison'))return 'CAM';
+ if(normalized.includes('cadena')&&normalized.includes('body'))return 'CBD';
+ if(normalized.includes('cadena'))return 'CAD';
+ if(normalized.includes('moneda'))return 'MCO';
+ if(normalized.includes('accesorio'))return 'ACC';
+ if(normalized.includes('zapato'))return 'ZAP';
+ return 'OTR';
+}
 let categorias=[];
 const money=n=>new Intl.NumberFormat("es-CO",{style:"currency",currency:"COP",maximumFractionDigits:0}).format(Number(n)||0);
 const esc=s=>String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));
@@ -635,10 +673,12 @@ function setDateText(){const d=new Date();$("todayText").textContent=d.toLocaleD
 function show(id,btn){
  document.querySelectorAll(".view").forEach(x=>x.classList.remove("active"));$(id).classList.add("active");
  document.querySelectorAll(".navbtn[data-view]").forEach(x=>x.classList.remove("active"));if(btn)btn.classList.add("active");
- const titles={inicio:"Inicio",inventario:"Inventario",producto:editingId?"Editar producto":"Nuevo producto",ventas:"Ventas",pedidos:"Pedidos",reportes:"Reportes",gastos:"Gastos",movimientos:"Movimientos",config:"Configuración"};
+ const titles={inicio:"Inicio",inventario:"Inventario",producto:editingId?"Editar producto":"Nuevo producto",ventas:"Ventas",pedidos:"Pedidos",clientes:"Clientes",proveedores:"Proveedores",reportes:"Reportes",gastos:"Gastos",movimientos:"Movimientos",config:"Configuración"};
  $("pageTitle").textContent=titles[id]||"Variedades JM";
  if(id==="ventas"){refreshSalePreview();renderVentaCatalogo();}
  if(id==="pedidos"){cargarPedidos();}
+ if(id==="clientes")renderClientes();
+ if(id==="proveedores")renderProveedores();
  if(id==="inventario")renderProductos();
 
  // FIX: las categorías se vuelven a cargar cada vez que se abre
@@ -659,18 +699,39 @@ function closeSidebar(){
  const s=document.querySelector(".sidebar"),o=$("sidebarOverlay");
  s.classList.remove("open");o.style.display="none";
 }
+// Normalmente cada tabla cabe en una petición. Solo cuando llega al límite de
+// PostgREST (1.000 filas) se consulta la siguiente página. Ordenar también por id
+// mantiene una paginación estable cuando varias filas comparten la misma fecha/nombre.
+async function fetchAllTableRows(table,orderColumn,ascending=true){
+ const rows=[];const pageSize=1000;const maxRows=100000;
+ for(let from=0;from<maxRows;from+=pageSize){
+   let query=sb.from(table).select('*');
+   if(orderColumn)query=query.order(orderColumn,{ascending});
+   query=query.order('id',{ascending:true}).range(from,from+pageSize-1);
+   const {data,error}=await query;
+   if(error)return {data:null,error};
+   const batch=data||[];rows.push(...batch);
+   if(batch.length<pageSize)return {data:rows,error:null};
+ }
+ return {data:null,error:{message:'La tabla '+table+' supera el límite de seguridad de 100.000 filas.'}};
+}
+
+let cargarTodoBusy=false;
 async function cargarTodo(){
+ if(cargarTodoBusy)return;
+ cargarTodoBusy=true;
+ try{
  const [p,v,c,pr,g,m,o,avail]=await Promise.all([
-   sb.from("products").select("*").order("created_at",{ascending:false}),
-   sb.from("sales").select("*").order("created_at",{ascending:false}),
-   sb.from("clients").select("*").order("name"),
-   sb.from("suppliers").select("*").order("name"),
-   sb.from("expenses").select("*").order("expense_date",{ascending:false}),
-   sb.from("inventory_movements").select("*").order("created_at",{ascending:false}),
-   sb.from("web_orders").select("*").order("created_at",{ascending:false}),
+   fetchAllTableRows("products","created_at",false),
+   fetchAllTableRows("sales","created_at",false),
+   fetchAllTableRows("clients","name",true),
+   fetchAllTableRows("suppliers","name",true),
+   fetchAllTableRows("expenses","expense_date",false),
+   fetchAllTableRows("inventory_movements","created_at",false),
+   fetchAllTableRows("web_orders","created_at",false),
    sb.rpc("get_public_catalog")
  ]);
- if(p.error||v.error||c.error){alert("No se pudieron cargar los datos principales. Revisa SQL/RLS en Supabase.");return}
+ if(p.error||v.error){alert("No se pudieron cargar inventario o ventas. Revisa la conexión y los permisos SQL/RLS en Supabase.");return}
  const availabilityMap=new Map((!avail?.error?(avail?.data||[]):[]).map(x=>[String(x.id),x]));
  productos=(p.data||[]).map(raw=>{
    const current=availabilityMap.get(String(raw.id));
@@ -680,10 +741,17 @@ async function cargarTodo(){
    };
  });
  if(avail?.error)console.warn("No se pudo calcular disponibilidad reservada; se mostrará el stock físico.",avail.error);
- ventas=v.data||[];clientes=c.data||[];
- proveedores=pr.error?[]:(pr.data||[]);gastos=g.error?[]:(g.data||[]);movimientos=m.error?[]:(m.data||[]);pedidos=o.error?[]:(o.data||[]);
+ ventas=v.data||[];
+ const partialErrors=[];
+ if(!c.error)clientes=c.data||[];else partialErrors.push('clientes');
+ if(!pr.error)proveedores=pr.data||[];else partialErrors.push('proveedores');
+ if(!g.error)gastos=g.data||[];else partialErrors.push('gastos');
+ if(!m.error)movimientos=m.data||[];else partialErrors.push('movimientos');
+ if(!o.error)pedidos=o.data||[];else partialErrors.push('pedidos');
  populateFilters();renderInicio();renderProductos();renderVentas();renderClientes();renderProveedores();renderGastos();renderMovimientos();renderReportes();refrescarSelects();renderVentaCatalogo();
  renderPedidos();
+ if(partialErrors.length){console.warn("Algunos módulos no se pudieron cargar:",partialErrors);toast("Revisa la conexión/RLS: no se cargaron "+partialErrors.join(", ")+".");}
+ }finally{cargarTodoBusy=false}
 }
 
 let availabilityRefreshBusy=false;
@@ -693,26 +761,44 @@ async function refreshPublicAvailability(){
  try{
    const {data,error}=await sb.rpc("get_public_catalog");
    if(error)throw error;
-   const map=new Map((data||[]).map(x=>[String(x.id),x]));
+   const rows=Array.isArray(data)?data:[];
+   const map=new Map(rows.map(x=>[String(x.id),x]));
+   const currentIds=new Set(productos.map(p=>String(p.id)));
+   const incomingIds=new Set(map.keys());
+   const productSetChanged=currentIds.size!==incomingIds.size||[...incomingIds].some(id=>!currentIds.has(id));
+   if(productSetChanged){
+     // get_public_catalog solo contiene campos públicos. Si entró/salió un producto,
+     // recargar la tabla completa para conservar coste, ubicación y campos del admin.
+     if(!cargarTodoBusy)await cargarTodo();
+     return;
+   }
    let changed=false;
    productos=productos.map(p=>{
      const x=map.get(String(p.id));
      if(!x)return p;
      const available=Math.max(0,Number(x.quantity)||0),variants=parseVariants(x.variants);
-     if(available!==availableQuantity(p)||JSON.stringify(variants)!==JSON.stringify(availableVariants(p)))changed=true;
-     return {...p,availableQuantity:available,availableVariants:variants};
+     const merged={...p,
+       name:x.name??p.name,code:x.code??p.code,category:x.category??p.category,
+       sale_price:x.sale_price??p.sale_price,image_url:x.image_url??p.image_url,
+       colors:Array.isArray(x.colors)?x.colors:p.colors,sizes:Array.isArray(x.sizes)?x.sizes:p.sizes,
+       availableQuantity:available,availableVariants:variants
+     };
+     const oldSig=JSON.stringify({name:p.name,code:p.code,category:p.category,sale_price:p.sale_price,image_url:p.image_url,q:availableQuantity(p),v:availableVariants(p)});
+     const newSig=JSON.stringify({name:merged.name,code:merged.code,category:merged.category,sale_price:merged.sale_price,image_url:merged.image_url,q:availableQuantity(merged),v:availableVariants(merged)});
+     if(oldSig!==newSig)changed=true;
+     return merged;
    });
-   if(changed){renderProductos();refrescarSelects();renderVentaCatalogo();renderInicio();}
+   if(changed){renderProductos();refrescarSelects();renderVentaCatalogo();renderInicio();renderReportes();}
  }catch(e){console.warn("No se pudo actualizar la disponibilidad de reservas.",e)}
  finally{availabilityRefreshBusy=false}
 }
 
 async function cargarPedidos(){
   if(!sb)return;
-  const {data,error}=await sb.from("web_orders").select("*").order("created_at",{ascending:false});
+  const {data,error}=await fetchAllTableRows("web_orders","created_at",false);
   if(error){
     console.error("Error cargando pedidos:",error);
-    pedidos=[];
+    toast("No se pudieron actualizar los pedidos. Se conserva la lista anterior.");
     renderPedidos();
     return;
   }
@@ -758,10 +844,24 @@ function whatsappPedido(phone,name){
 }
 
 async function cambiarEstadoPedido(id,status){
-  const {error}=await sb.from("web_orders").update({status}).eq("id",id);
-  if(error){alert("No se pudo actualizar el pedido: "+error.message);return}
-  toast("Pedido actualizado: "+pedidoEstadoLabel(status));
-  await cargarPedidos();
+  const select=[...document.querySelectorAll('.orderStatusSelect')].find(el=>String(el.dataset.orderId||'')===String(id));
+  if(select)select.disabled=true;
+  try{
+    const {data,error}=await sb.rpc('admin_update_web_order_status',{p_order_id:id,p_status:status});
+    if(error){
+      const message=String(error.message||'');
+      const missingRpc=error.code==='PGRST202'||/could not find the function|function .* does not exist|schema cache/i.test(message);
+      alert(missingRpc
+        ?'No se cambió el estado. Ejecuta primero variedades_jm_funciones_admin_atomicas_CORREGIDO.sql para mantener estado e inventario sincronizados.'
+        :'No se pudo actualizar el pedido de forma segura. No se confirmó ningún cambio: '+message);
+      return;
+    }
+    const result=Array.isArray(data)?data[0]:data;
+    if(!result?.success){alert(result?.message||'No se pudo actualizar el pedido.');renderPedidos();return}
+    toast(result.message||('Pedido actualizado: '+pedidoEstadoLabel(status)));
+    await cargarTodo();
+  }catch(error){alert('No se pudo actualizar el pedido: '+(error.message||error))}
+  finally{if(select)select.disabled=false}
 }
 
 async function confirmarPedido(id){
@@ -820,7 +920,7 @@ function renderPedidos(){
         ${status==="pendiente"?`<button class="primary" onclick="confirmarPedido('${esc(p.id)}')">✅ Confirmar</button>`:""}
         ${status==="pendiente"?`<button class="dangerbtn" onclick="rechazarPedido('${esc(p.id)}')">❌ Rechazar</button>`:""}
         ${p.customer_phone?`<button class="action" onclick="whatsappPedido('${esc(p.customer_phone)}','${esc(p.customer_name||"")}')">💬 WhatsApp</button>`:""}
-        <select class="orderStatusSelect" onchange="cambiarEstadoPedido('${esc(p.id)}',this.value)">
+        <select class="orderStatusSelect" data-order-id="${esc(p.id)}" onchange="cambiarEstadoPedido('${esc(p.id)}',this.value)">
           ${["pendiente","confirmado","enviado","entregado","rechazado","devuelto"].map(s=>`<option value="${s}" ${s===status?"selected":""}>${pedidoEstadoLabel(s)}</option>`).join("")}
         </select>
       </div>
@@ -836,8 +936,8 @@ async function loadCategoriesFromTable(){
     if(error)throw error;
     const cloud=(data||[]).map(x=>String(x.name||"").trim()).filter(Boolean);
     const fromProducts=productos.map(p=>String(p.category||"").trim()).filter(Boolean);
-    const fromLocal=(()=>{try{return JSON.parse(localStorage.getItem("jm_categories")||"[]")}catch{return[]}})();
-    categorias=[...new Set([...cloud,...fromProducts,...fromLocal])];
+    // A successful cloud response is canonical. Do not re-add categories deleted in Supabase from an old local cache.
+    categorias=[...new Set([...cloud,...fromProducts])];
     saveCategoriesLocal();
     refreshCategorySelects();
     const st=$("categoryLoadStatus");if(st)st.textContent=categorias.length?`${categorias.length} disponible${categorias.length===1?"":"s"}`:"No hay categorías";
@@ -856,16 +956,17 @@ async function loadCategoriesFromTable(){
 async function addCategoryFromProduct(){
   const name=(prompt("Nombre de la nueva categoría:")||"").trim();
   if(!name)return;
+  if(name.length>40)return alert("El nombre de la categoría no puede superar 40 caracteres.");
   if(categorias.some(c=>c.toLowerCase()===name.toLowerCase())){
     $("pCategoria").value=categorias.find(c=>c.toLowerCase()===name.toLowerCase());
     return toast("Esa categoría ya existe.");
   }
-  const nextOrder=categorias.length?categorias.length+1:1;
-  const {error}=await sb.from("categories").insert({name,sort_order:nextOrder});
-  if(error)return alert("No se pudo guardar la categoría: "+error.message);
-  await loadCategoriesFromTable();
-  $("pCategoria").value=name;
-  toast("Categoría creada y seleccionada");
+  try{
+    await insertCategorySafely(name);
+    await loadCategoriesFromTable();
+    $("pCategoria").value=name;
+    toast("Categoría creada y seleccionada");
+  }catch(error){alert("No se pudo guardar la categoría: "+(error.message||error))}
 }
 async function saveCategoriesCloud(){
   try{
@@ -901,57 +1002,68 @@ function renderCategoryManager(){
     <button type="button" class="dangerbtn" data-cat-action="delete" data-cat-index="${i}">🗑️ Eliminar</button>
     </span></div>`).join("");
 }
+async function insertCategorySafely(name){
+ let result;
+ try{result=await sb.rpc('admin_add_category',{p_name:name})}catch(error){result={error}}
+ if(!result?.error){
+   const data=Array.isArray(result.data)?result.data[0]:result.data;
+   if(!data?.success)throw new Error(data?.message||'No se pudo guardar la categoría.');
+   return data;
+ }
+ const message=String(result.error.message||'');
+ const missingRpc=result.error.code==='PGRST202'||/could not find the function|function .* does not exist|schema cache/i.test(message);
+ if(missingRpc)throw new Error('No se creó la categoría. Primero ejecuta variedades_jm_funciones_admin_atomicas_CORREGIDO.sql para evitar duplicados por concurrencia.');
+ throw new Error(message||'No se pudo guardar la categoría.');
+}
 async function addCategory(){
   const input=$("newCategoryName"),name=(input?.value||"").trim();
   if(!name)return alert("Escribe el nombre de la categoría.");
+  if(name.length>40)return alert("El nombre de la categoría no puede superar 40 caracteres.");
   if(categorias.some(c=>c.toLowerCase()===name.toLowerCase()))return alert("Esa categoría ya existe.");
-  const nextOrder=categorias.length?categorias.length+1:1;
-  const {error}=await sb.from("categories").insert({name,sort_order:nextOrder});
-  if(error)return alert("No se pudo guardar la categoría: "+error.message);
-  input.value="";
-  await loadCategoriesFromTable();
-  toast("Categoría agregada y sincronizada");
+  try{
+    await insertCategorySafely(name);
+    input.value="";
+    await loadCategoriesFromTable();
+    toast("Categoría agregada y sincronizada");
+  }catch(error){alert("No se pudo guardar la categoría: "+(error.message||error))}
 }
 async function renameCategory(oldName){
-  const newName=(prompt("Nuevo nombre para la categoría:",oldName)||"").trim();
-  if(!newName||newName===oldName)return;
-  if(categorias.some(c=>c.toLowerCase()===newName.toLowerCase()))return alert("Ya existe una categoría con ese nombre.");
-
-  const {data:catRow,error:findError}=await sb.from("categories").select("id,name,sort_order").eq("name",oldName).maybeSingle();
-  if(findError||!catRow)return alert("No se encontró la categoría en Supabase.");
-
-  const {error:catError}=await sb.from("categories").update({name:newName}).eq("id",catRow.id);
-  if(catError)return alert("No se pudo renombrar la categoría: "+catError.message);
-
-  const {error:prodError}=await sb.from("products").update({category:newName}).eq("category",oldName);
-  if(prodError){
-    await sb.from("categories").update({name:oldName}).eq("id",catRow.id);
-    return alert("No se pudieron actualizar los productos: "+prodError.message);
-  }
-
-  await loadCategoriesFromTable();
-  await cargarTodo();
-  toast("Categoría renombrada y sincronizada");
+ const newName=(prompt("Nuevo nombre para la categoría:",oldName)||"").trim();
+ if(!newName||newName===oldName)return;
+ if(categorias.some(c=>c.toLowerCase()===newName.toLowerCase()))return alert("Ya existe una categoría con ese nombre.");
+ let result;
+ try{result=await sb.rpc('admin_rename_category',{p_old_name:oldName,p_new_name:newName})}catch(error){result={error}}
+ if(result?.error){
+   const message=String(result.error.message||'');
+   const missingRpc=result.error.code==='PGRST202'||/could not find the function|function .* does not exist|schema cache/i.test(message);
+   return alert(missingRpc
+     ?'No se hizo ningún cambio. Para evitar un renombrado parcial, primero ejecuta variedades_jm_funciones_admin_atomicas_CORREGIDO.sql en Supabase y vuelve a intentarlo.'
+     :'No se pudo renombrar la categoría de forma segura. No se cambió nada. '+message);
+ }
+ const data=Array.isArray(result.data)?result.data[0]:result.data;
+ if(!data?.success)return alert(data?.message||'No se pudo renombrar la categoría. No se cambiaron los productos.');
+ await loadCategoriesFromTable();await cargarTodo();toast('Categoría renombrada y sincronizada');
 }
 async function deleteCategory(name){
-  const {data:rows,error:prodError}=await sb.from("products").select("id").eq("category",name).limit(1);
-  if(prodError)return alert("No se pudo comprobar la categoría: "+prodError.message);
-  if((rows||[]).length)return alert(`No puedes eliminar "${name}" porque tiene productos. Primero cambia esos productos de categoría.`);
-  if(!confirm(`¿Eliminar la categoría "${name}"?`))return;
-
-  const {error}=await sb.from("categories").delete().eq("name",name);
-  if(error)return alert("No se pudo eliminar la categoría: "+error.message);
-  await loadCategoriesFromTable();
-  toast("Categoría eliminada y sincronizada");
+ if(!confirm(`¿Eliminar la categoría "${name}"?`))return;
+ let result;
+ try{result=await sb.rpc('admin_delete_category',{p_name:name})}catch(error){result={error}}
+ if(result?.error){
+   const message=String(result.error.message||'');
+   const missingRpc=result.error.code==='PGRST202'||/could not find the function|function .* does not exist|schema cache/i.test(message);
+   return alert(missingRpc
+     ?'No se hizo ningún cambio. Para evitar borrar una categoría que aún usan otros productos, primero ejecuta variedades_jm_funciones_admin_atomicas_CORREGIDO.sql en Supabase y vuelve a intentarlo.'
+     :'No se pudo eliminar la categoría de forma segura. No se cambió nada. '+message);
+ }
+ const data=Array.isArray(result.data)?result.data[0]:result.data;
+ if(!data?.success)return alert(data?.message||'No se pudo eliminar la categoría.');
+ await loadCategoriesFromTable();toast('Categoría eliminada y sincronizada');
 }
 async function nextCode(cat){
- const pr=pref[cat]||"OTR";
- let nums=productos.filter(x=>x.category===cat).map(x=>parseInt((x.code||"").split("-")[1])).filter(Number.isFinite);
- // También consulta Supabase por si existen productos que todavía no se hayan cargado en pantalla.
- try{
-   const {data}=await sb.from("products").select("code,category").eq("category",cat).limit(1000);
-   if(data)nums.push(...data.map(x=>parseInt((x.code||"").split("-")[1])).filter(Number.isFinite));
- }catch{}
+ const pr=categoryPrefix(cat);
+ // The fully paginated in-memory list avoids a separate Supabase query here.
+ // Consider all existing codes with this prefix, even if categories share a prefix.
+ let nums=productos.filter(x=>String(x.code||"").startsWith(pr+"-")).map(x=>parseInt((x.code||"").slice(pr.length+1))).filter(Number.isFinite);
  const n=nums.length?Math.max(...nums)+1:1;
  return pr+"-"+String(n).padStart(3,"0");
 }
@@ -960,6 +1072,23 @@ function esErrorCodigoDuplicado(error){
  return error?.code==="23505" || t.includes("duplicate key") || t.includes("products_user_code_idx") || t.includes("unique constraint");
 }
 async function uploadProductImages(productId, files, userId){
+ if(!files?.length)return [];
+ // product_images es opcional en algunos esquemas antiguos. Verificarlo ANTES de subir
+ // varias fotos evita dejar objetos R2 sin referencia. Sin esa tabla guardamos una sola
+ // foto principal en products.image_url y explicamos la limitación sin perder la foto.
+ const probe=await sb.from("product_images").select("image_path").limit(1);
+ if(probe.error&&isMissingTableError(probe.error,"product_images")){
+   const file=files[0];
+   const ext=(file.name.split(".").pop()||"jpg").toLowerCase();
+   const path=`products/${productId}/${crypto.randomUUID()}.${ext}`;
+   const uploaded=await uploadImageToR2(path,file);
+   const key=uploaded.key||path;
+   const {error}=await sb.from("products").update({image_url:key}).eq("id",productId);
+   if(error)throw new Error("La foto se subió a R2, pero no se pudo guardar como foto principal: "+error.message);
+   toast(files.length>1?"Se guardó la foto principal. La galería múltiple requiere la tabla opcional product_images; no se subieron las otras fotos.":"Foto principal guardada.");
+   return [{product_id:productId,user_id:userId,image_path:key,sort_order:0,primaryFallback:true}];
+ }
+ if(probe.error)throw new Error("No se pudo comprobar la tabla de fotos adicionales product_images; no se subió ninguna imagen: "+probe.error.message);
  const added=[];
  for(let i=0;i<files.length;i++){
    const file=files[i];
@@ -971,9 +1100,12 @@ async function uploadProductImages(productId, files, userId){
  if(added.length){const ins=await sb.from("product_images").insert(added);if(ins.error)throw new Error("No se pudieron guardar las fotos adicionales: "+ins.error.message);}
  return added;
 }
+let productPreviewObjectUrls=[];
 function renderPhotoPreview(){
- const box=$("photoPreview");if(!box)return;const files=[...($('pFoto').files||[])];
- box.innerHTML=files.map((f,i)=>`<div class="photoItem"><img src="${URL.createObjectURL(f)}" alt="Foto ${i+1}"><span>${i===0?'Principal':i+1}</span></div>`).join('');
+ const box=$("photoPreview");if(!box)return;
+ productPreviewObjectUrls.forEach(url=>{try{URL.revokeObjectURL(url)}catch{}});productPreviewObjectUrls=[];
+ const files=[...($('pFoto').files||[])];
+ box.innerHTML=files.map((f,i)=>{const url=URL.createObjectURL(f);productPreviewObjectUrls.push(url);return `<div class="photoItem"><img src="${url}" alt="Foto ${i+1}"><span>${i===0?'Principal':i+1}</span></div>`}).join('');
 }
 function renderSizeGuidePhotoPreview(){
  const box=$("sizeGuidePhotoPreview"),input=$("pGuiaTallasFoto"),clearBtn=$("clearSizeGuidePhoto");
@@ -1020,8 +1152,20 @@ function availableQuantity(p){
  return Number.isFinite(n)?Math.max(0,n):Math.max(0,Number(p?.quantity)||0);
 }
 function availableVariants(p){
- return Array.isArray(p?.availableVariants)?p.availableVariants:parseVariants(p?.variants);
+ // El RPC público puede devolver variantes calculadas con las reservas activas.
+ // Si no devuelve ninguna, usamos el JSON del producto como compatibilidad
+ // para productos antiguos o respuestas parciales del RPC.
+ const live=Array.isArray(p?.availableVariants)?p.availableVariants:[];
+ return live.length?live:parseVariants(p?.variants);
 }
+function saleAvailableQuantity(p){
+ const variants=availableVariants(p);
+ // Para productos con tallas/colores, la disponibilidad real de venta es la suma
+ // de las variantes; no dependemos de un quantity general que pudiera estar desfasado.
+ if(variants.length)return variants.reduce((sum,v)=>sum+Math.max(0,Number(v.stock)||0),0);
+ return availableQuantity(p);
+}
+function saleProductIsAvailable(p){return saleAvailableQuantity(p)>0}
 function availableVariantStock(p,color,size){
  const variants=availableVariants(p);
  if(!variants.length)return availableQuantity(p);
@@ -1114,18 +1258,18 @@ async function guardarProducto(agregarOtro=false){
  try{
    if(editingId){
      const {error}=await sb.from("products").update(obj).eq("id",editingId);if(error)throw error;
-     if(files.length){const added=await uploadProductImages(editingId,files,user.id);if(!fotoUrl&&added[0]){await sb.from("products").update({image_url:added[0].image_path}).eq("id",editingId)}}
-     if(Object.keys(variantFiles).length){const updatedVariants=await uploadVariantPhotos(editingId,variantDraft,variantFiles);await sb.from("products").update({variants:updatedVariants,quantity:totalVariantStock(updatedVariants)}).eq("id",editingId)}
+     if(files.length){const added=await uploadProductImages(editingId,files,user.id);if(!fotoUrl&&added[0]){const updatePhoto=await sb.from("products").update({image_url:added[0].image_path}).eq("id",editingId);if(updatePhoto.error)throw new Error("Las fotos se subieron, pero no se pudo actualizar la foto principal: "+updatePhoto.error.message)}}
+     if(Object.keys(variantFiles).length){const updatedVariants=await uploadVariantPhotos(editingId,variantDraft,variantFiles);const updateVariants=await sb.from("products").update({variants:updatedVariants,quantity:totalVariantStock(updatedVariants)}).eq("id",editingId);if(updateVariants.error)throw new Error("Las fotos de variantes se subieron, pero no se pudo guardar su inventario: "+updateVariants.error.message)}
      if(sizeGuideFile)await uploadSizeGuidePhoto(editingId,sizeGuideFile);
      toast("Producto actualizado correctamente");
    }else{
      let code=await nextCode(obj.category),error=null,data=null;
-     for(let intento=0;intento<100;intento++){obj.code=code;const r=await sb.from("products").insert(obj).select().single();data=r.data;error=r.error;if(!error)break;if(!esErrorCodigoDuplicado(error))break;const numero=(parseInt(code.split("-")[1])||0)+1;code=(pref[obj.category]||"OTR")+"-"+String(numero).padStart(3,"0")}
+     for(let intento=0;intento<100;intento++){obj.code=code;const r=await sb.from("products").insert(obj).select().single();data=r.data;error=r.error;if(!error)break;if(!esErrorCodigoDuplicado(error))break;const numero=(parseInt(code.split("-")[1])||0)+1;code=categoryPrefix(obj.category)+"-"+String(numero).padStart(3,"0")}
      if(error)throw error;
      editingId=data.id;
      $("formTitle").textContent="Completar producto "+(obj.code||"");
-     if(files.length){const added=await uploadProductImages(data.id,files,user.id);if(added[0]){await sb.from("products").update({image_url:added[0].image_path}).eq("id",data.id)}}
-     if(Object.keys(variantFiles).length){const updatedVariants=await uploadVariantPhotos(data.id,variantDraft,variantFiles);await sb.from("products").update({variants:updatedVariants,quantity:totalVariantStock(updatedVariants)}).eq("id",data.id)}
+     if(files.length){const added=await uploadProductImages(data.id,files,user.id);if(added[0]){const updatePhoto=await sb.from("products").update({image_url:added[0].image_path}).eq("id",data.id);if(updatePhoto.error)throw new Error("El producto quedó creado, pero no se pudo guardar la foto principal: "+updatePhoto.error.message)}}
+     if(Object.keys(variantFiles).length){const updatedVariants=await uploadVariantPhotos(data.id,variantDraft,variantFiles);const updateVariants=await sb.from("products").update({variants:updatedVariants,quantity:totalVariantStock(updatedVariants)}).eq("id",data.id);if(updateVariants.error)throw new Error("El producto quedó creado, pero no se pudo guardar el inventario de variantes: "+updateVariants.error.message)}
      if(sizeGuideFile)await uploadSizeGuidePhoto(data.id,sizeGuideFile);
      toast("Producto guardado correctamente");
    }
@@ -1153,15 +1297,23 @@ function editarProducto(id){
 async function borrarProducto(id){
  const p=productos.find(x=>String(x.id)===String(id));if(!p)return;
  if(!confirm(`¿Eliminar ${p.code} — ${p.name}?`))return;
- const {error}=await sb.from("products").delete().eq("id",id);
- if(error){alert(error.message);return;}
+ let result;
+ try{result=await sb.rpc('admin_delete_product',{p_product_id:id})}catch(error){result={error}}
+ if(result?.error){
+   const msg=String(result.error.message||'');
+   const missingRpc=result.error.code==='PGRST202'||/could not find the function|function .* does not exist|schema cache/i.test(msg);
+   alert(missingRpc?'No se eliminó el producto. Ejecuta primero variedades_jm_funciones_admin_atomicas_CORREGIDO.sql para comprobar reservas y propiedad.':'No se pudo eliminar el producto de forma segura. No se hizo ningún cambio: '+msg);
+   return;
+ }
+ const response=Array.isArray(result.data)?result.data[0]:result.data;
+ if(!response?.success){alert(response?.message||'No se pudo eliminar el producto.');return}
  let cleanupNote="";
  try{
-   const result=await deleteProductImagesFromR2(id);
-   cleanupNote=` Fotos de R2 eliminadas: ${Number(result.deleted)||0}.`;
+   const deleted=await deleteProductImagesFromR2(id);
+   cleanupNote=` Fotos físicas de R2 eliminadas: ${Number(deleted.deleted)||0}.`;
  }catch(cleanupError){
    console.warn("El producto se borró de la base, pero no se pudieron limpiar sus fotos de R2:",cleanupError);
-   cleanupNote=" El producto se eliminó, pero no se pudo limpiar su carpeta de fotos de R2: "+(cleanupError.message||cleanupError);
+   cleanupNote=" El producto se eliminó, pero quedaron archivos que no se pudieron limpiar en R2: "+(cleanupError.message||cleanupError);
  }
  await cargarTodo();
  toast("Producto eliminado."+cleanupNote);
@@ -1207,25 +1359,34 @@ function renderInicio(){
  $("recentSales").innerHTML=ventas.slice(0,6).map(v=>`<div class="listItem"><div class="rowBetween"><b>${esc(v.product_code)} — ${esc(v.product_name)}</b><b>${money(Number(v.quantity)*Number(v.sale_price))}</b></div><span class="muted">${v.sale_date} • ${v.quantity} unidad(es)</span></div>`).join("")||'<div class="empty">No hay ventas todavía.</div>';
 }
 function refrescarSelects(){
- $("vProducto").innerHTML=productos.filter(p=>availableQuantity(p)>0).map(p=>`<option value="${p.id}">${esc(p.code)} — ${esc(p.name)} (${availableQuantity(p)} disponibles)</option>`).join("")||'<option value="">No hay productos con stock</option>';
- $("vProducto").onchange=()=>{renderSaleVariantSelector();refreshSalePreview();renderVentaCatalogo()};
+ const select=$("vProducto");if(!select)return;
+ // Mantener el producto que el usuario ya eligió al actualizar stock/reservas.
+ const previous=String(select.value||"");
+ const availableProducts=productos.filter(saleProductIsAvailable);
+ select.innerHTML=availableProducts.map(p=>`<option value="${esc(String(p.id))}">${esc(p.code)} — ${esc(p.name)} (${saleAvailableQuantity(p)} disponibles)</option>`).join("")||'<option value="">No hay productos con stock disponible</option>';
+ if(availableProducts.some(p=>String(p.id)===previous))select.value=previous;
+ else select.value=availableProducts.length?String(availableProducts[0].id):"";
+ select.onchange=()=>{renderSaleVariantSelector();refreshSalePreview();renderVentaCatalogo()};
  renderSaleVariantSelector();refreshSalePreview();refrescarMovimientoSelect();
 }
 function renderSaleVariantSelector(){
  const wrap=$("saleVariantWrap"),select=$("vVariant");if(!wrap||!select)return;
  const p=productos.find(x=>String(x.id)===String($("vProducto")?.value||""));
- const variants=parseVariants(p?.variants);
- if(!p||!variants.length){wrap.style.display="none";select.innerHTML="";return}
- const available=availableVariants(p);
+ const sourceVariants=availableVariants(p);
+ if(!p||!sourceVariants.length){wrap.style.display="none";select.innerHTML="";select.value="";return}
+ const previous=String(select.value||"");
  wrap.style.display="block";
- const options=available.map(v=>{
+ const options=sourceVariants.map(v=>{
    const stock=Math.max(0,Number(v.stock)||0),key=variantKey(v.color,v.size);
    const label=[v.color||"Sin color",v.size||"Única"].join(" / ");
    return `<option value="${esc(key)}" ${stock<=0?'disabled':''}>${esc(label)} — ${stock} disponible(s)</option>`;
  }).join("");
  select.innerHTML=options;
- const selected=available.find(v=>availableVariantStock(p,v.color,v.size)>0);
- if(selected)select.value=variantKey(selected.color,selected.size);
+ const keep=sourceVariants.find(v=>variantKey(v.color,v.size)===previous&&availableVariantStock(p,v.color,v.size)>0);
+ const first=sourceVariants.find(v=>availableVariantStock(p,v.color,v.size)>0);
+ const selected=keep||first;
+ select.value=selected?variantKey(selected.color,selected.size):"";
+ select.setAttribute('aria-label','Variante seleccionada: '+(selected?[selected.color||'Sin color',selected.size||'Única'].join(' / '):'sin stock disponible'));
 }
 
 async function compartirProducto(id){
@@ -1244,11 +1405,12 @@ async function compartirProducto(id){
  window.open("https://www.facebook.com/sharer/sharer.php?u="+encodeURIComponent(url),"_blank","noopener");
 }
 
+let ventaCatalogRenderToken=0;
 async function renderVentaCatalogo(){
  const el=$("ventaCatalogo");
  if(!el)return;
+ const renderToken=++ventaCatalogRenderToken;
  if(!productos.length){el.innerHTML='<div class="empty" style="grid-column:1/-1">No hay productos en el inventario todavía.</div>';return}
- const selected=$("vProducto")?.value||"";
  const q=($("buscarProductoVenta")?.value||"").trim().toLowerCase();
  const visibles=productos.filter(p=>{
    const text=(p.code+" "+p.name+" "+(p.category||"")+" "+(p.location||"")).toLowerCase();
@@ -1256,39 +1418,64 @@ async function renderVentaCatalogo(){
  });
  if(!visibles.length){el.innerHTML='<div class="empty" style="grid-column:1/-1">No encontramos productos con esa búsqueda.</div>';return}
  const rows=await Promise.all(visibles.map(async p=>({p,img:await getImageUrl(p.image_url)})));
+ // Evita que una renderización más lenta reemplace los resultados de una búsqueda
+ // posterior o quite visualmente la tarjeta seleccionada.
+ if(renderToken!==ventaCatalogRenderToken)return;
+ const selected=String($("vProducto")?.value||"");
  el.innerHTML=rows.map(({p,img})=>{
-   const stock=availableQuantity(p),disabled=stock<=0,sel=String(p.id)===String(selected);
-   return `<button type="button" class="saleProductCard ${disabled?'disabled ':''}${sel?'selected':''}" data-product-id="${esc(String(p.id))}" ${disabled?'disabled':''} title="${disabled?'Sin stock':'Seleccionar '+esc(p.name)}">
-     <div class="saleSelected">✓</div>
-     ${img?`<img class="saleProductImg" src="${img}" alt="${esc(p.name)}">`:'<div class="saleNoImg">📦</div>'}
+   const stock=saleAvailableQuantity(p),disabled=stock<=0,sel=String(p.id)===selected;
+   return `<button type="button" class="saleProductCard ${disabled?'disabled ':''}${sel?'selected':''}" data-product-id="${esc(String(p.id))}" ${disabled?'disabled':''} aria-pressed="${sel?'true':'false'}" title="${disabled?'Sin stock disponible':'Seleccionar '+esc(p.name)}">
+     <div class="saleSelected" aria-hidden="true">✓</div>
+     ${img?`<img class="saleProductImg" src="${esc(img)}" alt="${esc(p.name)}" loading="lazy" decoding="async">`:'<div class="saleNoImg">📦</div>'}
      <div class="saleProductBody"><div class="saleProductCode">${esc(p.code)}</div><div class="saleProductName">${esc(p.name)}</div><div class="saleProductPrice">${money(p.sale_price)}</div><div class="saleProductStock">${stock>0?stock+' disponible(s)':'Agotado'}</div></div>
    </button>`;
  }).join('');
- // Selección por toque/clic: usamos delegación para que funcione también sobre la foto.
- el.onclick=(ev)=>{
-   const card=ev.target.closest('[data-product-id]');
-   if(!card || card.disabled)return;
-   seleccionarProductoVenta(card.getAttribute('data-product-id'));
- };
+ if(!el.dataset.saleClickBound){
+   el.addEventListener('click',(ev)=>{
+     const card=ev.target.closest('[data-product-id]');
+     if(!card||card.disabled)return;
+     seleccionarProductoVenta(card.getAttribute('data-product-id'));
+   });
+   el.dataset.saleClickBound='true';
+ }
 }
 function seleccionarProductoVenta(id){
  const select=$("vProducto");
  if(!select)return;
- const option=[...select.options].find(o=>String(o.value)===String(id));
+ const target=String(id||"");
+ let option=[...select.options].find(o=>String(o.value)===target);
+ if(!option){
+   // La tarjeta pudo quedar visible justo cuando el stock cambió; refrescamos
+   // las opciones desde el estado actual antes de permitir una venta incorrecta.
+   const product=productos.find(p=>String(p.id)===target);
+   if(!product||!saleProductIsAvailable(product)){
+     toast('Este producto ya no tiene stock disponible. Actualiza el inventario.');
+     void refreshPublicAvailability();
+     return;
+   }
+   refrescarSelects();
+   option=[...select.options].find(o=>String(o.value)===target);
+ }
  if(!option)return;
  select.value=option.value;
+ if(String(select.value)!==target)return;
  select.dispatchEvent(new Event('change',{bubbles:true}));
  refreshSalePreview();
- // Resalta inmediatamente la tarjeta seleccionada sin depender de un nuevo clic.
  document.querySelectorAll('#ventaCatalogo .saleProductCard').forEach(card=>{
-   card.classList.toggle('selected',String(card.getAttribute('data-product-id'))===String(id));
+   const selected=String(card.getAttribute('data-product-id'))===target;
+   card.classList.toggle('selected',selected);
+   card.setAttribute('aria-pressed',selected?'true':'false');
  });
 }
 function refreshSalePreview(){
- const p=productos.find(x=>x.id===$("vProducto").value),q=Number($("vCantidad").value)||0;
+ const p=productos.find(x=>String(x.id)===String($("vProducto")?.value||"")),q=Number($("vCantidad").value)||0;
  if(!p){$("salePreview").innerHTML='<div class="kpi">Selecciona un producto<b>—</b></div>';return}
  const total=q*Number(p.sale_price),gain=q*(Number(p.sale_price)-Number(p.cost_price));
- $("salePreview").innerHTML=`<div class="kpi">Precio unitario<b>${money(p.sale_price)}</b></div><div class="kpi">Total venta<b>${money(total)}</b></div><div class="kpi">Ganancia estimada<b>${money(gain)}</b></div>`;
+ const variants=availableVariants(p);
+ const selected=variants.length?variants.find(v=>variantKey(v.color,v.size)===String($("vVariant")?.value||"")):null;
+ const variantLabel=selected?[selected.color||'Sin color',selected.size||'Única'].join(' / '):'';
+ const stock=selected?availableVariantStock(p,selected.color,selected.size):saleAvailableQuantity(p);
+ $("salePreview").innerHTML=`<div class="kpi">Precio unitario<b>${money(p.sale_price)}</b></div><div class="kpi">Total venta<b>${money(total)}</b></div><div class="kpi">Ganancia estimada<b>${money(gain)}</b></div>${variants.length?`<div class="kpi saleVariantPreview">✓ Variante seleccionada<b>${esc(variantLabel||'Selecciona una variante')}</b><small>${stock} disponible(s)</small></div>`:''}`;
 }
 async function registrarVenta(){
  const pid=$("vProducto").value,q=Number($("vCantidad").value)||0,p=productos.find(x=>String(x.id)===String(pid));
@@ -1302,7 +1489,7 @@ async function registrarVenta(){
  }else if(availableQuantity(p)<q){
    return alert("La cantidad no está disponible o está reservada temporalmente.");
  }
- const {data,error}=await sb.rpc("register_inventory_sale",{
+ const {data,error}=await sb.rpc("admin_register_inventory_sale",{
    p_product_id:p.id,p_quantity:q,p_sale_date:$("vFecha").value||new Date().toISOString().slice(0,10),p_color:color,p_size:size
  });
  if(error)return alert("No se pudo registrar la venta: "+error.message);
@@ -1322,7 +1509,8 @@ async function agregarCliente(){
  if(error)alert(error.message);else{$("cNombre").value="";$("cTelefono").value="";$("cNota").value="";toast("Cliente guardado");await cargarTodo()}
 }
 function renderClientes(){
- $("listaClientes").innerHTML=clientes.map(c=>`<div class="card listItem" style="padding:15px;margin-bottom:9px"><div class="rowBetween"><div><b>${esc(c.name)}</b><div class="muted">📞 ${esc(c.phone||"Sin teléfono")}</div>${c.note?`<div class="muted">📝 ${esc(c.note)}</div>`:""}</div><span class="badge ok">Cliente</span></div></div>`).join("")||'<div class="empty card">No hay clientes registrados.</div>';
+ const host=$("listaClientes");if(!host)return;
+ host.innerHTML=clientes.map(c=>`<div class="card listItem" style="padding:15px;margin-bottom:9px"><div class="rowBetween"><div><b>${esc(c.name)}</b><div class="muted">📞 ${esc(c.phone||"Sin teléfono")}</div>${c.note?`<div class="muted">📝 ${esc(c.note)}</div>`:""}</div><span class="badge ok">Cliente</span></div></div>`).join("")||'<div class="empty card">No hay clientes registrados.</div>';
 }
 
 async function agregarProveedor(){
@@ -1332,7 +1520,8 @@ async function agregarProveedor(){
  $("prNombre").value="";$("prTelefono").value="";$("prContacto").value="";$("prNota").value="";toast("Proveedor guardado");await cargarTodo();
 }
 function renderProveedores(){
- $("listaProveedores").innerHTML=proveedores.map(p=>`<div class="card listItem" style="padding:15px;margin-bottom:9px"><div class="rowBetween"><div><b>${esc(p.name)}</b><div class="muted">📞 ${esc(p.phone||"Sin teléfono")} ${p.contact?"• "+esc(p.contact):""}</div>${p.note?`<div class="muted">📝 ${esc(p.note)}</div>`:""}</div><button class="action" onclick="borrarProveedor('${p.id}')">🗑️</button></div></div>`).join("")||'<div class="empty card">No hay proveedores.</div>';
+ const host=$("listaProveedores");if(!host)return;
+ host.innerHTML=proveedores.map(p=>`<div class="card listItem" style="padding:15px;margin-bottom:9px"><div class="rowBetween"><div><b>${esc(p.name)}</b><div class="muted">📞 ${esc(p.phone||"Sin teléfono")} ${p.contact?"• "+esc(p.contact):""}</div>${p.note?`<div class="muted">📝 ${esc(p.note)}</div>`:""}</div><button class="action" onclick="borrarProveedor('${p.id}')">🗑️</button></div></div>`).join("")||'<div class="empty card">No hay proveedores.</div>';
 }
 async function borrarProveedor(id){if(!confirm("¿Eliminar este proveedor?"))return;const {error}=await sb.from("suppliers").delete().eq("id",id);if(error)alert(error.message);else{toast("Proveedor eliminado");await cargarTodo()}}
 async function agregarGasto(){
@@ -1348,17 +1537,77 @@ function renderGastos(){
 }
 async function borrarGasto(id){if(!confirm("¿Eliminar este gasto?"))return;const {error}=await sb.from("expenses").delete().eq("id",id);if(error)alert(error.message);else{toast("Gasto eliminado");await cargarTodo()}}
 function refrescarMovimientoSelect(){
- $("mProducto").innerHTML=productos.map(p=>`<option value="${p.id}">${esc(p.code)} — ${esc(p.name)} (${p.quantity})</option>`).join("")||'<option value="">No hay productos</option>';
+ const select=$("mProducto");if(!select)return;
+ const previous=select.value;
+ select.innerHTML=productos.map(p=>`<option value="${esc(p.id)}">${esc(p.code)} — ${esc(p.name)} (${Number(p.quantity)||0})</option>`).join("")||'<option value="">No hay productos</option>';
+ if(productos.some(p=>String(p.id)===String(previous)))select.value=previous;
+ renderMovementVariantSelect();
+}
+function renderMovementVariantSelect(){
+ const product=productos.find(x=>String(x.id)===String($("mProducto")?.value||""));
+ const variants=parseVariants(product?.variants),wrap=$("mVarianteWrap"),select=$("mVariante");
+ if(!wrap||!select)return;
+ if(!variants.length){wrap.hidden=true;select.innerHTML='';select.required=false;return;}
+ const previous=select.value;
+ select.innerHTML=variants.map((v,i)=>`<option value="${esc(variantKey(v.color,v.size))}">${esc([v.color||'Sin color',v.size||'Única'].join(' / '))} — ${Number(v.stock)||0} en stock</option>`).join('');
+ if(variants.some(v=>variantKey(v.color,v.size)===previous))select.value=previous;
+ wrap.hidden=false;select.required=true;
 }
 async function registrarMovimiento(){
- const p=productos.find(x=>x.id===$("mProducto").value),q=Number($("mCantidad").value)||0,t=$("mTipo").value;
- if(!p||q<1)return alert("Selecciona un producto y cantidad.");
- let nueva=Number(p.quantity);
- if(t==="entrada")nueva+=q;if(t==="salida"){if(nueva<q)return alert("No hay suficiente stock.");nueva-=q}if(t==="ajuste")nueva=q;
- const {error}=await sb.from("products").update({quantity:nueva}).eq("id",p.id);if(error)return alert(error.message);
- const {error:e2}=await sb.from("inventory_movements").insert({product_id:p.id,product_code:p.code,product_name:p.name,type:t,quantity:q,motive:$("mMotivo").value.trim()});
- if(e2)alert("El stock cambió, pero no se pudo guardar el historial: "+e2.message);else toast("Movimiento registrado");
- $("mCantidad").value=1;$("mMotivo").value="";await cargarTodo();
+ if(window.__jmInventoryMovementBusy)return;
+ window.__jmInventoryMovementBusy=true;
+ const movementButton=document.querySelector('button[onclick="registrarMovimiento()"]');
+ if(movementButton){movementButton.disabled=true;movementButton.dataset.originalText=movementButton.textContent;movementButton.textContent="Guardando movimiento...";}
+ try{
+ const p=productos.find(x=>String(x.id)===String($("mProducto").value)),q=Number($("mCantidad").value)||0,t=$("mTipo").value;
+ if(!p||!Number.isInteger(q)||q<1)return alert("Selecciona un producto y una cantidad entera válida.");
+ const variants=parseVariants(p.variants);
+ let updatePayload={},motive=$("mMotivo").value.trim(),chosenVariant=null;
+ if(variants.length){
+   const key=$("mVariante")?.value||'';
+   const idx=variants.findIndex(v=>variantKey(v.color,v.size)===key);
+   if(idx<0)return alert("Selecciona una variante válida.");
+   chosenVariant=variants[idx];
+   const current=Math.max(0,Number(chosenVariant.stock)||0);
+   if(t==='salida'&&current<q)return alert("No hay suficiente stock en esa variante.");
+   const next=t==='entrada'?current+q:t==='salida'?current-q:q;
+   const updatedVariants=variants.map((v,i)=>i===idx?{...v,stock:next}:v);
+   updatePayload={variants:updatedVariants,quantity:totalVariantStock(updatedVariants)};
+   const label=[chosenVariant.color||'Sin color',chosenVariant.size||'Única'].join(' / ');
+   motive=(motive?motive+' — ':'')+'Variante: '+label;
+ }else{
+   const current=Math.max(0,Number(p.quantity)||0);
+   if(t==='salida'&&current<q)return alert("No hay suficiente stock.");
+   const next=t==='entrada'?current+q:t==='salida'?current-q:q;
+   updatePayload={quantity:next};
+ }
+ // One transaction (stock + audit row) when the safe SQL helper is installed.
+ // Only fall back to the older two-request behavior when Supabase reports that this
+ // function does not exist yet; permission or validation errors must not be bypassed.
+ let rpcResult;
+ try{
+   rpcResult=await sb.rpc('admin_adjust_inventory_movement',{
+     p_product_id:p.id,p_type:t,p_quantity:q,p_motive:$("mMotivo").value.trim(),
+     p_color:chosenVariant?.color||'',p_size:chosenVariant?.size||''
+   });
+ }catch(error){rpcResult={error}}
+ if(!rpcResult?.error){
+   const result=Array.isArray(rpcResult.data)?rpcResult.data[0]:rpcResult.data;
+   if(!result?.success)return alert(result?.message||'Supabase no confirmó el movimiento; el inventario no se modificó.');
+   toast('Movimiento registrado');
+   $("mCantidad").value=1;$("mMotivo").value="";await cargarTodo();return;
+ }
+ const rpcMessage=String(rpcResult.error?.message||'');
+ const missingRpc=rpcResult.error?.code==='PGRST202'||/could not find the function|function .* does not exist|schema cache/i.test(rpcMessage);
+ if(missingRpc)return alert('No se modificó el inventario. Primero ejecuta variedades_jm_funciones_admin_atomicas_CORREGIDO.sql en Supabase para que el movimiento y su historial se guarden en una sola transacción.');
+ return alert('No se pudo registrar el movimiento de forma segura. No se aplicó ningún cambio. '+rpcMessage+'\n\nRevisa que la sesión siga activa y vuelve a intentar después de verificar el stock.');
+ }catch(error){
+   console.error("Error registrando el movimiento de inventario:",error);
+   alert("No se pudo completar el movimiento. Antes de volver a intentarlo, comprueba el stock y el historial en el administrador.");
+ }finally{
+   window.__jmInventoryMovementBusy=false;
+   if(movementButton){movementButton.disabled=false;movementButton.textContent=movementButton.dataset.originalText||"🔄 Registrar movimiento";delete movementButton.dataset.originalText;}
+ }
 }
 function renderMovimientos(){
  $("listaMovimientos").innerHTML=movimientos.slice(0,100).map(m=>`<div class="listItem"><div class="rowBetween"><div><b>${esc(m.product_code)} — ${esc(m.product_name)}</b><div class="muted">${m.created_at?new Date(m.created_at).toLocaleString("es-CO"):""} • ${esc(m.motive||"Sin motivo")}</div></div><span class="badge ${m.type==="entrada"?"ok":m.type==="salida"?"low":"out"}">${esc(m.type)}</span></div></div>`).join("")||'<div class="empty">No hay movimientos.</div>';
@@ -1387,22 +1636,75 @@ async function limpiarVentas(){
   await cargarTodo();
 }
 async function borrarTodo(){
-  const ok=confirm("⚠️ ATENCIÓN\n\nEsto eliminará TODOS los productos, ventas y clientes de esta cuenta.\n\nLas fotos de productos que estén almacenadas también podrán quedar sin referencia.\n\nEsta acción no se puede deshacer.\n\n¿Estás completamente seguro?");
-  if(!ok)return;
-  const frase=prompt('Para confirmar, escribe exactamente: BORRAR TODO');
-  if(frase!=="BORRAR TODO"){toast("Cancelado");return}
-  const [s,c,p]=await Promise.all([
-    sb.from("sales").delete().neq("id","00000000-0000-0000-0000-000000000000"),
-    sb.from("clients").delete().neq("id","00000000-0000-0000-0000-000000000000"),
-    sb.from("products").delete().neq("id","00000000-0000-0000-0000-000000000000")
-  ]);
-  const err=s.error||c.error||p.error;
-  if(err){alert("No se pudieron borrar todos los datos: "+err.message);return}
-  toast("Todos los datos fueron eliminados");
+  const ok=confirm("⚠️ REINICIO DE ESTA CUENTA\n\nSe eliminarán productos, ventas, clientes y movimientos de inventario asociados. Se conservarán los pedidos web, gastos, proveedores y categorías. Las imágenes guardadas en Cloudflare R2 no se borran desde Supabase y pueden quedar sin referencia.\n\nEsta acción no se puede deshacer. ¿Quieres continuar?");
+  if(!ok)return false;
+  const phrase=prompt('Para confirmar, escribe exactamente: BORRAR TODO');
+  if(phrase!=="BORRAR TODO"){toast("Cancelado. No se borró ningún dato.");return false}
+  let result;
+  try{result=await sb.rpc('admin_reset_business_data',{p_confirmation:phrase})}catch(error){result={error}}
+  if(result?.error){
+    const message=String(result.error.message||'');
+    const missingRpc=result.error.code==='PGRST202'||/could not find the function|function .* does not exist|schema cache/i.test(message);
+    alert(missingRpc?'No se borró ningún dato. Primero ejecuta variedades_jm_funciones_admin_atomicas_CORREGIDO.sql en Supabase para habilitar el reinicio transaccional.':'No se pudo reiniciar la cuenta. La operación se revirtió sin completar cambios: '+message);
+    return false;
+  }
+  const data=Array.isArray(result.data)?result.data[0]:result.data;
+  if(!data?.success){alert(data?.message||'No se pudo reiniciar la cuenta.');return false}
+  toast(data.message||'Reinicio completado');
   await cargarTodo();
+  return true;
 }
-function exportBackup(){
- const data={exportado:new Date().toISOString(),productos,ventas,clientes};downloadFile("variedades_jm_respaldo.json",JSON.stringify(data,null,2),"application/json");toast("Respaldo descargado");
+
+async function fetchAllRowsForBackup(table){
+ const rows=[];
+ const pageSize=1000;
+ const maxRows=100000;
+ for(let from=0;from<maxRows;from+=pageSize){
+   const {data,error}=await sb.from(table).select('*').order('id',{ascending:true}).range(from,from+pageSize-1);
+   if(error)throw new Error('No se pudo respaldar la tabla '+table+': '+error.message);
+   const batch=data||[];
+   rows.push(...batch);
+   if(batch.length<pageSize)return rows;
+ }
+ throw new Error('La tabla '+table+' supera el límite de seguridad del respaldo (100.000 filas). No se descargó una copia incompleta.');
+}
+
+function isMissingTableError(error,table){
+ const code=String(error?.code||'');
+ const message=String(error?.message||'').toLowerCase();
+ return code==='42P01'||code==='PGRST205'||(
+   message.includes(String(table||'').toLowerCase())&&
+   (/does not exist|not found|could not find.*table|schema cache/.test(message))
+ );
+}
+async function exportBackup(event){
+ const button=event?.currentTarget;
+ if(button){button.disabled=true;button.dataset.originalText=button.textContent;button.textContent="Preparando respaldo...";}
+ try{
+   // product_images es opcional en algunas versiones del esquema. Se omite solo
+   // cuando la tabla realmente no existe; un error de permisos/red sigue abortando
+   // el respaldo para no producir una copia que parezca completa cuando no lo es.
+   const tables=['products','sales','clients','suppliers','expenses','inventory_movements','web_orders','categories','product_images'];
+   const results=await Promise.all(tables.map(async table=>{
+     try{return [table,{available:true,rows:await fetchAllRowsForBackup(table)}]}
+     catch(error){
+       if(table==='product_images'&&isMissingTableError(error,table))return [table,{available:false,rows:null,reason:'La tabla opcional product_images no existe en este proyecto.'}];
+       throw error;
+     }
+   }));
+   const omitted=results.filter(([,v])=>!v.available).map(([table,v])=>({table,reason:v.reason}));
+   const data={exportado:new Date().toISOString(),version:3,
+     tablas:Object.fromEntries(results.map(([table,v])=>[table,v.rows])),
+     tablas_omitidas:omitted,
+     nota:'Las fotos binarias de Cloudflare R2 no se embeben en este JSON; se incluyen referencias/métadatos disponibles. Un valor null en tablas indica tabla opcional ausente.'};
+   downloadFile("variedades_jm_respaldo_completo.json",JSON.stringify(data,null,2),"application/json");
+   toast(omitted.length?'Respaldo descargado; product_images no existe y quedó señalado.':'Respaldo completo descargado');
+ }catch(error){
+   console.error('Error exportando respaldo completo:',error);
+   alert((error?.message||String(error))+". No se descargó un respaldo incompleto.");
+ }finally{
+   if(button){button.disabled=false;button.textContent=button.dataset.originalText||"⬇️ Descargar respaldo JSON";delete button.dataset.originalText;}
+ }
 }
 function exportCSV(){
  const head=["Código","Producto","Categoría","Cantidad","Compra","Venta","Ganancia unidad","Ubicación"];
@@ -1414,10 +1716,10 @@ function downloadFile(name,text,type){const a=document.createElement("a");a.href
 function toggleCompact(){document.body.classList.toggle("compact");localStorage.setItem("jm_compact",document.body.classList.contains("compact"));toast("Apariencia actualizada")}
 if(localStorage.getItem("jm_compact")==="true")document.body.classList.add("compact");
 applyBrand();
-$("vProducto").addEventListener("change",refreshSalePreview);$("vCantidad").addEventListener("input",refreshSalePreview);
+$("vVariant").addEventListener("change",refreshSalePreview);$("vCantidad").addEventListener("input",refreshSalePreview);
 window.addEventListener("click",e=>{if(e.target===$("productModal"))closeModal()});
 init();
-setInterval(refreshPublicAvailability,8000);
+setInterval(refreshPublicAvailability,15000); // 15 s: limita consultas repetidas a Supabase
 document.addEventListener("visibilitychange",()=>{if(!document.hidden)refreshPublicAvailability()});
 document.addEventListener("DOMContentLoaded",()=>{
   const f=$("pFoto");if(f)f.addEventListener("change",renderPhotoPreview);
