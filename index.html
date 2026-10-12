@@ -545,6 +545,20 @@ body{background:linear-gradient(180deg,#fffaf0 0%,#fff6e6 55%,#f8ecd7 100%);colo
 .filterPanel[hidden]{display:none}
 .filterField{display:flex;flex-direction:column;gap:6px;font-size:11px;font-weight:700;color:#766a71}
 .filterField select{min-width:0;width:100%;background:#fff;color:#393138;border:1px solid #e5dce1;border-radius:8px;padding:9px;font-size:12px}
+.filterCategoryField{grid-column:1/-1;min-width:0}
+.filterPriceOrderField{grid-column:1;min-width:0}
+.filterColorField{grid-column:2;min-width:0}
+.filterFieldTitle{font-size:11px;font-weight:800;color:#766a71}
+.filterColorOptions{display:flex;flex-wrap:wrap;align-items:center;gap:7px;min-width:0}
+.filterColorOption{position:relative;display:inline-flex;align-items:center;gap:7px;min-height:34px;padding:6px 10px;border:1px solid #e9e1e5;border-radius:999px;background:#fff;color:#494047;font-size:12px;font-weight:650;cursor:pointer;transition:background .16s ease,border-color .16s ease,box-shadow .16s ease;user-select:none;-webkit-tap-highlight-color:transparent}
+.filterColorOption input{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;opacity:0}
+.filterColorOption:focus-within{outline:2px solid #c5a5ae;outline-offset:2px}
+.filterColorOption.selected{background:#fff6f8;border-color:#8b304c;box-shadow:0 0 0 1px #8b304c22;color:#76233d}
+.filterColorOption.unavailable{color:#8e858a;background:#faf8f9;border-style:dashed}
+.filterColorSwatch{display:inline-block;width:16px;height:16px;flex:0 0 16px;border:1px solid #d8d2d2;border-radius:50%;background:var(--filter-color,#ddd);box-shadow:inset 0 0 0 1px #ffffff55}
+.filterColorOption.unavailable .filterColorSwatch{opacity:.45}
+.filterColorEmpty,.filterColorHelp{color:#8c8188;font-size:11px;line-height:1.4;font-weight:500}
+.filterColorHelp{display:block;margin-top:1px}
 .filterClear{grid-column:1/-1;justify-self:start;background:#fff7fa;border:1px solid #f0dce4;color:#9b2947;border-radius:8px;padding:8px 11px;font-size:12px;font-weight:700}
 @media(max-width:700px){
  .catalogSearchRow{margin-top:10px}
@@ -554,9 +568,18 @@ body{background:linear-gradient(180deg,#fffaf0 0%,#fff6e6 55%,#f8ecd7 100%);colo
  .filterGlyph,.sortGlyph{font-size:18px}
  .sortCaption{font-size:11px}
  .marketplaceSort select{font-size:11px;max-width:138px}
- .filterPanel{gap:8px;padding:10px}
+ .filterPanel{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding:10px;align-items:start}
+ .filterCategoryField{grid-column:1/-1}
+ .filterPriceOrderField{grid-column:1}
+ .filterColorField{grid-column:2;min-width:0}
  .filterField{font-size:10px}
  .filterField select{font-size:11px;padding:8px 5px}
+ .filterColorOptions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px}
+ .filterColorOption{width:100%;min-width:0;min-height:31px;padding:5px 6px;gap:5px;font-size:10px;overflow:hidden;white-space:nowrap}
+ .filterColorSwatch{width:13px;height:13px;flex-basis:13px}
+ .filterColorOption>span:last-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+ .filterColorHelp{font-size:10px}
+ .filterClear{grid-column:1/-1}
 }
 
 
@@ -1323,6 +1346,38 @@ body:has(#checkoutModal.open) .waHelpFloat{display:none!important}
 @media(prefers-reduced-motion:reduce){#cartBar .cartSend{transition:none!important}}
 </style>
 
+
+<style id="sirevya-light-logo-no-hero-and-one-swipe-20261012">
+/* Marca con el emblema compartido, sin depender del antiguo monograma de corazón. */
+.brand{min-width:0!important;gap:0!important;justify-content:center!important;align-items:center!important}
+.brandHeaderLogo{display:block!important;width:96px!important;height:76px!important;max-width:100%!important;object-fit:contain!important;border-radius:0!important;flex:none!important}
+.detailHeaderBrand{width:auto!important;min-width:0!important;justify-self:center!important;align-items:center!important;justify-content:center!important;padding:0!important}
+.detailHeaderBrand .sirevyaDetailLogo{display:block!important;width:82px!important;height:66px!important;max-width:100%!important;object-fit:contain!important;border-radius:0!important;flex:none!important}
+/* La fila informativa sustituye la gran portada: más compacta y sin descargar el banner de 2.39 MB. */
+main#inicio>.benefits{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;width:100%!important;max-width:1240px!important;margin:14px auto 18px!important;padding:0!important;overflow:hidden!important;border:1px solid #eee6df!important;border-radius:15px!important;background:#fff!important;box-shadow:0 3px 12px rgba(42,31,22,.035)!important}
+main#inicio>.benefits .benefit{display:flex!important;min-width:0!important;min-height:76px!important;align-items:center!important;justify-content:center!important;gap:9px!important;padding:12px 10px!important;border-right:1px solid #eee8e2!important;border-bottom:0!important;background:#fff!important;text-align:left!important}
+main#inicio>.benefits .benefit:last-child{border-right:0!important}
+main#inicio>.benefits .benefitIcon{font-size:23px!important;flex:none!important;color:#7b1730!important}
+main#inicio>.benefits .benefit b{font-size:13px!important;font-weight:700!important;color:#302b27!important}
+main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!important;font-size:11px!important;line-height:1.25!important;white-space:normal!important;color:#776f69!important}
+/* El cambio de foto tiene una animación corta y discreta. */
+.photoSwipe img{backface-visibility:hidden;will-change:opacity,transform}
+@media(max-width:680px){
+  .topin{height:84px!important;grid-template-columns:auto minmax(0,1fr) auto!important;gap:5px!important}
+  .brand{width:100%!important;min-width:0!important;justify-content:center!important;overflow:visible!important}
+  .brandHeaderLogo{width:96px!important;height:80px!important}
+  .categoryPanel{top:84px!important}
+  .jmTicker,main#inicio>.benefits{display:none!important}
+  .detailSiteHeader{min-height:78px!important}
+  .detailHeaderBrand .sirevyaDetailLogo{width:82px!important;height:72px!important}
+}
+@media(max-width:390px){
+  .brandHeaderLogo{width:89px!important;height:78px!important}
+  .detailHeaderBrand .sirevyaDetailLogo{width:76px!important;height:68px!important}
+}
+@media(prefers-reduced-motion:reduce){.photoSwipe img{will-change:auto!important}}
+</style>
+
 </head>
 <body>
 <header class="top">
@@ -1331,7 +1386,7 @@ body:has(#checkoutModal.open) .waHelpFloat{display:none!important}
     <button class="mobileMenuBtn" type="button" aria-label="Abrir menú" aria-controls="mobileMenu" onclick="openMobileMenu()"><span aria-hidden="true">☰</span></button>
     <button class="iconBtn headerSearchBtn" id="headerSearchBtn" type="button" aria-label="Buscar productos" aria-controls="catalogSearchRow" aria-expanded="false" onclick="toggleHeaderSearch()"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.8"></circle><path d="m16 16 5 5"></path></svg></button>
   </div>
-  <a class="brand" href="#inicio" onclick="return returnToCatalogHome(event)" aria-label="Sirevya, ir al inicio"><div class="brandLogo brandMonogram" aria-hidden="true">♡</div><div class="brandWordmark"><div class="brandName">Sirevya</div><div class="brandSub">Tu estilo, nuestra pasión</div></div></a>
+  <a class="brand" href="#inicio" onclick="return returnToCatalogHome(event)" aria-label="Sirevya, ir al inicio"><img class="brandHeaderLogo" src="logo-sirevya-circular.webp" width="600" height="539" alt="Sirevya — Tu estilo, nuestra pasión" decoding="async" fetchpriority="high"></a>
   <nav class="mainNav"><a class="active" href="#inicio" onclick="return returnToCatalogHome(event)">⌂ Inicio</a><a href="#catalogo">▣ Catálogo</a><a href="#contactanos" onclick="openContact(event)">♡ Contáctanos</a></nav>
   <div class="headerActions">
     <button class="iconBtn cartTop" type="button" aria-label="Abrir carrito" title="Carrito" onclick="toggleCart()"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h14l1 13H4L5 8Z"></path><path d="M8 8V6a4 4 0 0 1 8 0v2"></path></svg><span id="cartBadge" class="cartBadge">0</span></button>
@@ -1351,9 +1406,6 @@ body:has(#checkoutModal.open) .waHelpFloat{display:none!important}
   </div>
 </div>
 <main id="inicio" class="wrap">
-<section class="hero sirevyaHero" aria-label="Promociones Sirevya">
-  <img src="hero-sirevya.webp" width="1536" height="590" alt="Sirevya — Tu estilo, nuestra pasión" fetchpriority="high" decoding="async">
-</section>
 <section class="benefits"><div class="benefit"><div class="benefitIcon">📍</div><div><b>Cali</b><small>$0 de envío</small></div></div><div class="benefit"><div class="benefitIcon">🎁</div><div><b>Otras ciudades</b><small>Envío gratis desde $130.000</small></div></div><div class="benefit"><div class="benefitIcon">🛡️</div><div><b>Compra segura</b><small>Contra entrega o pago online</small></div></div></section>
 <div id="error" class="error"></div>
 
@@ -1385,24 +1437,25 @@ body:has(#checkoutModal.open) .waHelpFloat{display:none!important}
   <span id="count" class="count">Cargando...</span>
 </div>
 <div class="filterPanel" id="filterPanel" hidden>
-  <label class="filterField" for="filterCategory">Categoría
+  <label class="filterField filterCategoryField" for="filterCategory">Categoría
     <select id="filterCategory" onchange="applyFilterCategory(this.value)">
       <option value="">Todas las categorías</option>
     </select>
   </label>
-  <label class="filterField" for="availability">Disponibilidad
-    <select id="availability" onchange="render()">
-      <option value="">Todas las disponibles</option>
-      <option value="available">Solo disponibles</option>
-    </select>
-  </label>
-  <label class="filterField" for="filterPriceOrder">Ordenar por precio
+  <label class="filterField filterPriceOrderField" for="filterPriceOrder">Ordenar por precio
     <select id="filterPriceOrder" onchange="applyPriceOrder(this.value)">
       <option value="">Orden habitual</option>
       <option value="price_asc">Precio: menor a mayor</option>
       <option value="price_desc">Precio: mayor a menor</option>
     </select>
   </label>
+  <div class="filterField filterColorField">
+    <span class="filterFieldTitle">Filtrar por color</span>
+    <div id="filterColorOptions" class="filterColorOptions" role="group" aria-label="Seleccionar colores disponibles">
+      <span class="filterColorEmpty">Cargando colores disponibles…</span>
+    </div>
+    <small class="filterColorHelp">Puedes marcar uno o varios colores. Solo aparecerán productos con unidades disponibles en esos tonos.</small>
+  </div>
   <button class="filterClear" type="button" onclick="clearCatalogFilters()">Limpiar filtros</button>
 </div>
 <section id="cartBar" class="cartBar" aria-hidden="true" onclick="if(event.target===this)hideCart()"><div class="cartPanel" role="dialog" aria-modal="true" aria-labelledby="cartDrawerTitle"><div class="cartDrawerBody"><div class="cartHead"><div><div id="cartDrawerTitle" class="cartTitle">Tu carrito</div><div id="cartSummary" class="cartSummary">0 productos</div></div><button class="cartClose" type="button" onclick="hideCart()" aria-label="Cerrar carrito">×</button></div><div class="cartShippingBox" aria-live="polite"><div id="cartShippingMessage" class="cartShippingMessage">Envío gratis en Cali y desde $130.000 en otras ciudades.</div><div class="cartShippingTrack" role="progressbar" aria-label="Progreso para envío gratis fuera de Cali" aria-valuemin="0" aria-valuemax="130000" aria-valuenow="0"><div id="cartShippingFill" class="cartShippingFill"></div><span id="cartShippingTruck" class="cartShippingTruck" aria-hidden="true">🚚</span></div><div class="cartShippingFoot"><span>Envío gratis desde $130.000 fuera de Cali</span><span id="cartShippingPercent">0%</span></div><div class="cartShippingLocalNote">🚚 Envío gratis a Cali también</div></div><div id="cartItems" class="cartItems"></div><div class="cartFooter"><div class="cartFooterTotal"><span>Total estimado</span><strong id="cartDrawerTotal">$0</strong></div><p class="cartFooterNote">El envío se confirma según tu ciudad en el siguiente paso.</p><button id="cartSend" class="cartSend" type="button" onclick="sendCart()">Pagar pedido</button></div></div></div></section>
@@ -1510,7 +1563,7 @@ body:has(#checkoutModal.open) .waHelpFloat{display:none!important}
     <header class="detailSiteHeader" aria-label="Navegación de Sirevya">
       <button class="detailHeaderMenu" type="button" aria-label="Abrir menú" onclick="openMobileMenu()"><span aria-hidden="true">☰</span></button>
       <button class="detailHeaderBrand" type="button" onclick="returnToCatalogHome(event)" aria-label="Sirevya, volver al inicio">
-        <span><b>Sirevya</b><small>Tu estilo, nuestra pasión ♥</small></span>
+        <img class="sirevyaDetailLogo" src="logo-sirevya-circular.webp" width="600" height="539" alt="Sirevya — volver al inicio" decoding="async">
       </button>
       <button class="detailHeaderCart" type="button" onclick="toggleCart()" aria-label="Abrir carrito" title="Mi carrito">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h14l1 13H4L5 8Z"></path><path d="M8 8V6a4 4 0 0 1 8 0v2"></path></svg><span id="detailCartBadge" class="detailHeaderCartBadge">0</span>
@@ -1767,6 +1820,14 @@ function publicImage(path){
 }
 function productImages(p){const a=Array.isArray(p.image_paths)?p.image_paths.filter(Boolean):[];if(!a.length&&p.image_url)a.push(p.image_url);return a.map(publicImage).filter(Boolean)}
 
+function setPhotoImage(el,src){
+ const img=el?.querySelector('img');
+ if(!img||!src)return;
+ img.src=src;
+ img.removeAttribute('data-src');
+ // Transición breve (140 ms); no añade intervalos ni llamadas a Supabase.
+ try{if(typeof img.animate==='function')img.animate([{opacity:.82,transform:'scale(.996)'},{opacity:1,transform:'scale(1)'}],{duration:140,easing:'ease-out'});}catch{}
+}
 function advancePhotoFromElement(el,d=1){
  const id=el?.closest('.card')?.dataset.productId;
  if(!id)return;
@@ -1777,13 +1838,14 @@ function advancePhotoFromElement(el,d=1){
  let n=Number(el.dataset.index||0);
  n=(n+d+imgs.length)%imgs.length;
  el.dataset.index=n;
- const img=el.querySelector('img');
- if(img)img.src=imgs[n];
+ setPhotoImage(el,imgs[n]);
 }
 function photoTouchStart(event){
  const photo=event.currentTarget;
  if(!photo)return;
- // Ignore a second pointer while one gesture is active.
+ // Cancela el avance suave de hover al empezar un arrastre: una sola acción
+ // física no debe cambiar dos imágenes por dos mecanismos distintos.
+ if(photo.__hoverTimer){clearTimeout(photo.__hoverTimer);photo.__hoverTimer=null;}
  if(photo.__gestureActive)return;
  photo.__gestureActive=true;
  photo.__pointerId=event.pointerId;
@@ -1792,38 +1854,27 @@ function photoTouchStart(event){
  photo.__swiped=false;
  photo.__verticalMoved=false;
  photo.__moved=false;
- photo.__tapChanged=false;
- // Keep the fast 80 ms image preview. Unlike the previous version, this does
- // not cancel the card click: a normal tap still opens the product detail.
- photo.__tapTimer=setTimeout(()=>{
-   if(photo.__gestureActive && !photo.__moved && !photo.__swiped && !photo.__tapChanged){
-     advancePhotoFromElement(photo,1);
-     photo.__tapChanged=true;
-   }
- },80);
+ // Mantiene el seguimiento si el ratón sale del área de la foto durante el gesto.
+ if(event.pointerType==='mouse'&&typeof photo.setPointerCapture==='function'){
+  try{photo.setPointerCapture(event.pointerId)}catch{}
+ }
 }
-
 function photoTouchMove(event){
  const photo=event.currentTarget;
  if(!photo || !photo.__gestureActive || event.pointerId!==photo.__pointerId || photo.__swiped)return;
  const dx=event.clientX-photo.__startX;
  const dy=event.clientY-photo.__startY;
  const ax=Math.abs(dx), ay=Math.abs(dy);
- // Movement cancels the stationary preview; it does not by itself cancel the click.
- if(ax>8 || ay>8){
-   photo.__moved=true;
-   if(photo.__tapTimer){clearTimeout(photo.__tapTimer);photo.__tapTimer=null;}
- }
- // Vertical-dominant motion belongs to the browser's native page scroll.
- // A clearly vertical gesture must not trigger the product opener.
- if(ay>=9 && ay>=ax*1.15){
+ if(ax>8 || ay>8)photo.__moved=true;
+ // Los movimientos principalmente verticales se reservan al scroll de la página.
+ if(ay>=10 && ay>=ax*1.2){
    photo.__verticalMoved=true;
    photo.__blockClickUntil=Date.now()+500;
    return;
  }
- // Only a clear horizontal swipe changes one photo, and it must not open the detail accidentally.
- const threshold=42;
- if(ax>=threshold && ax>=ay*1.35){
+ // Umbral algo mayor y bloqueo inmediato: un arrastre largo solo avanza una foto.
+ const threshold=64;
+ if(ax>=threshold && ax>=ay*1.4){
    photo.__swiped=true;
    photo.__blockClickUntil=Date.now()+500;
    advancePhotoFromElement(photo,dx<0?1:-1);
@@ -1834,9 +1885,7 @@ function photoTouchEnd(event){
  const photo=event.currentTarget;
  if(!photo)return;
  if(photo.__pointerId!=null && event.pointerId!==photo.__pointerId)return;
- if(photo.__tapTimer){clearTimeout(photo.__tapTimer);photo.__tapTimer=null;}
- // A stationary tap opens the detail view through the card's normal click handler.
- // The quick preview may already have changed the image after 80 ms, but must not eat that click.
+ // Un swipe horizontal o un scroll vertical no debe abrir el producto.
  if(photo.__swiped || photo.__verticalMoved){
    if(event.cancelable)event.preventDefault();
    event.stopPropagation();
@@ -1848,7 +1897,6 @@ function photoTouchEnd(event){
  photo.__swiped=false;
  photo.__verticalMoved=false;
  photo.__moved=false;
- photo.__tapChanged=false;
 }
 
 function photoClickGuard(event){
@@ -1861,16 +1909,23 @@ function photoClickGuard(event){
 
 function photoHover(event){
  const photo=event.currentTarget;
- if(!photo || photo.__hovered)return;
- photo.__hovered=true;
- advancePhotoFromElement(photo,1);
+ // El avance por presencia del cursor solo aplica a ratón/escritorio; el hover
+ // simulado por móviles se ignora para no adelantarse al gesto táctil.
+ if(!photo || event.pointerType!=='mouse')return;
+ if(photo.__hoverTimer)clearTimeout(photo.__hoverTimer);
+ photo.__hoverTimer=setTimeout(()=>{
+  photo.__hoverTimer=null;
+  if(!photo.__gestureActive)advancePhotoFromElement(photo,1);
+ },120);
 }
 function photoHoverLeave(event){
  const photo=event.currentTarget;
- if(photo)photo.__hovered=false;
+ if(!photo)return;
+ if(photo.__hoverTimer){clearTimeout(photo.__hoverTimer);photo.__hoverTimer=null;}
+ photo.__hovered=false;
 }
 
-function changePhoto(i,d,event){if(event){event.preventDefault();event.stopPropagation()}const p=productos.find(x=>String(x.id)===String(i));if(!p)return;const imgs=productImages(p);if(imgs.length<2)return;const key='photo_'+i;let n=Number(document.querySelector('[data-photo="'+CSS.escape(key)+'"]')?.dataset.index||0);n=(n+d+imgs.length)%imgs.length;const el=document.querySelector('[data-photo="'+CSS.escape(key)+'"]');if(!el)return;el.dataset.index=n;const photoImg=el.querySelector('img');if(photoImg){photoImg.src=imgs[n];photoImg.removeAttribute('data-src')}el.querySelectorAll('.photoDot').forEach((x,j)=>x.classList.toggle('active',j===n))}
+function changePhoto(i,d,event){if(event){event.preventDefault();event.stopPropagation()}const p=productos.find(x=>String(x.id)===String(i));if(!p)return;const imgs=productImages(p);if(imgs.length<2)return;const key='photo_'+i;let n=Number(document.querySelector('[data-photo="'+CSS.escape(key)+'"]')?.dataset.index||0);n=(n+d+imgs.length)%imgs.length;const el=document.querySelector('[data-photo="'+CSS.escape(key)+'"]');if(!el)return;el.dataset.index=n;setPhotoImage(el,imgs[n]);el.querySelectorAll('.photoDot').forEach((x,j)=>x.classList.toggle('active',j===n))}
 function openGallery(id,event){if(event){event.preventDefault();event.stopPropagation()}const p=productos.find(x=>String(x.id)===String(id));if(!p)return;const imgs=productImages(p);if(!imgs.length)return;galleryProduct=p;galleryIndex=0;galleryImages=imgs;renderGallery();$('galleryModal').classList.add('open');document.body.style.overflow='hidden'}
 function openSizeGuideZoom(image,event){if(event){event.preventDefault();event.stopPropagation()}const src=String(image?.currentSrc||image?.src||'').trim();if(!src)return;galleryProduct={name:image?.alt||'Guía de tallas'};galleryIndex=0;galleryImages=[src];renderGallery();$('galleryModal').classList.add('open');document.body.style.overflow='hidden'}
 let galleryProduct=null,galleryImages=[],galleryIndex=0;
@@ -2023,7 +2078,7 @@ function updateCartBadge(){
 
 function colorToCss(name){
  const n=normalizeText(name);
- const map={rojo:'#ef2b2b',roja:'#ef2b2b',negro:'#111111',negra:'#111111',blanco:'#ffffff',blanca:'#ffffff',azul:'#35a9e0',verde:'#36a85a',amarillo:'#f5df32',amarilla:'#f5df32',rosado:'#f6a8b8',rosa:'#f6a8b8',morado:'#9b4dcc',purpura:'#9b4dcc',cafe:'#70452d',marron:'#70452d',beige:'#e7d3aa',dorado:'#d7ad3f',plateado:'#c9cdd2',gris:'#8d8d8d',naranja:'#f08a2d'};
+ const map={rojo:'#ef2b2b',roja:'#ef2b2b',negro:'#111111',negra:'#111111',blanco:'#ffffff',blanca:'#ffffff',azul:'#35a9e0',verde:'#36a85a',amarillo:'#f5df32',amarilla:'#f5df32',rosado:'#f6a8b8',rosa:'#f6a8b8',morado:'#9b4dcc',purpura:'#9b4dcc',lila:'#b89ad8',lavanda:'#c5b4e3',cafe:'#70452d',marron:'#70452d',chocolate:'#6b422f',camel:'#be9468',beige:'#e7d3aa',crema:'#fff4dd',marfil:'#fff8e7',nude:'#d8b29c',piel:'#d8b29c',mostaza:'#c49a24',dorado:'#d7ad3f',champana:'#e7d2a4',plateado:'#c9cdd2',gris:'#8d8d8d',naranja:'#f08a2d',turquesa:'#38b7b0',coral:'#f07f78',fucsia:'#e83e8c',vinotinto:'#7b1730',vino:'#7b1730',cobre:'#b87350'};
  if(map[n])return map[n];
  let hash=0;for(let i=0;i<n.length;i++)hash=(hash*31+n.charCodeAt(i))|0;
  return `hsl(${Math.abs(hash)%360} 65% 55%)`;
@@ -2550,6 +2605,77 @@ function populateFilterCategory(cats){
  f.innerHTML='<option value="">Todas las categorías</option>'+(cats||[]).map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('');
  f.value=current;
 }
+let selectedCatalogColors=new Set();
+let selectedCatalogColorNames=new Map();
+let filterColorOptionsSignature='';
+
+function availableColorsForProduct(p){
+ if(!p||productStockTotal(p)<=0)return [];
+ const declared=parseVariantList(p.colors).filter(c=>normalizeText(c)&&normalizeText(c)!=='sin color');
+ const variants=variantList(p);
+ if(!variants.length)return [...new Set(declared)];
+ const hasNamedColorVariants=variants.some(v=>{
+   const name=normalizeText(v.color);
+   return !!name&&name!=='sin color';
+ });
+ if(!hasNamedColorVariants)return [...new Set(declared)];
+ const inStock=variants.filter(v=>Math.max(0,Number(v.stock)||0)>0)
+   .map(v=>String(v.color||'').trim())
+   .filter(c=>{const n=normalizeText(c);return !!n&&n!=='sin color'});
+ return [...new Map(inStock.map(c=>[normalizeText(c),c])).values()];
+}
+function buildCatalogColorIndex(){
+ const colors=new Map(),byProduct=new Map();
+ for(const p of productos){
+   const keys=new Set();
+   for(const color of availableColorsForProduct(p)){
+     const key=normalizeText(color);
+     if(!key)continue;
+     keys.add(key);
+     if(!colors.has(key))colors.set(key,color);
+   }
+   byProduct.set(p,keys);
+ }
+ return {colors,byProduct};
+}
+function syncCatalogColorFilterOptions(currentColors){
+ const box=$('filterColorOptions');
+ if(!box)return;
+ const available=new Map(currentColors||[]);
+ const unavailableSelected=new Set();
+ for(const key of selectedCatalogColors){
+   if(!available.has(key)){
+     available.set(key,selectedCatalogColorNames.get(key)||key);
+     unavailableSelected.add(key);
+   }
+ }
+ const sorted=[...available.entries()].sort((a,b)=>a[1].localeCompare(b[1],'es',{sensitivity:'base'}));
+ const signature=JSON.stringify(sorted.map(([key,label])=>[key,label,unavailableSelected.has(key)]));
+ if(signature!==filterColorOptionsSignature){
+   filterColorOptionsSignature=signature;
+   if(!sorted.length){
+     box.innerHTML='<span class="filterColorEmpty">No hay colores con unidades disponibles.</span>';
+   }else{
+     box.innerHTML=sorted.map(([key,label])=>{
+       const unavailable=unavailableSelected.has(key);
+       const checked=selectedCatalogColors.has(key);
+       return `<label class="filterColorOption${checked?' selected':''}${unavailable?' unavailable':''}" title="${esc(unavailable?'Este color ya no tiene unidades disponibles':label)}"><input type="checkbox" value="${esc(label)}"${checked?' checked':''} onchange="setCatalogColorFilter(this.value,this.checked)"><span class="filterColorSwatch" aria-hidden="true" style="--filter-color:${colorToCss(label)}"></span><span>${esc(label)}${unavailable?' · sin stock':''}</span></label>`;
+     }).join('');
+   }
+ }
+ box.querySelectorAll('.filterColorOption').forEach(option=>{
+   const input=option.querySelector('input[type="checkbox"]');
+   if(input){input.checked=selectedCatalogColors.has(normalizeText(input.value));option.classList.toggle('selected',input.checked)}
+ });
+}
+function setCatalogColorFilter(value,checked){
+ const key=normalizeText(value);
+ if(!key)return;
+ if(checked){selectedCatalogColors.add(key);selectedCatalogColorNames.set(key,String(value||'').trim());}
+ else {selectedCatalogColors.delete(key);selectedCatalogColorNames.delete(key);}
+ render();
+}
+
 function toggleFilterPanel(force){
  const panel=$('filterPanel'),btn=$('filterToggle');
  if(!panel)return;
@@ -2576,10 +2702,11 @@ function applyPriceOrder(value){
 function clearCatalogFilters(){
  $('category').value='';
  $('filterCategory').value='';
- $('availability').value='';
  $('filterPriceOrder').value='';
  $('sort').value='recent';
  $('search').value='';
+ selectedCatalogColors.clear();
+ selectedCatalogColorNames.clear();
  setDirectCategoryMode('');
  updateCategoryButtons();
  render();
@@ -2587,16 +2714,20 @@ function clearCatalogFilters(){
 }
 
 function render(){
- const q=$('search').value.trim().toLowerCase(),cat=$('category').value,av=$('availability').value,sort=$('sort')?.value||'recent';
+ const colorIndex=buildCatalogColorIndex();
+ syncCatalogColorFilterOptions(colorIndex.colors);
+ const q=normalizeText($('search').value),cat=$('category').value,sort=$('sort')?.value||'recent';
+ const chosenColors=[...selectedCatalogColors];
  const title=$('productsHeadingTitle');
  if(title) title.textContent=cat?cat:'Todos los productos';
  let arr=productos.filter(p=>{
- const text=(p.code+' '+p.name+' '+p.category).toLowerCase();
- // Use variant stock when size/color combinations are configured, even if
- // older product records have a stale aggregate quantity field.
+ const text=normalizeText((p.code||'')+' '+(p.name||'')+' '+(p.category||''));
+ // El stock por variante prevalece sobre quantity cuando hay combinaciones configuradas.
  if(productStockTotal(p)<=0)return false;
- return text.includes(q)&&(!cat||p.category===cat)&&(!av||av==='available');
-});
+ if(!text.includes(q)||(cat&&p.category!==cat))return false;
+ if(chosenColors.length&&!chosenColors.some(key=>colorIndex.byProduct.get(p)?.has(key)))return false;
+ return true;
+ });
  if(sort==='best_selling') arr.sort((a,b)=>(Number(b.sales_count??b.sold_count??b.units_sold??b.total_sold??0)-Number(a.sales_count??a.sold_count??a.units_sold??a.total_sold??0)));
  else if(sort==='name_asc') arr.sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'es',{sensitivity:'base'}));
  else if(sort==='price_asc') arr.sort((a,b)=>(Number(a.sale_price)||0)-(Number(b.sale_price)||0));
@@ -2610,9 +2741,8 @@ function render(){
    const variantTotal=productStockTotal(p);
    const ok=variantTotal>0 || reservedForThisSession;
    const blocked=!ok && !hasOwnActiveReservationForProduct(p.id);
-   const msg='Hola, Variedades JM 👋\n\nMe interesa este producto:\n📦 Producto: '+p.name+'\n🔖 Código: '+p.code+'\n💰 Precio: '+money(p.sale_price)+'\n\n¿Está disponible?';
    const key='photo_'+p.id;
-return `<article class="card ${blocked?'inventoryUnavailable':''}" data-product-id="${esc(p.id)}" aria-disabled="${blocked?'true':'false'}" onclick="openProductDetail('${esc(p.id)}',event)">${blocked?'<div class="inventoryLock">🔒 RESERVADO / AGOTADO</div>':''}<div class="photo photoSwipe" data-photo="${esc(key)}" data-index="0" onpointerdown="photoTouchStart(event)" onpointermove="photoTouchMove(event)" onpointerup="photoTouchEnd(event)" onpointercancel="photoTouchEnd(event)" onclick="photoClickGuard(event)" onmouseenter="photoHover(event)" onmouseleave="photoHoverLeave(event)">${imgs.length?`<img data-src="${esc(imgs[0])}" alt="${esc(p.name)}" loading="lazy" decoding="async" fetchpriority="low" onerror="this.style.display='none'">${imgs.length>1?``:''}`:'<div class="noimg">📦</div>'}</div><div class="body"><div class="name">${esc(p.name)}</div><div class="price">${money(p.sale_price)}</div>${renderVariantOptions(p)}</div></article>`
+return `<article class="card ${blocked?'inventoryUnavailable':''}" data-product-id="${esc(p.id)}" aria-disabled="${blocked?'true':'false'}" onclick="openProductDetail('${esc(p.id)}',event)">${blocked?'<div class="inventoryLock">🔒 RESERVADO / AGOTADO</div>':''}<div class="photo photoSwipe" data-photo="${esc(key)}" data-index="0" onpointerdown="photoTouchStart(event)" onpointermove="photoTouchMove(event)" onpointerup="photoTouchEnd(event)" onpointercancel="photoTouchEnd(event)" onclick="photoClickGuard(event)" onpointerenter="photoHover(event)" onpointerleave="photoHoverLeave(event)">${imgs.length?`<img data-src="${esc(imgs[0])}" alt="${esc(p.name)}" loading="lazy" decoding="async" fetchpriority="low" onerror="this.style.display='none'">${imgs.length>1?``:''}`:'<div class="noimg">📦</div>'}</div><div class="body"><div class="name">${esc(p.name)}</div><div class="price">${money(p.sale_price)}</div>${renderVariantOptions(p)}</div></article>`
  }).join(''):'<div class="empty">No encontramos productos con esos filtros.</div>';
  document.querySelectorAll('#grid .card').forEach(card=>{const p=productos.find(x=>String(x.id)===String(card.dataset.productId));if(p)updateVariantAvailability(card,p)});
  activateCatalogLazyImages();

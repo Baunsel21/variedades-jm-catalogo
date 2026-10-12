@@ -390,6 +390,8 @@ const IMAGE_WORKER_URL="https://sirevya-images.variedadesjm99.workers.dev";
 let sb=null,editingId=null,productos=[],ventas=[],clientes=[],inventoryMode=localStorage.getItem("jm_inventory_mode")||"cards";
 let editingSizeGuideImagePath="",sizeGuideImageRemoveRequested=false,sizeGuidePreviewObjectUrl=null;
 let proveedores=[],gastos=[],movimientos=[];
+// Mantiene el error de carga por módulo para no mostrar como vacío un dato que falló al consultarse.
+let moduleLoadErrors={};
 let pedidos=[];
 let brandName=localStorage.getItem("jm_brand_name")||"Variedades JM";
 let brandIcon=localStorage.getItem("jm_brand_icon")||"";
@@ -714,20 +716,65 @@ function closeSidebar(){
  s.classList.remove("open");o.style.display="none";
 }
 // Normalmente cada tabla cabe en una petición. Solo cuando llega al límite de
-// PostgREST (1.000 filas) se consulta la siguiente página. Ordenar también por id
-// mantiene una paginación estable cuando varias filas comparten la misma fecha/nombre.
-async function fetchAllTableRows(table,orderColumn,ascending=true){
- const rows=[];const pageSize=1000;const maxRows=100000;
- for(let from=0;from<maxRows;from+=pageSize){
+// PostgREST (1.000 filas) se consulta la siguiente página. Si una tabla antigua no
+// tiene una de las columnas usadas para ordenar, se reintenta sin esa ordenación;
+// errores de permisos, RLS o tabla ausente NO se ocultan ni se convierten en datos vacíos.
+function isMissingOrderColumnError(error){
+ const code=String(error?.code||'');
+ const message=String(error?.message||'');
+ return code==='42703'||code==='PGRST204'||(/column .* does not exist|could not find the .* column|column .* not found/i.test(message));
+}
+async function fetchTablePage(table,from,pageSize,orderColumn,ascending){
+ const attempts=[
+   {primary:orderColumn,secondary:'id',label:'stable'},
+   {primary:null,secondary:'id',label:'id-only'},
+   {primary:null,secondary:null,label:'unordered'}
+ ];
+ let lastError=null;
+ for(let i=0;i<attempts.length;i++){
+   const plan=attempts[i];
    let query=sb.from(table).select('*');
-   if(orderColumn)query=query.order(orderColumn,{ascending});
-   query=query.order('id',{ascending:true}).range(from,from+pageSize-1);
-   const {data,error}=await query;
-   if(error)return {data:null,error};
-   const batch=data||[];rows.push(...batch);
-   if(batch.length<pageSize)return {data:rows,error:null};
+   if(plan.primary)query=query.order(plan.primary,{ascending});
+   if(plan.secondary)query=query.order(plan.secondary,{ascending:true});
+   query=query.range(from,from+pageSize-1);
+   let result;
+   try{result=await query}catch(error){return {data:null,error,orderMode:plan.label}}
+   if(!result.error)return {...result,orderMode:plan.label};
+   lastError=result.error;
+   // Only retry the query shape for a missing-order-column problem. Never bypass RLS.
+   if(!isMissingOrderColumnError(lastError))return {data:null,error:lastError,orderMode:plan.label};
  }
- return {data:null,error:{message:'La tabla '+table+' supera el límite de seguridad de 100.000 filas.'}};
+ return {data:null,error:lastError,orderMode:'failed'};
+}
+async function fetchAllTableRows(table,orderColumn,ascending=true){
+ const rows=[];const pageSize=1000;const maxRows=100000;let orderMode='stable';
+ for(let from=0;from<maxRows;from+=pageSize){
+   const result=await fetchTablePage(table,from,pageSize,orderColumn,ascending);
+   if(result.error)return {data:null,error:result.error,orderMode:result.orderMode||orderMode};
+   orderMode=result.orderMode||orderMode;
+   const batch=result.data||[];rows.push(...batch);
+   // Suppliers/expenses should normally be far below 1,000 rows. If a legacy
+   // schema forced an unordered fallback and a page is full, avoid pretending that
+   // subsequent pages are guaranteed stable.
+   if(orderMode==='unordered'&&batch.length===pageSize&&from+pageSize<maxRows){
+     return {data:null,error:{code:'UNSTABLE_PAGINATION',message:'La tabla '+table+' no tiene una columna id utilizable para paginar de forma estable.'},orderMode};
+   }
+   if(batch.length<pageSize)return {data:rows,error:null,orderMode};
+ }
+ return {data:null,error:{code:'ROW_LIMIT',message:'La tabla '+table+' supera el límite de seguridad de 100.000 filas.'},orderMode};
+}
+function describeAdminTableError(table,error){
+ const code=String(error?.code||'');
+ const raw=String(error?.message||error||'Error desconocido');
+ if(code==='PGRST205'||code==='42P01'||/could not find the table|relation .* does not exist|schema cache.*table/i.test(raw))
+   return 'Supabase no encuentra public.'+table+'. Confirma en Table Editor que la tabla exista y que la API de Supabase haya actualizado su caché.';
+ if(code==='42501'||/permission denied|row-level security|violates row-level security/i.test(raw))
+   return 'Supabase está bloqueando el acceso a public.'+table+'. Se deben revisar los permisos GRANT y las políticas RLS para el usuario autenticado.';
+ if(isMissingOrderColumnError(error))
+   return 'La consulta a public.'+table+' refiere una columna de orden que no existe. Detalle: '+raw;
+ if(/failed to fetch|networkerror|load failed/i.test(raw))
+   return 'No se pudo conectar con Supabase para consultar public.'+table+'. Revisa la red y el estado del servicio.';
+ return 'Error consultando public.'+table+(code?' ('+code+')':'')+': '+raw;
 }
 
 let cargarTodoBusy=false;
@@ -757,14 +804,18 @@ async function cargarTodo(){
  if(avail?.error)console.warn("No se pudo calcular disponibilidad reservada; se mostrará el stock físico.",avail.error);
  ventas=v.data||[];
  const partialErrors=[];
- if(!c.error)clientes=c.data||[];else partialErrors.push('clientes');
- if(!pr.error)proveedores=pr.data||[];else partialErrors.push('proveedores');
- if(!g.error)gastos=g.data||[];else partialErrors.push('gastos');
- if(!m.error)movimientos=m.data||[];else partialErrors.push('movimientos');
- if(!o.error)pedidos=o.data||[];else partialErrors.push('pedidos');
+ moduleLoadErrors={};
+ if(!c.error)clientes=c.data||[];else{moduleLoadErrors.clients=describeAdminTableError('clients',c.error);partialErrors.push({name:'clientes',table:'clients',error:c.error});}
+ if(!pr.error){proveedores=pr.data||[];if(pr.orderMode&&pr.orderMode!=='stable')console.warn('Proveedores se cargó usando orden alternativo:',pr.orderMode);}else{moduleLoadErrors.suppliers=describeAdminTableError('suppliers',pr.error);partialErrors.push({name:'proveedores',table:'suppliers',error:pr.error});}
+ if(!g.error){gastos=g.data||[];if(g.orderMode&&g.orderMode!=='stable')console.warn('Gastos se cargó usando orden alternativo:',g.orderMode);}else{moduleLoadErrors.expenses=describeAdminTableError('expenses',g.error);partialErrors.push({name:'gastos',table:'expenses',error:g.error});}
+ if(!m.error)movimientos=m.data||[];else{moduleLoadErrors.movements=describeAdminTableError('inventory_movements',m.error);partialErrors.push({name:'movimientos',table:'inventory_movements',error:m.error});}
+ if(!o.error)pedidos=o.data||[];else{moduleLoadErrors.orders=describeAdminTableError('web_orders',o.error);partialErrors.push({name:'pedidos',table:'web_orders',error:o.error});}
  populateFilters();renderInicio();renderProductos();renderVentas();renderClientes();renderProveedores();renderGastos();renderMovimientos();renderReportes();refrescarSelects();renderVentaCatalogo();
  renderPedidos();
- if(partialErrors.length){console.warn("Algunos módulos no se pudieron cargar:",partialErrors);toast("Revisa la conexión/RLS: no se cargaron "+partialErrors.join(", ")+".");}
+ if(partialErrors.length){
+   console.error('Detalle de errores en módulos de Supabase:',partialErrors.map(item=>({modulo:item.name,tabla:item.table,codigo:item.error?.code||'',mensaje:item.error?.message||String(item.error)})));
+   toast('No se cargaron: '+partialErrors.map(item=>item.name).join(', ')+'. Abre la sección para ver el motivo.');
+ }
  }finally{cargarTodoBusy=false}
 }
 
@@ -1660,6 +1711,7 @@ async function agregarProveedor(){
 }
 function renderProveedores(){
  const host=$("listaProveedores");if(!host)return;
+ if(moduleLoadErrors.suppliers){host.innerHTML=`<div class="alert"><b>No se pudieron cargar los proveedores.</b><br>${esc(moduleLoadErrors.suppliers)}<br><small>El sistema no marcará este error como una lista vacía.</small></div>`;return;}
  host.innerHTML=proveedores.map(p=>`<div class="card listItem" style="padding:15px;margin-bottom:9px"><div class="rowBetween"><div><b>${esc(p.name)}</b><div class="muted">📞 ${esc(p.phone||"Sin teléfono")} ${p.contact?"• "+esc(p.contact):""}</div>${p.note?`<div class="muted">📝 ${esc(p.note)}</div>`:""}</div><button class="action" onclick="borrarProveedor('${p.id}')">🗑️</button></div></div>`).join("")||'<div class="empty card">No hay proveedores.</div>';
 }
 async function borrarProveedor(id){if(!confirm("¿Eliminar este proveedor?"))return;const {error}=await sb.from("suppliers").delete().eq("id",id);if(error)alert(error.message);else{toast("Proveedor eliminado");await cargarTodo()}}
@@ -1671,6 +1723,7 @@ async function agregarGasto(){
  $("gConcepto").value="";$("gValor").value=0;toast("Gasto guardado");await cargarTodo();
 }
 function renderGastos(){
+ if(moduleLoadErrors.expenses){$("gastoTotal").textContent="—";$("listaGastos").innerHTML=`<div class="alert"><b>No se pudieron cargar los gastos.</b><br>${esc(moduleLoadErrors.expenses)}<br><small>El total queda sin calcular hasta recuperar la conexión con la tabla.</small></div>`;return;}
  const total=gastos.reduce((s,g)=>s+Number(g.amount),0);$("gastoTotal").textContent=money(total);
  $("listaGastos").innerHTML=gastos.slice(0,100).map(g=>`<div class="listItem"><div class="rowBetween"><div><b>${esc(g.concept)}</b><div class="muted">${g.expense_date} • ${esc(g.category||"Otros")}</div></div><div><b>${money(g.amount)}</b> <button class="action" onclick="borrarGasto('${g.id}')">🗑️</button></div></div></div>`).join("")||'<div class="empty">No hay gastos.</div>';
 }
@@ -1760,6 +1813,8 @@ function reciboVenta(id){
 function renderReportes(){
  const ing=ventas.reduce((s,v)=>s+Number(v.quantity)*Number(v.sale_price),0),cost=ventas.reduce((s,v)=>s+Number(v.quantity)*Number(v.cost_price),0),inv=productos.reduce((s,p)=>s+Number(p.quantity)*Number(p.cost_price),0),gt=gastos.reduce((s,g)=>s+Number(g.amount),0);
  $("rVentas").textContent=ventas.length;$("rIngresos").textContent=money(ing);$("rCostos").textContent=money(cost);$("rGanancia").textContent=money(ing-cost);$("rGastos").textContent=money(gt);$("rNeta").textContent=money(ing-cost-gt);$("inventoryValue").textContent=money(inv);
+ // Si la consulta de gastos falló, no presentar $0 ni una ganancia neta engañosa.
+ if(moduleLoadErrors.expenses){$("rGastos").textContent="—";$("rNeta").textContent="—";}
  const c={};productos.forEach(p=>c[p.category]=(c[p.category]||0)+Number(p.quantity));
  const max=Math.max(...Object.values(c),1);
  $("cats").innerHTML=Object.entries(c).map(([k,v])=>`<div class="listItem"><div class="rowBetween"><b>${esc(k)}</b><span>${v} unidades</span></div><div class="progress"><span style="width:${Math.max(4,(v/max)*100)}%"></span></div></div>`).join("")||'<div class="empty">Sin datos.</div>';
