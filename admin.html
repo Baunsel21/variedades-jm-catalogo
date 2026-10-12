@@ -242,7 +242,7 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
             <div id="sizeGuidePhotoPreview" class="photoPreview" hidden></div>
             <button id="clearSizeGuidePhoto" type="button" class="softbtn" style="display:none;margin-top:8px" onclick="removeSizeGuidePhoto()">Quitar foto de guía</button>
           </div>
-          <label class="full">Fotos del producto<input id="pFoto" type="file" accept="image/*" multiple><small class="muted">Puedes seleccionar varias fotos a la vez. La primera será la foto principal.</small><div id="photoPreview" class="photoPreview"></div></label>
+          <label class="full">Fotos del producto<input id="pFoto" type="file" accept="image/*" multiple><small class="muted">Al editar verás primero las fotos que ya están guardadas. Las imágenes que selecciones aquí se añadirán al producto.</small><div id="existingPhotoStatus" class="muted" role="status" style="font-size:12px;margin-top:8px">Las fotos actuales aparecerán al editar un producto.</div><div id="existingPhotoPreview" class="photoPreview"></div><small class="muted" style="display:block;margin-top:10px">Fotos nuevas seleccionadas:</small><div id="photoPreview" class="photoPreview"></div></label>
         </div><div style="margin-top:17px;display:flex;gap:9px"><button class="primary" onclick="guardarProducto()">💾 Guardar producto</button><button class="primary" onclick="guardarProducto(true)">💾 Guardar y agregar otro</button><button class="softbtn" onclick="limpiarProducto()">Limpiar</button></div></div>
       </section>
 
@@ -355,7 +355,7 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
             <div style="margin-top:10px;display:flex;align-items:center;gap:10px"><div id="iconPreview" class="logo" style="width:72px;height:72px">✦</div><button class="primary" onclick="saveBrand()">💾 Guardar personalización</button><button class="softbtn" onclick="resetBrand()">Restaurar</button></div>
           </div>
           <div class="box" style="grid-column:1/-1"><h3>🏷️ Categorías</h3>
-            <p class="muted">Agrega, renombra o elimina categorías. Al renombrar, los productos existentes se actualizan con el nuevo nombre.</p>
+            <p class="muted">Agrega, renombra o elimina categorías. Al renombrar, los productos existentes se actualizan con el nuevo nombre. Usa las flechas ↑ y ↓ para definir el orden que verá el público; el cambio se guarda en Supabase.</p>
             <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
               <input id="newCategoryName" placeholder="Ej. Ropa" maxlength="40" style="flex:1;min-width:180px">
               <button class="primary" onclick="addCategory()">＋ Agregar categoría</button>
@@ -412,6 +412,10 @@ function categoryPrefix(cat){
  return 'OTR';
 }
 let categorias=[];
+let categoryRecords=[];
+let categoryOrderSaving=false;
+let editingProductImages=[];
+let editingProductImageLoadToken=0;
 const money=n=>new Intl.NumberFormat("es-CO",{style:"currency",currency:"COP",maximumFractionDigits:0}).format(Number(n)||0);
 const esc=s=>String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));
 const $=id=>document.getElementById(id);
@@ -993,16 +997,33 @@ function renderPedidos(){
   }).join("")||'<div class="empty">No hay pedidos con esos filtros.</div>';
 }
 
+function applyDefaultSirevyaCategoryOrder(categories,allowLegacyDefault=true){
+  const clean=[...(categories||[])];
+  if(!allowLegacyDefault)return clean;
+  const key=value=>String(value||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").trim().toLowerCase();
+  const priority=["corset","camisones","body cadenas"];
+  const positions=priority.map(name=>clean.findIndex(item=>key(item)===name));
+  if(positions.some(index=>index<0))return clean;
+  const orderedPositions=[...positions].sort((a,b)=>a-b);
+  const current=orderedPositions.map(index=>key(clean[index]));
+  if(current.join("|")==="body cadenas|camisones|corset"){
+    const desired=priority.map(name=>clean.find(item=>key(item)===name));
+    orderedPositions.forEach((position,index)=>{clean[position]=desired[index]});
+  }
+  return clean;
+}
 async function loadCategoriesFromTable(){
   const select=$("pCategoria");
   if(select)select.disabled=true;
   try{
     const {data,error}=await sb.from("categories").select("id,name,sort_order").order("sort_order",{ascending:true}).order("id",{ascending:true});
     if(error)throw error;
-    const cloud=(data||[]).map(x=>String(x.name||"").trim()).filter(Boolean);
+    categoryRecords=(data||[]).map(x=>({...x,name:String(x.name||"").trim(),sort_order:Number(x.sort_order)||0})).filter(x=>x.name);
+    const cloud=categoryRecords.map(x=>x.name);
     const fromProducts=productos.map(p=>String(p.category||"").trim()).filter(Boolean);
     // A successful cloud response is canonical. Do not re-add categories deleted in Supabase from an old local cache.
-    categorias=[...new Set([...cloud,...fromProducts])];
+    const hasSavedCustomOrder=categoryRecords.length>0&&categoryRecords.every(row=>Number(row.sort_order)>=100);
+    categorias=applyDefaultSirevyaCategoryOrder([...new Set([...cloud,...fromProducts])],!hasSavedCustomOrder);
     saveCategoriesLocal();
     refreshCategorySelects();
     const st=$("categoryLoadStatus");if(st)st.textContent=categorias.length?`${categorias.length} disponible${categorias.length===1?"":"s"}`:"No hay categorías";
@@ -1011,7 +1032,7 @@ async function loadCategoriesFromTable(){
     console.error("No se pudieron cargar las categorías:",error);
     const fromProducts=productos.map(p=>String(p.category||"").trim()).filter(Boolean);
     let fromLocal=[];try{fromLocal=JSON.parse(localStorage.getItem("jm_categories")||"[]")}catch{}
-    categorias=[...new Set([...categorias,...fromProducts,...fromLocal])].filter(Boolean);
+    categorias=applyDefaultSirevyaCategoryOrder([...new Set([...categorias,...fromProducts,...fromLocal])].filter(Boolean));
     refreshCategorySelects();
     const st=$("categoryLoadStatus");if(st)st.textContent=categorias.length?"Usando categorías disponibles":"No hay categorías";
     return categorias;
@@ -1062,10 +1083,51 @@ function refreshCategorySelects(){
 function renderCategoryManager(){
   const box=$("categoryManager");if(!box)return;
   box.innerHTML=categorias.map((c,i)=>`<div class="listItem" style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
-    <b>🏷️ ${esc(c)}</b><span>
-    <button type="button" class="softbtn" data-cat-action="rename" data-cat-index="${i}">✏️ Renombrar</button>
-    <button type="button" class="dangerbtn" data-cat-action="delete" data-cat-index="${i}">🗑️ Eliminar</button>
-    </span></div>`).join("");
+    <b>🏷️ ${esc(c)}</b><span style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+    <button type="button" class="softbtn" data-cat-action="up" data-cat-index="${i}" aria-label="Subir ${esc(c)}" title="Subir en el orden" ${i===0||categoryOrderSaving?'disabled':''}>↑</button>
+    <button type="button" class="softbtn" data-cat-action="down" data-cat-index="${i}" aria-label="Bajar ${esc(c)}" title="Bajar en el orden" ${i===categorias.length-1||categoryOrderSaving?'disabled':''}>↓</button>
+    <button type="button" class="softbtn" data-cat-action="rename" data-cat-index="${i}" ${categoryOrderSaving?'disabled':''}>✏️ Renombrar</button>
+    <button type="button" class="dangerbtn" data-cat-action="delete" data-cat-index="${i}" ${categoryOrderSaving?'disabled':''}>🗑️ Eliminar</button>
+    </span></div>`).join("")||'<div class="empty">Todavía no hay categorías.</div>';
+}
+async function reorderCategory(index,delta){
+ if(categoryOrderSaving)return;
+ if(!Number.isInteger(index)||!Number.isInteger(delta))return;
+ const target=index+delta;
+ if(index<0||target<0||index>=categorias.length||target>=categorias.length)return;
+ const reordered=categorias.slice();
+ [reordered[index],reordered[target]]=[reordered[target],reordered[index]];
+ const recordByName=new Map(categoryRecords.map(row=>[String(row.name||'').trim().toLocaleLowerCase('es'),row]));
+ const orderedRows=reordered.map(name=>recordByName.get(String(name).trim().toLocaleLowerCase('es'))).filter(Boolean);
+ if(orderedRows.length!==reordered.length){
+   alert('No se pudo cambiar el orden de forma segura porque una o más categorías no tienen registro en la tabla categories. Recarga las categorías y vuelve a intentarlo.');
+   return;
+ }
+ const originalSortOrders=new Map(orderedRows.map(row=>[String(row.id),row.sort_order]));
+ categoryOrderSaving=true;renderCategoryManager();
+ try{
+   // Espaciado estable para sort_order; la página pública ya consulta esta columna.
+   for(let i=0;i<orderedRows.length;i++){
+     const row=orderedRows[i];
+     const result=await sb.from('categories').update({sort_order:(i+1)*100}).eq('id',row.id).select('id').maybeSingle();
+     if(result.error)throw result.error;
+     if(!result.data?.id)throw new Error('Supabase no confirmó el cambio de orden de la categoría "'+row.name+'". Revisa los permisos de edición de categories.');
+   }
+   categorias=reordered;saveCategoriesLocal();
+   await loadCategoriesFromTable();
+   toast('Orden de categorías guardado. El catálogo público lo usará al actualizar.');
+ }catch(error){
+   console.error('No se pudo guardar el orden de categorías:',error);
+   // Si falló a mitad del guardado, intentar restaurar los valores originales para
+   // evitar dejar la categoría ordenada solo parcialmente.
+   for(const row of orderedRows){
+     try{await sb.from('categories').update({sort_order:originalSortOrders.get(String(row.id))}).eq('id',row.id)}catch(rollbackError){console.warn('No se pudo restaurar sort_order de',row.name,rollbackError)}
+   }
+   await loadCategoriesFromTable();
+   alert('No se pudo guardar el orden de categorías. Se intentó restaurar el orden anterior y se volvió a cargar el estado disponible. Detalle: '+(error?.message||String(error)));
+ }finally{
+   categoryOrderSaving=false;renderCategoryManager();
+ }
 }
 async function insertCategorySafely(name){
  let result;
@@ -1166,11 +1228,51 @@ async function uploadProductImages(productId, files, userId){
  return added;
 }
 let productPreviewObjectUrls=[];
+function renderExistingProductPhotoPreview(){
+ const box=$("existingPhotoPreview"),status=$("existingPhotoStatus");if(!box)return;
+ box.innerHTML=editingProductImages.map((photo,i)=>`<div class="photoItem"><img loading="lazy" decoding="async" src="${esc(photo.url)}" alt="Foto guardada ${i+1}" onerror="this.style.opacity='.35';this.title='No se pudo cargar la vista previa de esta foto'"><span>${i===0?'Principal guardada':'Guardada '+(i+1)}</span></div>`).join('');
+ if(status){
+  status.textContent=editingProductImages.length
+   ?`${editingProductImages.length} foto${editingProductImages.length===1?'':'s'} guardada${editingProductImages.length===1?'':'s'} en este producto. No necesitas volver a subirlas.`
+   :'Este producto no tiene imágenes guardadas disponibles para mostrar.';
+ }
+}
 function renderPhotoPreview(){
  const box=$("photoPreview");if(!box)return;
  productPreviewObjectUrls.forEach(url=>{try{URL.revokeObjectURL(url)}catch{}});productPreviewObjectUrls=[];
  const files=[...($('pFoto').files||[])];
- box.innerHTML=files.map((f,i)=>{const url=URL.createObjectURL(f);productPreviewObjectUrls.push(url);return `<div class="photoItem"><img src="${url}" alt="Foto ${i+1}"><span>${i===0?'Principal':i+1}</span></div>`}).join('');
+ box.innerHTML=files.map((f,i)=>{const url=URL.createObjectURL(f);productPreviewObjectUrls.push(url);return `<div class="photoItem"><img src="${url}" alt="Foto nueva ${i+1}"><span>${editingId?'Nueva '+(i+1):(i===0?'Principal nueva':'Nueva '+(i+1))}</span></div>`}).join('');
+}
+async function loadExistingProductImages(productId,primaryImage){
+ const token=++editingProductImageLoadToken;
+ editingProductImages=[];
+ const status=$("existingPhotoStatus"),box=$("existingPhotoPreview");
+ if(box)box.innerHTML='';
+ if(status)status.textContent='Cargando las fotos guardadas…';
+ const paths=[];
+ if(primaryImage)paths.push(String(primaryImage));
+ let tableError=null;
+ try{
+  const {data,error}=await sb.from('product_images').select('image_path,sort_order').eq('product_id',productId).order('sort_order',{ascending:true});
+  if(error)tableError=error;
+  else (data||[]).forEach(row=>{if(row.image_path&&!paths.includes(String(row.image_path)))paths.push(String(row.image_path));});
+ }catch(error){tableError=error;}
+ if(token!==editingProductImageLoadToken||String(editingId)!==String(productId))return;
+ const normalized=[];const seen=new Set();
+ for(const path of paths){
+  const url=getImageUrl(path);
+  if(!url)continue;
+  const key=String(path).trim();
+  if(seen.has(key))continue;
+  seen.add(key);normalized.push({path:key,url});
+ }
+ editingProductImages=normalized;
+ renderExistingProductPhotoPreview();
+ if(tableError&&normalized.length&&status){
+  status.textContent=`Se muestra la foto principal; no se pudieron consultar todas las imágenes guardadas (${tableError.message||'error de lectura'}).`;
+ }else if(tableError&&!normalized.length&&status){
+  status.textContent='No se pudo consultar la galería guardada. No se ha cambiado ni eliminado ninguna foto.';
+ }
 }
 function renderSizeGuidePhotoPreview(){
  const box=$("sizeGuidePhotoPreview"),input=$("pGuiaTallasFoto"),clearBtn=$("clearSizeGuidePhoto");
@@ -1368,7 +1470,8 @@ function renderVariantEditor(existing=variantDraft){
    const k=variantKey(colorValue,sz),legacyKey=variantKey("Sin color",sz);
    const v=map.get(k)||(!colors.length?map.get(legacyKey):null)||{color:colorValue,size:sz,stock:0,image_path:''};
    const existingPhoto=v.image_path||'';
-   const preview=existingPhoto?`<div class="variantPhotoPreview"><span class="variantCurrentPhoto">✓ Foto guardada</span></div>`:'';
+   const existingPhotoUrl=existingPhoto?getImageUrl(existingPhoto):'';
+   const preview=existingPhoto?`<div class="variantPhotoPreview">${existingPhotoUrl?`<img src="${esc(existingPhotoUrl)}" alt="Foto guardada ${esc(displayColor)} / ${esc(sz)}" loading="lazy" decoding="async" onerror="this.style.opacity='.35';this.title='No se pudo cargar la vista previa'">`:''}<span class="variantCurrentPhoto">✓ Foto guardada</span></div>`:'';
    return `<div class="variantAdminRow">
      <div class="variantAdminCell">${esc(displayColor)}</div>
      <div class="variantAdminCell">${esc(sz)}</div>
@@ -1478,11 +1581,14 @@ if(agregarOtro){
   show("inventario",document.querySelector('[data-view=inventario]'));
 }
 }
-function limpiarProducto(){variantDraft=[];variantMemory=[];editingId=null;editingSizeGuideImagePath="";sizeGuideImageRemoveRequested=false;const guideInput=$("pGuiaTallasFoto");if(guideInput)guideInput.value="";renderSizeGuidePhotoPreview();$("formTitle").textContent="➕ Nuevo producto";$("pNombre").value="";$("pColores").value="";$("pTallas").value="";$("pCantidad").value=1;$("pCompra").value=0;$("pVenta").value=0;$("pUbicacion").value="";$("pDescripcion").value="";$("pGuiaTallas").value="";$("pFoto").value="";renderAdminColorPalette();renderVariantEditor([]);refreshCategorySelects()}
-function editarProducto(id){
- const p=productos.find(x=>x.id===id);if(!p)return;editingId=id;editingSizeGuideImagePath=String(p.size_guide_image||"");sizeGuideImageRemoveRequested=false;
- $("formTitle").textContent="✏️ Editar "+p.code;$("pNombre").value=p.name;$("pCategoria").value=p.category;$("pColores").value=Array.isArray(p.colors)?p.colors.join(', '):(p.colors||'');$("pTallas").value=Array.isArray(p.sizes)?p.sizes.join(', '):(p.sizes||'');variantDraft=parseVariants(p.variants);variantMemory=parseVariants(p.variants);$("pCantidad").value=p.quantity;$("pCompra").value=p.cost_price;$("pVenta").value=p.sale_price;$("pUbicacion").value=p.location||"";$("pDescripcion").value=p.description||"";$("pGuiaTallas").value=p.size_guide||"";$("pFoto").value="";const guideInput=$("pGuiaTallasFoto");if(guideInput)guideInput.value="";renderSizeGuidePhotoPreview();
+function limpiarProducto(){variantDraft=[];variantMemory=[];editingId=null;editingProductImageLoadToken++;editingProductImages=[];editingSizeGuideImagePath="";sizeGuideImageRemoveRequested=false;const guideInput=$("pGuiaTallasFoto");if(guideInput)guideInput.value="";renderSizeGuidePhotoPreview();$("formTitle").textContent="➕ Nuevo producto";$("pNombre").value="";$("pColores").value="";$("pTallas").value="";$("pCantidad").value=1;$("pCompra").value=0;$("pVenta").value=0;$("pUbicacion").value="";$("pDescripcion").value="";$("pGuiaTallas").value="";$("pFoto").value="";if($("existingPhotoStatus"))$("existingPhotoStatus").textContent="Las fotos actuales aparecerán al editar un producto.";if($("existingPhotoPreview"))$("existingPhotoPreview").innerHTML="";renderPhotoPreview();renderAdminColorPalette();renderVariantEditor([]);refreshCategorySelects()}
+async function editarProducto(id){
+ const p=productos.find(x=>String(x.id)===String(id));if(!p)return;
+ editingId=id;editingProductImages=[];editingProductImageLoadToken++;editingSizeGuideImagePath=String(p.size_guide_image||"");sizeGuideImageRemoveRequested=false;
+ $("formTitle").textContent="✏️ Editar "+p.code;$("pNombre").value=p.name;$("pCategoria").value=p.category;$("pColores").value=Array.isArray(p.colors)?p.colors.join(', '):(p.colors||'');$("pTallas").value=Array.isArray(p.sizes)?p.sizes.join(', '):(p.sizes||'');variantDraft=parseVariants(p.variants);variantMemory=parseVariants(p.variants);$("pCantidad").value=p.quantity;$("pCompra").value=p.cost_price;$("pVenta").value=p.sale_price;$("pUbicacion").value=p.location||"";$("pDescripcion").value=p.description||"";$("pGuiaTallas").value=p.size_guide||"";$("pFoto").value="";renderPhotoPreview();const guideInput=$("pGuiaTallasFoto");if(guideInput)guideInput.value="";renderSizeGuidePhotoPreview();
+ if($("existingPhotoStatus"))$("existingPhotoStatus").textContent="Cargando las fotos guardadas…";
  renderAdminColorPalette();renderVariantEditor(variantDraft);show("producto",document.querySelector('[data-view=producto]'));
+ await loadExistingProductImages(id,p.image_url||'');
 }
 async function borrarProducto(id){
  const p=productos.find(x=>String(x.id)===String(id));if(!p)return;
@@ -1930,6 +2036,8 @@ document.addEventListener("DOMContentLoaded",()=>{
       const index=Number(btn.dataset.catIndex);
       const name=categorias[index];
       if(!Number.isInteger(index)||!name)return;
+      if(btn.dataset.catAction==="up") await reorderCategory(index,-1);
+      if(btn.dataset.catAction==="down") await reorderCategory(index,1);
       if(btn.dataset.catAction==="rename") await renameCategory(name);
       if(btn.dataset.catAction==="delete") await deleteCategory(name);
     });
