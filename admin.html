@@ -130,6 +130,18 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
 .categoryInlineActions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:7px}.categoryInlineActions .softbtn{padding:7px 10px;font-size:12px}.categoryInlineActions small{font-size:11px}
 #pCategoria:disabled{opacity:.7;cursor:wait}
 .variantAdminTable{display:grid;gap:7px}.variantAdminRow{display:grid;grid-template-columns:minmax(90px,1fr) minmax(70px,1fr) 100px minmax(150px,1.4fr);gap:7px;align-items:center}.variantAdminHead{font-size:11px;font-weight:900;color:var(--muted);text-transform:uppercase}.variantAdminCell{padding:7px 9px;background:#fff;border:1px solid var(--border);border-radius:9px;font-size:12px}.variantAdminStock{width:100%;padding:8px;border:1px solid var(--border);border-radius:9px}.variantColorPhoto{width:100%;font-size:11px}.variantCurrentPhoto{font-size:10px;color:var(--success);margin-top:3px;font-weight:800}.variantPhotoHint{font-size:10px;color:var(--muted);margin-top:3px}.variantPhotoPreview{display:flex;align-items:center;gap:6px;margin-top:5px}.variantPhotoPreview img{width:42px;height:42px;object-fit:cover;border-radius:8px;border:1px solid var(--border)}@media(max-width:700px){.variantAdminRow{grid-template-columns:1fr 1fr}.variantAdminRow .variantPhotoCell{grid-column:1/-1}}
+.adminColorField{min-width:0;padding:15px;border:1px solid var(--border);border-radius:15px;background:linear-gradient(145deg,#fff,#fcfbff)}
+.adminColorTitle{font-size:13px;font-weight:900;color:#34313f;margin-bottom:5px}
+.adminColorPalette{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px;margin-top:11px;touch-action:none;user-select:none;-webkit-user-select:none}
+.adminColorSwatch{display:flex;align-items:center;gap:8px;min-width:0;min-height:40px;padding:7px 9px;border:1px solid #e4e4eb;border-radius:11px;background:#fff;color:#3c4050;text-align:left;font-size:12px;font-weight:750;transition:border-color .12s ease,background .12s ease,box-shadow .12s ease;cursor:pointer;touch-action:none}
+.adminColorSwatch:hover{border-color:#b3a0e9;background:#fbf9ff}
+.adminColorSwatch[aria-pressed="true"]{border-color:#7c3aed;background:#f5f0ff;box-shadow:0 0 0 1px #7c3aed40;color:#4c1d95}
+.adminColorCircle{width:22px;height:22px;flex:0 0 22px;border-radius:50%;background:var(--swatch-color,#aaa);border:1px solid #00000024;box-shadow:inset 0 0 0 1px #ffffff35;position:relative}
+.adminColorSwatch[aria-pressed="true"] .adminColorCircle:after{content:'✓';position:absolute;inset:0;display:grid;place-items:center;color:var(--check-color,#fff);font-size:13px;font-weight:1000;text-shadow:0 1px 2px #0005}
+.adminColorLabel{min-width:0;overflow-wrap:normal;hyphens:none;line-height:1.1}
+.selectedColorSummary{margin-top:10px;padding:9px 11px;border-radius:10px;background:#f8f7fb;color:#6e7180;font-size:11px;line-height:1.4}
+.selectedColorSummary strong{color:#5b21b6}
+@media(max-width:700px){.adminColorField{padding:12px}.adminColorPalette{grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}.adminColorSwatch{gap:4px;padding:7px 5px;font-size:10px;min-height:42px}.adminColorCircle{width:18px;height:18px;flex-basis:18px}}
 </style>
 </head>
 <body>
@@ -200,10 +212,12 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
         <div class="box" style="margin-top:15px"><div class="grid">
           <label>Nombre del producto *<input id="pNombre" placeholder="Ej. Corset negro"></label>
           <label>Categoría<select id="pCategoria"><option value="">Selecciona una categoría</option></select><div class="categoryInlineActions"><button type="button" class="softbtn" onclick="addCategoryFromProduct()">＋ Nueva categoría</button><small id="categoryLoadStatus" class="muted"></small></div></label>
-          <label>Colores del producto
-            <input id="pColores" placeholder="Ej. Rojo, Negro, Blanco">
-            <small class="muted">Sepáralos con comas.</small>
-          </label>
+          <div class="full adminColorField">
+            <div class="adminColorTitle">Colores del producto</div>
+            <input id="pColores" type="hidden" value="">
+            <div id="colorPalette" class="adminColorPalette" role="group" aria-label="Selecciona uno o varios colores del producto"></div>
+            <div id="selectedColorSummary" class="selectedColorSummary" aria-live="polite">Selecciona uno o varios colores de la paleta. Puedes tocar un color o arrastrar por varios tonos.</div>
+          </div>
           <label>Tallas del producto
             <input id="pTallas" placeholder="Ej. S, M, L, XL">
             <small class="muted">Sepáralas con comas.</small>
@@ -1173,7 +1187,119 @@ function availableVariantStock(p,color,size){
  const v=variants.find(x=>normalizeVariantText(x.color)===c&&normalizeVariantText(x.size)===z);
  return v?Math.max(0,Number(v.stock)||0):0;
 }
-let variantDraft=[];
+const ADMIN_COLOR_OPTIONS=[
+ {name:'Negro',hex:'#222222',check:'#ffffff'},
+ {name:'Blanco',hex:'#ffffff',check:'#333333'},
+ {name:'Marfil',hex:'#f5efdf',check:'#4a4034'},
+ {name:'Beige',hex:'#d8bd98',check:'#4a4034'},
+ {name:'Nude',hex:'#d8aa91',check:'#4a3027'},
+ {name:'Café',hex:'#795548',check:'#ffffff'},
+ {name:'Chocolate',hex:'#4a2c20',check:'#ffffff'},
+ {name:'Gris',hex:'#8b8d91',check:'#ffffff'},
+ {name:'Plata',hex:'#c4c7cc',check:'#333333'},
+ {name:'Dorado',hex:'#caa333',check:'#4a3510'},
+ {name:'Mostaza',hex:'#d4a017',check:'#3b2c0a'},
+ {name:'Amarillo',hex:'#f4d03f',check:'#4a3d05'},
+ {name:'Naranja',hex:'#e98a2e',check:'#ffffff'},
+ {name:'Rojo',hex:'#d7263d',check:'#ffffff'},
+ {name:'Vinotinto',hex:'#70193d',check:'#ffffff'},
+ {name:'Rosa',hex:'#edb4c7',check:'#57313c'},
+ {name:'Palo de rosa',hex:'#bd858a',check:'#ffffff'},
+ {name:'Fucsia',hex:'#d81b77',check:'#ffffff'},
+ {name:'Morado',hex:'#8145a6',check:'#ffffff'},
+ {name:'Lila',hex:'#c5a3d6',check:'#493252'},
+ {name:'Azul',hex:'#3979b8',check:'#ffffff'},
+ {name:'Azul oscuro',hex:'#1c3150',check:'#ffffff'},
+ {name:'Celeste',hex:'#8ecae6',check:'#204050'},
+ {name:'Turquesa',hex:'#35aaa5',check:'#ffffff'},
+ {name:'Verde',hex:'#448b59',check:'#ffffff'},
+ {name:'Verde oliva',hex:'#78834c',check:'#ffffff'},
+ {name:'Estampado',hex:'linear-gradient(135deg,#e74c3c 0 25%,#f1c40f 25% 50%,#2874a6 50% 75%,#229954 75%)',check:'#ffffff'},
+ {name:'Transparente',hex:'linear-gradient(135deg,#fff 0 45%,#dadde4 45% 55%,#fff 55%)',check:'#333333'}
+];
+function normalizeAdminColorName(value){return String(value||'').trim().toLocaleLowerCase('es').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ')}
+function readAdminColors(){return [...new Set(String($("pColores")?.value||'').split(',').map(v=>v.trim()).filter(Boolean))]}
+function renderAdminColorPalette(){
+ const box=$("colorPalette"),summary=$("selectedColorSummary");if(!box)return;
+ const selected=readAdminColors();
+ const selectedKeys=new Set(selected.map(normalizeAdminColorName));
+ const knownKeys=new Set(ADMIN_COLOR_OPTIONS.map(c=>normalizeAdminColorName(c.name)));
+ const extras=selected.filter(c=>!knownKeys.has(normalizeAdminColorName(c))).map(name=>({name,hex:'#9ca3af',check:'#ffffff',custom:true}));
+ const options=[...ADMIN_COLOR_OPTIONS,...extras];
+ box.innerHTML=options.map(color=>{
+   const active=selectedKeys.has(normalizeAdminColorName(color.name));
+   const check=color.check||'#ffffff';
+   return `<button type="button" class="adminColorSwatch" data-color="${esc(color.name)}" aria-pressed="${active?'true':'false'}" title="${active?'Quitar':'Seleccionar'} ${esc(color.name)}" style="--swatch-color:${color.hex};--check-color:${check}"><span class="adminColorCircle" aria-hidden="true"></span><span class="adminColorLabel">${esc(color.name)}</span></button>`;
+ }).join('');
+ if(summary){
+   summary.innerHTML=selected.length?`<strong>${selected.length} color${selected.length===1?' seleccionado':'es seleccionados'}:</strong> ${selected.map(esc).join(' · ')}`:'Selecciona uno o varios colores de la paleta. Puedes tocar un color o arrastrar por varios tonos.';
+ }
+}
+function paintAdminColorButton(button,active){
+ if(!button)return;
+ button.setAttribute('aria-pressed',active?'true':'false');
+ button.title=(active?'Quitar ':'Seleccionar ')+(button.dataset.color||'color');
+}
+function applyAdminColorPaletteSelection(){
+ const box=$("colorPalette"),input=$("pColores");if(!box||!input)return;
+ // Leer el stock ya escrito antes de regenerar las combinaciones de variantes.
+ variantDraft=collectVariantDraft();
+ const selected=[...box.querySelectorAll('.adminColorSwatch[aria-pressed="true"]')].map(b=>b.dataset.color).filter(Boolean);
+ input.value=[...new Set(selected)].join(', ');
+ renderAdminColorPalette();
+ renderVariantEditor(variantMemory.length?variantMemory:variantDraft);
+ variantDraft=collectVariantDraft();
+ const stocks=[...document.querySelectorAll('#variantEditorRows .variantAdminStock')];
+ if($("pCantidad")&&stocks.length)$("pCantidad").value=stocks.reduce((sum,field)=>sum+Math.max(0,Number(field.value)||0),0);
+}
+let adminColorDragActive=false,adminColorDragValue=false,adminColorSuppressClick=false,adminColorDragFinishedTimer=null;
+function finishAdminColorDrag(){
+ if(!adminColorDragActive)return;
+ adminColorDragActive=false;
+ applyAdminColorPaletteSelection();
+ adminColorSuppressClick=true;
+ clearTimeout(adminColorDragFinishedTimer);
+ adminColorDragFinishedTimer=setTimeout(()=>{adminColorSuppressClick=false},180);
+}
+function initAdminColorPalette(){
+ const box=$("colorPalette");if(!box||box.dataset.paletteInitialized==='true')return;
+ box.dataset.paletteInitialized='true';
+ renderAdminColorPalette();
+ box.addEventListener('pointerdown',event=>{
+   const button=event.target.closest('.adminColorSwatch');if(!button)return;
+   if(event.button!==undefined&&event.button!==0)return;
+   adminColorDragActive=true;
+   adminColorDragValue=button.getAttribute('aria-pressed')!=='true';
+   paintAdminColorButton(button,adminColorDragValue);
+   // Evita que el texto de color quede seleccionado al arrastrar por la paleta.
+   event.preventDefault();
+ });
+ box.addEventListener('pointerover',event=>{
+   if(!adminColorDragActive)return;
+   const button=event.target.closest('.adminColorSwatch');if(!button)return;
+   paintAdminColorButton(button,adminColorDragValue);
+ });
+ // pointerover no siempre sigue el arrastre en móviles táctiles; pointermove
+ // usa la posición real del dedo para seleccionar cada tono atravesado.
+ box.addEventListener('pointermove',event=>{
+   if(!adminColorDragActive)return;
+   const element=document.elementFromPoint(event.clientX,event.clientY);
+   const button=element?.closest('.adminColorSwatch');
+   if(!button||!box.contains(button))return;
+   paintAdminColorButton(button,adminColorDragValue);
+ });
+ document.addEventListener('pointerup',finishAdminColorDrag);
+ document.addEventListener('pointercancel',finishAdminColorDrag);
+ box.addEventListener('click',event=>{
+   const button=event.target.closest('.adminColorSwatch');if(!button)return;
+   if(adminColorSuppressClick){event.preventDefault();event.stopPropagation();return;}
+   variantDraft=collectVariantDraft();
+   paintAdminColorButton(button,button.getAttribute('aria-pressed')!=='true');
+   applyAdminColorPaletteSelection();
+ });
+}
+
+let variantDraft=[],variantMemory=[];
 function renderVariantEditor(existing=variantDraft){
  const box=$("variantEditor"), rows=$("variantEditorRows"); if(!box||!rows)return;
  const colors=[...new Set(String($("pColores")?.value||'').split(',').map(x=>x.trim()).filter(Boolean))];
@@ -1206,8 +1332,21 @@ function renderVariantEditor(existing=variantDraft){
 }
 function collectVariantDraft(){
  const rows=[...document.querySelectorAll('#variantEditorRows .variantAdminStock')];
- const prev=new Map(parseVariants(variantDraft).map(x=>[variantKey(x.color,x.size),x]));
- return rows.map(inp=>{const color=inp.dataset.varColor||'',size=inp.dataset.varSize||'',old=prev.get(variantKey(color,size))||(!color?prev.get(variantKey("Sin color",size)):null);return {color,size,stock:Math.max(0,Number(inp.value)||0),image_path:old?.image_path||''}});
+ const prev=new Map(parseVariants(variantMemory.length?variantMemory:variantDraft).map(x=>[variantKey(x.color,x.size),x]));
+ const current=rows.map(inp=>{
+   const color=inp.dataset.varColor||'',size=inp.dataset.varSize||'';
+   const old=prev.get(variantKey(color,size))||(!color?prev.get(variantKey("Sin color",size)):null);
+   return {color,size,stock:Math.max(0,Number(inp.value)||0),image_path:old?.image_path||''};
+ });
+ // Conservar en memoria temporal las variantes que se oculten al desmarcar un color
+ // o cambiar tallas. Si el usuario vuelve a marcarlo antes de guardar, recupera stock/foto.
+ const memory=new Map(parseVariants(variantMemory.length?variantMemory:variantDraft).map(x=>[variantKey(x.color,x.size),x]));
+ current.forEach(v=>{
+   const key=variantKey(v.color,v.size),old=memory.get(key);
+   memory.set(key,{...old,...v,image_path:v.image_path||old?.image_path||''});
+ });
+ variantMemory=[...memory.values()];
+ return current;
 }
 function totalVariantStock(list){return list.reduce((s,x)=>s+Math.max(0,Number(x.stock)||0),0)}
 function selectedVariantFiles(){
@@ -1234,7 +1373,7 @@ async function uploadVariantPhotos(productId, variants, files){
  });
 }
 
-document.addEventListener('change',e=>{if(e.target?.id==='pColores'||e.target?.id==='pTallas'){variantDraft=collectVariantDraft();renderVariantEditor(variantDraft)}});
+document.addEventListener('change',e=>{if(e.target?.id==='pTallas'){variantDraft=collectVariantDraft();renderVariantEditor(variantMemory.length?variantMemory:variantDraft);variantDraft=collectVariantDraft()}});
 document.addEventListener('input',e=>{if(e.target?.classList?.contains('variantAdminStock')){const total=[...document.querySelectorAll('#variantEditorRows .variantAdminStock')].reduce((s,x)=>s+Math.max(0,Number(x.value)||0),0);if($("pCantidad"))$("pCantidad").value=total}});
 
 async function guardarProducto(agregarOtro=false){
@@ -1288,11 +1427,11 @@ if(agregarOtro){
   show("inventario",document.querySelector('[data-view=inventario]'));
 }
 }
-function limpiarProducto(){variantDraft=[];editingId=null;editingSizeGuideImagePath="";sizeGuideImageRemoveRequested=false;const guideInput=$("pGuiaTallasFoto");if(guideInput)guideInput.value="";renderSizeGuidePhotoPreview();$("formTitle").textContent="➕ Nuevo producto";$("pNombre").value="";$("pColores").value="";$("pTallas").value="";$("pCantidad").value=1;$("pCompra").value=0;$("pVenta").value=0;$("pUbicacion").value="";$("pDescripcion").value="";$("pGuiaTallas").value="";$("pFoto").value="";renderVariantEditor([]);refreshCategorySelects()}
+function limpiarProducto(){variantDraft=[];variantMemory=[];editingId=null;editingSizeGuideImagePath="";sizeGuideImageRemoveRequested=false;const guideInput=$("pGuiaTallasFoto");if(guideInput)guideInput.value="";renderSizeGuidePhotoPreview();$("formTitle").textContent="➕ Nuevo producto";$("pNombre").value="";$("pColores").value="";$("pTallas").value="";$("pCantidad").value=1;$("pCompra").value=0;$("pVenta").value=0;$("pUbicacion").value="";$("pDescripcion").value="";$("pGuiaTallas").value="";$("pFoto").value="";renderAdminColorPalette();renderVariantEditor([]);refreshCategorySelects()}
 function editarProducto(id){
  const p=productos.find(x=>x.id===id);if(!p)return;editingId=id;editingSizeGuideImagePath=String(p.size_guide_image||"");sizeGuideImageRemoveRequested=false;
- $("formTitle").textContent="✏️ Editar "+p.code;$("pNombre").value=p.name;$("pCategoria").value=p.category;$("pColores").value=Array.isArray(p.colors)?p.colors.join(', '):(p.colors||'');$("pTallas").value=Array.isArray(p.sizes)?p.sizes.join(', '):(p.sizes||'');variantDraft=parseVariants(p.variants);$("pCantidad").value=p.quantity;$("pCompra").value=p.cost_price;$("pVenta").value=p.sale_price;$("pUbicacion").value=p.location||"";$("pDescripcion").value=p.description||"";$("pGuiaTallas").value=p.size_guide||"";$("pFoto").value="";const guideInput=$("pGuiaTallasFoto");if(guideInput)guideInput.value="";renderSizeGuidePhotoPreview();
- renderVariantEditor(variantDraft);show("producto",document.querySelector('[data-view=producto]'));
+ $("formTitle").textContent="✏️ Editar "+p.code;$("pNombre").value=p.name;$("pCategoria").value=p.category;$("pColores").value=Array.isArray(p.colors)?p.colors.join(', '):(p.colors||'');$("pTallas").value=Array.isArray(p.sizes)?p.sizes.join(', '):(p.sizes||'');variantDraft=parseVariants(p.variants);variantMemory=parseVariants(p.variants);$("pCantidad").value=p.quantity;$("pCompra").value=p.cost_price;$("pVenta").value=p.sale_price;$("pUbicacion").value=p.location||"";$("pDescripcion").value=p.description||"";$("pGuiaTallas").value=p.size_guide||"";$("pFoto").value="";const guideInput=$("pGuiaTallasFoto");if(guideInput)guideInput.value="";renderSizeGuidePhotoPreview();
+ renderAdminColorPalette();renderVariantEditor(variantDraft);show("producto",document.querySelector('[data-view=producto]'));
 }
 async function borrarProducto(id){
  const p=productos.find(x=>String(x.id)===String(id));if(!p)return;
@@ -1719,9 +1858,10 @@ applyBrand();
 $("vVariant").addEventListener("change",refreshSalePreview);$("vCantidad").addEventListener("input",refreshSalePreview);
 window.addEventListener("click",e=>{if(e.target===$("productModal"))closeModal()});
 init();
-setInterval(refreshPublicAvailability,15000); // 15 s: limita consultas repetidas a Supabase
+setInterval(refreshPublicAvailability,15000); // 15 s: mantiene el refresco acordado; ventas verifican stock en servidor
 document.addEventListener("visibilitychange",()=>{if(!document.hidden)refreshPublicAvailability()});
 document.addEventListener("DOMContentLoaded",()=>{
+  initAdminColorPalette();
   const f=$("pFoto");if(f)f.addEventListener("change",renderPhotoPreview);
   const guideFile=$("pGuiaTallasFoto");if(guideFile)guideFile.addEventListener("change",()=>{if(guideFile.files?.length)sizeGuideImageRemoveRequested=false;renderSizeGuidePhotoPreview()});
 
@@ -1740,6 +1880,7 @@ document.addEventListener("DOMContentLoaded",()=>{
     });
   }
 });
+if(document.readyState!=='loading')initAdminColorPalette();
 window.renameCategory=renameCategory;
 window.deleteCategory=deleteCategory;
 window.addCategory=addCategory;
