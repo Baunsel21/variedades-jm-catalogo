@@ -268,6 +268,7 @@
   .referenceCenter .heroSub{font-size:9px}
 }
 
+#customerCityOtherWrap[hidden]{display:none!important}
 </style>
 
 <style>
@@ -332,6 +333,13 @@ body{background:linear-gradient(180deg,#fffaf0 0%,#fff6e6 55%,#f8ecd7 100%);colo
 .sizeOptions{display:flex;gap:6px;flex-wrap:wrap}
 .sizeOption{border:1px solid #cfc4ba;background:#fffaf3;color:#332d28;border-radius:999px;padding:6px 10px;font-size:12px;font-weight:800;cursor:pointer}
 .sizeOption.active{background:#c79283;color:#fff;border-color:#c79283}
+/* Estado de selección más evidente en la ficha del producto: borde doble y marca accesible. */
+#productDetailModal .detailVariants .colorDot.active{outline:2px solid #2b2520;outline-offset:3px;box-shadow:0 0 0 5px #f2d18b;transform:scale(1.04)}
+#productDetailModal .detailVariants .sizeOption.active{outline:2px solid #2b2520;outline-offset:2px;box-shadow:0 2px 0 #2b2520;font-weight:950}
+#productDetailModal .detailVariants .colorDot:focus-visible,#productDetailModal .detailVariants .sizeOption:focus-visible{outline:3px solid #7b1730;outline-offset:3px}
+.variantSelectionStatus{margin-top:4px;padding:7px 9px;border:1px solid #c79283;border-left:4px solid #7b1730;border-radius:9px;background:#fff7f0;color:#462831;font-size:12px;font-weight:900;line-height:1.35}
+.variantSelectionStatus[hidden]{display:none!important}
+
 .orderSuccess{position:fixed;inset:0;background:rgba(30,24,20,.55);display:none;align-items:center;justify-content:center;z-index:400;padding:20px}
 .orderSuccess.open{display:flex}
 .orderSuccessBox{background:#fffaf0;border-radius:24px;padding:30px;max-width:420px;text-align:center;box-shadow:0 20px 70px rgba(0,0,0,.3);color:#2b2520}
@@ -911,6 +919,36 @@ body{background:linear-gradient(180deg,#fffaf0 0%,#fff6e6 55%,#f8ecd7 100%);colo
   }
 }
 </style>
+<style id="jm-final-ux-polish-2026-10-12">
+/* Tallas: medidas centradas y anillo de selección concéntrico, sin el contorno desplazado. */
+#productDetailModal .detailVariants .sizeOption{
+  box-sizing:border-box!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;
+  min-width:38px!important;min-height:38px!important;height:38px!important;padding:0 8px!important;
+  line-height:1!important;border-radius:999px!important;vertical-align:middle!important;position:relative!important;
+}
+#productDetailModal .detailVariants .sizeOption.active,
+#productDetailModal .detailVariants .sizeOption.active:focus-visible{
+  outline:none!important;outline-offset:0!important;
+  box-shadow:0 0 0 2px #2b2520,0 0 0 5px #f2d18b!important;
+  border-color:#c79283!important;font-weight:950!important;transform:none!important;
+}
+#productDetailModal .detailVariants .sizeOption:focus-visible:not(.active){
+  outline:2px solid #7b1730!important;outline-offset:3px!important;
+}
+/* Resumen compacto de compra en checkout: mismos tonos crema y vino de la ficha. */
+.checkoutItemSummary{margin:12px 0 10px;padding:11px;border:1px solid #ead9cb;border-radius:14px;background:#fffaf3;color:#352923;box-shadow:0 3px 10px rgba(67,48,34,.05)}
+.checkoutItemSummary[hidden]{display:none!important}
+.checkoutSummaryTitle{display:flex;align-items:center;gap:7px;margin:0 0 8px;color:#7b1730;font-size:13px;font-weight:900;letter-spacing:.01em}
+.checkoutSummaryItems{display:grid;gap:7px;max-height:166px;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding-right:2px}
+.checkoutSummaryItem{display:grid;grid-template-columns:44px minmax(0,1fr) auto;align-items:center;gap:9px;padding:7px;border:1px solid #efe4db;border-radius:10px;background:#fff}
+.checkoutSummaryThumb{width:44px;height:50px;border-radius:7px;background:#f3eee7;object-fit:cover;display:block}
+.checkoutSummaryThumbFallback{width:44px;height:50px;border-radius:7px;background:#f3eee7;display:flex;align-items:center;justify-content:center;font-size:20px}
+.checkoutSummaryName{margin:0 0 3px;color:#302822;font-size:12px;line-height:1.25;font-weight:900;overflow-wrap:anywhere}
+.checkoutSummaryVariant{color:#72635a;font-size:11px;line-height:1.35;overflow-wrap:anywhere}
+.checkoutSummaryPrice{align-self:center;color:#7b1730;font-size:11px;font-weight:900;white-space:nowrap;text-align:right}
+.checkoutSummaryFoot{margin-top:7px;color:#796b62;font-size:10px;line-height:1.35}
+@media(max-width:430px){.checkoutItemSummary{padding:9px;margin:9px 0}.checkoutSummaryItem{grid-template-columns:38px minmax(0,1fr) auto;gap:7px;padding:6px}.checkoutSummaryThumb,.checkoutSummaryThumbFallback{width:38px;height:44px}.checkoutSummaryName{font-size:11.5px}.checkoutSummaryVariant{font-size:10px}.checkoutSummaryPrice{font-size:10.5px}}
+</style>
 </head>
 <body>
 <header class="top">
@@ -942,6 +980,7 @@ body{background:linear-gradient(180deg,#fffaf0 0%,#fff6e6 55%,#f8ecd7 100%);colo
 
 
 <section class="categoryPanel" id="catalogo"><h2 class="categoryTitle">Categorías</h2><p class="categoryHint">Selecciona una categoría para ver sus productos.</p><div id="categoryButtons" class="categoryButtons"></div><select id="category" onchange="selectCategory(this.value)" style="display:none"><option value="">Todas las categorías</option></select></section>
+<div id="directCategoryBar" class="directCategoryBar" aria-live="polite"><span>Estás viendo: <strong id="directCategoryName" class="directCategoryName">Categoría</strong></span><button type="button" class="backAllBtn" onclick="showAllCatalog()">Ver todos los productos</button></div>
 <div class="catalogSearchRow">
   <input id="search" class="search" placeholder="⌕  Buscar productos..." oninput="handleSearchInput()" aria-label="Buscar productos">
 </div>
@@ -1001,9 +1040,10 @@ body{background:linear-gradient(180deg,#fffaf0 0%,#fff6e6 55%,#f8ecd7 100%);colo
       <label for="customerPhone">Teléfono</label><input id="customerPhone" type="tel" autocomplete="tel" placeholder="300 000 0000">
       <label for="customerEmail">Correo electrónico</label><input id="customerEmail" type="email" autocomplete="email" placeholder="correo@ejemplo.com">
       <label for="customerCity">Ciudad</label>
-      <select id="customerCity" onchange="updateShipping()">
+      <select id="customerCity" onchange="handleCityChange()">
         <option value="">Selecciona tu ciudad</option><option value="Cali">Cali</option><option value="Bogotá">Bogotá</option><option value="Medellín">Medellín</option><option value="Barranquilla">Barranquilla</option><option value="Cartagena">Cartagena</option><option value="Bucaramanga">Bucaramanga</option><option value="Pereira">Pereira</option><option value="Armenia">Armenia</option><option value="Manizales">Manizales</option><option value="Cúcuta">Cúcuta</option><option value="Pasto">Pasto</option><option value="Otra">Otra ciudad</option>
       </select>
+      <div id="customerCityOtherWrap" hidden><label for="customerCityOther">Escribe tu ciudad</label><input id="customerCityOther" type="text" maxlength="80" autocomplete="address-level2" placeholder="Nombre de tu ciudad" oninput="updateShipping()"></div>
       <label for="customerAddress">Dirección</label><input id="customerAddress" type="text" autocomplete="street-address" placeholder="Calle, carrera, número, etc.">
       <label for="customerNeighborhood">Barrio / referencia</label><input id="customerNeighborhood" type="text" placeholder="Barrio, conjunto o referencia">
       <div class="shippingBox"><div class="shippingLine"><span>🚚 Envío</span><span id="shippingValue">Selecciona una ciudad</span></div><div id="shippingNote" class="shippingSmall">Cali: envío gratis. Otras ciudades: $15.000. Envío gratis desde $130.000.</div></div>
@@ -1015,6 +1055,11 @@ body{background:linear-gradient(180deg,#fffaf0 0%,#fff6e6 55%,#f8ecd7 100%);colo
         <label class="paymentOption onlinePaymentOption"><input type="radio" name="paymentMethod" value="Bancolombia"> 🏦 <span><b>Botón Bancolombia</b><small>Pago en línea mediante Wompi</small></span></label>
         <label class="paymentOption paymentContraEntrega"><input type="radio" name="paymentMethod" value="Contra entrega" disabled> 💵 <span><b>Pago contra entrega (solo disponible en Cali)</b><small id="contraEntregaNote">Solo disponible al seleccionar Cali como ciudad de destino.</small></span></label>
       </div>
+      <section id="checkoutItemSummary" class="checkoutItemSummary" aria-label="Resumen de tu compra" aria-live="polite" hidden>
+        <h3 class="checkoutSummaryTitle">🛍️ Resumen de tu compra</h3>
+        <div id="checkoutSummaryItems" class="checkoutSummaryItems"></div>
+        <div class="checkoutSummaryFoot">Verifica producto, talla y color antes de confirmar el pedido.</div>
+      </section>
 <div class="checkoutTotal"><span>Total</span><span id="checkoutTotal">$0</span></div>
       <div class="checkoutActions"><button class="checkoutCancel" type="button" onclick="closeCheckout()">Cancelar</button><button id="checkoutConfirmBtn" class="checkoutConfirm" type="button" onclick="confirmCheckout()">✅ Confirmar pedido</button></div>
     </div>
@@ -1285,6 +1330,8 @@ let productos=[];
 // si aún no se ha aplicado la migración o si esa consulta falla.
 let publicProductDetails=new Map();
 let publicProductDetailsNeedsFallback=false;
+let publicProductDetailsInitialLoading=false;
+let publicProductDetailsLoadGuard=null;
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money=n=>new Intl.NumberFormat('es-CO',{style:'currency',currency:'COP',maximumFractionDigits:0}).format(Number(n)||0);
@@ -1328,19 +1375,20 @@ function advancePhotoFromElement(el,d=1){
 function photoTouchStart(event){
  const photo=event.currentTarget;
  if(!photo)return;
-
  // Ignore a second pointer while one gesture is active.
  if(photo.__gestureActive)return;
-
  photo.__gestureActive=true;
  photo.__pointerId=event.pointerId;
  photo.__startX=event.clientX;
  photo.__startY=event.clientY;
  photo.__swiped=false;
+ photo.__verticalMoved=false;
+ photo.__moved=false;
  photo.__tapChanged=false;
-
+ // Keep the fast 80 ms image preview. Unlike the previous version, this does
+ // not cancel the card click: a normal tap still opens the product detail.
  photo.__tapTimer=setTimeout(()=>{
-   if(photo.__gestureActive && !photo.__swiped && !photo.__tapChanged){
+   if(photo.__gestureActive && !photo.__moved && !photo.__swiped && !photo.__tapChanged){
      advancePhotoFromElement(photo,1);
      photo.__tapChanged=true;
    }
@@ -1349,63 +1397,49 @@ function photoTouchStart(event){
 
 function photoTouchMove(event){
  const photo=event.currentTarget;
- if(!photo || !photo.__gestureActive)return;
- if(event.pointerId!==photo.__pointerId)return;
- if(photo.__swiped)return;
-
+ if(!photo || !photo.__gestureActive || event.pointerId!==photo.__pointerId || photo.__swiped)return;
  const dx=event.clientX-photo.__startX;
  const dy=event.clientY-photo.__startY;
  const ax=Math.abs(dx), ay=Math.abs(dy);
-
- // Very deliberate movement only.
- const threshold=110;
- if(Math.max(ax,ay)<threshold)return;
-
- if(photo.__tapTimer){
-   clearTimeout(photo.__tapTimer);
-   photo.__tapTimer=null;
+ // Movement cancels the stationary preview; it does not by itself cancel the click.
+ if(ax>8 || ay>8){
+   photo.__moved=true;
+   if(photo.__tapTimer){clearTimeout(photo.__tapTimer);photo.__tapTimer=null;}
  }
-
- // Require a clearly dominant direction.
- if(ax>=ay){
-   if(ax<ay*1.5)return;
- }else{
-   if(ay<ax*1.5)return;
+ // Vertical-dominant motion belongs to the browser's native page scroll.
+ // A clearly vertical gesture must not trigger the product opener.
+ if(ay>=9 && ay>=ax*1.15){
+   photo.__verticalMoved=true;
+   photo.__blockClickUntil=Date.now()+500;
+   return;
  }
-
- // HARD LOCK: this gesture can change the image only once.
- photo.__swiped=true;
- photo.__blockClickUntil=Date.now()+500;
-
- const direction=ax>=ay
-   ? (dx<0 ? 1 : -1)
-   : (dy<0 ? 1 : -1);
-
- advancePhotoFromElement(photo,direction);
+ // Only a clear horizontal swipe changes one photo, and it must not open the detail accidentally.
+ const threshold=42;
+ if(ax>=threshold && ax>=ay*1.35){
+   photo.__swiped=true;
+   photo.__blockClickUntil=Date.now()+500;
+   advancePhotoFromElement(photo,dx<0?1:-1);
+ }
 }
 
 function photoTouchEnd(event){
  const photo=event.currentTarget;
  if(!photo)return;
  if(photo.__pointerId!=null && event.pointerId!==photo.__pointerId)return;
-
- if(photo.__tapTimer){
-   clearTimeout(photo.__tapTimer);
-   photo.__tapTimer=null;
- }
-
- if(photo.__swiped){
-   event.preventDefault();
+ if(photo.__tapTimer){clearTimeout(photo.__tapTimer);photo.__tapTimer=null;}
+ // A stationary tap opens the detail view through the card's normal click handler.
+ // The quick preview may already have changed the image after 80 ms, but must not eat that click.
+ if(photo.__swiped || photo.__verticalMoved){
+   if(event.cancelable)event.preventDefault();
    event.stopPropagation();
  }
-
- // Only pointerup/cancel ends the gesture.
- // pointerleave/pointerout must NOT reset it.
  photo.__gestureActive=false;
  photo.__pointerId=null;
  photo.__startX=null;
  photo.__startY=null;
  photo.__swiped=false;
+ photo.__verticalMoved=false;
+ photo.__moved=false;
  photo.__tapChanged=false;
 }
 
@@ -1416,7 +1450,6 @@ function photoClickGuard(event){
    event.stopPropagation();
  }
 }
-
 
 function photoHover(event){
  const photo=event.currentTarget;
@@ -1715,7 +1748,7 @@ function openProductDetail(id,event){
  updateDetailDescription(p);
  // Si el listado público no devolvió los textos opcionales, intenta recuperarlos
  // para este producto al abrir la ficha. No bloquea fotos, variantes ni botones.
- if(publicProductDetailsNeedsFallback||!String(p.description||'').trim()||!String(p.size_guide||'').trim()||!String(p.size_guide_image||'').trim()){
+ if(!publicProductDetailsInitialLoading&&(publicProductDetailsNeedsFallback||!publicProductDetails.has(normalizeDetailId(p.id)))){
    void refreshProductDetailsOnDemand(p.id);
  }
  const imgs=productImages(p);
@@ -1753,52 +1786,55 @@ async function getPublicProductDetailsRow(productId){
  const idKey=normalizeDetailId(id);
  if(!idKey)return null;
  const combined={description:'',size_guide:'',size_guide_image:''};
+ const keys=['description','size_guide','size_guide_image'];
  const mergeMatchingRow=row=>{
-   if(!row||normalizeDetailId(row.id)!==idKey)return false;
+   if(!row||normalizeDetailId(row.id)!==idKey)return {matched:false,complete:false};
    const fields=normalizeDetailFields(row);
-   for(const key of ['description','size_guide','size_guide_image']){
-     if(fields[key]&&!combined[key])combined[key]=fields[key];
-   }
-   return hasAnyProductDetails(fields);
+   keys.forEach(key=>{if(fields[key])combined[key]=fields[key]});
+   return {matched:true,complete:keys.every(key=>Object.prototype.hasOwnProperty.call(row,key))};
  };
- const allFieldsPresent=()=>!!(combined.description&&combined.size_guide&&combined.size_guide_image);
  const absorbRows=rows=>{
-   if(!Array.isArray(rows))return false;
+   if(!Array.isArray(rows))return {matched:false,complete:false};
    const row=rows.find(item=>normalizeDetailId(item?.id)===idKey);
    return mergeMatchingRow(row);
  };
- // 1) Prefer the narrow RPC, if it exists in the current Supabase schema.
+ // Try the product-specific RPC first. If it returns a row with the complete shape,
+ // its empty fields are meaningful and no other request is necessary.
  try{
-   const result=await sb.rpc('get_public_product_details_for_product',{p_product_id:id});
-   if(!result?.error)absorbRows(result?.data);
-   else console.warn('RPC individual de detalles no disponible; se probará la consulta general.',result.error.message||result.error);
+   const result=await fetchAllRpcRows('get_public_product_details_for_product',{p_product_id:id});
+   if(!result?.error){
+     const outcome=absorbRows(Array.isArray(result?.data)?result.data:(result?.data?[result.data]:[]));
+     if(outcome.matched&&outcome.complete)return {id,...combined};
+   }else console.warn('RPC individual de detalles no disponible; se probará la consulta general.',result.error.message||result.error);
  }catch(error){console.warn('No se pudo ejecutar la RPC individual de detalles.',error)}
- if(allFieldsPresent())return {id,...combined};
- // 2) The general RPC is verified in the SQL Editor and includes all 3 fields.
+ // The general RPC is the function verified in Supabase and normally supplies all fields.
  try{
-   const result=await sb.rpc('get_public_product_details');
-   if(!result?.error)absorbRows(result?.data);
-   else console.warn('RPC general de detalles no disponible.',result.error.message||result.error);
+   const result=await fetchAllRpcRows('get_public_product_details');
+   if(!result?.error){
+     const outcome=absorbRows(result?.data);
+     if(outcome.matched&&outcome.complete)return {id,...combined};
+   }else console.warn('RPC general de detalles no disponible.',result.error.message||result.error);
  }catch(error){console.warn('No se pudo ejecutar la RPC general de detalles.',error)}
- if(allFieldsPresent())return {id,...combined};
- // 3) Compatibility with older deployments where only the description RPC exists.
+ // Older deployments may have only the description RPC.
  try{
-   const result=await sb.rpc('get_public_product_descriptions');
-   if(!result?.error)absorbRows(result?.data);
-   else console.warn('RPC antigua de descripciones no disponible.',result.error.message||result.error);
+   const result=await fetchAllRpcRows('get_public_product_descriptions');
+   if(!result?.error){
+     const outcome=absorbRows(result?.data);
+     if(outcome.matched&&outcome.complete)return {id,...combined};
+   }else console.warn('RPC antigua de descripciones no disponible.',result.error.message||result.error);
  }catch(error){console.warn('No se pudo ejecutar la RPC antigua de descripciones.',error)}
- if(allFieldsPresent())return {id,...combined};
- // 4) Last-resort read of only the public-facing optional fields, restricted to
- // this product ID. RLS may deny it; if so, all other catalog functionality remains intact.
+ // Last-resort public-field-only lookup for deployments whose RPCs are not exposed.
  try{
    const result=await sb.from('products')
      .select('id,description,size_guide,size_guide_image')
      .eq('id',id)
      .maybeSingle();
-   if(!result?.error&&result?.data)mergeMatchingRow(result.data);
-   else if(result?.error)console.warn('Lectura directa de detalles bloqueada o no disponible por RLS.',result.error.message||result.error);
+   if(!result?.error&&result?.data){
+     const outcome=mergeMatchingRow(result.data);
+     if(outcome.matched)return {id,...combined};
+   }else if(result?.error)console.warn('Lectura directa de detalles bloqueada o no disponible por RLS.',result.error.message||result.error);
  }catch(error){console.warn('No se pudo leer el respaldo directo de los detalles.',error)}
- return hasAnyProductDetails(combined)?{id,...combined}:null;
+ return Object.values(combined).some(value=>String(value||'').trim())?{id,...combined}:null;
 }
 async function refreshProductDetailsOnDemand(productId){
  const id=String(productId??'').trim();
@@ -1809,7 +1845,13 @@ async function refreshProductDetailsOnDemand(productId){
  const task=(async()=>{
    try{
      const row=await getPublicProductDetailsRow(id);
-     if(!row)return false;
+     // Remember attempted lookups even when the RPC returns no row, so repeatedly
+     // opening a product does not send the same extra requests to Supabase.
+     productDetailLookupCompleted.add(idKey);
+     if(!row){
+       publicProductDetails.set(idKey,{description:'',size_guide:'',size_guide_image:''});
+       return false;
+     }
      const incoming=normalizeDetailFields(row);
      const oldProduct=productos.find(item=>normalizeDetailId(item.id)===idKey)||{};
      const existing=publicProductDetails.get(idKey)||{};
@@ -1882,10 +1924,22 @@ function updateDetailDescription(p){
  host.querySelectorAll('.detailAccordion').forEach(el=>{if(openSections.has(el.dataset.detailSection||''))el.open=true});
  host.hidden=false;
 }
+function detailGalleryImages(p,activeUrl=''){
+ const imgs=[...new Set(productImages(p).filter(Boolean))];
+ const active=String(activeUrl||'').trim();
+ if(active&&!imgs.some(url=>normalizeImageUrl(url)===normalizeImageUrl(active)))imgs.unshift(active);
+ else if(active){
+   const index=imgs.findIndex(url=>normalizeImageUrl(url)===normalizeImageUrl(active));
+   if(index>0)imgs.unshift(imgs.splice(index,1)[0]);
+ }
+ return imgs;
+}
+function normalizeImageUrl(url){try{return new URL(String(url||''),document.baseURI).href}catch{return String(url||'')}}
 function renderDetailGallery(p,activeUrl){
  const box=$('detailGalleryThumbs');if(!box)return;
- const imgs=productImages(p);
- box.innerHTML=imgs.map((u,i)=>`<button type="button" class="detailThumb ${u===activeUrl?'active':''}" onclick="selectDetailImage('${esc(u)}',event)"><img src="${esc(u)}" alt="Foto ${i+1}" loading="lazy" decoding="async"></button>`).join('');
+ const imgs=detailGalleryImages(p,activeUrl);
+ const activeKey=normalizeImageUrl(activeUrl);
+ box.innerHTML=imgs.map((u,i)=>`<button type="button" class="detailThumb ${normalizeImageUrl(u)===activeKey?'active':''}" onclick="selectDetailImage('${esc(u)}',event)"><img src="${esc(u)}" alt="Foto ${i+1}" loading="lazy" decoding="async"></button>`).join('');
 }
 function selectDetailImage(url,event){
  if(event){event.preventDefault();event.stopPropagation()}
@@ -1909,14 +1963,13 @@ function endDetailImageSwipe(event){
  // Ignora taps y movimientos verticales para mantener el zoom por toque y el scroll normal.
  if(Math.abs(dx)<42||Math.abs(dx)<Math.abs(dy)*1.25)return;
  if(!detailProduct)return;
- const images=productImages(detailProduct);
- if(images.length<2)return;
  const current=String($('detailImage')?.currentSrc||$('detailImage')?.src||'');
- const normalized=url=>{try{return new URL(url,document.baseURI).href}catch{return String(url||'')}};
- let index=images.findIndex(url=>normalized(url)===normalized(current));
+ const images=detailGalleryImages(detailProduct,current);
+ if(images.length<2)return;
+ const currentKey=normalizeImageUrl(current);
+ let index=images.findIndex(url=>normalizeImageUrl(url)===currentKey);
  const direction=dx<0?1:-1;
- // Si la foto inicial viene de una variante y no figura en la lista general, entra por el extremo correcto.
- if(index<0)index=direction>0?-1:0;
+ if(index<0)index=0;
  const next=(index+direction+images.length)%images.length;
  detailSwipeSuppressClickUntil=Date.now()+500;
  if(event.cancelable)event.preventDefault();
@@ -1934,34 +1987,43 @@ function openDetailGallery(event){
  // Los navegadores pueden emitir un click al terminar un gesto de deslizar; no abrir zoom en ese caso.
  if(Date.now()<detailSwipeSuppressClickUntil)return;
  if(!detailProduct)return;
- openGallery(detailProduct.id,event);
+ const current=String($('detailImage')?.currentSrc||$('detailImage')?.src||'');
+ const images=detailGalleryImages(detailProduct,current);
+ const currentIndex=images.findIndex(url=>normalizeImageUrl(url)===normalizeImageUrl(current));
+ if(!images.length)return;
+ galleryProduct=detailProduct;galleryImages=images;galleryIndex=Math.max(0,currentIndex);
+ renderGallery();$('galleryModal').classList.add('open');document.body.style.overflow='hidden';
 }
 function renderDetailVariants(p,activeColor,activeSize){
  const colors=parseVariantList(p.colors),sizes=parseVariantList(p.sizes),vs=variantList(p);
  let h='';
- if(colors.length) h+=`<div class="variantLabel">Color</div><div class="colorDots">${colors.map(c=>{const stock=vs.length?colorStock(p,c):Number(p.quantity)||0;return `<span class="colorChoice"><button type="button" class="colorDot ${normalizeText(c)===normalizeText(activeColor)?'active':''}" ${stock<=0?'disabled':''} data-variant-type="color" data-value="${esc(c)}" style="background:${colorToCss(c)}" onclick="detailSelectColor(this,event)"></button><span class="colorName">${esc(c)}${stock<=0?' (agotado)':''}</span></span>`}).join('')}</div>`;
- if(sizes.length) h+=`<div class="variantLabel">Talla</div><div class="sizeOptions">${sizes.map(sz=>{const stock=vs.length?variantStock(p,activeColor,sz):Number(p.quantity)||0;return `<button type="button" class="sizeOption ${normalizeText(sz)===normalizeText(activeSize)&&stock>0?'active':''}" ${stock<=0&&vs.length?'disabled':''} data-variant-type="size" data-value="${esc(sz)}" onclick="detailSelectSize(this,event)">${esc(sz)}${stock<=0&&vs.length?' · agotada':''}</button>`}).join('')}</div>`;
+ if(colors.length) h+=`<div class="variantLabel">Color</div><div class="colorDots">${colors.map(c=>{const stock=vs.length?colorStock(p,c):Number(p.quantity)||0,active=normalizeText(c)===normalizeText(activeColor);return `<span class="colorChoice"><button type="button" class="colorDot ${active?'active':''}" aria-label="Color ${esc(c)}" aria-pressed="${active?'true':'false'}" ${stock<=0?'disabled':''} data-variant-type="color" data-value="${esc(c)}" style="background:${colorToCss(c)}" onclick="detailSelectColor(this,event)"></button><span class="colorName">${esc(c)}${stock<=0?' (agotado)':''}</span></span>`}).join('')}</div>`;
+ if(sizes.length) h+=`<div class="variantLabel">Talla</div><div class="sizeOptions">${sizes.map(sz=>{const stock=vs.length?variantStock(p,activeColor,sz):Number(p.quantity)||0,active=normalizeText(sz)===normalizeText(activeSize)&&stock>0;return `<button type="button" class="sizeOption ${active?'active':''}" aria-pressed="${active?'true':'false'}" ${stock<=0&&vs.length?'disabled':''} data-variant-type="size" data-value="${esc(sz)}" onclick="detailSelectSize(this,event)">${esc(sz)}${stock<=0&&vs.length?' · agotada':''}</button>`}).join('')}</div>`;
+ const selectedParts=[];
+ if(colors.length&&activeColor)selectedParts.push('Color: '+esc(activeColor));
+ if(sizes.length&&activeSize)selectedParts.push('Talla: '+esc(activeSize));
+ if(selectedParts.length)h+=`<div class="variantSelectionStatus" aria-live="polite">✓ Seleccionado · ${selectedParts.join(' · ')}</div>`;
  return `<div class="variantBox">${h}</div>`;
 }
 function updateDetailVariantAvailability(){
  if(!detailProduct)return;
  const box=document.querySelector('#productDetailModal .detailCard');if(!box)return;
  const color=box.querySelector('.colorDot.active')?.dataset.value||'';
- box.querySelectorAll('.colorDot').forEach(b=>{const stock=colorStock(detailProduct,b.dataset.value||'');b.disabled=!!variantList(detailProduct).length&&stock<=0;b.classList.toggle('disabled',b.disabled)});
- box.querySelectorAll('.sizeOption').forEach(b=>{const stock=variantStock(detailProduct,color,b.dataset.value||'');b.disabled=!!variantList(detailProduct).length&&stock<=0;b.classList.toggle('disabled',b.disabled);b.textContent=b.dataset.value+(b.disabled?' · agotada':'')});
+ box.querySelectorAll('.colorDot').forEach(b=>{const stock=colorStock(detailProduct,b.dataset.value||'');b.disabled=!!variantList(detailProduct).length&&stock<=0;b.classList.toggle('disabled',b.disabled);b.setAttribute('aria-pressed',b.classList.contains('active')?'true':'false')});
+ box.querySelectorAll('.sizeOption').forEach(b=>{const stock=variantStock(detailProduct,color,b.dataset.value||'');b.disabled=!!variantList(detailProduct).length&&stock<=0;b.classList.toggle('disabled',b.disabled);b.textContent=b.dataset.value+(b.disabled?' · agotada':'');b.setAttribute('aria-pressed',b.classList.contains('active')?'true':'false')});
 }
 function detailSelectColor(btn,event){
  if(event){event.preventDefault();event.stopPropagation()}
  if(btn.disabled)return;
  const box=btn.closest('.detailCard');if(!box||!detailProduct)return;
- box.querySelectorAll('.colorDot').forEach(x=>x.classList.remove('active'));btn.classList.add('active');
+ box.querySelectorAll('.colorDot').forEach(x=>{x.classList.remove('active');x.setAttribute('aria-pressed','false')});btn.classList.add('active');btn.setAttribute('aria-pressed','true');
  const color=btn.dataset.value||'';
  const sizes=parseVariantList(detailProduct.sizes);
  let size=box.querySelector('.sizeOption.active')?.dataset.value||'';
  if(sizes.length && variantList(detailProduct).length && variantStock(detailProduct,color,size)<=0){
    const first=sizes.find(sz=>variantStock(detailProduct,color,sz)>0);
-   box.querySelectorAll('.sizeOption').forEach(x=>x.classList.remove('active'));
-   if(first){const b=[...box.querySelectorAll('.sizeOption')].find(x=>x.dataset.value===first);if(b)b.classList.add('active');size=first}else size='';
+   box.querySelectorAll('.sizeOption').forEach(x=>{x.classList.remove('active');x.setAttribute('aria-pressed','false')});
+   if(first){const b=[...box.querySelectorAll('.sizeOption')].find(x=>normalizeText(x.dataset.value)===normalizeText(first));if(b){b.classList.add('active');b.setAttribute('aria-pressed','true')}size=first}else size='';
  }
  const image=variantImageUrl(detailProduct,color)||(productImages(detailProduct)[0]||'');
  $('detailImage').src=image;
@@ -1974,7 +2036,11 @@ function detailSelectSize(btn,event){
  if(event){event.preventDefault();event.stopPropagation()}
  if(btn.disabled)return;
  const box=btn.closest('.detailCard');if(!box)return;
- box.querySelectorAll('.sizeOption').forEach(x=>x.classList.remove('active'));btn.classList.add('active');
+ box.querySelectorAll('.sizeOption').forEach(x=>{x.classList.remove('active');x.setAttribute('aria-pressed','false')});btn.classList.add('active');btn.setAttribute('aria-pressed','true');
+ let status=box.querySelector('.variantSelectionStatus');
+ const color=box.querySelector('.colorDot.active')?.dataset.value||'';
+ const size=btn.dataset.value||'';
+ if(status){const parts=[];if(color)parts.push('Color: '+color);if(size)parts.push('Talla: '+size);status.textContent='✓ Seleccionado · '+parts.join(' · ')}
  updateDetailStockNotice(detailProduct);
 }
 function detailAddToCart(event){
@@ -2257,37 +2323,68 @@ function updateContraEntregaAvailability(city){
  if(note)note.textContent=allowed?'Disponible para pedidos con destino en Cali.':(city?'Solo disponible en Cali. Para otras ciudades, selecciona un pago en línea.':'Solo disponible al seleccionar Cali como ciudad de destino.');
  if(!allowed&&radio.checked){const online=document.querySelector('input[name="paymentMethod"][value="PSE"]');if(online)online.checked=true;}
 }
+function handleCityChange(){
+ const selected=$('customerCity')?.value||'';
+ const wrap=$('customerCityOtherWrap'),input=$('customerCityOther');
+ if(wrap)wrap.hidden=selected!=='Otra';
+ if(input){input.required=selected==='Otra';if(selected!=='Otra')input.value='';}
+ updateShipping();
+}
+function checkoutCityValue(){
+ const selected=$('customerCity')?.value||'';
+ return selected==='Otra'?String($('customerCityOther')?.value||'').trim():selected;
+}
 function updateShipping(){
- const city=$('customerCity')?.value||'';
- updateContraEntregaAvailability(city);
+ const selectedCity=$('customerCity')?.value||'';
+ const city=checkoutCityValue();
+ updateContraEntregaAvailability(selectedCity);
  const checkoutItems=getCheckoutItems();
  const productsTotal=checkoutItems.reduce((sum,item)=>sum+(Number(item.qty)||0)*(Number(item.price)||0),0);
 
- // Regla de envío:
- // Cali: GRATIS
- // Otras ciudades: $15.000
- // Otras ciudades con compra >= $130.000: GRATIS
- checkoutShipping = !city ? 0 : (city==='Cali' || productsTotal>=130000 ? 0 : ENVIO_NACIONAL);
-
+ // Regla de envío: Cali gratis; nacional $15.000; gratis desde $130.000.
+ checkoutShipping = !selectedCity ? 0 : (selectedCity==='Cali' || productsTotal>=130000 ? 0 : ENVIO_NACIONAL);
  if($('shippingValue')){
-   $('shippingValue').textContent = city
-     ? (checkoutShipping===0 ? 'GRATIS' : money(checkoutShipping))
-     : 'Selecciona una ciudad';
+   $('shippingValue').textContent = !selectedCity
+     ? 'Selecciona una ciudad'
+     : (checkoutShipping===0 ? 'GRATIS' : money(checkoutShipping));
  }
-
  if($('shippingNote')){
-   $('shippingNote').textContent = !city
+   $('shippingNote').textContent = !selectedCity
      ? 'Cali: envío gratis. Otras ciudades: $15.000. Envío gratis desde $130.000.'
-     : city==='Cali'
+     : selectedCity==='Cali'
        ? 'Envío gratis dentro de Cali.'
-       : productsTotal>=130000
-         ? 'Envío gratis por compra igual o superior a $130.000.'
-         : 'Envío nacional: $15.000. Envío gratis desde $130.000.';
+       : selectedCity==='Otra' && !city
+         ? 'Escribe tu ciudad. Envío nacional: $15.000 o gratis desde $130.000.'
+         : productsTotal>=130000
+           ? 'Envío gratis por compra igual o superior a $130.000.'
+           : 'Envío nacional: $15.000. Envío gratis desde $130.000.';
  }
-
  updateCheckoutSummary();
 }
-function updateCheckoutSummary(){const checkoutItems=getCheckoutItems();const totalProducts=checkoutItems.reduce((a,x)=>a+x.qty*x.price,0);$('checkoutTotal').textContent=money(totalProducts+checkoutShipping)}
+function updateCheckoutSummary(){
+ const checkoutItems=getCheckoutItems();
+ const totalProducts=checkoutItems.reduce((a,x)=>a+(Number(x.qty)||0)*(Number(x.price)||0),0);
+ const summary=$('checkoutItemSummary');
+ const summaryItems=$('checkoutSummaryItems');
+ if(summary&&summaryItems){
+   if(!checkoutItems.length){summary.hidden=true;summaryItems.innerHTML='';}
+   else{
+     summary.hidden=false;
+     summaryItems.innerHTML=checkoutItems.map(item=>{
+       const product=productos.find(p=>String(p.id)===String(item.id));
+       const thumb=(product&&variantImageUrl(product,item.color||''))||(product&&productImages(product)[0])||'';
+       const title=esc(item.name||product?.name||'Producto');
+       const color=String(item.color||'').trim()||'No aplica';
+       const size=String(item.size||'').trim()||'No aplica';
+       const qty=Math.max(1,Number(item.qty)||1);
+       const subtotal=(Number(item.price)||0)*qty;
+       const image=thumb?`<img class="checkoutSummaryThumb" src="${esc(thumb)}" alt="${title}" loading="lazy" decoding="async" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'checkoutSummaryThumbFallback',textContent:'🛍️'}))">`:'<div class="checkoutSummaryThumbFallback" aria-hidden="true">🛍️</div>';
+       return `<div class="checkoutSummaryItem">${image}<div><div class="checkoutSummaryName">${title}</div><div class="checkoutSummaryVariant">Talla: ${esc(size)} · Color: ${esc(color)} · Cant.: ${qty}</div></div><div class="checkoutSummaryPrice">${money(subtotal)}</div></div>`;
+     }).join('');
+   }
+ }
+ $('checkoutTotal').textContent=money(totalProducts+checkoutShipping);
+}
 function selectedPayment(){
  return document.querySelector('input[name="paymentMethod"]:checked')?.value||'PSE';
 }
@@ -2302,7 +2399,7 @@ function getRegion(city){
 }
 function buildOrderPayload(){
  const name=$('customerName').value.trim(),cedula=$('customerCedula').value.trim(),phone=$('customerPhone').value.trim(),
-       email=$('customerEmail').value.trim(),city=$('customerCity').value,address=$('customerAddress').value.trim(),
+       email=$('customerEmail').value.trim(),city=checkoutCityValue(),address=$('customerAddress').value.trim(),
        neighborhood=$('customerNeighborhood').value.trim();
  const payload={name,cedula,phone,email,city,address,neighborhood,payment:selectedPayment(),
          environment:'production',
@@ -2317,13 +2414,9 @@ function generateReservationReference(){
  const uuid=(crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+'-'+Math.random().toString(36).slice(2));
  return 'JMRES-'+uuid.replace(/[^a-zA-Z0-9-]/g,'').toUpperCase();
 }
-async function reserveInventoryServer(reference,items){
- const {data,error}=await sb.rpc('reserve_inventory',{p_reference:reference,p_items:items.map(x=>({id:x.id,qty:x.qty,color:x.color||'',size:x.size||''})),p_minutes:10});
- if(error) throw new Error('No se pudo reservar el inventario: '+error.message);
- const row=Array.isArray(data)?data[0]:data;
- if(!row?.success) throw new Error(row?.message||'El producto acaba de ser reservado por otro cliente.');
- return row;
-}
+// La reserva se crea en el servidor dentro de wompi-create-checkout mediante
+// reserve_order_inventory. Evitamos reservar primero desde el navegador y luego
+// volver a reservar desde la Edge Function; así hay un único flujo autoritativo.
 async function attachInventoryReservation(oldReference,newReference){
  // Incluso si ambas referencias son iguales, consultar Supabase para comprobar
  // que la reserva siga activa. No dar por válida una reserva local vencida.
@@ -2391,7 +2484,7 @@ async function payWithWompi(payload){
     // cada una cumpla sus 10 minutos; iniciar otro pago no libera las anteriores.
     reservationReference=String(matchingRecord.reference);
     setCurrentReservationRecord(matchingRecord);
-    await reserveInventoryServer(reservationReference,checkoutItems);
+    // La Edge Function comprobará y reutilizará la reserva activa con esta referencia.
     // Es una reserva que ya estaba registrada localmente. Si falla la preparación
     // del pago, no liberar este hold previo: debe conservar su plazo original.
     createdReservation=false;
@@ -2402,7 +2495,7 @@ async function payWithWompi(payload){
     reservationReference=generateReservationReference();
     saveReservationDraft(reservationReference,checkoutItems);
     createdReservation=true;
-    await reserveInventoryServer(reservationReference,checkoutItems);
+    // La reserva se crea de forma atómica en wompi-create-checkout antes de abrir Wompi.
   }
 
   // Usar la referencia de reserva como referencia inicial de pago; no crear
@@ -2414,9 +2507,18 @@ async function payWithWompi(payload){
 
   if(btn)btn.textContent='⏳ Preparando pago...';
 
+  // La llamada fetch directa debe incluir apikey (el cliente supabase sí lo hace
+  // automáticamente). Si existe sesión, se envía también el JWT de esa sesión.
+  // Para compradores anónimos, wompi-create-checkout debe estar desplegada con
+  // verify_jwt=false y validar precio/stock desde el servidor.
+  const functionHeaders={'Content-Type':'application/json','apikey':SUPABASE_KEY};
+  try{
+    const {data:authState}=await sb.auth.getSession();
+    if(authState?.session?.access_token)functionHeaders.Authorization='Bearer '+authState.session.access_token;
+  }catch(sessionError){console.warn('No se pudo recuperar una sesión opcional para preparar el pago.',sessionError)}
   const response=await fetch(WOMPI_SIGNATURE_ENDPOINT,{
    method:'POST',
-   headers:{'Content-Type':'application/json'},
+   headers:functionHeaders,
    body:JSON.stringify(payload)
   });
 
@@ -2517,28 +2619,83 @@ async function payWithWompi(payload){
  }
 }
 
+let contraEntregaInProgress=false;
+const COD_ORDER_DRAFT_KEY='jm_cod_order_draft_v1';
+function getCODOrderReference(payload,items){
+ const fingerprint=JSON.stringify({
+   customer:[payload.name,payload.cedula,payload.phone,payload.email,payload.city,payload.address,payload.neighborhood],
+   items:items.map(x=>({id:String(x.id),qty:Number(x.qty)||0,color:String(x.color||''),size:String(x.size||'')}))
+ });
+ let saved=null;
+ try{saved=JSON.parse(localStorage.getItem(COD_ORDER_DRAFT_KEY)||'null')}catch{}
+ // Keep the same idempotency reference until the server confirms the order. If a
+ // previous request succeeded but its response was lost, changing the cart/address
+ // must not silently create a second order and strand the earlier inventory hold.
+ if(saved?.reference)return saved.reference;
+ const uuid=crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+'-'+Math.random().toString(36).slice(2);
+ const reference='JMCODCLIENT-'+String(uuid).replace(/[^a-zA-Z0-9-]/g,'').toUpperCase();
+ localStorage.setItem(COD_ORDER_DRAFT_KEY,JSON.stringify({reference,fingerprint}));
+ return reference;
+}
+function clearCODOrderReference(reference){
+ try{const saved=JSON.parse(localStorage.getItem(COD_ORDER_DRAFT_KEY)||'null');if(!reference||saved?.reference===reference)localStorage.removeItem(COD_ORDER_DRAFT_KEY)}catch{localStorage.removeItem(COD_ORDER_DRAFT_KEY)}
+}
 async function saveContraEntregaOrder(payload){
+ if(contraEntregaInProgress)return false;
+ contraEntregaInProgress=true;
  const btn=$('checkoutConfirmBtn');if(btn){btn.disabled=true;btn.textContent='⏳ Enviando pedido...'}
- const checkoutItems=getCheckoutItems();
- const subtotal=checkoutItems.reduce((a,x)=>a+x.qty*x.price,0);
- const order={customer_name:payload.name,customer_cedula:payload.cedula,customer_phone:payload.phone,customer_email:payload.email,customer_city:payload.city,customer_address:payload.address,customer_neighborhood:payload.neighborhood,note:'',payment_method:'Contra entrega',subtotal,shipping:checkoutShipping,total:subtotal+checkoutShipping,items:payload.items,status:'pendiente'};
- const {error}=await sb.from('web_orders').insert(order);
- if(error){console.error(error);if(btn){btn.disabled=false;btn.textContent='✅ Confirmar pedido'}showToast('No pudimos registrar el pedido. Ejecuta primero el SQL de pedidos en Supabase.');return false}
- if(!checkoutCart){cart=[];saveWompiCart();} checkoutCart=null; clearPendingWompiReference();closeCheckout();
- ['customerName','customerCedula','customerPhone','customerEmail','customerCity','customerAddress','customerNeighborhood'].forEach(id=>{if($(id))$(id).value=''});
- renderCart();$('orderSuccess')?.classList.add('open');return true;
+ let clientReference='';
+ try{
+   const checkoutItems=getCheckoutItems();
+   clientReference=getCODOrderReference(payload,checkoutItems);
+   // El servidor vuelve a leer precio/código/nombre, valida Cali y reserva las
+   // variantes de forma atómica. El navegador ya no inserta pedidos COD directo.
+   const items=checkoutItems.map(x=>({id:String(x.id),qty:Math.max(1,Number(x.qty)||1),color:String(x.color||''),size:String(x.size||'')}));
+   const {data,error}=await sb.rpc('create_contra_delivery_order',{
+     p_client_reference:clientReference,
+     p_customer_name:payload.name,
+     p_customer_cedula:payload.cedula,
+     p_customer_phone:payload.phone,
+     p_customer_email:payload.email,
+     p_customer_city:payload.city,
+     p_customer_address:payload.address,
+     p_customer_neighborhood:payload.neighborhood,
+     p_items:items
+   });
+   if(error){
+     console.error('No se pudo crear el pedido contra entrega de forma transaccional:',error);
+     const missingRpc=error.code==='PGRST202'||/could not find the function|function .* does not exist|schema cache/i.test(String(error.message||''));
+     showToast(missingRpc?'Falta instalar la migración SQL de inventario/pedidos. No se guardó el pedido.':'No se pudo registrar ni reservar el pedido. El carrito se conservó.');
+     return false;
+   }
+   const result=Array.isArray(data)?data[0]:data;
+   if(!result?.success){showToast(result?.message||'No se pudo registrar el pedido. El carrito se conservó.');return false}
+   clearCODOrderReference(clientReference);
+   if(!checkoutCart){cart=[];saveWompiCart();}
+   checkoutCart=null;clearPendingWompiReference();closeCheckout();
+   ['customerName','customerCedula','customerPhone','customerEmail','customerCity','customerCityOther','customerAddress','customerNeighborhood'].forEach(id=>{if($(id))$(id).value=''});
+   handleCityChange();renderCart();$('orderSuccess')?.classList.add('open');return true;
+ }catch(error){
+   console.error('No se pudo guardar el pedido contra entrega:',error);
+   showToast('Ocurrió un error al registrar el pedido. El carrito se conservó; puedes reintentar sin duplicar el mismo pedido.');
+   return false;
+ }finally{
+   contraEntregaInProgress=false;
+   if(btn){btn.disabled=false;btn.textContent='✅ Confirmar pedido'}
+ }
 }
 async function confirmCheckout(){
  const checkoutItems=getCheckoutItems();
  if(!checkoutItems.length)return;
- const name=$('customerName').value.trim(),cedula=$('customerCedula').value.trim(),phone=$('customerPhone').value.trim(),email=$('customerEmail').value.trim(),city=$('customerCity').value,address=$('customerAddress').value.trim(),neighborhood=$('customerNeighborhood').value.trim();
- if(!name||!cedula||!phone||!email||!city||!address||!neighborhood){showToast('Completa todos los datos obligatorios del pedido.');return}
+ const name=$('customerName').value.trim(),cedula=$('customerCedula').value.trim(),phone=$('customerPhone').value.trim(),email=$('customerEmail').value.trim(),citySelection=$('customerCity').value,city=checkoutCityValue(),address=$('customerAddress').value.trim(),neighborhood=$('customerNeighborhood').value.trim();
+ if(!name||!cedula||!phone||!email||!citySelection||!city||!address||!neighborhood||(citySelection==='Otra'&&!String($('customerCityOther')?.value||'').trim())){showToast('Completa todos los datos obligatorios del pedido, incluida tu ciudad.');return}
+ if(!$('customerEmail').checkValidity()){showToast('Escribe un correo electrónico válido.');$('customerEmail').focus();return}
  updateShipping();
  const payment=selectedPayment();
- if(payment==='Contra entrega'&&city!=='Cali'){
+ if(payment==='Contra entrega'&&citySelection!=='Cali'){
    const online=document.querySelector('input[name="paymentMethod"][value="PSE"]');if(online)online.checked=true;
    showToast('El pago contra entrega solo está disponible en Cali. Para otras ciudades, selecciona un pago en línea.');
-   updateContraEntregaAvailability(city);
+   updateContraEntregaAvailability(citySelection);
    return;
  }
  const payload=buildOrderPayload();
@@ -2548,124 +2705,227 @@ async function confirmCheckout(){
 
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('cartBar')?.classList.contains('cartOpen')){hideCart();return}if($('privacyModal')?.classList.contains('open')&&e.key==='Escape'){closePrivacy();return}if($('checkoutModal')?.classList.contains('open')&&e.key==='Escape'){closeCheckout();return}if(!$('galleryModal')?.classList.contains('open'))return;if(e.key==='Escape')closeGallery();if(e.key==='ArrowLeft')galleryMove(-1);if(e.key==='ArrowRight')galleryMove(1)});
 
+// PostgREST normally returns fewer than 1,000 rows in a single response.
+// Keep the normal path to one request; fetch more pages only if a response hits
+// the cap, so large catalogs/details don't silently truncate.
+async function fetchAllRpcRows(functionName,args=null){
+ const rows=[];
+ const pageSize=1000;
+ const maxRows=100000;
+ for(let from=0;from<maxRows;from+=pageSize){
+   let request=args==null?sb.rpc(functionName):sb.rpc(functionName,args);
+   if(typeof request.range==='function')request=request.range(from,from+pageSize-1);
+   const {data,error}=await request;
+   if(error)return {data:null,error};
+   const batch=Array.isArray(data)?data:(data==null?[]:[data]);
+   rows.push(...batch);
+   if(batch.length<pageSize)return {data:rows,error:null};
+ }
+ return {data:null,error:{message:'La consulta '+functionName+' supera el límite de seguridad de 100.000 filas.'}};
+}
+
 async function load(){
+ publicProductDetailsInitialLoading=true;
+ if(publicProductDetailsLoadGuard)clearTimeout(publicProductDetailsLoadGuard);
+ // If an optional API stalls, allow a product-specific retry after 8 seconds instead
+ // of generating duplicate detail requests while the initial lookup is in flight.
+ publicProductDetailsLoadGuard=setTimeout(()=>{publicProductDetailsInitialLoading=false;},8000);
+ let optionalTasks=null;
  try{
-  // Start independent requests together to reduce catalog startup waiting time.
-  const baseTask=(async()=>await sb.rpc('get_public_catalog'))();
-  const multiTask=(async()=>await sb.rpc('get_public_catalog_multifotos'))();
-  const categoriesTask=(async()=>await sb.from('categories').select('name,sort_order').order('sort_order',{ascending:true}).order('name',{ascending:true}))();
-  const detailsTask=(async()=>await sb.rpc('get_public_product_details'))();
+  // La consulta esencial decide cuándo mostrar el catálogo. Los detalles, multifotos
+  // y categorías se enriquecen en segundo plano para no bloquear la primera pantalla.
+  const baseTask=fetchAllRpcRows('get_public_catalog');
+  const multiTask=fetchAllRpcRows('get_public_catalog_multifotos');
+  const categoriesTask=sb.from('categories').select('name,sort_order').order('sort_order',{ascending:true}).order('name',{ascending:true});
+  const detailsTask=fetchAllRpcRows('get_public_product_details');
+  optionalTasks=Promise.allSettled([detailsTask,multiTask,categoriesTask]);
   const base=await baseTask;
   if(base.error)throw base.error;
-  // Espera la consulta opcional de detalles antes del primer render para evitar
-  // que la ficha abra sin descripción/guía cuando esa RPC termina más tarde.
-  let detailResult=null;
-  try{detailResult=await detailsTask}catch(detailError){console.warn('No se pudo consultar la guía y descripción públicas.',detailError)}
+
+  productos=(base.data||[]).map(p=>({
+    ...p,description:String(p.description||'').trim(),size_guide:String(p.size_guide||'').trim(),
+    size_guide_image:String(p.size_guide_image||'').trim(),quantity:Number(p.quantity)||0,
+    colors:parseVariantList(p.colors),sizes:parseVariantList(p.sizes),variants:normalizeVariants(p.variants),image_paths:[]
+  }));
+  const initialCats=[...new Set(productos.map(p=>String(p.category||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'es'));
+  applyCatalogCategories(initialCats,true);
+  $('error').style.display='none';
+  render();restoreCheckoutFromReservation();
+
+  // The optional requests never block initial interaction. Apply whichever results
+  // succeed; any failed optional endpoint leaves the catalog usable.
+  const [detailSettled,multiSettled,categorySettled]=await optionalTasks;
+  publicProductDetailsInitialLoading=false;if(publicProductDetailsLoadGuard){clearTimeout(publicProductDetailsLoadGuard);publicProductDetailsLoadGuard=null;}
+  let detailsChanged=false,imagesChanged=false,categoriesChanged=false;
+
+  let detailResult=detailSettled.status==='fulfilled'?detailSettled.value:null;
   let detailRows=(!detailResult?.error&&Array.isArray(detailResult?.data))?detailResult.data:null;
   publicProductDetailsNeedsFallback=!!detailResult?.error||!Array.isArray(detailResult?.data)||detailResult.data.length===0;
   if(!detailRows||detailRows.length===0){
-    // Compatibilidad con instalaciones que todavía tienen la RPC anterior,
-    // y con respuestas vacías causadas por un esquema RPC desactualizado.
     try{
-      const fallback=await sb.rpc('get_public_product_descriptions');
+      const fallback=await fetchAllRpcRows('get_public_product_descriptions');
       if(!fallback.error&&Array.isArray(fallback.data)){
-        const combined=new Map((detailRows||[]).map(row=>[String(row.id),row]));
-        fallback.data.forEach(row=>{const key=String(row.id);combined.set(key,{...(combined.get(key)||{}),...row,size_guide:(combined.get(key)||{}).size_guide||'',size_guide_image:(combined.get(key)||{}).size_guide_image||''})});
+        const combined=new Map((detailRows||[]).map(row=>[normalizeDetailId(row.id),row]));
+        fallback.data.forEach(row=>{
+          const key=normalizeDetailId(row.id),prior=combined.get(key)||{};
+          combined.set(key,{...prior,...row,
+            description:String(row.description||prior.description||''),
+            size_guide:String(row.size_guide||prior.size_guide||''),
+            size_guide_image:String(row.size_guide_image||prior.size_guide_image||'')});
+        });
         detailRows=[...combined.values()];
-      }else if(detailResult?.error)console.warn('La RPC pública de detalles falló. Ejecuta la migración SQL actualizada.',detailResult.error);
-    }catch(fallbackError){console.warn('La consulta opcional de detalles no está disponible; el catálogo principal seguirá cargando.',fallbackError)}
+        // If the compatibility RPC returned records, don't issue another chain of
+        // per-product requests merely because the first/new RPC was empty.
+        publicProductDetailsNeedsFallback=detailRows.length===0;
+      }else if(detailResult?.error){
+        console.warn('La RPC pública de detalles no está disponible; los apartados opcionales se intentarán recuperar al abrir un producto.',detailResult.error);
+      }
+    }catch(fallbackError){console.warn('Consulta opcional de detalles no disponible.',fallbackError)}
   }
   if(Array.isArray(detailRows)){
-    publicProductDetails=new Map(detailRows.map(row=>[normalizeDetailId(row.id),normalizeDetailFields(row)]).filter(([id,details])=>id&&hasAnyProductDetails(details)));
+    publicProductDetails=new Map(detailRows.map(row=>[normalizeDetailId(row.id),normalizeDetailFields(row)]).filter(([id])=>!!id));
+    const before=productos;
+    productos=productos.map(p=>{
+      const details=publicProductDetails.get(normalizeDetailId(p.id));
+      if(!details)return p;
+      return {...p,
+        description:String(p.description||'').trim()||details.description,
+        size_guide:String(p.size_guide||'').trim()||details.size_guide,
+        size_guide_image:String(p.size_guide_image||'').trim()||details.size_guide_image
+      };
+    });
+    detailsChanged=productos.some((p,i)=>p.description!==before[i]?.description||p.size_guide!==before[i]?.size_guide||p.size_guide_image!==before[i]?.size_guide_image);
+  }else if(detailSettled.status==='rejected'){
+    console.warn('No se pudo consultar la guía y descripción públicas.',detailSettled.reason);
   }
-  productos=(base.data||[]).map(p=>{const variants=normalizeVariants(p.variants),details=publicProductDetails.get(normalizeDetailId(p.id))||{};return {...p,description:String(p.description||'').trim()||details.description||'',size_guide:String(p.size_guide||'').trim()||details.size_guide||'',size_guide_image:String(p.size_guide_image||'').trim()||details.size_guide_image||'',quantity:Number(p.quantity)||0,colors:parseVariantList(p.colors),sizes:parseVariantList(p.sizes),variants,image_paths:[]};});
-  try{
-   const multi=await multiTask;
-   if(!multi.error&&Array.isArray(multi.data)){
-    const byId=new Map(multi.data.map(x=>[String(x.id),x]));
-    productos=productos.map(p=>{const m=byId.get(String(p.id));return m?{...p,image_paths:Array.isArray(m.image_paths)?m.image_paths:[],image_url:m.image_url||p.image_url}:p});
-   }
-  }catch(multiError){console.warn('Multifotos no disponibles todavía; se muestran los productos normalmente.',multiError)}
+
+  if(multiSettled.status==='fulfilled'&&!multiSettled.value?.error&&Array.isArray(multiSettled.value?.data)){
+    const byId=new Map(multiSettled.value.data.map(x=>[normalizeDetailId(x.id),x]));
+    const before=productos;
+    productos=productos.map(p=>{
+      const m=byId.get(normalizeDetailId(p.id));
+      if(!m)return p;
+      const nextPaths=Array.isArray(m.image_paths)?m.image_paths:[];
+      const nextImage=m.image_url||p.image_url;
+      if(JSON.stringify(nextPaths)!==JSON.stringify(p.image_paths||[])||nextImage!==p.image_url)imagesChanged=true;
+      return {...p,image_paths:nextPaths,image_url:nextImage};
+    });
+  }else if(multiSettled.status==='rejected'){
+    console.warn('Multifotos no disponibles; se conserva la foto principal.',multiSettled.reason);
+  }else if(multiSettled.status==='fulfilled'&&multiSettled.value?.error){
+    console.warn('Multifotos no disponibles; se conserva la foto principal.',multiSettled.value.error);
+  }
+
   const productCats=[...new Set(productos.map(p=>String(p.category||'').trim()).filter(Boolean))];
   let cats=[...productCats].sort((a,b)=>a.localeCompare(b,'es'));
-  try{
-    const cr=await categoriesTask;
-    if(!cr.error){
-      const active=(cr.data||[]).map(x=>String(x.name||'').trim()).filter(Boolean);
-      const activeSet=new Set(active.map(x=>normalizeText(x)));
-      cats=active.filter(c=>activeSet.has(normalizeText(c)) && productCats.some(pc=>normalizeText(pc)===normalizeText(c)));
-      productCats.forEach(pc=>{if(!cats.some(c=>normalizeText(c)===normalizeText(pc)))cats.push(pc)});
-    }
-  }catch(categoryError){console.warn('No se pudo cargar el orden de categorías; se usa el de productos.',categoryError)}
-  $('category').innerHTML='<option value="">Todas las categorías</option>'+cats.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('');
-  populateFilterCategory(cats);
-  renderCategoryButtons(cats);
-  const urlCat=categoryFromUrl(cats);
-  if(urlCat) $('category').value=urlCat;
-  setDirectCategoryMode(urlCat);
-  updateCategoryButtons();
-  renderHeroProducts();
-  $('error').style.display='none';render();restoreCheckoutFromReservation();
- }catch(e){console.error(e);$('error').style.display='block';$('error').textContent='No se pudo cargar el catálogo. Revisa la conexión con Supabase.';$('grid').innerHTML=''}
+  if(categorySettled.status==='fulfilled'&&!categorySettled.value?.error){
+    const active=(categorySettled.value.data||[]).map(x=>String(x.name||'').trim()).filter(Boolean);
+    cats=active.filter(c=>productCats.some(pc=>normalizeText(pc)===normalizeText(c)));
+    productCats.forEach(pc=>{if(!cats.some(c=>normalizeText(c)===normalizeText(pc)))cats.push(pc)});
+  }else if(categorySettled.status==='rejected'){
+    console.warn('No se pudo cargar el orden de categorías; se usa el de productos.',categorySettled.reason);
+  }
+  categoriesChanged=applyCatalogCategories(cats,false);
+  // One render after background enrichment, not multiple renders per endpoint.
+  if(detailsChanged||imagesChanged||categoriesChanged){renderHeroProducts();render();}
+  if(detailProduct){
+    const current=productos.find(p=>normalizeDetailId(p.id)===normalizeDetailId(detailProduct.id));
+    if(current){detailProduct=current;updateDetailDescription(current);}
+  }
+ }catch(e){
+   publicProductDetailsInitialLoading=false;if(publicProductDetailsLoadGuard){clearTimeout(publicProductDetailsLoadGuard);publicProductDetailsLoadGuard=null;}
+   console.error(e);
+   $('error').style.display='block';$('error').textContent='No se pudo cargar el catálogo. Revisa la conexión con Supabase.';
+   if(!productos.length)$('grid').innerHTML='';
+ }
+}
+function applyCatalogCategories(cats,initial=false){
+ const previous=String($('category')?.value||'');
+ const clean=[...new Set((cats||[]).map(c=>String(c||'').trim()).filter(Boolean))];
+ const currentHtml='<option value="">Todas las categorías</option>'+clean.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('');
+ const sel=$('category');
+ const nextHtml=currentHtml;
+ const changed=!!sel&&sel.innerHTML!==nextHtml;
+ if(!initial&&!changed)return false;
+ if(sel&&changed)sel.innerHTML=nextHtml;
+ populateFilterCategory(clean);
+ renderCategoryButtons(clean);
+ const fromUrl=initial?categoryFromUrl(clean):'';
+ const wanted=clean.find(c=>normalizeText(c)===normalizeText(previous))||fromUrl||'';
+ if(sel)sel.value=wanted;
+ setDirectCategoryMode(wanted);
+ updateCategoryButtons();
+ renderHeroProducts();
+ return changed;
 }
 let inventoryRefreshBusy=false;
 async function refreshInventoryStatus(){
- if(inventoryRefreshBusy)return;
+ if(inventoryRefreshBusy||document.visibilityState!=='visible')return;
  inventoryRefreshBusy=true;
  try{
-   const base=await sb.rpc('get_public_catalog');
+   const base=await fetchAllRpcRows('get_public_catalog');
    if(base.error)throw base.error;
-   const fresh=(base.data||[]).map(p=>{
-     const variants=normalizeVariants(p.variants);
-     return {
-       ...p,
-       quantity:Number(p.quantity)||0,
-       colors:parseVariantList(p.colors),
-       sizes:parseVariantList(p.sizes),
-       variants
-     };
-   });
-   const freshMap=new Map(fresh.map(p=>[normalizeDetailId(p.id),p]));
-   let inventoryChanged=false;
-
-   productos=productos.map(old=>{
-     const f=freshMap.get(normalizeDetailId(old.id));
-     if(!f)return old;
-
-     const oldState=JSON.stringify({
-       quantity:Number(old.quantity)||0,
-       colors:old.colors||[],
-       sizes:old.sizes||[],
-       variants:old.variants||[]
-     });
-     const newState=JSON.stringify({
-       quantity:Number(f.quantity)||0,
-       colors:f.colors||[],
-       sizes:f.sizes||[],
-       variants:f.variants||[]
-     });
-
-     if(oldState!==newState)inventoryChanged=true;
-
-     if(!f)return old;
-
-     const detailKey=normalizeDetailId(old.id);
-     const storedDetails=publicProductDetails.get(detailKey)||{};
+   const fresh=(base.data||[]).map(p=>({
+     ...p,quantity:Number(p.quantity)||0,colors:parseVariantList(p.colors),sizes:parseVariantList(p.sizes),variants:normalizeVariants(p.variants)
+   }));
+   const oldMap=new Map(productos.map(p=>[normalizeDetailId(p.id),p]));
+   const freshIds=new Set(fresh.map(p=>normalizeDetailId(p.id)));
+   const currentIds=new Set(oldMap.keys());
+   const productSetChanged=currentIds.size!==freshIds.size||[...freshIds].some(id=>!currentIds.has(id));
+   if(productSetChanged){
+     // Los RPC de catálogo no siempre incluyen descripción/guía y la galería completa.
+     // Cuando se crea o elimina un producto, recargar el enriquecimiento de fondo evita
+     // mostrar una ficha incompleta o conservar una tarjeta eliminada.
+     await load();
+     return;
+   }
+   let visibleChanged=false;
+   let needMultiPhotoRefresh=false;
+   const nextProducts=fresh.map(f=>{
+     const key=normalizeDetailId(f.id),old=oldMap.get(key)||{};
+     if(!oldMap.has(key)||(old.image_url&&f.image_url&&old.image_url!==f.image_url))needMultiPhotoRefresh=true;
+     const storedDetails=publicProductDetails.get(key)||{};
      const preservedDetails={
        description:String(old.description||'').trim()||String(storedDetails.description||'').trim()||String(f.description||'').trim(),
        size_guide:String(old.size_guide||'').trim()||String(storedDetails.size_guide||'').trim()||String(f.size_guide||'').trim(),
        size_guide_image:String(old.size_guide_image||'').trim()||String(storedDetails.size_guide_image||'').trim()||String(f.size_guide_image||'').trim()
      };
-     return {...old,...f,...preservedDetails,image_paths:old.image_paths||[]};
+     const merged={...old,...f,...preservedDetails,image_paths:(old.image_url&&f.image_url&&old.image_url!==f.image_url)?[]:(Array.isArray(old.image_paths)?old.image_paths:[])};
+     const oldSig=JSON.stringify(old?{
+       id:old.id,name:old.name,code:old.code,category:old.category,sale_price:old.sale_price,image_url:old.image_url,
+       quantity:Number(old.quantity)||0,colors:old.colors||[],sizes:old.sizes||[],variants:old.variants||[],
+       description:old.description||'',size_guide:old.size_guide||'',size_guide_image:old.size_guide_image||''
+     }:null);
+     const newSig=JSON.stringify({
+       id:merged.id,name:merged.name,code:merged.code,category:merged.category,sale_price:merged.sale_price,image_url:merged.image_url,
+       quantity:Number(merged.quantity)||0,colors:merged.colors||[],sizes:merged.sizes||[],variants:merged.variants||[],
+       description:merged.description||'',size_guide:merged.size_guide||'',size_guide_image:merged.size_guide_image||''
+     });
+     if(!oldMap.has(key)||oldSig!==newSig)visibleChanged=true;
+     return merged;
    });
-
-   // IMPORTANT: the 8-second check does NOT rebuild the catalog
-   // unless inventory data actually changed.
-   if(inventoryChanged)render();
-
+   if(productos.some(p=>!freshIds.has(normalizeDetailId(p.id))))visibleChanged=true;
+   productos=nextProducts;
+   // Refresh extra-image paths only after a structural catalog change, not on every poll.
+   if(needMultiPhotoRefresh){
+     try{
+       const multi=await sb.rpc('get_public_catalog_multifotos');
+       if(!multi.error&&Array.isArray(multi.data)){
+         const multiMap=new Map(multi.data.map(row=>[normalizeDetailId(row.id),row]));
+         productos=productos.map(p=>{const row=multiMap.get(normalizeDetailId(p.id));return row?{...p,image_paths:Array.isArray(row.image_paths)?row.image_paths:(p.image_paths||[]),image_url:row.image_url||p.image_url}:p});
+       }else if(multi.error)console.warn('El catálogo se actualizó, pero no se pudo renovar la galería multifotos.',multi.error);
+     }catch(multiError){console.warn('El catálogo se actualizó, pero no se pudo renovar la galería multifotos.',multiError)}
+   }
+   // Keep category filters in sync when the catalog changes, without making another request.
+   const productCats=[...new Set(productos.map(p=>String(p.category||'').trim()).filter(Boolean))];
+   const existingCats=[...document.querySelectorAll('#category option')].map(o=>o.value).filter(Boolean);
+   const syncedCats=existingCats.filter(c=>productCats.some(pc=>normalizeText(pc)===normalizeText(c)));
+   productCats.forEach(pc=>{if(!syncedCats.some(c=>normalizeText(c)===normalizeText(pc)))syncedCats.push(pc)});
+   const catsChanged=applyCatalogCategories(syncedCats,false);
+   if(visibleChanged||catsChanged){renderHeroProducts();render();}
    if(detailProduct){
-     const updated=freshMap.get(normalizeDetailId(detailProduct.id));
-     if(updated)detailProduct=productos.find(p=>normalizeDetailId(p.id)===normalizeDetailId(updated.id))||detailProduct;
+     const current=productos.find(p=>normalizeDetailId(p.id)===normalizeDetailId(detailProduct.id));
+     if(current){detailProduct=current;if($('productDetailModal')?.classList.contains('open'))updateDetailDescription(current);}
    }
  }catch(e){
    console.warn('No se pudo actualizar el inventario en tiempo real.',e);
