@@ -914,8 +914,8 @@ body{background:linear-gradient(180deg,#fffaf0 0%,#fff6e6 55%,#f8ecd7 100%);colo
   .detailThumb{width:33px!important;height:39px!important;flex-basis:33px!important;}
 }
 </style>
-<style id="detail-gallery-touch-swipe">
-/* Permite deslizar horizontalmente la foto principal sin interferir con el scroll vertical de la ficha. */
+<style id="detail-gallery-no-horizontal-swipe">
+/* Mantiene el desplazamiento vertical de la ficha; el cambio por gesto horizontal está desactivado. */
 #detailImageWrap{touch-action:pan-y;user-select:none;-webkit-user-select:none}
 #detailImageWrap img{user-select:none;-webkit-user-drag:none}
 </style>
@@ -974,7 +974,7 @@ body{background:linear-gradient(180deg,#fffaf0 0%,#fff6e6 55%,#f8ecd7 100%);colo
 </style>
 
 <style id="sirevya-reference-mobile-redesign">
-/* Encabezado tipo boutique: menú/búsqueda a la izquierda, marca al centro, perfil y bolsa a la derecha. */
+/* Encabezado boutique: menú/búsqueda a la izquierda, marca centrada y carrito a la derecha. */
 .headerLeft{display:flex;align-items:center;gap:2px;flex:none}
 .headerLeft svg,.headerActions svg,.mobileMenuCart svg{width:24px;height:24px;display:block;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round}
 .profileBtn,.cartTop{position:relative;display:grid;place-items:center}
@@ -1118,6 +1118,12 @@ body{background:linear-gradient(180deg,#fffaf0 0%,#fff6e6 55%,#f8ecd7 100%);colo
   width:42px!important;height:42px!important;padding:0!important;background:transparent!important;color:#302822!important;
   border:1px solid transparent!important;border-radius:12px!important;font-size:27px!important;line-height:1!important;
 }
+.detailHeaderNavigation{display:flex!important;align-items:center!important;justify-self:start!important;gap:2px!important;min-width:0!important}
+.detailHeaderBack{position:relative!important;display:flex!important;align-items:center!important;justify-content:center!important;width:36px!important;height:42px!important;flex:none!important;padding:0!important;background:transparent!important;color:#675361!important;border:1px solid transparent!important;border-radius:11px!important;line-height:1!important;transition:background .16s ease,border-color .16s ease,transform .16s ease!important}
+.detailHeaderBack svg{display:block!important;width:19px!important;height:19px!important;fill:none!important;stroke:currentColor!important;stroke-width:1.8!important;stroke-linecap:round!important;stroke-linejoin:round!important}
+.detailHeaderBack:hover{background:#f7f3f8!important;border-color:#eee6f1!important}
+.detailHeaderBack:active{transform:translateX(-1px)!important;background:#f2eaf4!important}
+.detailHeaderBack:focus-visible{outline:3px solid #d7c7e0!important;outline-offset:2px!important}
 .detailHeaderMenu{justify-self:start!important}
 .detailHeaderMenu:active,.detailHeaderCart:active{background:#f3e9df!important}
 .detailHeaderBrand{
@@ -1188,8 +1194,10 @@ body{background:linear-gradient(180deg,#fffaf0 0%,#fff6e6 55%,#f8ecd7 100%);colo
 #productDetailModal .detailRelatedName{color:#302822!important}
 #productDetailModal .detailRelatedPrice{color:#7b1730!important}
 @media(max-width:700px){
-  .detailSiteHeader{min-height:64px!important;padding:7px 11px!important;grid-template-columns:42px minmax(0,1fr) 42px!important;gap:5px!important}
-  .detailHeaderMenu,.detailHeaderCart{width:40px!important;height:40px!important}
+  .detailSiteHeader{min-height:64px!important;padding:7px 11px!important;grid-template-columns:minmax(76px,auto) minmax(0,1fr) 42px!important;gap:5px!important}
+  .detailHeaderNavigation{gap:0!important}
+  .detailHeaderBack{width:34px!important;height:40px!important}
+  .detailHeaderMenu,.detailHeaderCart{width:38px!important;height:40px!important}
   .detailHeaderBrand{gap:5px!important;max-width:100%!important}
   .detailHeaderBrand img{width:35px!important;height:35px!important}
   .detailHeaderBrand b{font-size:23px!important}
@@ -1347,7 +1355,7 @@ body:has(#checkoutModal.open) .waHelpFloat{display:none!important}
 </style>
 
 
-<style id="sirevya-light-logo-no-hero-and-one-swipe-20261012">
+<style id="sirevya-light-header-no-hero-20261012">
 /* Marca con el emblema compartido, sin depender del antiguo monograma de corazón. */
 .brand{min-width:0!important;gap:0!important;justify-content:center!important;align-items:center!important}
 .brandHeaderLogo{display:block!important;width:96px!important;height:76px!important;max-width:100%!important;object-fit:contain!important;border-radius:0!important;flex:none!important}
@@ -1360,7 +1368,8 @@ main#inicio>.benefits .benefit:last-child{border-right:0!important}
 main#inicio>.benefits .benefitIcon{font-size:23px!important;flex:none!important;color:#7b1730!important}
 main#inicio>.benefits .benefit b{font-size:13px!important;font-weight:700!important;color:#302b27!important}
 main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!important;font-size:11px!important;line-height:1.25!important;white-space:normal!important;color:#776f69!important}
-/* El cambio de foto tiene una animación corta y discreta. */
+/* La galería no cambia fotos por arrastre horizontal; mantiene toque breve y hover de escritorio. */
+.photoSwipe,#productDetailModal .detailImageWrap{touch-action:pan-y}
 .photoSwipe img{backface-visibility:hidden;will-change:opacity,transform}
 @media(max-width:680px){
   .topin{height:84px!important;grid-template-columns:auto minmax(0,1fr) auto!important;gap:5px!important}
@@ -1619,7 +1628,10 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
 <div id="productDetailModal" class="productDetailModal" onclick="closeProductDetail(event)" aria-hidden="true">
   <div class="productDetailBox" role="dialog" aria-modal="true" aria-label="Detalle del producto">
     <header class="detailSiteHeader" aria-label="Navegación de Sirevya">
-      <button class="detailHeaderMenu" type="button" aria-label="Abrir menú" onclick="openMobileMenu()"><span aria-hidden="true">☰</span></button>
+      <div class="detailHeaderNavigation" aria-label="Volver y navegación">
+        <button class="detailHeaderBack" type="button" aria-label="Volver al catálogo" title="Volver al catálogo" onclick="closeProductDetail()"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5M12 19l-7-7 7-7"/></svg></button>
+        <button class="detailHeaderMenu" type="button" aria-label="Abrir menú" onclick="openMobileMenu()"><span aria-hidden="true">☰</span></button>
+      </div>
       <button class="detailHeaderBrand detailHeaderWordmark" type="button" onclick="returnToCatalogHome(event)" aria-label="Sirevya, volver al inicio"><strong>Sirevya</strong><small>Tu estilo, nuestra pasión ♥</small></button>
       <button class="detailHeaderCart" type="button" onclick="toggleCart()" aria-label="Abrir carrito" title="Mi carrito">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h14l1 13H4L5 8Z"></path><path d="M8 8V6a4 4 0 0 1 8 0v2"></path></svg><span id="detailCartBadge" class="detailHeaderCartBadge">0</span>
@@ -1896,78 +1908,77 @@ function advancePhotoFromElement(el,d=1){
  el.dataset.index=n;
  setPhotoImage(el,imgs[n]);
 }
+function clearPhotoTouchTimer(photo){
+ if(photo?.__quickChangeTimer){clearTimeout(photo.__quickChangeTimer);photo.__quickChangeTimer=null;}
+}
 function photoTouchStart(event){
  const photo=event.currentTarget;
  if(!photo)return;
- // Cancela el avance suave de hover al empezar un arrastre: una sola acción
- // física no debe cambiar dos imágenes por dos mecanismos distintos.
  if(photo.__hoverTimer){clearTimeout(photo.__hoverTimer);photo.__hoverTimer=null;}
- if(photo.__gestureActive)return;
+ clearPhotoTouchTimer(photo);
  photo.__gestureActive=true;
  photo.__pointerId=event.pointerId;
  photo.__startX=event.clientX;
  photo.__startY=event.clientY;
- photo.__swiped=false;
+ photo.__horizontalMoved=false;
  photo.__verticalMoved=false;
  photo.__moved=false;
- // Mantiene el seguimiento si el ratón sale del área de la foto durante el gesto.
- if(event.pointerType==='mouse'&&typeof photo.setPointerCapture==='function'){
+ photo.__quickPhotoChanged=false;
+ // En el móvil, una pulsación breve (160 ms) avanza una foto. Un toque rápido abre la ficha.
+ if(event.pointerType==='touch'){
+  const pointerId=event.pointerId;
+  photo.__quickChangeTimer=setTimeout(()=>{
+   photo.__quickChangeTimer=null;
+   if(!photo.__gestureActive||photo.__pointerId!==pointerId||photo.__moved)return;
+   const before=Number(photo.dataset.index||0);
+   advancePhotoFromElement(photo,1);
+   photo.__quickPhotoChanged=Number(photo.dataset.index||0)!==before;
+   if(photo.__quickPhotoChanged)photo.__blockClickUntil=Date.now()+650;
+  },160);
+ }else if(event.pointerType==='mouse'&&typeof photo.setPointerCapture==='function'){
   try{photo.setPointerCapture(event.pointerId)}catch{}
  }
 }
 function photoTouchMove(event){
  const photo=event.currentTarget;
- if(!photo || !photo.__gestureActive || event.pointerId!==photo.__pointerId || photo.__swiped)return;
+ if(!photo||!photo.__gestureActive||event.pointerId!==photo.__pointerId)return;
  const dx=event.clientX-photo.__startX;
  const dy=event.clientY-photo.__startY;
- const ax=Math.abs(dx), ay=Math.abs(dy);
- if(ax>8 || ay>8)photo.__moved=true;
- // Los movimientos principalmente verticales se reservan al scroll de la página.
- if(ay>=10 && ay>=ax*1.2){
-   photo.__verticalMoved=true;
-   photo.__blockClickUntil=Date.now()+500;
-   return;
+ const ax=Math.abs(dx),ay=Math.abs(dy);
+ if(ax>8||ay>8){
+  photo.__moved=true;
+  clearPhotoTouchTimer(photo);
  }
- // Umbral algo mayor y bloqueo inmediato: un arrastre largo solo avanza una foto.
- const threshold=64;
- if(ax>=threshold && ax>=ay*1.4){
-   photo.__swiped=true;
-   photo.__blockClickUntil=Date.now()+500;
-   advancePhotoFromElement(photo,dx<0?1:-1);
- }
+ // Scroll vertical normal; los movimientos horizontales no cambian la foto.
+ if(ay>=12&&ay>=ax*.9){photo.__verticalMoved=true;photo.__blockClickUntil=Date.now()+450;return;}
+ if(ax>=12&&ax>=ay*1.1){photo.__horizontalMoved=true;photo.__blockClickUntil=Date.now()+450;}
 }
-
 function photoTouchEnd(event){
  const photo=event.currentTarget;
  if(!photo)return;
- if(photo.__pointerId!=null && event.pointerId!==photo.__pointerId)return;
- // Un swipe horizontal o un scroll vertical no debe abrir el producto.
- if(photo.__swiped || photo.__verticalMoved){
-   if(event.cancelable)event.preventDefault();
-   event.stopPropagation();
+ if(photo.__pointerId!=null&&event.pointerId!==photo.__pointerId)return;
+ clearPhotoTouchTimer(photo);
+ // Evita que un desplazamiento o una pulsación que ya cambió foto abra el producto por accidente.
+ if(photo.__quickPhotoChanged||photo.__horizontalMoved||photo.__verticalMoved){
+  if(event.cancelable)event.preventDefault();
+  event.stopPropagation();
  }
  photo.__gestureActive=false;
  photo.__pointerId=null;
  photo.__startX=null;
  photo.__startY=null;
- photo.__swiped=false;
+ photo.__horizontalMoved=false;
  photo.__verticalMoved=false;
  photo.__moved=false;
 }
-
 function photoClickGuard(event){
  const photo=event.currentTarget;
- if(photo?.__blockClickUntil && Date.now()<photo.__blockClickUntil){
-   event.preventDefault();
-   event.stopPropagation();
- }
+ if(photo?.__blockClickUntil&&Date.now()<photo.__blockClickUntil){event.preventDefault();event.stopPropagation();}
 }
-
 function photoHover(event){
  const photo=event.currentTarget;
- // El avance por presencia del cursor solo aplica a ratón/escritorio; el hover
- // simulado por móviles se ignora para no adelantarse al gesto táctil.
- if(!photo || event.pointerType!=='mouse')return;
+ // En escritorio se conserva el cambio breve al pasar el cursor; el toque móvil usa la pulsación de 160 ms.
+ if(!photo||event.pointerType!=='mouse')return;
  if(photo.__hoverTimer)clearTimeout(photo.__hoverTimer);
  photo.__hoverTimer=setTimeout(()=>{
   photo.__hoverTimer=null;
@@ -2254,6 +2265,50 @@ function renderVariantOptions(p){
  return '';
 }
 let detailProduct=null;
+let productDetailHistoryActive=false;
+function pushProductDetailHistory(productId){
+ try{
+  const state=(history.state&&typeof history.state==='object'&&!Array.isArray(history.state))?{...history.state}:{};
+  state.sirevyaProductDetailOpen=true;
+  state.sirevyaProductDetailId=String(productId||'');
+  history.pushState(state,'',window.location.href);
+  productDetailHistoryActive=true;
+  return true;
+ }catch(error){
+  productDetailHistoryActive=false;
+  console.warn('El navegador no permitió guardar el estado de la ficha del producto.',error);
+  return false;
+ }
+}
+function popProductDetailHistory(){
+ if(!productDetailHistoryActive)return;
+ productDetailHistoryActive=false;
+ try{history.back()}catch(error){console.warn('No se pudo limpiar el historial de la ficha.',error)}
+}
+window.addEventListener('popstate',()=>{
+ const modal=$('productDetailModal');
+ if(!modal?.classList.contains('open'))return;
+ // Si una navegación anterior terminó justo después de abrir otra ficha, no cerrar la nueva.
+ if(history.state?.sirevyaProductDetailOpen===true&&productDetailHistoryActive)return;
+ // Si un panel secundario está encima, cerrarlo primero y mantener el estado del producto.
+ if($('galleryModal')?.classList.contains('open')){
+  closeGallery();
+  if(detailProduct)pushProductDetailHistory(detailProduct.id);
+  return;
+ }
+ if($('mobileMenu')?.classList.contains('open')){
+  closeMobileMenu();
+  if(detailProduct)pushProductDetailHistory(detailProduct.id);
+  return;
+ }
+ if($('cartBar')?.classList.contains('cartOpen')){
+  hideCart();
+  if(detailProduct)pushProductDetailHistory(detailProduct.id);
+  return;
+ }
+ productDetailHistoryActive=false;
+ closeProductDetail(null,{fromPopState:true});
+});
 
 function hasOwnActiveReservationForProduct(productId){
  // Solo considerar propio el producto si existe una reserva vigente que lo incluya.
@@ -2274,8 +2329,10 @@ function openProductDetail(id,event){
  if(event){event.preventDefault();event.stopPropagation()}
  const p=productos.find(x=>String(x.id)===String(id));if(!p)return;
  if(productIsBlockedForThisDevice(p)){showInventoryBlockedMessage();return;}
- detailProduct=p;
  const modal=$('productDetailModal');if(!modal)return;
+ const alreadyOpen=modal.classList.contains('open');
+ if(!alreadyOpen)pushProductDetailHistory(p.id);
+ detailProduct=p;
  const scrollBox=modal.querySelector('.productDetailBox');if(scrollBox)scrollBox.scrollTop=0;
  $('detailName').textContent=elegantProductTitle(p.name)||'Producto';
  $('detailPrice').textContent=money(p.sale_price);
@@ -2299,15 +2356,19 @@ function openProductDetail(id,event){
 }
 function returnToCatalogHome(event){
  if(event){event.preventDefault();event.stopPropagation()}
- closeProductDetail();
+ const detailWasOpen=$('productDetailModal')?.classList.contains('open');
+ const shouldPopProductState=detailWasOpen&&productDetailHistoryActive;
+ if(detailWasOpen)closeProductDetail(null,{skipHistory:true});
+ else closeProductDetail();
  closeMobileMenu();
  const search=$('search');if(search){search.value='';search.blur()}
  const searchRow=$('catalogSearchRow');if(searchRow)searchRow.classList.remove('mobileSearchOpen');
  const tools=document.querySelector('.marketplaceToolbar');if(tools)tools.classList.remove('mobileToolsOpen');
  if(typeof showAllCatalog==='function')showAllCatalog();
  else window.scrollTo({top:0,behavior:'auto'});
- // Neutraliza hashes viejos para impedir el salto automático del navegador.
- try{history.replaceState(null,'',window.location.pathname+window.location.search)}catch{}
+ // Si veníamos de una ficha, elimina su entrada de historial sin salir del catálogo.
+ if(shouldPopProductState)popProductDetailHistory();
+ else {try{history.replaceState(null,'',window.location.pathname+window.location.search)}catch{}}
  window.scrollTo({top:0,behavior:'auto'});
  return false;
 }
@@ -2495,45 +2556,9 @@ function selectDetailImage(url,event){
  image.src=url;
  document.querySelectorAll('.detailThumb').forEach(b=>b.classList.toggle('active',b.querySelector('img')?.src===url));
 }
-// Deslizar sobre la foto principal permite cambiar de imagen sin tener que tocar las miniaturas.
-let detailImageTouchStart=null;
-let detailSwipeSuppressClickUntil=0;
-function startDetailImageSwipe(event){
- if(!event.touches||event.touches.length!==1){detailImageTouchStart=null;return}
- const touch=event.touches[0];
- detailImageTouchStart={x:touch.clientX,y:touch.clientY};
-}
-function endDetailImageSwipe(event){
- if(!detailImageTouchStart||!event.changedTouches||!event.changedTouches.length){detailImageTouchStart=null;return}
- const start=detailImageTouchStart;detailImageTouchStart=null;
- const touch=event.changedTouches[0];
- const dx=touch.clientX-start.x,dy=touch.clientY-start.y;
- // Ignora taps y movimientos verticales para mantener el zoom por toque y el scroll normal.
- if(Math.abs(dx)<42||Math.abs(dx)<Math.abs(dy)*1.25)return;
- if(!detailProduct)return;
- const current=String($('detailImage')?.currentSrc||$('detailImage')?.src||'');
- const images=detailGalleryImages(detailProduct,current);
- if(images.length<2)return;
- const currentKey=normalizeImageUrl(current);
- let index=images.findIndex(url=>normalizeImageUrl(url)===currentKey);
- const direction=dx<0?1:-1;
- if(index<0)index=0;
- const next=(index+direction+images.length)%images.length;
- detailSwipeSuppressClickUntil=Date.now()+500;
- if(event.cancelable)event.preventDefault();
- selectDetailImage(images[next]);
-}
-function cancelDetailImageSwipe(){detailImageTouchStart=null}
-const detailImageSwipeArea=$('detailImageWrap');
-if(detailImageSwipeArea){
- detailImageSwipeArea.addEventListener('touchstart',startDetailImageSwipe,{passive:true});
- detailImageSwipeArea.addEventListener('touchend',endDetailImageSwipe,{passive:false});
- detailImageSwipeArea.addEventListener('touchcancel',cancelDetailImageSwipe,{passive:true});
-}
+/* La foto principal no cambia por deslizamiento; la galería sigue disponible desde las miniaturas y al tocar la imagen. */
 function openDetailGallery(event){
  if(event){event.preventDefault();event.stopPropagation()}
- // Los navegadores pueden emitir un click al terminar un gesto de deslizar; no abrir zoom en ese caso.
- if(Date.now()<detailSwipeSuppressClickUntil)return;
  if(!detailProduct)return;
  const current=String($('detailImage')?.currentSrc||$('detailImage')?.src||'');
  const images=detailGalleryImages(detailProduct,current);
@@ -2608,11 +2633,15 @@ function detailBuyNow(event){
  $('checkoutModal').classList.add('open');
  document.body.style.overflow='hidden';
 }
-function closeProductDetail(event){
+function closeProductDetail(event,options={}){
  if(event&&event.target!==$('productDetailModal'))return;
- const modal=$('productDetailModal');if(modal){modal.classList.remove('open');modal.setAttribute('aria-hidden','true')}
- document.body.style.overflow='';
+ const modal=$('productDetailModal');
+ const wasOpen=!!modal?.classList.contains('open');
+ if(modal){modal.classList.remove('open');modal.setAttribute('aria-hidden','true')}
  detailProduct=null;
+ const anotherOverlayOpen=$('mobileMenu')?.classList.contains('open')||$('checkoutModal')?.classList.contains('open')||$('cartBar')?.classList.contains('cartOpen')||$('galleryModal')?.classList.contains('open')||$('privacyModal')?.classList.contains('open')||$('orderSuccess')?.classList.contains('open');
+ document.body.style.overflow=anotherOverlayOpen?'hidden':'';
+ if(wasOpen&&productDetailHistoryActive&&!options.fromPopState&&!options.skipHistory)popProductDetailHistory();
 }
 
 function toggleHeaderSearch(){
@@ -2641,7 +2670,9 @@ function openMobileMenu(){
 function closeMobileMenu(event){
  if(event&&event.target!==$('mobileMenu'))return;
  const el=$('mobileMenu');if(!el)return;
- el.classList.remove('open');el.setAttribute('aria-hidden','true');document.body.style.overflow='';
+ el.classList.remove('open');el.setAttribute('aria-hidden','true');
+ const anotherOverlayOpen=$('productDetailModal')?.classList.contains('open')||$('checkoutModal')?.classList.contains('open')||$('cartBar')?.classList.contains('cartOpen')||$('galleryModal')?.classList.contains('open')||$('privacyModal')?.classList.contains('open')||$('orderSuccess')?.classList.contains('open');
+ document.body.style.overflow=anotherOverlayOpen?'hidden':'';
 }
 function selectCategoryFromMenu(cat){
  closeMobileMenu();
