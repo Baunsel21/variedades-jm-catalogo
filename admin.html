@@ -123,6 +123,21 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
 @media(max-width:780px){.ordersSummary{grid-template-columns:repeat(2,1fr)}.orderFilters{grid-template-columns:1fr}.orderHead{flex-direction:column}}
 
 .photoPreview{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}.photoPreview img{width:78px;height:78px;object-fit:cover;border-radius:12px;border:1px solid var(--border);background:#f3f4f6}.photoPreview .photoItem{position:relative}.photoPreview .photoItem span{position:absolute;left:4px;bottom:4px;background:#111827cc;color:#fff;border-radius:7px;padding:2px 5px;font-size:10px}.multiGallery{display:flex;gap:7px;overflow-x:auto;margin-top:8px}.multiGallery img{width:54px;height:54px;object-fit:cover;border-radius:9px;border:1px solid var(--border)}
+.photoPreview .photoItem{width:104px;display:flex;flex-direction:column;gap:5px;align-items:stretch}
+.photoPreview .photoItem img{width:104px;height:104px;flex:none}
+.photoPreview .photoItem .photoCaption{position:static;background:transparent;color:var(--muted);padding:0;font-size:11px;line-height:1.25}
+.removePhotoBtn{width:100%;border:1px solid #ffd0d2;background:#fff0f1;color:#a51d25;border-radius:9px;padding:7px 5px;font-size:11px;font-weight:900}
+.removePhotoBtn:hover{background:#ffe2e4}.removePhotoBtn:disabled{opacity:.55;cursor:not-allowed}
+.paymentSwitch{position:relative;display:inline-flex;align-items:center;flex:none;cursor:pointer}
+.paymentSwitch input{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
+.paymentSwitchTrack{width:52px;height:30px;border-radius:999px;background:#b9bdc8;display:block;position:relative;transition:background .18s ease;box-shadow:inset 0 1px 3px #0002}
+.paymentSwitchTrack:before{content:"";position:absolute;left:3px;top:3px;width:24px;height:24px;border-radius:50%;background:#fff;box-shadow:0 1px 4px #0003;transition:transform .18s ease}
+.paymentSwitch input:checked+.paymentSwitchTrack{background:#159447}
+.paymentSwitch input:checked+.paymentSwitchTrack:before{transform:translateX(22px)}
+.paymentSwitch input:focus-visible+.paymentSwitchTrack{outline:3px solid #7c3aed55;outline-offset:3px}
+.paymentSwitch input:disabled+.paymentSwitchTrack{opacity:.5;cursor:not-allowed}
+.paymentSettingsHelp{font-size:12px;color:var(--muted);line-height:1.5}
+
 .sizeGuideUploadBox{padding:13px;border:1px solid var(--border);border-radius:13px;background:#faf8f5}.sizeGuideUploadLabel{display:block;font-weight:800;margin-bottom:8px}.sizeGuideUploadBox input[type=file]{display:block;width:100%;max-width:100%;margin:4px 0 8px}.sizeGuidePreviewItem{display:inline-flex;flex-direction:column;align-items:flex-start;gap:5px;max-width:100%}.sizeGuidePreviewItem img{display:block;width:auto;max-width:min(220px,100%);height:auto;max-height:220px;object-fit:contain;border:1px solid var(--border);border-radius:10px;background:#fff}.sizeGuidePreviewItem span{font-size:11px;color:var(--muted,#777)}
 </style>
 
@@ -348,6 +363,16 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
         <div><h2 style="margin:0">⚙️ Configuración y herramientas</h2><p class="muted">Opciones para cuidar y llevar tus datos.</p></div>
         <div class="sectionGrid">
           <div class="box"><h3>☁️ Conexión</h3><p class="muted">Los datos principales se guardan en Supabase y pueden consultarse desde tus dispositivos con la misma cuenta.</p><div class="status ok">✓ Conexión preparada</div></div>
+          <div class="box" style="grid-column:1/-1" id="onlinePaymentsSettingsBox">
+            <div class="rowBetween" style="align-items:flex-start;gap:16px;flex-wrap:wrap">
+              <div style="flex:1;min-width:220px"><h3 style="margin-bottom:7px">💳 Pagos en línea del catálogo</h3><p class="muted" style="margin-top:0">Controla si los clientes pueden pagar mediante Wompi. Al desactivarlo, el catálogo ocultará PSE, tarjetas, Nequi y Botón Bancolombia; solo quedará contraentrega en Cali, con envío gratis.</p></div>
+              <label class="paymentSwitch" for="onlinePaymentsToggle" aria-label="Activar o desactivar pagos en línea"><input id="onlinePaymentsToggle" type="checkbox" checked disabled><span class="paymentSwitchTrack" aria-hidden="true"></span></label>
+            </div>
+            <div id="onlinePaymentsStateText" class="paymentSettingsHelp" aria-live="polite">Cargando configuración de pagos…</div>
+            <div id="onlinePaymentsStatus" class="status" role="status" aria-live="polite" style="margin-top:10px">Consultando Supabase…</div>
+            <div style="margin-top:12px"><button id="saveOnlinePaymentsBtn" class="primary" onclick="saveOnlinePaymentSettings()" disabled>💾 Guardar cambios</button></div>
+            <p class="paymentSettingsHelp" style="margin-bottom:0">Los cambios se guardan en Supabase y se consultan desde el catálogo al abrir el pago y durante la navegación.</p>
+          </div>
           <div class="box"><h3>🏪 Personalización</h3>
             <p class="muted">Cambia el nombre y el icono que aparecen en la aplicación.</p>
             <label>Nombre del negocio<input id="businessName" placeholder="Variedades JM" maxlength="40"></label>
@@ -416,6 +441,9 @@ let categoryRecords=[];
 let categoryOrderSaving=false;
 let editingProductImages=[];
 let editingProductImageLoadToken=0;
+let editingProductImagesLoadError=null;
+let onlinePaymentSettingLoaded=false;
+let onlinePaymentSettingOriginal=true;
 const money=n=>new Intl.NumberFormat("es-CO",{style:"currency",currency:"COP",maximumFractionDigits:0}).format(Number(n)||0);
 const esc=s=>String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));
 const $=id=>document.getElementById(id);
@@ -607,6 +635,74 @@ async function deleteProductImagesFromR2(productId){
 }
 
 
+function setOnlinePaymentAdminStatus(message,kind=''){
+ const el=$("onlinePaymentsStatus");if(!el)return;
+ el.className='status'+(kind?' '+kind:'');el.textContent=message;
+}
+function updateOnlinePaymentAdminLabel(){
+ const input=$("onlinePaymentsToggle"),text=$("onlinePaymentsStateText"),save=$("saveOnlinePaymentsBtn");
+ if(!input||!text)return;
+ const enabled=!!input.checked;
+ text.textContent=enabled
+  ?'Activado: se verá como el catálogo original: PSE, tarjetas, Nequi, Botón Bancolombia y contraentrega en Cali. Cali tiene envío gratis; en otras ciudades el envío es de $15.000, gratis desde $130.000.'
+  :'Desactivado: solo se mostrará Pago contraentrega, disponible únicamente en Cali y con envío gratis. PSE, tarjetas, Nequi y Botón Bancolombia no aparecerán.';
+ if(save)save.disabled=!onlinePaymentSettingLoaded||enabled===onlinePaymentSettingOriginal;
+}
+async function loadOnlinePaymentSettingsAdmin(){
+ const input=$("onlinePaymentsToggle"),save=$("saveOnlinePaymentsBtn");
+ if(input)input.disabled=true;if(save)save.disabled=true;
+ onlinePaymentSettingLoaded=false;
+ setOnlinePaymentAdminStatus('Cargando la configuración guardada…');
+ try{
+  const {data,error}=await sb.rpc('get_online_payment_status');
+  if(error)throw error;
+  const row=Array.isArray(data)?data[0]:data;
+  if(!row||typeof row.online_payments_enabled!=='boolean')throw new Error('Supabase no devolvió la configuración de pagos esperada.');
+  onlinePaymentSettingOriginal=row.online_payments_enabled;
+  if(input){input.checked=onlinePaymentSettingOriginal;input.disabled=false;}
+  onlinePaymentSettingLoaded=true;
+  setOnlinePaymentAdminStatus('Configuración cargada desde Supabase.','ok');
+  updateOnlinePaymentAdminLabel();
+  return true;
+ }catch(error){
+  console.error('No se pudo cargar la configuración de pagos:',error);
+  if(input)input.disabled=true;
+  if(save)save.disabled=true;
+  const message=String(error?.message||error||'Error desconocido');
+  setOnlinePaymentAdminStatus('No se pudo cargar. Ejecuta sirevya_configuracion_pagos.sql en Supabase y vuelve a abrir Configuración. Detalle: '+message,'err');
+  if($("onlinePaymentsStateText"))$("onlinePaymentsStateText").textContent='El interruptor está deshabilitado porque la configuración compartida aún no se pudo leer.';
+  return false;
+ }
+}
+async function saveOnlinePaymentSettings(){
+ const input=$("onlinePaymentsToggle"),button=$("saveOnlinePaymentsBtn");
+ if(!onlinePaymentSettingLoaded||!input)return alert('Primero carga correctamente la configuración de pagos desde Supabase.');
+ const desired=!!input.checked;
+ if(desired===onlinePaymentSettingOriginal){updateOnlinePaymentAdminLabel();return;}
+ if(button){button.disabled=true;button.textContent='⏳ Guardando…';}
+ if(input)input.disabled=true;
+ try{
+  const {data,error}=await sb.rpc('set_online_payment_status',{p_enabled:desired});
+  if(error)throw error;
+  const row=Array.isArray(data)?data[0]:data;
+  if(!row||typeof row.online_payments_enabled!=='boolean')throw new Error('Supabase no confirmó el cambio.');
+  onlinePaymentSettingOriginal=row.online_payments_enabled;
+  input.checked=onlinePaymentSettingOriginal;
+  setOnlinePaymentAdminStatus('Cambios guardados en Supabase. El catálogo los consultará automáticamente.','ok');
+  updateOnlinePaymentAdminLabel();
+  toast(onlinePaymentSettingOriginal?'Pagos en línea activados':'Pagos en línea desactivados');
+ }catch(error){
+  console.error('No se pudo guardar la configuración de pagos:',error);
+  input.checked=onlinePaymentSettingOriginal;
+  setOnlinePaymentAdminStatus('No se guardó ningún cambio. Comprueba que este usuario sea el administrador autorizado y que el SQL esté instalado. Detalle: '+(error?.message||error),'err');
+  updateOnlinePaymentAdminLabel();
+ }finally{
+  if(input)input.disabled=!onlinePaymentSettingLoaded;
+  if(button){button.textContent='💾 Guardar cambios';updateOnlinePaymentAdminLabel();}
+ }
+}
+
+
 function applyBrand(){
   document.querySelectorAll(".brand b").forEach(x=>x.textContent=brandName);
   document.querySelectorAll(".hero h2").forEach(x=>x.textContent="Resumen de tu negocio");
@@ -687,7 +783,7 @@ async function startApp(){
    brandIcon=publicWorkerImage(brandIcon);
  }
  localStorage.setItem("jm_brand_name",brandName);localStorage.setItem("jm_brand_icon",brandIcon);localStorage.setItem("jm_brand_icon_path",brandIconPath);applyBrand();
- $("vFecha").value=new Date().toISOString().slice(0,10);$("gFecha").value=new Date().toISOString().slice(0,10);setDateText();await cargarTodo();await loadCategoriesFromTable();setInventoryMode(inventoryMode,false);
+ $("vFecha").value=new Date().toISOString().slice(0,10);$("gFecha").value=new Date().toISOString().slice(0,10);setDateText();await cargarTodo();await loadCategoriesFromTable();await loadOnlinePaymentSettingsAdmin();setInventoryMode(inventoryMode,false);
 }
 function setDateText(){const d=new Date();$("todayText").textContent=d.toLocaleDateString("es-CO",{weekday:"long",day:"numeric",month:"long",year:"numeric"})}
 function show(id,btn){
@@ -1230,11 +1326,15 @@ async function uploadProductImages(productId, files, userId){
 let productPreviewObjectUrls=[];
 function renderExistingProductPhotoPreview(){
  const box=$("existingPhotoPreview"),status=$("existingPhotoStatus");if(!box)return;
- box.innerHTML=editingProductImages.map((photo,i)=>`<div class="photoItem"><img loading="lazy" decoding="async" src="${esc(photo.url)}" alt="Foto guardada ${i+1}" onerror="this.style.opacity='.35';this.title='No se pudo cargar la vista previa de esta foto'"><span>${i===0?'Principal guardada':'Guardada '+(i+1)}</span></div>`).join('');
+ box.innerHTML=editingProductImages.map((photo,i)=>`<div class="photoItem"><img loading="lazy" decoding="async" src="${esc(photo.url)}" alt="Foto guardada ${i+1}" onerror="this.style.opacity='.35';this.title='No se pudo cargar la vista previa de esta foto'"><span class="photoCaption">${photo.isPrimary?'Foto principal':'Foto guardada '+(i+1)}</span><button type="button" class="removePhotoBtn" onclick="eliminarFotoProducto(${i})" ${editingProductImagesLoadError?'disabled title="No se puede borrar porque la galería no se pudo leer completa"':''}>🗑️ Eliminar foto</button></div>`).join('');
  if(status){
-  status.textContent=editingProductImages.length
-   ?`${editingProductImages.length} foto${editingProductImages.length===1?'':'s'} guardada${editingProductImages.length===1?'':'s'} en este producto. No necesitas volver a subirlas.`
-   :'Este producto no tiene imágenes guardadas disponibles para mostrar.';
+  if(editingProductImagesLoadError){
+   status.textContent='No se pudo leer la galería completa. Por seguridad, no elimines fotos hasta que se restablezca la conexión con Supabase.';
+  }else{
+   status.textContent=editingProductImages.length
+    ?`${editingProductImages.length} foto${editingProductImages.length===1?'':'s'} guardada${editingProductImages.length===1?'':'s'}. Puedes quitar cada foto individualmente; las fotos nuevas que selecciones se añadirán al guardar.`
+    :'Este producto no tiene imágenes guardadas disponibles para mostrar.';
+  }
  }
 }
 function renderPhotoPreview(){
@@ -1245,33 +1345,48 @@ function renderPhotoPreview(){
 }
 async function loadExistingProductImages(productId,primaryImage){
  const token=++editingProductImageLoadToken;
- editingProductImages=[];
+ editingProductImages=[];editingProductImagesLoadError=null;
  const status=$("existingPhotoStatus"),box=$("existingPhotoPreview");
  if(box)box.innerHTML='';
  if(status)status.textContent='Cargando las fotos guardadas…';
  const paths=[];
- if(primaryImage)paths.push(String(primaryImage));
+ const addPath=(value,isPrimary=false,inGallery=false)=>{
+  const path=String(value||'').trim();if(!path)return;
+  const normalizedKey=imageObjectKey(path)||path;
+  const existing=paths.find(item=>(imageObjectKey(item.path)||item.path)===normalizedKey);
+  if(existing){
+   // If the same object is referenced as the main image and a gallery row,
+   // prefer the exact gallery path so its Supabase row can be removed safely.
+   if(inGallery&&!existing.inGallery)existing.path=path;
+   existing.isPrimary=existing.isPrimary||isPrimary;
+   existing.inGallery=existing.inGallery||inGallery;
+   return;
+  }
+  paths.push({path,isPrimary,inGallery});
+ };
+ if(primaryImage)addPath(primaryImage,true,false);
  let tableError=null;
  try{
   const {data,error}=await sb.from('product_images').select('image_path,sort_order').eq('product_id',productId).order('sort_order',{ascending:true});
   if(error)tableError=error;
-  else (data||[]).forEach(row=>{if(row.image_path&&!paths.includes(String(row.image_path)))paths.push(String(row.image_path));});
+  else (data||[]).forEach(row=>addPath(row.image_path,String(row.image_path||'')===String(primaryImage||''),true));
  }catch(error){tableError=error;}
  if(token!==editingProductImageLoadToken||String(editingId)!==String(productId))return;
+ const missingGalleryTable=!!tableError&&isMissingTableError(tableError,'product_images');
+ editingProductImagesLoadError=tableError&&!missingGalleryTable?tableError:null;
  const normalized=[];const seen=new Set();
- for(const path of paths){
-  const url=getImageUrl(path);
+ for(const item of paths){
+  const url=getImageUrl(item.path);
   if(!url)continue;
-  const key=String(path).trim();
-  if(seen.has(key))continue;
-  seen.add(key);normalized.push({path:key,url});
+  if(seen.has(item.path))continue;
+  seen.add(item.path);normalized.push({path:item.path,url,isPrimary:!!item.isPrimary,inGallery:!!item.inGallery});
  }
  editingProductImages=normalized;
  renderExistingProductPhotoPreview();
- if(tableError&&normalized.length&&status){
-  status.textContent=`Se muestra la foto principal; no se pudieron consultar todas las imágenes guardadas (${tableError.message||'error de lectura'}).`;
- }else if(tableError&&!normalized.length&&status){
-  status.textContent='No se pudo consultar la galería guardada. No se ha cambiado ni eliminado ninguna foto.';
+ if(tableError&&status){
+  status.textContent=missingGalleryTable
+   ?'La galería múltiple no está instalada en este esquema; solo se podrán gestionar las imágenes registradas en el campo principal del producto.'
+   :`No se pudo consultar la galería completa (${tableError.message||'error de lectura'}). Las fotos no se podrán eliminar por seguridad hasta recuperar la conexión.`;
  }
 }
 function renderSizeGuidePhotoPreview(){
@@ -1291,6 +1406,115 @@ function removeSizeGuidePhoto(){
  editingSizeGuideImagePath="";sizeGuideImageRemoveRequested=true;
  renderSizeGuidePhotoPreview();
 }
+async function deleteSingleProductImageFromR2(productId,imagePath){
+ const key=imageObjectKey(imagePath);
+ // External URLs or legacy storage URLs do not belong to the R2 Worker.
+ if(!key||/^https?:\/\//i.test(key)||!key.startsWith(`products/${productId}/`))return {skipped:true};
+ const {data:{session}}=await sb.auth.getSession();
+ if(!session?.access_token)throw new Error('Tu sesión caducó. Vuelve a iniciar sesión.');
+ const url=IMAGE_WORKER_URL+'/_admin/image?key='+encodeURIComponent(key);
+ const res=await fetch(url,{method:'DELETE',headers:{Authorization:'Bearer '+session.access_token},cache:'no-store'});
+ const body=await res.text();
+ if(!res.ok){let message=body;try{const parsed=JSON.parse(body);message=parsed.message||parsed.error||body}catch{};throw new Error(message||`No se pudo borrar la foto de Cloudflare R2 (${res.status}).`)}
+ try{return JSON.parse(body)}catch{return {ok:true,deleted:1}}
+}
+async function eliminarFotoProducto(index){
+ if(!editingId)return alert('Abre el producto en modo edición antes de eliminar una foto.');
+ if(editingProductImagesLoadError)return alert('No se pudo leer la galería completa desde Supabase. No se ha borrado nada; vuelve a cargar el producto cuando la conexión esté estable.');
+ const photo=editingProductImages[index];if(!photo)return;
+ const productId=editingId;
+ if(!confirm(`¿Eliminar únicamente esta foto de ${productos.find(x=>String(x.id)===String(productId))?.name||'este producto'}? Esta acción no se puede deshacer.`))return;
+ const product=productos.find(x=>String(x.id)===String(productId));
+ const oldPrimary=product?.image_url||null;
+ const removingPrimary=!!photo.isPrimary||String(oldPrimary||'')===String(photo.path);
+ const replacement=removingPrimary?editingProductImages.find((item,i)=>i!==index)||null:null;
+ const nextPrimary=removingPrimary?(replacement?.path||null):oldPrimary;
+ let primaryChanged=false;
+ try{
+  // If the main image is being removed, choose the next saved product image first.
+  // That ensures the database never intentionally points at the deleted image.
+  if(removingPrimary){
+   const updated=await sb.from('products').update({image_url:nextPrimary}).eq('id',productId).select('id').maybeSingle();
+   if(updated.error)throw new Error('No se pudo actualizar la foto principal en Supabase: '+updated.error.message);
+   if(!updated.data)throw new Error('Supabase no confirmó la actualización de la foto principal. No se borró la imagen física.');
+   primaryChanged=true;
+  }
+  if(photo.inGallery){
+   // Exigir confirmación de Supabase antes de borrar el objeto físico. Un DELETE
+   // con RLS puede devolver cero filas sin error; no debemos borrar R2 en ese caso.
+   const removed=await sb.from('product_images').delete()
+    .eq('product_id',productId).eq('image_path',photo.path).select('image_path');
+   if(removed.error||!Array.isArray(removed.data)||removed.data.length===0){
+    if(primaryChanged){
+     const rollback=await sb.from('products').update({image_url:oldPrimary}).eq('id',productId);
+     if(rollback.error)console.error('No se pudo restaurar la foto principal tras el error de galería:',rollback.error);
+    }
+    throw new Error(removed.error
+     ?'No se pudo quitar la referencia de la galería en Supabase: '+removed.error.message
+     :'Supabase no confirmó que quitó la foto de la galería. No se borró el archivo de R2.');
+   }
+  }
+  if(primaryChanged&&product)product.image_url=nextPrimary;
+  editingProductImages.splice(index,1);
+  if(removingPrimary&&replacement){
+   editingProductImages.forEach(item=>{item.isPrimary=item===replacement;});
+  }
+  renderExistingProductPhotoPreview();
+  let cleanupWarning='';
+  const photoKey=imageObjectKey(photo.path);
+  const stillReferenced=!!photoKey&&productos.some(p=>{
+   const isCurrent=String(p.id)===String(productId);
+   const isPrimary=imageObjectKey(p.image_url)===photoKey;
+   const isSizeGuide=imageObjectKey(p.size_guide_image)===photoKey;
+   const isVariant=parseVariants(p.variants).some(v=>imageObjectKey(v.image_path)===photoKey);
+   return ((!isCurrent&&isPrimary)||isSizeGuide||isVariant);
+  });
+  let sharedGalleryReference=false,galleryReferenceCheckFailed=false;
+  if(photoKey&&!stillReferenced){
+   try{
+    // Don't delete an R2 object while another product's gallery uses the same key.
+    const candidates=[...new Set([String(photo.path||''),String(photoKey||'')].filter(Boolean))];
+    const foundRows=[];
+    for(const candidate of candidates){
+     const refs=await sb.from('product_images').select('product_id,image_path')
+      .eq('image_path',candidate);
+     if(refs.error)throw refs.error;
+     foundRows.push(...(refs.data||[]));
+    }
+    sharedGalleryReference=foundRows.some(row=>imageObjectKey(row.image_path)===photoKey);
+   }catch(referenceError){
+    if(isMissingTableError(referenceError,'product_images')){
+     // The gallery table is optional in this catalog. If it does not exist,
+     // there are no gallery rows to protect; primary-image references were checked above.
+     sharedGalleryReference=false;
+    }else{
+     galleryReferenceCheckFailed=true;
+     console.warn('No se pudo comprobar si otras galerías usan esta foto; se conserva el archivo por seguridad:',referenceError);
+    }
+   }
+  }
+  if(stillReferenced||sharedGalleryReference){
+   cleanupWarning=' El archivo físico se conservó porque todavía está referenciado por otra foto principal, una variante, una guía de tallas o una fila de galería.';
+  }else if(galleryReferenceCheckFailed){
+   cleanupWarning=' No se borró el archivo físico porque no se pudo comprobar si otra galería todavía lo utiliza. Revisa la conexión y vuelve a intentarlo.';
+  }else{
+   try{
+    const deletion=await deleteSingleProductImageFromR2(productId,photo.path);
+    if(deletion?.skipped)cleanupWarning=' La referencia se quitó del producto, pero el archivo no se borró físicamente porque no es una imagen administrada por este Worker de R2.';
+   }catch(cleanupError){
+    console.warn('La foto se quitó del producto, pero el archivo físico no pudo borrarse de R2:',cleanupError);
+    cleanupWarning=' La referencia se quitó del producto, pero no se pudo borrar el archivo físico de R2: '+(cleanupError.message||cleanupError);
+   }
+  }
+  toast(cleanupWarning?'Foto quitada del producto; revisa el aviso de almacenamiento.':'Foto eliminada correctamente.');
+  if(cleanupWarning)alert('La referencia de la foto se quitó del producto.\n\n'+cleanupWarning.trim()+'\n\nSi el archivo quedó pendiente de borrar, publica la versión actualizada de sirevya_images_worker.js en Cloudflare y vuelve a comprobarlo.');
+ }catch(error){
+  console.error('No se pudo eliminar la foto del producto:',error);
+  alert('No se pudo eliminar la foto. No vuelvas a subirla ni repitas cambios hasta revisar el mensaje.\n\n'+(error?.message||error));
+  await loadExistingProductImages(productId,productos.find(x=>String(x.id)===String(productId))?.image_url||'');
+ }
+}
+
 async function uploadSizeGuidePhoto(productId,file){
  if(!productId||!file)return "";
  const ext=(file.name.split('.').pop()||'jpg').toLowerCase();
@@ -1581,10 +1805,10 @@ if(agregarOtro){
   show("inventario",document.querySelector('[data-view=inventario]'));
 }
 }
-function limpiarProducto(){variantDraft=[];variantMemory=[];editingId=null;editingProductImageLoadToken++;editingProductImages=[];editingSizeGuideImagePath="";sizeGuideImageRemoveRequested=false;const guideInput=$("pGuiaTallasFoto");if(guideInput)guideInput.value="";renderSizeGuidePhotoPreview();$("formTitle").textContent="➕ Nuevo producto";$("pNombre").value="";$("pColores").value="";$("pTallas").value="";$("pCantidad").value=1;$("pCompra").value=0;$("pVenta").value=0;$("pUbicacion").value="";$("pDescripcion").value="";$("pGuiaTallas").value="";$("pFoto").value="";if($("existingPhotoStatus"))$("existingPhotoStatus").textContent="Las fotos actuales aparecerán al editar un producto.";if($("existingPhotoPreview"))$("existingPhotoPreview").innerHTML="";renderPhotoPreview();renderAdminColorPalette();renderVariantEditor([]);refreshCategorySelects()}
+function limpiarProducto(){variantDraft=[];variantMemory=[];editingId=null;editingProductImageLoadToken++;editingProductImages=[];editingProductImagesLoadError=null;editingSizeGuideImagePath="";sizeGuideImageRemoveRequested=false;const guideInput=$("pGuiaTallasFoto");if(guideInput)guideInput.value="";renderSizeGuidePhotoPreview();$("formTitle").textContent="➕ Nuevo producto";$("pNombre").value="";$("pColores").value="";$("pTallas").value="";$("pCantidad").value=1;$("pCompra").value=0;$("pVenta").value=0;$("pUbicacion").value="";$("pDescripcion").value="";$("pGuiaTallas").value="";$("pFoto").value="";if($("existingPhotoStatus"))$("existingPhotoStatus").textContent="Las fotos actuales aparecerán al editar un producto.";if($("existingPhotoPreview"))$("existingPhotoPreview").innerHTML="";renderPhotoPreview();renderAdminColorPalette();renderVariantEditor([]);refreshCategorySelects()}
 async function editarProducto(id){
  const p=productos.find(x=>String(x.id)===String(id));if(!p)return;
- editingId=id;editingProductImages=[];editingProductImageLoadToken++;editingSizeGuideImagePath=String(p.size_guide_image||"");sizeGuideImageRemoveRequested=false;
+ editingId=id;editingProductImages=[];editingProductImagesLoadError=null;editingProductImageLoadToken++;editingSizeGuideImagePath=String(p.size_guide_image||"");sizeGuideImageRemoveRequested=false;
  $("formTitle").textContent="✏️ Editar "+p.code;$("pNombre").value=p.name;$("pCategoria").value=p.category;$("pColores").value=Array.isArray(p.colors)?p.colors.join(', '):(p.colors||'');$("pTallas").value=Array.isArray(p.sizes)?p.sizes.join(', '):(p.sizes||'');variantDraft=parseVariants(p.variants);variantMemory=parseVariants(p.variants);$("pCantidad").value=p.quantity;$("pCompra").value=p.cost_price;$("pVenta").value=p.sale_price;$("pUbicacion").value=p.location||"";$("pDescripcion").value=p.description||"";$("pGuiaTallas").value=p.size_guide||"";$("pFoto").value="";renderPhotoPreview();const guideInput=$("pGuiaTallasFoto");if(guideInput)guideInput.value="";renderSizeGuidePhotoPreview();
  if($("existingPhotoStatus"))$("existingPhotoStatus").textContent="Cargando las fotos guardadas…";
  renderAdminColorPalette();renderVariantEditor(variantDraft);show("producto",document.querySelector('[data-view=producto]'));
@@ -2023,6 +2247,7 @@ setInterval(refreshPublicAvailability,15000); // 15 s: mantiene el refresco acor
 document.addEventListener("visibilitychange",()=>{if(!document.hidden)refreshPublicAvailability()});
 document.addEventListener("DOMContentLoaded",()=>{
   initAdminColorPalette();
+  const paymentToggle=$("onlinePaymentsToggle");if(paymentToggle)paymentToggle.addEventListener("change",updateOnlinePaymentAdminLabel);
   const f=$("pFoto");if(f)f.addEventListener("change",renderPhotoPreview);
   const guideFile=$("pGuiaTallasFoto");if(guideFile)guideFile.addEventListener("change",()=>{if(guideFile.files?.length)sizeGuideImageRemoveRequested=false;renderSizeGuidePhotoPreview()});
 

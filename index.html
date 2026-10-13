@@ -35,7 +35,7 @@
 .empty,.loading{padding:50px;text-align:center;color:#aaa;grid-column:1/-1;background:#0d0d0f;border:1px dashed #3a3a3f;border-radius:18px}.footer{position:relative;overflow:hidden;border-top:1px solid rgba(231,25,63,.55);padding:34px 0 55px;color:#ddd;background:#050505;margin-top:18px;text-align:center}.footer:before,.footer:after{content:"";position:absolute;width:48%;height:25px;border-top:9px solid rgba(231,25,63,.45);border-radius:50%;top:42px}.footer:before{left:-7%;transform:rotate(5deg)}.footer:after{right:-7%;transform:rotate(-5deg)}.footerBrand{font-family:Georgia,serif;font-style:italic;font-size:32px;color:#f5e4b7;margin-top:35px}.footerSub{font-size:11px;letter-spacing:3px;color:#d9d9dc;margin-top:7px}.footerFeatures{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;max-width:950px;margin:0 auto 20px}.footerFeature{font-size:13px;color:#eee}.footerFeature b{display:block;color:#f3d18b;margin-bottom:4px}.error{display:none;background:#28090f;color:#ffb4c0;border:1px solid #6c1728;border-radius:15px;padding:14px;margin:15px 0}.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(14px);background:linear-gradient(135deg,#fffaf0,#f7e6c9);color:#2b2520;border:2px solid #d7193f;padding:14px 22px;border-radius:18px;display:none;z-index:250;box-shadow:0 10px 28px rgba(85,52,25,.22),0 0 0 4px rgba(215,25,63,.08);font-weight:800;font-size:15px;letter-spacing:.1px;max-width:calc(100vw - 32px);text-align:center;opacity:0;transition:opacity .22s ease,transform .22s ease}.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 .productDetailModal{position:fixed;inset:0;background:rgba(20,16,12,.72);backdrop-filter:blur(5px);display:none;align-items:center;justify-content:center;z-index:220;padding:16px}.productDetailModal.open{display:flex}.productDetailBox{position:relative;width:min(94vw,720px);max-height:92vh;overflow:auto;background:#fffaf3;border:1px solid #eadfd3;border-radius:22px;box-shadow:0 24px 70px rgba(0,0,0,.28);display:grid;grid-template-columns:minmax(0,1fr) minmax(260px,.85fr);gap:20px;padding:18px}.detailClose{position:absolute;right:12px;top:12px;width:42px;height:42px;border-radius:50%;background:#fff;color:#222;font-size:28px;z-index:4;box-shadow:0 4px 14px rgba(0,0,0,.15)}.detailImageWrap{min-height:360px;background:#f2eee9;border-radius:16px;overflow:hidden;display:flex;align-items:center;justify-content:center}.detailImage{width:100%;height:100%;max-height:68vh;object-fit:contain;display:block}.detailInfo{padding:20px 8px 8px}.detailName{font-size:26px;font-weight:950;color:#2b2520;margin-bottom:8px}.detailPrice{font-size:24px;font-weight:950;color:#7b1730;margin-bottom:16px}.detailVariants .variantBox{background:#fff;border-color:#e4d7ca}.detailAdd{width:100%;margin-top:18px;padding:14px;border-radius:13px;background:linear-gradient(135deg,#e7193f,#a60d2a);color:#fff;font-weight:950;font-size:16px;border:0}.cardColorsOnly{margin-top:8px;padding:7px 9px}.cardColorsOnly .variantLabel{margin:2px 0 5px}.cardColorsOnly .colorDots{gap:5px}.cardColorsOnly .colorDot{width:23px;height:23px}.cardColorsOnly .colorName{font-size:10px}.card .buyRow{margin-top:8px}.card .addOrder,.card .buy{padding:9px}.card .stock{font-size:11px;padding:7px 10px}.card .body{min-height:0}@media(max-width:700px){.productDetailBox{grid-template-columns:1fr;gap:8px;padding:12px;border-radius:18px}.detailImageWrap{min-height:250px;max-height:48vh}.detailInfo{padding:8px 5px 12px}.detailName{font-size:22px}.detailPrice{font-size:21px}.photo{aspect-ratio:4/3}.card .body{padding:9px 10px 10px}}.galleryModal{position:fixed;inset:0;background:rgba(0,0,0,.92);display:none;align-items:center;justify-content:center;z-index:500;padding:18px}.galleryModal.open{display:flex}.galleryBox{position:relative;width:min(96vw,1000px);height:min(92vh,850px);display:flex;align-items:center;justify-content:center}.galleryMain{max-width:100%;max-height:100%;object-fit:contain;border-radius:14px}.galleryClose{position:absolute;right:0;top:-8px;width:46px;height:46px;border-radius:50%;background:#fff;color:#111;font-size:30px;z-index:3}.galleryNav{position:absolute;top:50%;transform:translateY(-50%);width:50px;height:50px;border-radius:50%;background:rgba(255,255,255,.92);color:#111;font-size:36px;z-index:3}.galleryPrev{left:8px}.galleryNext{right:8px}.galleryInfo{position:absolute;bottom:10px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.72);color:#2b2520;padding:7px 13px;border-radius:999px;font-size:13px}
 .cartBar{display:none;margin:18px 0;padding:16px;border:1px solid #3a3a3f;border-radius:18px;background:#0d0d0f;box-shadow:0 8px 24px rgba(0,0,0,.28);position:sticky;top:8px;z-index:30}.cartHead{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}.cartTitle{font-size:18px;font-weight:800}.cartSummary{font-size:13px;color:#9c9ca3;margin-top:3px}.cartItems{display:grid;gap:8px;margin-top:12px;max-height:124px;overflow-y:auto;overflow-x:hidden;padding-right:4px;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}.cartItems::-webkit-scrollbar{width:6px}.cartItems::-webkit-scrollbar-thumb{background:#4a4a50;border-radius:999px}.cartItems::-webkit-scrollbar-track{background:transparent}.cartItem{display:flex;align-items:center;justify-content:space-between;gap:10px;background:#151518;border-radius:12px;padding:9px 11px;min-height:54px;box-sizing:border-box}.cartName{font-weight:750}.cartMeta{font-size:13px;color:#9c9ca3;margin-top:2px}.cartActions{display:flex;align-items:center;gap:5px}.cartActions button{width:31px;height:31px;border:1px solid #3d3d43;border-radius:9px;background:#0d0d0f;color:#2b2520;font-size:18px}.cartRemove{color:#ff6b7f!important;background:#320c14!important}.cartSend{border-radius:12px;padding:12px 16px;background:linear-gradient(135deg,#e7193f,#a60d2a);color:#2b2520;font-weight:800}.cartClose{width:34px;height:34px;border-radius:50%;background:#fff;color:#222;border:1px solid #ddd;font-size:24px;line-height:1;box-shadow:0 2px 8px rgba(0,0,0,.1)}@media(max-width:700px){.cartBar{max-height:none;overflow:visible}.cartItems{max-height:124px}}
-.checkoutModal{position:fixed;inset:0;background:rgba(0,0,0,.72);display:none;align-items:center;justify-content:center;z-index:200;padding:16px}.checkoutModal.open{display:flex}.checkoutBox{width:min(96vw,560px);max-height:92vh;overflow:auto;background:#111114;color:#2b2520;border:1px solid #3b3b40;border-radius:22px;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,.55)}.checkoutHead{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}.checkoutTitle{font-size:21px;font-weight:900}.checkoutClose{width:40px;height:40px;border-radius:50%;background:#fff;color:#222;border:1px solid #ddd;font-size:25px;box-shadow:0 2px 8px rgba(0,0,0,.12)}.checkoutNote{font-size:13px;color:#aaa;margin:0 0 16px}.checkoutGrid{display:grid;gap:10px}.checkoutGrid label{font-size:13px;font-weight:800;color:#ddd}.checkoutGrid input,.checkoutGrid select{width:100%;min-width:0;border:1px solid #3b3b40;border-radius:12px;padding:12px;background:#09090a;color:#2b2520;outline:none}.checkoutGrid input[aria-invalid="true"],.checkoutGrid select[aria-invalid="true"]{border-color:#b4233d!important;box-shadow:0 0 0 3px rgba(180,35,61,.12)!important}.checkoutFieldError{display:none;color:#b4233d;font-size:12px;font-weight:750;line-height:1.35;margin-top:-5px}.checkoutValidationSummary{padding:12px 14px;margin:0 0 14px;border:1px solid #d99aa8;border-left:4px solid #a51d3b;border-radius:12px;background:#fff1f3;color:#812039;font-size:13px;font-weight:800;line-height:1.45}.checkoutValidationSummary[hidden]{display:none!important}.shippingBox{padding:13px;border-radius:14px;background:#18090e;border:1px solid #5a1729}.shippingLine{display:flex;justify-content:space-between;gap:10px;font-weight:800}.shippingSmall{font-size:12px;color:#aaa;margin-top:4px}.paymentOptions{display:grid;gap:8px}.paymentOption{display:flex;align-items:center;gap:10px;padding:12px;border:1px solid #3b3b40;border-radius:13px;cursor:pointer;background:#0b0b0d}.paymentOption input{width:auto!important}.paymentOption.paymentUnavailable{opacity:.68;background:#f3f0f2;border-color:#e4dce1}.paymentOption.paymentUnavailable small{color:#8a7c85}.paymentOption input:disabled{cursor:not-allowed}.checkoutTotal{display:flex;justify-content:space-between;gap:10px;padding:14px 0;border-top:1px solid #303036;border-bottom:1px solid #303036;font-size:18px;font-weight:900}.checkoutActions{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:14px}.checkoutCancel{padding:12px;border-radius:12px;background:#26262b;color:#2b2520;font-weight:800}.checkoutConfirm{padding:12px;border-radius:12px;background:linear-gradient(135deg,#e7193f,#a60d2a);color:#2b2520;font-weight:900}
+.checkoutModal{position:fixed;inset:0;background:rgba(0,0,0,.72);display:none;align-items:center;justify-content:center;z-index:200;padding:16px}.checkoutModal.open{display:flex}.checkoutBox{width:min(96vw,560px);max-height:92vh;overflow:auto;background:#111114;color:#2b2520;border:1px solid #3b3b40;border-radius:22px;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,.55)}.checkoutHead{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}.checkoutTitle{font-size:21px;font-weight:900}.checkoutClose{width:40px;height:40px;border-radius:50%;background:#fff;color:#222;border:1px solid #ddd;font-size:25px;box-shadow:0 2px 8px rgba(0,0,0,.12)}.checkoutNote{font-size:13px;color:#aaa;margin:0 0 16px}.checkoutGrid{display:grid;gap:10px}.checkoutGrid label{font-size:13px;font-weight:800;color:#ddd}.checkoutGrid input,.checkoutGrid select{width:100%;min-width:0;border:1px solid #3b3b40;border-radius:12px;padding:12px;background:#09090a;color:#2b2520;outline:none}.checkoutGrid input[aria-invalid="true"],.checkoutGrid select[aria-invalid="true"]{border-color:#b4233d!important;box-shadow:0 0 0 3px rgba(180,35,61,.12)!important}.checkoutFieldError{display:none;color:#b4233d;font-size:12px;font-weight:750;line-height:1.35;margin-top:-5px}.checkoutValidationSummary{padding:12px 14px;margin:0 0 14px;border:1px solid #d99aa8;border-left:4px solid #a51d3b;border-radius:12px;background:#fff1f3;color:#812039;font-size:13px;font-weight:800;line-height:1.45}.checkoutValidationSummary[hidden]{display:none!important}.shippingBox{padding:13px;border-radius:14px;background:#18090e;border:1px solid #5a1729}.shippingLine{display:flex;justify-content:space-between;gap:10px;font-weight:800}.shippingSmall{font-size:12px;color:#aaa;margin-top:4px}.paymentOptions{display:grid;gap:8px}.paymentOption{display:flex;align-items:center;gap:10px;padding:12px;border:1px solid #3b3b40;border-radius:13px;cursor:pointer;background:#0b0b0d}.paymentOption input{width:auto!important}.paymentOption.paymentUnavailable{opacity:.68;background:#f3f0f2;border-color:#e4dce1}.paymentOption.paymentUnavailable small{color:#8a7c85}.paymentOption input:disabled{cursor:not-allowed}.onlinePaymentOption[hidden]{display:none!important}.checkoutTotal{display:flex;justify-content:space-between;gap:10px;padding:14px 0;border-top:1px solid #303036;border-bottom:1px solid #303036;font-size:18px;font-weight:900}.checkoutActions{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:14px}.checkoutCancel{padding:12px;border-radius:12px;background:#26262b;color:#2b2520;font-weight:800}.checkoutConfirm{padding:12px;border-radius:12px;background:linear-gradient(135deg,#e7193f,#a60d2a);color:#2b2520;font-weight:900}
 @media(max-width:950px){.grid{grid-template-columns:repeat(3,minmax(0,1fr))}.heroInner{grid-template-columns:.8fr 1.5fr .8fr}.heroProduct{height:240px}}
 @media(max-width:760px){.categoryPanel{top:64px;padding-top:10px;padding-bottom:10px}.mainNav{display:none}.brand{min-width:0}.brandName{font-size:16px}.headerActions{margin-left:auto}.hero{min-height:auto;border-radius:20px 20px 0 0}.heroInner{grid-template-columns:1fr;gap:0;padding:30px 10px}.heroSide{display:none}.heroCenter{padding:12px 8px 22px}.heroBrand{font-size:42px}.heroJM{font-size:74px}.heroShipping{font-size:29px}.benefits{grid-template-columns:1fr}.benefit{border-right:0;border-bottom:1px solid #252529;justify-content:flex-start;padding:13px 18px}.benefit:last-child{border-bottom:0}.categoryPanel{padding-top:18px}.categoryButtons{justify-content:flex-start;flex-wrap:nowrap;overflow-x:auto;padding:2px 2px 8px}.categoryBtn{min-width:94px}.grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}.body{padding:11px}.name{font-size:14px}.price{font-size:18px}.buy{padding:10px 6px;font-size:12px}.search{min-width:100%}.count{margin-left:0;width:100%}.footerFeatures{grid-template-columns:repeat(2,1fr)}.checkoutActions{grid-template-columns:1fr}.checkoutBox{padding:18px}}
 @media(max-width:390px){.grid{grid-template-columns:1fr}.brandSub{display:none}.footerFeatures{grid-template-columns:1fr}}
@@ -1534,7 +1534,7 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
 <div id="checkoutModal" class="checkoutModal" onclick="closeCheckout(event)">
   <div class="checkoutBox">
     <div class="checkoutHead"><div class="checkoutTitle">📦 Finalizar pedido</div><button class="checkoutClose" type="button" onclick="closeCheckout()">×</button></div>
-    <p class="checkoutNote">Cali tiene envío gratis. En otras ciudades el envío es de $15.000, pero es gratis desde $130.000 de compra. Los pagos en línea se procesan de forma segura con Wompi. Puedes elegir PSE, tarjeta, Nequi o Bancolombia.</p>
+    <p id="checkoutPaymentNote" class="checkoutNote">Cali tiene envío gratis. En otras ciudades el envío es de $15.000, pero es gratis desde $130.000 de compra. Los pagos en línea se procesan de forma segura con Wompi. Puedes elegir PSE, tarjeta, Nequi o Bancolombia.</p>
     <div id="checkoutValidationSummary" class="checkoutValidationSummary" role="alert" aria-live="assertive" hidden></div>
     <div class="checkoutGrid">
       <label for="customerName">Nombre completo *</label><input id="customerName" type="text" autocomplete="name" placeholder="Tu nombre" required aria-describedby="checkoutErrorCustomerName"><small id="checkoutErrorCustomerName" class="checkoutFieldError"></small>
@@ -1678,6 +1678,9 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
 const SUPABASE_URL="https://hnlbbtnfmbnbkcgegufa.supabase.co";
 const SUPABASE_KEY="sb_publishable_p2XJjsFd4Hp7LZ1IgfyVAg_hpXnFSSc";
 const IMAGE_WORKER_URL="https://sirevya-images.variedadesjm99.workers.dev";
+const ONLINE_PAYMENT_SETTINGS_RPC="get_online_payment_status";
+let onlinePaymentsEnabled=false;
+let onlinePaymentSettingsPromise=null;
 
 // Wompi: llave pública de producción.
 // La firma de integridad se genera en Supabase, nunca aquí en el navegador.
@@ -2649,6 +2652,7 @@ function detailBuyNow(event){
  updateShipping();
  $('checkoutModal').classList.add('open');
  document.body.style.overflow='hidden';
+ refreshOnlinePaymentSetting({silent:true});
 }
 function closeProductDetail(event,options={}){
  if(event&&event.target!==$('productDetailModal'))return;
@@ -2995,6 +2999,7 @@ function sendCart(){
  updateShipping();
  $('checkoutModal').classList.add('open');
  document.body.style.overflow='hidden';
+ refreshOnlinePaymentSetting({silent:true});
 }
 
 function openContact(event){
@@ -3022,16 +3027,83 @@ function closePrivacy(event){
 }
 
 function closeCheckout(event){if(event&&event.target!==$('checkoutModal'))return;$('checkoutModal').classList.remove('open');checkoutCart=null;document.body.style.overflow=''}
+async function refreshOnlinePaymentSetting(options={}){
+ if(onlinePaymentSettingsPromise)return onlinePaymentSettingsPromise;
+ const task=(async()=>{
+  try{
+   const {data,error}=await sb.rpc(ONLINE_PAYMENT_SETTINGS_RPC);
+   if(error)throw error;
+   const row=Array.isArray(data)?data[0]:data;
+   if(row&&typeof row.online_payments_enabled==='boolean'){
+    onlinePaymentsEnabled=row.online_payments_enabled;
+    syncPaymentOptions();
+    return true;
+   }
+   // Do not expose online methods unless the shared configuration was confirmed.
+   onlinePaymentsEnabled=false;
+   syncPaymentOptions();
+   return false;
+  }catch(error){
+   // Fail closed on any read failure; never bypass a disabled setting just
+   // because the network or RPC is temporarily unavailable.
+   onlinePaymentsEnabled=false;
+   syncPaymentOptions();
+   if(!options.silent)console.warn('No se pudo confirmar la configuración de pagos en Supabase. Se bloquean pagos en línea por seguridad.',error);
+   return false;
+  }
+ })();
+ onlinePaymentSettingsPromise=task;
+ try{return await task}finally{if(onlinePaymentSettingsPromise===task)onlinePaymentSettingsPromise=null;}
+}
+function normalizeDeliveryCity(value){
+ return String(value||'').trim().normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('es-CO').replace(/[,.]+/g,' ').replace(/\s+/g,' ');
+}
+function canonicalLocalDeliveryCity(value){
+ const normalized=normalizeDeliveryCity(value);
+ if(['cali','santiago de cali','cali valle del cauca'].includes(normalized))return 'Cali';
+ return '';
+}
+function isLocalCODCity(value){return canonicalLocalDeliveryCity(value)==='Cali';}
+function syncPaymentOptions(){
+ const online=[...document.querySelectorAll('.onlinePaymentOption')];
+ online.forEach(label=>{
+  label.hidden=!onlinePaymentsEnabled;
+  const radio=label.querySelector('input[name="paymentMethod"]');
+  if(radio)radio.disabled=!onlinePaymentsEnabled;
+ });
+ const cod=document.querySelector('input[name="paymentMethod"][value="Contra entrega"]');
+ const codLabel=cod?.closest('.paymentOption');
+ const city=checkoutCityValue();
+ const codAllowed=isLocalCODCity(city);
+ if(cod){cod.disabled=!codAllowed;if(codLabel)codLabel.classList.toggle('paymentUnavailable',!codAllowed);}
+ const note=$('contraEntregaNote');
+ if(note)note.textContent=codAllowed
+  ?'Disponible para pedidos con destino en Cali.'
+  :(city?'Solo disponible en Cali. Para otras ciudades, selecciona un pago en línea.':'Solo disponible al seleccionar Cali como ciudad de destino.');
+ const checkoutNote=$('checkoutPaymentNote');
+ if(checkoutNote){
+  checkoutNote.textContent=onlinePaymentsEnabled
+   ?'Cali tiene envío gratis. En otras ciudades el envío es de $15.000, pero es gratis desde $130.000 de compra. Los pagos en línea se procesan de forma segura con Wompi. Puedes elegir PSE, tarjeta, Nequi o Bancolombia.'
+   :'Los pagos en línea están desactivados. Solo puedes pagar contraentrega en Cali, con envío gratis.';
+ }
+ const radios=[...document.querySelectorAll('input[name="paymentMethod"]')];
+ if(!onlinePaymentsEnabled){
+  if(codAllowed&&cod)cod.checked=true;
+  else radios.forEach(r=>{r.checked=false;});
+  return;
+ }
+ // If the selected choice became invalid after changing city or enabling online payments,
+ // fall back to the original checkout default (PSE).
+ const selected=radios.find(r=>r.checked&&!r.disabled&&!r.closest('.paymentOption')?.hidden);
+ if(!selected){
+  const pse=document.querySelector('input[name="paymentMethod"][value="PSE"]');
+  if(pse)pse.checked=true;
+ }
+}
 function updateContraEntregaAvailability(city){
  const radio=document.querySelector('input[name="paymentMethod"][value="Contra entrega"]');
  if(!radio)return;
- const label=radio.closest('.paymentOption');
- const note=$('contraEntregaNote');
- const allowed=city==='Cali';
- radio.disabled=!allowed;
- if(label)label.classList.toggle('paymentUnavailable',!allowed);
- if(note)note.textContent=allowed?'Disponible para pedidos con destino en Cali.':(city?'Solo disponible en Cali. Para otras ciudades, selecciona un pago en línea.':'Solo disponible al seleccionar Cali como ciudad de destino.');
- if(!allowed&&radio.checked){const online=document.querySelector('input[name="paymentMethod"][value="PSE"]');if(online)online.checked=true;}
+ syncPaymentOptions();
 }
 function handleCityChange(){
  const selected=$('customerCity')?.value||'';
@@ -3042,17 +3114,16 @@ function handleCityChange(){
 }
 function checkoutCityValue(){
  const selected=$('customerCity')?.value||'';
- return selected==='Otra'?String($('customerCityOther')?.value||'').trim():selected;
+ const raw=selected==='Otra'?String($('customerCityOther')?.value||'').trim():selected;
+ return canonicalLocalDeliveryCity(raw)||raw;
 }
 function updateShipping(){
  const selectedCity=$('customerCity')?.value||'';
  const city=checkoutCityValue();
- updateContraEntregaAvailability(selectedCity);
+ updateContraEntregaAvailability(city);
  const checkoutItems=getCheckoutItems();
  const productsTotal=checkoutItems.reduce((sum,item)=>sum+(Number(item.qty)||0)*(Number(item.price)||0),0);
-
- // Regla de envío: Cali gratis; nacional $15.000; gratis desde $130.000.
- checkoutShipping = !selectedCity ? 0 : (selectedCity==='Cali' || productsTotal>=130000 ? 0 : ENVIO_NACIONAL);
+ checkoutShipping = !selectedCity ? 0 : (city==='Cali' || productsTotal>=130000 ? 0 : ENVIO_NACIONAL);
  if($('shippingValue')){
    $('shippingValue').textContent = !selectedCity
      ? 'Selecciona una ciudad'
@@ -3061,7 +3132,7 @@ function updateShipping(){
  if($('shippingNote')){
    $('shippingNote').textContent = !selectedCity
      ? 'Cali: envío gratis. Otras ciudades: $15.000. Envío gratis desde $130.000.'
-     : selectedCity==='Cali'
+     : city==='Cali'
        ? 'Envío gratis dentro de Cali.'
        : selectedCity==='Otra' && !city
          ? 'Escribe tu ciudad. Envío nacional: $15.000 o gratis desde $130.000.'
@@ -3096,11 +3167,13 @@ function updateCheckoutSummary(){
  $('checkoutTotal').textContent=money(totalProducts+checkoutShipping);
 }
 function selectedPayment(){
- return document.querySelector('input[name="paymentMethod"]:checked')?.value||'PSE';
+ return document.querySelector('input[name="paymentMethod"]:checked:not(:disabled)')?.value||'';
 }
 function getRegion(city){
  const regions={
-  'Cali':'Valle del Cauca','Bogotá':'Cundinamarca','Medellín':'Antioquia',
+  'Cali':'Valle del Cauca','Jamundí':'Valle del Cauca','Villagorgona':'Valle del Cauca',
+  'Yumbo':'Valle del Cauca','Montebello':'Valle del Cauca',
+  'Bogotá':'Cundinamarca','Medellín':'Antioquia',
   'Barranquilla':'Atlántico','Cartagena':'Bolívar','Bucaramanga':'Santander',
   'Pereira':'Risaralda','Armenia':'Quindío','Manizales':'Caldas',
   'Cúcuta':'Norte de Santander','Pasto':'Nariño'
@@ -3170,6 +3243,9 @@ window.addEventListener('pageshow',event=>{
 });
 
 async function payWithWompi(payload){
+ await refreshOnlinePaymentSetting({silent:true});
+ syncPaymentOptions();
+ if(!onlinePaymentsEnabled){showToast('Los pagos en línea están desactivados. Selecciona pago contraentrega en Cali.');resetWompiButton();return;}
  // Web Checkout debe iniciarse desde la página segura publicada, no desde una
  // copia abierta como content:// o file:// en el administrador de descargas.
  if(location.protocol!=='https:' || !location.hostname){
@@ -3382,7 +3458,7 @@ async function saveContraEntregaOrder(payload){
  try{
    const checkoutItems=getCheckoutItems();
    clientReference=getCODOrderReference(payload,checkoutItems);
-   // El servidor vuelve a leer precio/código/nombre, valida Cali y reserva las
+   // El servidor vuelve a leer precio/código/nombre, valida que la ciudad sea Cali y reserva las
    // variantes de forma atómica. El navegador ya no inserta pedidos COD directo.
    const items=checkoutItems.map(x=>({id:String(x.id),qty:Math.max(1,Number(x.qty)||1),color:String(x.color||''),size:String(x.size||'')}));
    const {data,error}=await sb.rpc('create_contra_delivery_order',{
@@ -3506,6 +3582,7 @@ document.addEventListener('input',event=>{
 document.addEventListener('change',event=>{
  const id=event.target?.id||'';
  if(['customerName','customerPhone','customerEmail','customerCity','customerCityOther','customerAddress','customerNeighborhood'].includes(id))clearCheckoutFieldError(id);
+ if(event.target?.name==='paymentMethod')updateShipping();
 });
 
 async function confirmCheckout(){
@@ -3513,13 +3590,34 @@ async function confirmCheckout(){
  if(!checkoutItems.length){showToast('Tu carrito está vacío.');return;}
  const validationErrors=getCheckoutValidationErrors();
  if(validationErrors.length){displayCheckoutValidation(validationErrors);resetWompiButton();return;}
- const name=$('customerName').value.trim(),cedula=$('customerCedula').value.trim(),phone=$('customerPhone').value.trim(),email=$('customerEmail').value.trim(),citySelection=$('customerCity').value,city=checkoutCityValue(),address=$('customerAddress').value.trim(),neighborhood=$('customerNeighborhood').value.trim();
+ // No convertir silenciosamente un pago online en contraentrega si el administrador
+ // desactivó Wompi mientras el cliente completaba el formulario. Primero pedimos
+ // revisar la nueva forma de pago y solo en el siguiente intento se confirma.
+ const paymentBeforeRefresh=selectedPayment();
+ const onlinePaymentsWereEnabled=onlinePaymentsEnabled;
+ await refreshOnlinePaymentSetting({silent:true});
  updateShipping();
+ syncPaymentOptions();
+ if(onlinePaymentsWereEnabled&&!onlinePaymentsEnabled&&paymentBeforeRefresh&&paymentBeforeRefresh!=='Contra entrega'){
+   showToast('Los pagos en línea acaban de desactivarse o no se pudieron verificar. Revisa que ahora esté seleccionada contraentrega en Cali y confirma de nuevo.');
+   return;
+ }
  const payment=selectedPayment();
- if(payment==='Contra entrega'&&citySelection!=='Cali'){
-   const online=document.querySelector('input[name="paymentMethod"][value="PSE"]');if(online)online.checked=true;
-   showToast('El pago contra entrega solo está disponible en Cali. Para otras ciudades, selecciona un pago en línea.');
-   updateContraEntregaAvailability(citySelection);
+ if(!payment){
+   showToast(onlinePaymentsEnabled?'Selecciona una forma de pago para continuar.':'Los pagos en línea están desactivados. Elige Cali para pagar contraentrega.');
+   return;
+ }
+ if(!onlinePaymentsEnabled&&payment!=='Contra entrega'){
+   showToast('Los pagos en línea están desactivados. Selecciona pago contraentrega en Cali.');
+   syncPaymentOptions();
+   return;
+ }
+ if(payment==='Contra entrega'&&!isLocalCODCity(checkoutCityValue())){
+   if(onlinePaymentsEnabled){const online=document.querySelector('input[name="paymentMethod"][value="PSE"]');if(online)online.checked=true;}
+   else {const cod=document.querySelector('input[name="paymentMethod"][value="Contra entrega"]');if(cod)cod.checked=false;}
+   showToast(onlinePaymentsEnabled?'El pago contraentrega solo está disponible en Cali. Para otras ciudades, selecciona un pago en línea.':'Los pagos en línea están desactivados. El pago contraentrega solo está disponible en Cali.');
+   updateContraEntregaAvailability(checkoutCityValue());
+   updateShipping();
    return;
  }
  const payload=buildOrderPayload();
@@ -3782,7 +3880,11 @@ async function refreshInventoryStatus(){
  }
 }
 
+syncPaymentOptions();
 load();
+refreshOnlinePaymentSetting({silent:true});
 setInterval(()=>{if(document.visibilityState==='visible')refreshInventoryStatus()},15000); // 15 s: reduce consultas respecto al refresco anterior de 8 s
+setInterval(()=>{if(document.visibilityState==='visible')refreshOnlinePaymentSetting({silent:true})},30000);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshOnlinePaymentSetting({silent:true})});
 </script>
 </body></html>
