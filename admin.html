@@ -513,13 +513,13 @@ async function prepareImageForUpload(file){
  const normalExtension=R2_MIME_EXTENSION[contentType]||"";
  const extensionMatches=contentType==="image/jpeg"?(originalExt==="jpg"||originalExt==="jpeg"):originalExt===normalExtension;
  // Keep normal-sized supported photos untouched to preserve their original quality.
- if(supported && file.size<=3.5*1024*1024 && extensionMatches && suppliedType===contentType)return file;
+ if(supported && file.size<=1.5*1024*1024 && extensionMatches && suppliedType===contentType)return file;
  if(contentType==="image/gif" && supported){
    // Do not silently turn an animated product GIF into a still image.
    if(file.size>15*1024*1024)throw new Error("El GIF supera 15 MB. Para conservar la animación, reduce su tamaño o usa una versión JPG/WEBP menor de 15 MB.");
    return new File([file],uploadBaseName(file)+".gif",{type:"image/gif",lastModified:file.lastModified||Date.now()});
  }
- if(supported && file.size<=3.5*1024*1024){
+ if(supported && file.size<=1.5*1024*1024){
    return new File([file],uploadBaseName(file)+"."+normalExtension,{type:contentType,lastModified:file.lastModified||Date.now()});
  }
  let decoded;
@@ -530,7 +530,7 @@ async function prepareImageForUpload(file){
  try{
    const width=Number(decoded.width)||0,height=Number(decoded.height)||0;
    if(!width||!height)throw new Error("La imagen no tiene dimensiones válidas.");
-   const maxSide=1920,scale=Math.min(1,maxSide/Math.max(width,height));
+   const maxSide=1600,scale=Math.min(1,maxSide/Math.max(width,height));
    const canvas=document.createElement("canvas");
    canvas.width=Math.max(1,Math.round(width*scale));canvas.height=Math.max(1,Math.round(height*scale));
    const ctx=canvas.getContext("2d");if(!ctx)throw new Error("No se pudo preparar la imagen en este navegador.");
@@ -542,7 +542,7 @@ async function prepareImageForUpload(file){
    }
    ctx.drawImage(decoded.source||decoded,0,0,canvas.width,canvas.height);
    let outputType=targetType;
-   let blob=await new Promise(resolve=>canvas.toBlob(resolve,outputType,0.88));
+   let blob=await new Promise(resolve=>canvas.toBlob(resolve,outputType,0.84));
    // If WEBP encoding is unavailable in this browser, PNG still preserves alpha.
    if(!blob && outputType==="image/webp"){
      outputType="image/png";
@@ -570,10 +570,10 @@ async function uploadImageToR2(path,file){
  let lastError=null;
  // Las redes móviles pueden tardar en establecer la conexión. Reintentar la misma
  // clave es seguro: R2 reemplaza el mismo objeto en lugar de crear duplicados.
- const maxAttempts=4;
+ const maxAttempts=6;
  for(let attempt=0;attempt<maxAttempts;attempt++){
    const controller=new AbortController();
-   const timeout=setTimeout(()=>controller.abort(),90000);
+   const timeout=setTimeout(()=>controller.abort(),120000);
    let res;
    try{
      res=await fetch(workerObjectUrl(uploadPath),{
@@ -1352,16 +1352,8 @@ async function loadExistingProductImages(productId,primaryImage){
  const paths=[];
  const addPath=(value,isPrimary=false,inGallery=false)=>{
   const path=String(value||'').trim();if(!path)return;
-  const normalizedKey=imageObjectKey(path)||path;
-  const existing=paths.find(item=>(imageObjectKey(item.path)||item.path)===normalizedKey);
-  if(existing){
-   // If the same object is referenced as the main image and a gallery row,
-   // prefer the exact gallery path so its Supabase row can be removed safely.
-   if(inGallery&&!existing.inGallery)existing.path=path;
-   existing.isPrimary=existing.isPrimary||isPrimary;
-   existing.inGallery=existing.inGallery||inGallery;
-   return;
-  }
+  const existing=paths.find(item=>item.path===path);
+  if(existing){existing.isPrimary=existing.isPrimary||isPrimary;existing.inGallery=existing.inGallery||inGallery;return;}
   paths.push({path,isPrimary,inGallery});
  };
  if(primaryImage)addPath(primaryImage,true,false);
@@ -1469,45 +1461,16 @@ async function eliminarFotoProducto(index){
    const isVariant=parseVariants(p.variants).some(v=>imageObjectKey(v.image_path)===photoKey);
    return ((!isCurrent&&isPrimary)||isSizeGuide||isVariant);
   });
-  let sharedGalleryReference=false,galleryReferenceCheckFailed=false;
-  if(photoKey&&!stillReferenced){
-   try{
-    // Don't delete an R2 object while another product's gallery uses the same key.
-    const candidates=[...new Set([String(photo.path||''),String(photoKey||'')].filter(Boolean))];
-    const foundRows=[];
-    for(const candidate of candidates){
-     const refs=await sb.from('product_images').select('product_id,image_path')
-      .eq('image_path',candidate);
-     if(refs.error)throw refs.error;
-     foundRows.push(...(refs.data||[]));
-    }
-    sharedGalleryReference=foundRows.some(row=>imageObjectKey(row.image_path)===photoKey);
-   }catch(referenceError){
-    if(isMissingTableError(referenceError,'product_images')){
-     // The gallery table is optional in this catalog. If it does not exist,
-     // there are no gallery rows to protect; primary-image references were checked above.
-     sharedGalleryReference=false;
-    }else{
-     galleryReferenceCheckFailed=true;
-     console.warn('No se pudo comprobar si otras galerías usan esta foto; se conserva el archivo por seguridad:',referenceError);
-    }
-   }
-  }
-  if(stillReferenced||sharedGalleryReference){
-   cleanupWarning=' El archivo físico se conservó porque todavía está referenciado por otra foto principal, una variante, una guía de tallas o una fila de galería.';
-  }else if(galleryReferenceCheckFailed){
-   cleanupWarning=' No se borró el archivo físico porque no se pudo comprobar si otra galería todavía lo utiliza. Revisa la conexión y vuelve a intentarlo.';
+  if(stillReferenced){
+   cleanupWarning=' El archivo físico se conservó porque todavía está referenciado por una foto principal, una variante o una guía de tallas.';
   }else{
-   try{
-    const deletion=await deleteSingleProductImageFromR2(productId,photo.path);
-    if(deletion?.skipped)cleanupWarning=' La referencia se quitó del producto, pero el archivo no se borró físicamente porque no es una imagen administrada por este Worker de R2.';
-   }catch(cleanupError){
+   try{await deleteSingleProductImageFromR2(productId,photo.path)}catch(cleanupError){
     console.warn('La foto se quitó del producto, pero el archivo físico no pudo borrarse de R2:',cleanupError);
     cleanupWarning=' La referencia se quitó del producto, pero no se pudo borrar el archivo físico de R2: '+(cleanupError.message||cleanupError);
    }
   }
-  toast(cleanupWarning?'Foto quitada del producto; revisa el aviso de almacenamiento.':'Foto eliminada correctamente.');
-  if(cleanupWarning)alert('La referencia de la foto se quitó del producto.\n\n'+cleanupWarning.trim()+'\n\nSi el archivo quedó pendiente de borrar, publica la versión actualizada de sirevya_images_worker.js en Cloudflare y vuelve a comprobarlo.');
+  toast(cleanupWarning?'Foto quitada del producto; revisa la limpieza de R2.':'Foto eliminada correctamente.');
+  if(cleanupWarning)alert('La foto ya no está asociada al producto, pero quedó pendiente borrar su archivo de Cloudflare R2.\n\n'+cleanupWarning.trim()+'\n\nPublica la versión actualizada de sirevya_images_worker.js en Cloudflare y vuelve a intentar la limpieza si hace falta.');
  }catch(error){
   console.error('No se pudo eliminar la foto del producto:',error);
   alert('No se pudo eliminar la foto. No vuelvas a subirla ni repitas cambios hasta revisar el mensaje.\n\n'+(error?.message||error));
