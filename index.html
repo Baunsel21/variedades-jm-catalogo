@@ -3037,17 +3037,20 @@ async function refreshOnlinePaymentSetting(options={}){
    if(row&&typeof row.online_payments_enabled==='boolean'){
     onlinePaymentsEnabled=row.online_payments_enabled;
     syncPaymentOptions();
+    if($('checkoutModal')?.classList.contains('open'))updateShipping();
     return true;
    }
    // Do not expose online methods unless the shared configuration was confirmed.
    onlinePaymentsEnabled=false;
    syncPaymentOptions();
+   if($('checkoutModal')?.classList.contains('open'))updateShipping();
    return false;
   }catch(error){
    // Fail closed on any read failure; never bypass a disabled setting just
    // because the network or RPC is temporarily unavailable.
    onlinePaymentsEnabled=false;
    syncPaymentOptions();
+   if($('checkoutModal')?.classList.contains('open'))updateShipping();
    if(!options.silent)console.warn('No se pudo confirmar la configuración de pagos en Supabase. Se bloquean pagos en línea por seguridad.',error);
    return false;
   }
@@ -3064,7 +3067,46 @@ function canonicalLocalDeliveryCity(value){
  return '';
 }
 function isLocalCODCity(value){return canonicalLocalDeliveryCity(value)==='Cali';}
+// Con pagos online apagados solo se ofrece contraentrega en Cali.
+// Conservamos las opciones originales del selector para restaurarlas al activar pagos online.
+let originalCustomerCityOptionsHTML=null;
+let citySelectorPaymentMode=null;
+let cityBeforeCODOnlyMode='';
+function syncCustomerCityOptionsForPaymentMode(){
+ const select=$('customerCity');
+ if(!select)return;
+ if(originalCustomerCityOptionsHTML===null)originalCustomerCityOptionsHTML=select.innerHTML;
+ const nextMode=onlinePaymentsEnabled?'online':'cod-only';
+ if(citySelectorPaymentMode===nextMode){
+  if(nextMode==='cod-only'&&select.value!=='Cali'){
+   select.innerHTML='<option value="Cali">Cali</option>';
+   select.value='Cali';
+  }
+  return;
+ }
+ if(nextMode==='cod-only'){
+  cityBeforeCODOnlyMode=select.value||'';
+  select.innerHTML='<option value="Cali">Cali</option>';
+  select.value='Cali';
+  const otherWrap=$('customerCityOtherWrap');
+  const otherInput=$('customerCityOther');
+  if(otherWrap)otherWrap.hidden=true;
+  if(otherInput){otherInput.value='';otherInput.required=false;otherInput.removeAttribute('aria-invalid');}
+ }else{
+  const preferred=cityBeforeCODOnlyMode;
+  select.innerHTML=originalCustomerCityOptionsHTML;
+  const validValue=[...select.options].some(option=>option.value===preferred);
+  select.value=validValue?preferred:'';
+  cityBeforeCODOnlyMode='';
+  const otherWrap=$('customerCityOtherWrap');
+  const otherInput=$('customerCityOther');
+  if(otherWrap)otherWrap.hidden=select.value!=='Otra';
+  if(otherInput)otherInput.required=select.value==='Otra';
+ }
+ citySelectorPaymentMode=nextMode;
+}
 function syncPaymentOptions(){
+ syncCustomerCityOptionsForPaymentMode();
  const online=[...document.querySelectorAll('.onlinePaymentOption')];
  online.forEach(label=>{
   label.hidden=!onlinePaymentsEnabled;
@@ -3088,8 +3130,9 @@ function syncPaymentOptions(){
  }
  const radios=[...document.querySelectorAll('input[name="paymentMethod"]')];
  if(!onlinePaymentsEnabled){
+  // Limpia explícitamente cualquier método online que hubiera quedado marcado.
+  radios.forEach(r=>{r.checked=false;});
   if(codAllowed&&cod)cod.checked=true;
-  else radios.forEach(r=>{r.checked=false;});
   return;
  }
  // If the selected choice became invalid after changing city or enabling online payments,
@@ -3450,6 +3493,17 @@ function getCODOrderReference(payload,items){
 function clearCODOrderReference(reference){
  try{const saved=JSON.parse(localStorage.getItem(COD_ORDER_DRAFT_KEY)||'null');if(!reference||saved?.reference===reference)localStorage.removeItem(COD_ORDER_DRAFT_KEY)}catch{localStorage.removeItem(COD_ORDER_DRAFT_KEY)}
 }
+function showContraEntregaError(message){
+ const safeMessage=String(message||'No se pudo registrar el pedido contraentrega. El carrito se conservó.');
+ const summary=$('checkoutValidationSummary');
+ if(summary){
+  summary.textContent=safeMessage;
+  summary.hidden=false;
+  summary.setAttribute('role','alert');
+  summary.scrollIntoView({behavior:'smooth',block:'nearest'});
+ }
+ showToast(safeMessage);
+}
 async function saveContraEntregaOrder(payload){
  if(contraEntregaInProgress)return false;
  contraEntregaInProgress=true;
@@ -3475,11 +3529,13 @@ async function saveContraEntregaOrder(payload){
    if(error){
      console.error('No se pudo crear el pedido contra entrega de forma transaccional:',error);
      const missingRpc=error.code==='PGRST202'||/could not find the function|function .* does not exist|schema cache/i.test(String(error.message||''));
-     showToast(missingRpc?'Falta instalar la migración SQL de inventario/pedidos. No se guardó el pedido.':'No se pudo registrar ni reservar el pedido. El carrito se conservó.');
+     showContraEntregaError(missingRpc
+       ?'Falta instalar o actualizar en Supabase la función SQL create_contra_delivery_order. Abre sirevya_envios_local_contraentrega.sql en SQL Editor, ejecútalo y vuelve a probar. El pedido no se guardó y el carrito se conservó.'
+       :'Supabase no pudo registrar ni reservar este pedido. Revisa los datos y las existencias; el carrito se conservó.');
      return false;
    }
    const result=Array.isArray(data)?data[0]:data;
-   if(!result?.success){showToast(result?.message||'No se pudo registrar el pedido. El carrito se conservó.');return false}
+   if(!result?.success){showContraEntregaError(result?.message||'No se pudo registrar el pedido. El carrito se conservó.');return false}
    clearCODOrderReference(clientReference);
    if(!checkoutCart){cart=[];saveWompiCart();}
    checkoutCart=null;clearPendingWompiReference();closeCheckout();
@@ -3487,7 +3543,7 @@ async function saveContraEntregaOrder(payload){
    handleCityChange();renderCart();$('orderSuccess')?.classList.add('open');return true;
  }catch(error){
    console.error('No se pudo guardar el pedido contra entrega:',error);
-   showToast('Ocurrió un error al registrar el pedido. El carrito se conservó; puedes reintentar sin duplicar el mismo pedido.');
+   showContraEntregaError('Ocurrió un error al registrar el pedido: '+String(error?.message||error||'error desconocido')+'. El carrito se conservó; puedes reintentar sin duplicar el mismo pedido.');
    return false;
  }finally{
    contraEntregaInProgress=false;
@@ -3590,6 +3646,8 @@ async function confirmCheckout(){
  if(!checkoutItems.length){showToast('Tu carrito está vacío.');return;}
  const validationErrors=getCheckoutValidationErrors();
  if(validationErrors.length){displayCheckoutValidation(validationErrors);resetWompiButton();return;}
+ // Elimina errores persistentes de un intento anterior antes de iniciar otro.
+ clearCheckoutValidation();
  // No convertir silenciosamente un pago online en contraentrega si el administrador
  // desactivó Wompi mientras el cliente completaba el formulario. Primero pedimos
  // revisar la nueva forma de pago y solo en el siguiente intento se confirma.
