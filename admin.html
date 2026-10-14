@@ -116,6 +116,10 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
 .orderCard{padding:16px;border:1px solid var(--border);border-radius:16px;background:var(--surface);margin-bottom:12px}
 .orderHead{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
 .orderCustomer{font-size:16px;font-weight:900}.orderMeta{font-size:12px;color:var(--muted);margin-top:4px}
+.ordersTools{display:flex;align-items:flex-end;justify-content:flex-end;gap:9px;flex-wrap:wrap}
+.ordersLastUpdated{font-size:11px;color:var(--muted);align-self:center}
+#refreshOrdersBtn:disabled{opacity:.65;cursor:wait}
+@media(max-width:700px){.ordersHeading{align-items:flex-start;flex-direction:column}.ordersTools{width:100%;justify-content:space-between}.ordersLastUpdated{font-size:10px}}
 .orderItems{margin:12px 0;padding:10px 12px;background:var(--surface2);border-radius:12px;font-size:12px}
 .orderActions{display:flex;gap:7px;flex-wrap:wrap;margin-top:12px}
 .orderActions .action{font-weight:800}
@@ -156,7 +160,21 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
 .adminColorLabel{min-width:0;overflow-wrap:normal;hyphens:none;line-height:1.1}
 .selectedColorSummary{margin-top:10px;padding:9px 11px;border-radius:10px;background:#f8f7fb;color:#6e7180;font-size:11px;line-height:1.4}
 .selectedColorSummary strong{color:#5b21b6}
-@media(max-width:700px){.adminColorField{padding:12px}.adminColorPalette{grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}.adminColorSwatch{gap:4px;padding:7px 5px;font-size:10px;min-height:42px}.adminColorCircle{width:18px;height:18px;flex-basis:18px}}
+.adminColorDetails{border:1px solid #e9dfd4;border-radius:12px;background:#fffdf9;overflow:hidden}
+.adminColorDisclosure{list-style:none;display:flex;align-items:center;gap:10px;padding:11px 12px;min-height:54px;cursor:pointer;user-select:none;background:linear-gradient(135deg,#fffdf9,#f8f1e8)}
+.adminColorDisclosure::-webkit-details-marker{display:none}
+.adminColorDisclosure::marker{content:""}
+.adminColorDisclosureIcon{width:34px;height:34px;flex:0 0 34px;display:grid;place-items:center;border-radius:10px;background:#f0e5d8;font-size:17px}
+.adminColorDisclosureText{display:flex;flex-direction:column;gap:3px;min-width:0;flex:1}
+.adminColorDisclosureText strong{color:#352d28;font-size:12px;font-weight:900}
+.adminColorDisclosureText small{color:#81766b;font-size:11px;font-weight:600}
+.adminColorDisclosureEnd{display:flex;align-items:center;gap:8px;margin-left:auto}
+.adminColorCount{white-space:nowrap;border:1px solid #ead8c7;border-radius:999px;background:#fff;color:#795541;padding:5px 8px;font-size:10px;font-weight:850}
+.adminColorDisclosureChevron{color:#7b1730;font-size:19px;font-weight:900;transition:transform .15s ease;line-height:1}
+.adminColorDetails[open] .adminColorDisclosureChevron{transform:rotate(180deg)}
+.adminColorDetails[open] .adminColorDisclosure{border-bottom:1px solid #eadfd3}
+.adminColorDetails .adminColorPalette{padding:0 11px 11px}
+@media(max-width:700px){.adminColorField{padding:10px}.adminColorDisclosure{padding:9px;gap:7px;min-height:50px}.adminColorDisclosureIcon{width:30px;height:30px;flex-basis:30px}.adminColorDisclosureText small{font-size:10px}.adminColorCount{font-size:9px;padding:4px 6px}.adminColorDisclosureEnd{gap:5px}.adminColorDetails .adminColorPalette{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;padding:0 8px 8px}.adminColorSwatch{gap:4px;padding:6px 4px;font-size:10px;min-height:40px}.adminColorCircle{width:18px;height:18px;flex-basis:18px}}
 </style>
 </head>
 <body>
@@ -228,9 +246,15 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
           <label>Nombre del producto *<input id="pNombre" placeholder="Ej. Corset negro"></label>
           <label>Categoría<select id="pCategoria"><option value="">Selecciona una categoría</option></select><div class="categoryInlineActions"><button type="button" class="softbtn" onclick="addCategoryFromProduct()">＋ Nueva categoría</button><small id="categoryLoadStatus" class="muted"></small></div></label>
           <div class="full adminColorField">
-            <div class="adminColorTitle">Colores del producto</div>
             <input id="pColores" type="hidden" value="">
-            <div id="colorPalette" class="adminColorPalette" role="group" aria-label="Selecciona uno o varios colores del producto"></div>
+            <details id="adminColorDetails" class="adminColorDetails">
+              <summary class="adminColorDisclosure">
+                <span class="adminColorDisclosureIcon" aria-hidden="true">🎨</span>
+                <span class="adminColorDisclosureText"><strong>Colores del producto</strong><small>Despliega para elegir uno o varios tonos</small></span>
+                <span class="adminColorDisclosureEnd"><span id="adminColorCount" class="adminColorCount">0 seleccionados</span><span class="adminColorDisclosureChevron" aria-hidden="true">⌄</span></span>
+              </summary>
+              <div id="colorPalette" class="adminColorPalette" role="group" aria-label="Selecciona uno o varios colores del producto"></div>
+            </details>
             <div id="selectedColorSummary" class="selectedColorSummary" aria-live="polite">Selecciona uno o varios colores de la paleta. Puedes tocar un color o arrastrar por varios tonos.</div>
           </div>
           <label>Tallas del producto
@@ -283,7 +307,7 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
         </div>
       </section>
 <section id="pedidos" class="view">
-  <div class="rowBetween"><div><h2 style="margin:0">📋 Pedidos</h2><p class="muted">Consulta y administra los pedidos realizados desde el catálogo web.</p></div></div>
+  <div class="rowBetween ordersHeading"><div><h2 style="margin:0">📋 Pedidos</h2><p class="muted">Consulta y administra los pedidos realizados desde el catálogo web.</p></div><div class="ordersTools"><span id="ordersLastUpdated" class="ordersLastUpdated" aria-live="polite">Última actualización: pendiente</span><button id="refreshOrdersBtn" class="softbtn" type="button" onclick="cargarPedidos()">↻ Actualizar pedidos</button></div></div>
   <div class="ordersSummary">
     <div class="orderStat"><small>Todos</small><b id="ordersTotal">0</b></div>
     <div class="orderStat"><small>Pendientes</small><b id="ordersPending">0</b></div>
@@ -805,6 +829,7 @@ function show(id,btn){
      console.error("Error actualizando categorías al abrir la sección:",err);
    });
  }
+ if(adminViewNeedsLiveAvailability())void refreshPublicAvailability();
  closeSidebar();
 }
 function toggleSidebar(){
@@ -877,6 +902,10 @@ function describeAdminTableError(table,error){
  return 'Error consultando public.'+table+(code?' ('+code+')':'')+': '+raw;
 }
 
+function setOrdersUpdatedAt(date=new Date()){
+ const status=$("ordersLastUpdated");
+ if(status)status.textContent='Última actualización: '+date.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'});
+}
 let cargarTodoBusy=false;
 async function cargarTodo(){
  if(cargarTodoBusy)return;
@@ -909,7 +938,7 @@ async function cargarTodo(){
  if(!pr.error){proveedores=pr.data||[];if(pr.orderMode&&pr.orderMode!=='stable')console.warn('Proveedores se cargó usando orden alternativo:',pr.orderMode);}else{moduleLoadErrors.suppliers=describeAdminTableError('suppliers',pr.error);partialErrors.push({name:'proveedores',table:'suppliers',error:pr.error});}
  if(!g.error){gastos=g.data||[];if(g.orderMode&&g.orderMode!=='stable')console.warn('Gastos se cargó usando orden alternativo:',g.orderMode);}else{moduleLoadErrors.expenses=describeAdminTableError('expenses',g.error);partialErrors.push({name:'gastos',table:'expenses',error:g.error});}
  if(!m.error)movimientos=m.data||[];else{moduleLoadErrors.movements=describeAdminTableError('inventory_movements',m.error);partialErrors.push({name:'movimientos',table:'inventory_movements',error:m.error});}
- if(!o.error)pedidos=o.data||[];else{moduleLoadErrors.orders=describeAdminTableError('web_orders',o.error);partialErrors.push({name:'pedidos',table:'web_orders',error:o.error});}
+ if(!o.error){pedidos=o.data||[];setOrdersUpdatedAt();}else{moduleLoadErrors.orders=describeAdminTableError('web_orders',o.error);partialErrors.push({name:'pedidos',table:'web_orders',error:o.error});}
  populateFilters();renderInicio();renderProductos();renderVentas();renderClientes();renderProveedores();renderGastos();renderMovimientos();renderReportes();refrescarSelects();renderVentaCatalogo();
  renderPedidos();
  if(partialErrors.length){
@@ -919,9 +948,13 @@ async function cargarTodo(){
  }finally{cargarTodoBusy=false}
 }
 
+function adminViewNeedsLiveAvailability(){
+ const active=document.querySelector('.view.active');
+ return !!active&&['inicio','inventario','ventas','producto'].includes(active.id);
+}
 let availabilityRefreshBusy=false;
 async function refreshPublicAvailability(){
- if(!sb||availabilityRefreshBusy||document.hidden||document.getElementById("app")?.classList.contains("hidden"))return;
+ if(!sb||availabilityRefreshBusy||document.hidden||document.getElementById("app")?.classList.contains("hidden")||!adminViewNeedsLiveAvailability())return;
  availabilityRefreshBusy=true;
  try{
    const {data,error}=await sb.rpc("get_public_catalog");
@@ -958,17 +991,32 @@ async function refreshPublicAvailability(){
  finally{availabilityRefreshBusy=false}
 }
 
+let cargarPedidosBusy=false;
 async function cargarPedidos(){
-  if(!sb)return;
-  const {data,error}=await fetchAllTableRows("web_orders","created_at",false);
-  if(error){
-    console.error("Error cargando pedidos:",error);
+  if(!sb||cargarPedidosBusy)return;
+  cargarPedidosBusy=true;
+  const button=$("refreshOrdersBtn");
+  const originalText=button?.textContent||'↻ Actualizar pedidos';
+  if(button){button.disabled=true;button.textContent='⏳ Actualizando…'}
+  try{
+    const {data,error}=await fetchAllTableRows("web_orders","created_at",false);
+    if(error){
+      console.error("Error cargando pedidos:",error);
+      toast("No se pudieron actualizar los pedidos. Se conserva la lista anterior.");
+      renderPedidos();
+      return;
+    }
+    pedidos=data||[];
+    setOrdersUpdatedAt();
+    renderPedidos();
+  }catch(fetchError){
+    console.error("Error inesperado actualizando pedidos:",fetchError);
     toast("No se pudieron actualizar los pedidos. Se conserva la lista anterior.");
     renderPedidos();
-    return;
+  }finally{
+    cargarPedidosBusy=false;
+    if(button){button.disabled=false;button.textContent=originalText}
   }
-  pedidos=data||[];
-  renderPedidos();
 }
 
 function pedidoEstado(p){
@@ -1024,11 +1072,10 @@ async function cambiarEstadoPedido(id,status){
     const result=Array.isArray(data)?data[0]:data;
     if(!result?.success){alert(result?.message||'No se pudo actualizar el pedido.');renderPedidos();return}
     toast(result.message||('Pedido actualizado: '+pedidoEstadoLabel(status)));
-    await cargarTodo();
+    notifyPublicCatalogChanged();void cargarTodo().catch(error=>console.error("No se pudo actualizar el administrador tras cambiar pedido:",error));
   }catch(error){alert('No se pudo actualizar el pedido: '+(error.message||error))}
   finally{if(select)select.disabled=false}
 }
-
 async function confirmarPedido(id){
   await cambiarEstadoPedido(id,"confirmado");
 }
@@ -1082,10 +1129,10 @@ function renderPedidos(){
         <div style="font-size:20px;font-weight:900">${money(total)}</div>
       </div>
       <div class="orderActions">
-        ${status==="pendiente"?`<button class="primary" onclick="confirmarPedido('${esc(p.id)}')">✅ Confirmar</button>`:""}
-        ${status==="pendiente"?`<button class="dangerbtn" onclick="rechazarPedido('${esc(p.id)}')">❌ Rechazar</button>`:""}
-        ${p.customer_phone?`<button class="action" onclick="whatsappPedido('${esc(p.customer_phone)}','${esc(p.customer_name||"")}')">💬 WhatsApp</button>`:""}
-        <select class="orderStatusSelect" data-order-id="${esc(p.id)}" onchange="cambiarEstadoPedido('${esc(p.id)}',this.value)">
+        ${status==="pendiente"?`<button type="button" class="primary" data-order-action="confirm" data-order-id="${esc(p.id)}">✅ Confirmar</button>`:""}
+        ${status==="pendiente"?`<button type="button" class="dangerbtn" data-order-action="reject" data-order-id="${esc(p.id)}">❌ Rechazar</button>`:""}
+        ${p.customer_phone?`<button type="button" class="action" data-order-action="whatsapp" data-phone="${esc(p.customer_phone)}" data-name="${esc(p.customer_name||"")}">💬 WhatsApp</button>`:""}
+        <select class="orderStatusSelect" data-order-id="${esc(p.id)}" aria-label="Cambiar estado del pedido ${esc(String(p.id||'').slice(0,8))}">
           ${["pendiente","confirmado","enviado","entregado","rechazado","devuelto"].map(s=>`<option value="${s}" ${s===status?"selected":""}>${pedidoEstadoLabel(s)}</option>`).join("")}
         </select>
       </div>
@@ -1571,6 +1618,8 @@ function renderAdminColorPalette(){
    const check=color.check||'#ffffff';
    return `<button type="button" class="adminColorSwatch" data-color="${esc(color.name)}" aria-pressed="${active?'true':'false'}" title="${active?'Quitar':'Seleccionar'} ${esc(color.name)}" style="--swatch-color:${color.hex};--check-color:${check}"><span class="adminColorCircle" aria-hidden="true"></span><span class="adminColorLabel">${esc(color.name)}</span></button>`;
  }).join('');
+ const count=$("adminColorCount");
+ if(count)count.textContent=selected.length?`${selected.length} seleccionado${selected.length===1?'':'s'}`:'0 seleccionados';
  if(summary){
    summary.innerHTML=selected.length?`<strong>${selected.length} color${selected.length===1?' seleccionado':'es seleccionados'}:</strong> ${selected.map(esc).join(' · ')}`:'Selecciona uno o varios colores de la paleta. Puedes tocar un color o arrastrar por varios tonos.';
  }
@@ -1717,6 +1766,12 @@ async function uploadVariantPhotos(productId, variants, files){
 document.addEventListener('change',e=>{if(e.target?.id==='pTallas'){variantDraft=collectVariantDraft();renderVariantEditor(variantMemory.length?variantMemory:variantDraft);variantDraft=collectVariantDraft()}});
 document.addEventListener('input',e=>{if(e.target?.classList?.contains('variantAdminStock')){const total=[...document.querySelectorAll('#variantEditorRows .variantAdminStock')].reduce((s,x)=>s+Math.max(0,Number(x.value)||0),0);if($("pCantidad"))$("pCantidad").value=total}});
 
+function notifyPublicCatalogChanged(type='catalog',details={}){
+ try{
+   const payload={type,productId:String(details.productId||''),refreshImages:!!details.refreshImages,at:Date.now(),nonce:Math.random().toString(36).slice(2)};
+   localStorage.setItem('sirevya_public_catalog_changed',JSON.stringify(payload));
+ }catch{}
+}
 async function guardarProducto(agregarOtro=false){
  const nombre=$("pNombre").value.trim();if(!nombre)return alert("Escribe el nombre del producto.");
  const files=[...($('pFoto').files||[])];
@@ -1759,7 +1814,8 @@ async function guardarProducto(agregarOtro=false){
    const retryHint=editingId?"\n\nEl producto puede haber quedado guardado. No lo crees de nuevo: verifica que el formulario siga en modo “Completar/Editar producto” y vuelve a intentar la subida.":"";
    return alert(message+descriptionHint+retryHint);
  }
- editingId=null;limpiarProducto();await cargarTodo();
+ notifyPublicCatalogChanged('product-saved',{productId:editingId,refreshImages:files.length>0});
+editingId=null;limpiarProducto();void cargarTodo().catch(error=>console.error('No se pudo actualizar el resumen del administrador tras guardar:',error));
 if(agregarOtro){
   show("producto",document.querySelector('[data-view=producto]'));
   $("pNombre").focus();
@@ -1790,16 +1846,20 @@ async function borrarProducto(id){
  }
  const response=Array.isArray(result.data)?result.data[0]:result.data;
  if(!response?.success){alert(response?.message||'No se pudo eliminar el producto.');return}
- let cleanupNote="";
- try{
-   const deleted=await deleteProductImagesFromR2(id);
-   cleanupNote=` Fotos físicas de R2 eliminadas: ${Number(deleted.deleted)||0}.`;
- }catch(cleanupError){
+ // Reflejar la eliminación en la interfaz y notificar las otras pestañas antes
+ // de limpiar fotos: la limpieza de R2 no debe retrasar la desaparición del artículo.
+ productos=productos.filter(item=>String(item.id)!==String(id));
+ populateFilters();renderProductos();refrescarSelects();renderVentaCatalogo();renderInicio();renderReportes();
+ notifyPublicCatalogChanged('product-deleted',{productId:id});
+ toast("Producto eliminado. Actualizando resumen e imágenes en segundo plano.");
+ void cargarTodo().catch(error=>console.error('No se pudo actualizar el resumen del administrador tras eliminar:',error));
+ void deleteProductImagesFromR2(id).then(deleted=>{
+   const count=Number(deleted?.deleted)||0;
+   if(count)console.info('Fotos físicas de R2 eliminadas:',count);
+ }).catch(cleanupError=>{
    console.warn("El producto se borró de la base, pero no se pudieron limpiar sus fotos de R2:",cleanupError);
-   cleanupNote=" El producto se eliminó, pero quedaron archivos que no se pudieron limpiar en R2: "+(cleanupError.message||cleanupError);
- }
- await cargarTodo();
- toast("Producto eliminado."+cleanupNote);
+   toast("El producto se eliminó, pero algunas fotos antiguas pueden seguir en R2.");
+ });
 }
 function getImageUrl(value){return publicWorkerImage(value)}
 function stockBadge(q){q=Number(q)||0;return q<=0?'<span class="badge out">Agotado</span>':q<=2?'<span class="badge low">Stock bajo</span>':'<span class="badge ok">Disponible</span>'}
@@ -1978,7 +2038,8 @@ async function registrarVenta(){
  if(error)return alert("No se pudo registrar la venta: "+error.message);
  const result=Array.isArray(data)?data[0]:data;
  if(!result?.success)return alert(result?.message||"No se pudo registrar la venta.");
- toast("Venta registrada y stock actualizado correctamente");$("vCantidad").value=1;await cargarTodo();
+ notifyPublicCatalogChanged();
+ toast("Venta registrada y stock actualizado correctamente");$("vCantidad").value=1;void cargarTodo().catch(error=>console.error('No se pudo actualizar el resumen del administrador tras registrar venta:',error));
 }
 function renderVentas(){
  const q=($("buscarVenta")?.value||"").toLowerCase();
@@ -2079,8 +2140,9 @@ async function registrarMovimiento(){
  if(!rpcResult?.error){
    const result=Array.isArray(rpcResult.data)?rpcResult.data[0]:rpcResult.data;
    if(!result?.success)return alert(result?.message||'Supabase no confirmó el movimiento; el inventario no se modificó.');
+   notifyPublicCatalogChanged();
    toast('Movimiento registrado');
-   $("mCantidad").value=1;$("mMotivo").value="";await cargarTodo();return;
+   $("mCantidad").value=1;$("mMotivo").value="";void cargarTodo().catch(error=>console.error('No se pudo actualizar el resumen del administrador tras registrar movimiento:',error));return;
  }
  const rpcMessage=String(rpcResult.error?.message||'');
  const missingRpc=rpcResult.error?.code==='PGRST202'||/could not find the function|function .* does not exist|schema cache/i.test(rpcMessage);
@@ -2206,10 +2268,25 @@ applyBrand();
 $("vVariant").addEventListener("change",refreshSalePreview);$("vCantidad").addEventListener("input",refreshSalePreview);
 window.addEventListener("click",e=>{if(e.target===$("productModal"))closeModal()});
 init();
-setInterval(refreshPublicAvailability,15000); // 15 s: mantiene el refresco acordado; ventas verifican stock en servidor
-document.addEventListener("visibilitychange",()=>{if(!document.hidden)refreshPublicAvailability()});
+setInterval(()=>{if(adminViewNeedsLiveAvailability())refreshPublicAvailability()},15000); // Conserva los 15 s solo en vistas que muestran stock.
+document.addEventListener("visibilitychange",()=>{if(!document.hidden&&adminViewNeedsLiveAvailability())refreshPublicAvailability()});
 document.addEventListener("DOMContentLoaded",()=>{
   initAdminColorPalette();
+  const ordersBox=$("listaPedidos");
+  if(ordersBox){
+    ordersBox.addEventListener('click',event=>{
+      const button=event.target.closest('button[data-order-action]');
+      if(!button||!ordersBox.contains(button))return;
+      const action=button.dataset.orderAction||'',id=button.dataset.orderId||'';
+      if(action==='confirm'&&id)void confirmarPedido(id);
+      else if(action==='reject'&&id)void rechazarPedido(id);
+      else if(action==='whatsapp')whatsappPedido(button.dataset.phone||'',button.dataset.name||'');
+    });
+    ordersBox.addEventListener('change',event=>{
+      const select=event.target.closest('select.orderStatusSelect[data-order-id]');
+      if(select&&ordersBox.contains(select))void cambiarEstadoPedido(select.dataset.orderId,select.value);
+    });
+  }
   const paymentToggle=$("onlinePaymentsToggle");if(paymentToggle)paymentToggle.addEventListener("change",updateOnlinePaymentAdminLabel);
   const f=$("pFoto");if(f)f.addEventListener("change",renderPhotoPreview);
   const guideFile=$("pGuiaTallasFoto");if(guideFile)guideFile.addEventListener("change",()=>{if(guideFile.files?.length)sizeGuideImageRemoveRequested=false;renderSizeGuidePhotoPreview()});

@@ -10,7 +10,13 @@
 <link rel="dns-prefetch" href="//sirevya-images.variedadesjm99.workers.dev">
 <!-- V8: reservas Wompi independientes por carrito durante 10 minutos; un nuevo pago no libera reservas anteriores. -->
 <title>Sirevya — Tu estilo, nuestra pasión</title>
-<meta name="description" content="Catálogo de productos de Variedades JM por categorías">
+<meta name="description" content="Descubre moda y accesorios en Sirevya. Consulta productos, colores, tallas y precios; envío gratis en Cali y envío nacional gratis desde $130.000.">
+<link rel="canonical" href="https://sirevya.com.co/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Sirevya">
+<meta property="og:title" content="Sirevya — Tu estilo, nuestra pasión">
+<meta property="og:description" content="Moda y accesorios con envío gratis en Cali y envío nacional gratis desde $130.000.">
+<meta name="twitter:card" content="summary">
 <link id="favicon" rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect x='4' y='4' width='92' height='92' rx='22' fill='%23101827'/%3E%3Ctext x='50' y='64' text-anchor='middle' font-family='Arial,sans-serif' font-size='42' font-weight='900' fill='white'%3EJM%3C/text%3E%3C/svg%3E">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
@@ -509,13 +515,6 @@ body{background:linear-gradient(180deg,#fffaf0 0%,#fff6e6 55%,#f8ecd7 100%);colo
 
 
 /* Política de privacidad y consentimiento */
-.privacyConsent{margin-top:12px;padding:13px 14px;background:#fffaf3;border:1px solid #e5d9ce;border-radius:13px;color:#3a332d;font-size:12px;line-height:1.5}
-.privacyConsent label{display:flex;align-items:flex-start;gap:9px;cursor:pointer;font-weight:600}
-.privacyConsent input{width:18px;height:18px;flex:0 0 auto;margin-top:1px;accent-color:#d9163b}
-.privacyConsent a{color:#a90e2c;text-decoration:underline;font-weight:900}
-.privacyConsent.optional{background:#fff;border-color:#e8e8eb;font-weight:500}
-.privacyError{display:none;margin-top:7px;color:#b30f2e;font-size:11px;font-weight:800}
-.privacyError.show{display:block}
 .privacyModal{position:fixed;inset:0;background:rgba(20,16,12,.72);backdrop-filter:blur(5px);display:none;align-items:center;justify-content:center;z-index:500;padding:16px}
 .privacyModal.open{display:flex}
 .privacyBox{width:min(94vw,760px);max-height:90vh;overflow:auto;background:#fffaf3;color:#332d28;border:1px solid #eadfd3;border-radius:22px;padding:24px;box-shadow:0 24px 70px rgba(0,0,0,.3);line-height:1.6}
@@ -1862,6 +1861,9 @@ let productos=[];
 // Descripciones opcionales vienen por una RPC separada para no bloquear el catálogo
 // si aún no se ha aplicado la migración o si esa consulta falla.
 let publicProductDetails=new Map();
+// IDs whose detail fields were received in a complete server response. Blank values
+// from these rows are authoritative too (they can mean the admin intentionally cleared a field).
+const publicProductDetailsAuthoritative=new Set();
 let publicProductDetailsNeedsFallback=false;
 let publicProductDetailsInitialLoading=false;
 let publicProductDetailsLoadGuard=null;
@@ -2426,7 +2428,7 @@ async function getPublicProductDetailsRow(productId){
  const mergeMatchingRow=row=>{
    if(!row||normalizeDetailId(row.id)!==idKey)return {matched:false,complete:false};
    const fields=normalizeDetailFields(row);
-   keys.forEach(key=>{if(fields[key])combined[key]=fields[key]});
+   keys.forEach(key=>{if(Object.prototype.hasOwnProperty.call(row,key))combined[key]=fields[key]});
    return {matched:true,complete:keys.every(key=>Object.prototype.hasOwnProperty.call(row,key))};
  };
  const absorbRows=rows=>{
@@ -2440,7 +2442,7 @@ async function getPublicProductDetailsRow(productId){
    const result=await fetchAllRpcRows('get_public_product_details_for_product',{p_product_id:id});
    if(!result?.error){
      const outcome=absorbRows(Array.isArray(result?.data)?result.data:(result?.data?[result.data]:[]));
-     if(outcome.matched&&outcome.complete)return {id,...combined};
+     if(outcome.matched&&outcome.complete)return {id,...combined,_complete:true};
    }else console.warn('RPC individual de detalles no disponible; se probará la consulta general.',result.error.message||result.error);
  }catch(error){console.warn('No se pudo ejecutar la RPC individual de detalles.',error)}
  // The general RPC is the function verified in Supabase and normally supplies all fields.
@@ -2448,7 +2450,7 @@ async function getPublicProductDetailsRow(productId){
    const result=await fetchAllRpcRows('get_public_product_details');
    if(!result?.error){
      const outcome=absorbRows(result?.data);
-     if(outcome.matched&&outcome.complete)return {id,...combined};
+     if(outcome.matched&&outcome.complete)return {id,...combined,_complete:true};
    }else console.warn('RPC general de detalles no disponible.',result.error.message||result.error);
  }catch(error){console.warn('No se pudo ejecutar la RPC general de detalles.',error)}
  // Older deployments may have only the description RPC.
@@ -2456,7 +2458,7 @@ async function getPublicProductDetailsRow(productId){
    const result=await fetchAllRpcRows('get_public_product_descriptions');
    if(!result?.error){
      const outcome=absorbRows(result?.data);
-     if(outcome.matched&&outcome.complete)return {id,...combined};
+     if(outcome.matched&&outcome.complete)return {id,...combined,_complete:true};
    }else console.warn('RPC antigua de descripciones no disponible.',result.error.message||result.error);
  }catch(error){console.warn('No se pudo ejecutar la RPC antigua de descripciones.',error)}
  // Last-resort public-field-only lookup for deployments whose RPCs are not exposed.
@@ -2467,41 +2469,55 @@ async function getPublicProductDetailsRow(productId){
      .maybeSingle();
    if(!result?.error&&result?.data){
      const outcome=mergeMatchingRow(result.data);
-     if(outcome.matched)return {id,...combined};
+     if(outcome.matched)return {id,...combined,_complete:outcome.complete};
    }else if(result?.error)console.warn('Lectura directa de detalles bloqueada o no disponible por RLS.',result.error.message||result.error);
  }catch(error){console.warn('No se pudo leer el respaldo directo de los detalles.',error)}
- return Object.values(combined).some(value=>String(value||'').trim())?{id,...combined}:null;
+ return Object.values(combined).some(value=>String(value||'').trim())?{id,...combined,_complete:false}:null;
 }
-async function refreshProductDetailsOnDemand(productId){
+async function refreshProductDetailsOnDemand(productId,force=false){
  const id=String(productId??'').trim();
  const idKey=normalizeDetailId(id);
  if(!idKey)return false;
- if(productDetailLookupCompleted.has(idKey))return true;
- if(productDetailLookupInFlight.has(idKey))return productDetailLookupInFlight.get(idKey);
+ if(!force&&productDetailLookupCompleted.has(idKey))return true;
+ if(productDetailLookupInFlight.has(idKey)){
+   const pending=productDetailLookupInFlight.get(idKey);
+   if(!force)return pending;
+   // If an older lookup is in flight, let it finish, then issue one fresh lookup.
+   try{await pending}catch{}
+ }
+ if(!force&&productDetailLookupCompleted.has(idKey))return true;
  const task=(async()=>{
    try{
      const row=await getPublicProductDetailsRow(id);
-     // Remember attempted lookups even when the RPC returns no row, so repeatedly
-     // opening a product does not send the same extra requests to Supabase.
-     productDetailLookupCompleted.add(idKey);
      if(!row){
-       publicProductDetails.set(idKey,{description:'',size_guide:'',size_guide_image:''});
+       // A forced refresh that receives no matching row is not proof that saved
+       // details are empty. Preserve the current UI/cache and permit a later retry.
+       if(!force){
+         productDetailLookupCompleted.add(idKey);
+         publicProductDetails.set(idKey,{description:'',size_guide:'',size_guide_image:''});
+       }else productDetailLookupCompleted.delete(idKey);
        return false;
      }
      const incoming=normalizeDetailFields(row);
      const oldProduct=productos.find(item=>normalizeDetailId(item.id)===idKey)||{};
      const existing=publicProductDetails.get(idKey)||{};
-     // Prefer fresh non-empty data, but never erase previously loaded fields with
-     // omitted/blank fields from a fallback response.
-     const merged={
+     const authoritative=row._complete===true;
+     const merged=authoritative?incoming:{
        description:incoming.description||String(existing.description||'').trim()||String(oldProduct.description||'').trim(),
        size_guide:incoming.size_guide||String(existing.size_guide||'').trim()||String(oldProduct.size_guide||'').trim(),
        size_guide_image:incoming.size_guide_image||String(existing.size_guide_image||'').trim()||String(oldProduct.size_guide_image||'').trim()
      };
      publicProductDetails.set(idKey,merged);
-     productos=productos.map(item=>normalizeDetailId(item.id)===idKey?{...item,...merged}:item);
+     if(authoritative)publicProductDetailsAuthoritative.add(idKey);
+     productDetailLookupCompleted.add(idKey);
+     let changed=false;
+     productos=productos.map(item=>{
+       if(normalizeDetailId(item.id)!==idKey)return item;
+       if(String(item.description||'').trim()!==merged.description||String(item.size_guide||'').trim()!==merged.size_guide||String(item.size_guide_image||'').trim()!==merged.size_guide_image)changed=true;
+       return {...item,...merged};
+     });
      const current=productos.find(item=>normalizeDetailId(item.id)===idKey);
-     if(hasAnyProductDetails(merged))productDetailLookupCompleted.add(idKey);
+     if(changed){renderHeroProducts();render()}
      if(current&&normalizeDetailId(detailProduct?.id)===idKey&&$('productDetailModal')?.classList.contains('open')){
        detailProduct=current;
        updateDetailDescription(current);
@@ -2513,6 +2529,35 @@ async function refreshProductDetailsOnDemand(productId){
  productDetailLookupInFlight.set(idKey,task);
  return task;
 }
+
+async function refreshEditedProductDetails(productId,refreshImages=false){
+ const id=String(productId??'').trim(),key=normalizeDetailId(id);
+ if(!key)return;
+ // Invalidate an older bulk response so it cannot overwrite this targeted update.
+ catalogEnrichmentSequence++;
+ await refreshProductDetailsOnDemand(id,true);
+ if(!refreshImages)return;
+ try{
+   const result=await fetchAllRpcRows('get_public_catalog_multifotos');
+   if(result?.error||!Array.isArray(result?.data))throw result?.error||new Error('Respuesta de multifotos no válida');
+   const photoRow=result.data.find(row=>normalizeDetailId(row?.id)===key)||null;
+   let changed=false;
+   productos=productos.map(product=>{
+     if(normalizeDetailId(product.id)!==key)return product;
+     const paths=photoRow&&Array.isArray(photoRow.image_paths)?photoRow.image_paths:[];
+     // The main image is refreshed by get_public_catalog; preserve it here because
+     // the multifotos endpoint can omit rows when no extra images remain.
+     if(JSON.stringify(paths)!==JSON.stringify(product.image_paths||[]))changed=true;
+     return {...product,image_paths:paths};
+   });
+   if(changed){renderHeroProducts();render()}
+   const current=productos.find(product=>normalizeDetailId(product.id)===key);
+   if(current&&normalizeDetailId(detailProduct?.id)===key&&$('productDetailModal')?.classList.contains('open')){
+     detailProduct=current;updateDetailDescription(current);
+   }
+ }catch(error){console.warn('El producto se guardó, pero no se pudieron actualizar sus fotos adicionales en la tienda.',error)}
+}
+
 function updateDetailStockNotice(p){
  const el=$('detailStockNotice');if(!el||!p)return;
  const box=document.querySelector('#productDetailModal .detailCard');
@@ -3548,7 +3593,7 @@ async function saveContraEntregaOrder(payload){
    if(!checkoutCart){cart=[];saveWompiCart();}
    checkoutCart=null;clearPendingWompiReference();closeCheckout();
    ['customerName','customerCedula','customerPhone','customerEmail','customerCity','customerCityOther','customerAddress','customerNeighborhood'].forEach(id=>{if($(id))$(id).value=''});
-   handleCityChange();renderCart();$('orderSuccess')?.classList.add('open');return true;
+   handleCityChange();renderCart();$('orderSuccess')?.classList.add('open');void refreshInventoryStatus(true);return true;
  }catch(error){
    console.error('No se pudo guardar el pedido contra entrega:',error);
    showContraEntregaError('Ocurrió un error al registrar el pedido: '+String(error?.message||error||'error desconocido')+'. El carrito se conservó; puedes reintentar sin duplicar el mismo pedido.');
@@ -3558,6 +3603,7 @@ async function saveContraEntregaOrder(payload){
    if(btn){btn.disabled=false;btn.textContent='✅ Confirmar pedido'}
  }
 }
+const checkoutValidationFieldIds=['customerName','customerPhone','customerEmail','customerCity','customerCityOther','customerAddress','customerNeighborhood'];
 function checkoutErrorElement(fieldId){
  const id=String(fieldId||'');
  if(!id.startsWith('customer'))return null;
@@ -3712,6 +3758,7 @@ async function fetchAllRpcRows(functionName,args=null){
  return {data:null,error:{message:'La consulta '+functionName+' supera el límite de seguridad de 100.000 filas.'}};
 }
 
+let catalogInitialLoadComplete=false;
 async function load(){
  publicProductDetailsInitialLoading=true;
  if(publicProductDetailsLoadGuard)clearTimeout(publicProductDetailsLoadGuard);
@@ -3735,6 +3782,7 @@ async function load(){
     size_guide_image:String(p.size_guide_image||'').trim(),quantity:Number(p.quantity)||0,
     colors:parseVariantList(p.colors),sizes:parseVariantList(p.sizes),variants:normalizeVariants(p.variants),image_paths:[]
   }));
+  catalogInitialLoadComplete=true;
   const initialCats=[...new Set(productos.map(p=>String(p.category||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'es'));
   applyCatalogCategories(initialCats,true);
   $('error').style.display='none';
@@ -3772,6 +3820,11 @@ async function load(){
   }
   if(Array.isArray(detailRows)){
     publicProductDetails=new Map(detailRows.map(row=>[normalizeDetailId(row.id),normalizeDetailFields(row)]).filter(([id])=>!!id));
+    publicProductDetailsAuthoritative.clear();
+    detailRows.forEach(row=>{
+      const id=normalizeDetailId(row?.id);
+      if(id&&['description','size_guide','size_guide_image'].every(key=>Object.prototype.hasOwnProperty.call(row,key)))publicProductDetailsAuthoritative.add(id);
+    });
     const before=productos;
     productos=productos.map(p=>{
       const details=publicProductDetails.get(normalizeDetailId(p.id));
@@ -3870,9 +3923,59 @@ function applyCatalogCategories(cats,initial=false,preserveSavedOrder=false){
  renderHeroProducts();
  return changed;
 }
+let catalogEnrichmentSequence=0;
+async function refreshCatalogEnrichment(expectedSignature){
+ const requestId=++catalogEnrichmentSequence;
+ try{
+   const [detailsResult,multiResult]=await Promise.all([
+     fetchAllRpcRows('get_public_product_details'),
+     fetchAllRpcRows('get_public_catalog_multifotos')
+   ]);
+   if(requestId!==catalogEnrichmentSequence)return;
+   const currentSignature=productos.map(p=>normalizeDetailId(p.id)).sort().join('|');
+   if(currentSignature!==expectedSignature)return; // Do not apply a stale response after another catalog change.
+   let changed=false;
+   if(!detailsResult.error&&Array.isArray(detailsResult.data)){
+     const incoming=new Map(detailsResult.data.map(row=>[normalizeDetailId(row.id),row]).filter(([id])=>!!id));
+     const kept=new Map();
+     productos=productos.map(product=>{
+       const key=normalizeDetailId(product.id),prior=publicProductDetails.get(key)||{},row=incoming.get(key)||null;
+       const merged={};
+       ['description','size_guide','size_guide_image'].forEach(field=>{
+         if(row&&Object.prototype.hasOwnProperty.call(row,field))merged[field]=String(row[field]??'').trim();
+         else merged[field]=String(prior[field]??product[field]??'').trim();
+       });
+       if(row&&['description','size_guide','size_guide_image'].every(field=>Object.prototype.hasOwnProperty.call(row,field)))publicProductDetailsAuthoritative.add(key);
+       kept.set(key,merged);
+       if(merged.description!==String(product.description||'').trim()||merged.size_guide!==String(product.size_guide||'').trim()||merged.size_guide_image!==String(product.size_guide_image||'').trim())changed=true;
+       return {...product,...merged};
+     });
+     publicProductDetails=kept;
+   }else if(detailsResult.error){console.warn('El catálogo se actualizó; los detalles opcionales se conservan temporalmente.',detailsResult.error)}
+   if(!multiResult.error&&Array.isArray(multiResult.data)){
+     const byId=new Map(multiResult.data.map(row=>[normalizeDetailId(row.id),row]));
+     productos=productos.map(product=>{
+       const row=byId.get(normalizeDetailId(product.id));
+       if(!row)return product;
+       const paths=Array.isArray(row.image_paths)?row.image_paths:(product.image_paths||[]);
+       const image=row.image_url||product.image_url;
+       if(JSON.stringify(paths)!==JSON.stringify(product.image_paths||[])||image!==product.image_url)changed=true;
+       return {...product,image_paths:paths,image_url:image};
+     });
+   }else if(multiResult.error){console.warn('El catálogo se actualizó; las galerías adicionales se conservan temporalmente.',multiResult.error)}
+   if(changed){renderHeroProducts();render();}
+   if(detailProduct){
+     const current=productos.find(p=>normalizeDetailId(p.id)===normalizeDetailId(detailProduct.id));
+     if(current){detailProduct=current;if($('productDetailModal')?.classList.contains('open'))updateDetailDescription(current);}
+   }
+ }catch(error){console.warn('No se pudieron actualizar los detalles secundarios del catálogo.',error)}
+}
+
 let inventoryRefreshBusy=false;
-async function refreshInventoryStatus(){
- if(inventoryRefreshBusy||document.visibilityState!=='visible')return;
+let inventoryRefreshPending=false;
+async function refreshInventoryStatus(priority=false){
+ if(document.visibilityState!=='visible')return;
+ if(inventoryRefreshBusy){if(priority)inventoryRefreshPending=true;return;}
  inventoryRefreshBusy=true;
  try{
    const base=await fetchAllRpcRows('get_public_catalog');
@@ -3885,10 +3988,39 @@ async function refreshInventoryStatus(){
    const currentIds=new Set(oldMap.keys());
    const productSetChanged=currentIds.size!==freshIds.size||[...freshIds].some(id=>!currentIds.has(id));
    if(productSetChanged){
-     // Los RPC de catálogo no siempre incluyen descripción/guía y la galería completa.
-     // Cuando se crea o elimina un producto, recargar el enriquecimiento de fondo evita
-     // mostrar una ficha incompleta o conservar una tarjeta eliminada.
-     await load();
+     // Aplicar inmediatamente la respuesta que ya consultamos: evita una segunda
+     // llamada secuencial a get_public_catalog cuando se crea o elimina un producto.
+     productos=fresh.map(item=>{
+       const key=normalizeDetailId(item.id),old=oldMap.get(key)||{};
+       const details=publicProductDetails.get(key)||{};
+       const imageUnchanged=String(old.image_url||'')===String(item.image_url||'');
+       const authoritative=publicProductDetailsAuthoritative.has(key);
+       return {
+         ...old,...item,
+         description:authoritative?String(details.description??'').trim():String(old.description||details.description||item.description||'').trim(),
+         size_guide:authoritative?String(details.size_guide??'').trim():String(old.size_guide||details.size_guide||item.size_guide||'').trim(),
+         size_guide_image:authoritative?String(details.size_guide_image??'').trim():String(old.size_guide_image||details.size_guide_image||item.size_guide_image||'').trim(),
+         image_paths:imageUnchanged&&Array.isArray(old.image_paths)?old.image_paths:[]
+       };
+     });
+     // Drop cached details for deleted products so they do not linger in memory.
+     publicProductDetails=new Map([...publicProductDetails.entries()].filter(([id])=>freshIds.has(id)));
+     [...publicProductDetailsAuthoritative].forEach(id=>{if(!freshIds.has(id))publicProductDetailsAuthoritative.delete(id)});
+     const productCats=[...new Set(productos.map(p=>String(p.category||'').trim()).filter(Boolean))];
+     const existingCats=[...document.querySelectorAll('#category option')].map(option=>option.value).filter(Boolean);
+     const syncedCats=existingCats.filter(category=>productCats.some(pc=>normalizeText(pc)===normalizeText(category)));
+     productCats.forEach(category=>{if(!syncedCats.some(current=>normalizeText(current)===normalizeText(category)))syncedCats.push(category)});
+     applyCatalogCategories(syncedCats,false);
+     renderHeroProducts();
+     render();
+     if(detailProduct){
+       const current=productos.find(p=>normalizeDetailId(p.id)===normalizeDetailId(detailProduct.id));
+       if(current){detailProduct=current;if($('productDetailModal')?.classList.contains('open'))updateDetailDescription(current);}
+       else closeProductDetail();
+     }
+     // Fetch optional descriptions/guides and multi-photo paths after the visible
+     // catalog is current. These requests do not delay reflecting the stock change.
+     void refreshCatalogEnrichment([...freshIds].sort().join('|'));
      return;
    }
    let visibleChanged=false;
@@ -3897,10 +4029,11 @@ async function refreshInventoryStatus(){
      const key=normalizeDetailId(f.id),old=oldMap.get(key)||{};
      if(!oldMap.has(key)||(old.image_url&&f.image_url&&old.image_url!==f.image_url))needMultiPhotoRefresh=true;
      const storedDetails=publicProductDetails.get(key)||{};
+     const authoritative=publicProductDetailsAuthoritative.has(key);
      const preservedDetails={
-       description:String(old.description||'').trim()||String(storedDetails.description||'').trim()||String(f.description||'').trim(),
-       size_guide:String(old.size_guide||'').trim()||String(storedDetails.size_guide||'').trim()||String(f.size_guide||'').trim(),
-       size_guide_image:String(old.size_guide_image||'').trim()||String(storedDetails.size_guide_image||'').trim()||String(f.size_guide_image||'').trim()
+       description:authoritative?String(storedDetails.description??'').trim():(String(old.description||'').trim()||String(storedDetails.description||'').trim()||String(f.description||'').trim()),
+       size_guide:authoritative?String(storedDetails.size_guide??'').trim():(String(old.size_guide||'').trim()||String(storedDetails.size_guide||'').trim()||String(f.size_guide||'').trim()),
+       size_guide_image:authoritative?String(storedDetails.size_guide_image??'').trim():(String(old.size_guide_image||'').trim()||String(storedDetails.size_guide_image||'').trim()||String(f.size_guide_image||'').trim())
      };
      const merged={...old,...f,...preservedDetails,image_paths:(old.image_url&&f.image_url&&old.image_url!==f.image_url)?[]:(Array.isArray(old.image_paths)?old.image_paths:[])};
      const oldSig=JSON.stringify(old?{
@@ -3943,14 +4076,28 @@ async function refreshInventoryStatus(){
    console.warn('No se pudo actualizar el inventario en tiempo real.',e);
  }finally{
    inventoryRefreshBusy=false;
+   if(inventoryRefreshPending&&document.visibilityState==='visible'){
+     inventoryRefreshPending=false;
+     setTimeout(()=>void refreshInventoryStatus(),120);
+   }
  }
 }
 
+window.addEventListener('storage',event=>{
+ if(event.key!=='sirevya_public_catalog_changed'||document.visibilityState!=='visible'||!catalogInitialLoadComplete)return;
+ let change=null;
+ try{change=JSON.parse(event.newValue||'')}catch{}
+ void refreshInventoryStatus(true);
+ if(change?.type==='product-saved'&&change.productId){
+   void refreshEditedProductDetails(change.productId,!!change.refreshImages);
+ }
+});
 syncPaymentOptions();
 load();
 refreshOnlinePaymentSetting({silent:true});
 setInterval(()=>{if(document.visibilityState==='visible')refreshInventoryStatus()},15000); // 15 s: reduce consultas respecto al refresco anterior de 8 s
 setInterval(()=>{if(document.visibilityState==='visible')refreshOnlinePaymentSetting({silent:true})},30000);
-document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshOnlinePaymentSetting({silent:true})});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden){refreshOnlinePaymentSetting({silent:true});if(catalogInitialLoadComplete)void refreshInventoryStatus(true)}});
+window.addEventListener('pageshow',()=>{if(catalogInitialLoadComplete&&document.visibilityState==='visible')void refreshInventoryStatus(true)});
 </script>
 </body></html>
