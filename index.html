@@ -2200,10 +2200,18 @@ function variantStock(p,color,size){
  const targetColor=normalizeText(color),targetSize=normalizeText(size);
  // Older administrator builds stored the placeholder "Sin color" as a real
  // variant color. For products without configured colors, treat it like empty.
+ const sizeMatches=(rawSize)=>{
+   const currentSize=normalizeText(rawSize);
+   if(currentSize===targetSize)return true;
+   // En productos que solo tienen color, el administrador puede guardar
+   // la variante como "Única" aunque el catálogo no muestre selector de talla.
+   if(!targetSize && (currentSize==='unica'||currentSize==='unico'))return true;
+   return false;
+ };
  const v=vs.find(x=>{
    let currentColor=normalizeText(x.color);
    if(!hasDeclaredColors && currentColor==='sin color')currentColor='';
-   return currentColor===targetColor && normalizeText(x.size)===targetSize;
+   return currentColor===targetColor && sizeMatches(x.size);
  });
  return v?Number(v.stock)||0:0;
 }
