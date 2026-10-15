@@ -493,13 +493,14 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
               <label>Color del texto<div class="promoAdminColorRow"><input id="seasonalPromoTextColor" type="color" value="#ffffff" disabled><small>Título y mensaje</small></div></label>
               <label>Cuándo aparece<select id="seasonalPromoDelay" disabled><option value="0">Inmediatamente</option><option value="800">Después de 0,8 segundos</option><option value="1600" selected>Después de 1,6 segundos</option><option value="3000">Después de 3 segundos</option><option value="5000">Después de 5 segundos</option></select></label>
               <label>Cuánto tiempo permanece<select id="seasonalPromoDuration" disabled><option value="0">Sin cierre automático</option><option value="3000" selected>3 segundos · recomendado</option><option value="5000">5 segundos</option><option value="8000">8 segundos</option><option value="10000">10 segundos</option></select></label>
+              <label>Frecuencia de aparición<select id="seasonalPromoFrequency" disabled><option value="once_per_session">Una vez por sesión</option><option value="every_page_load">Cada vez que se abre o recarga la página</option></select></label>
               <label>Tipo de animación<select id="seasonalPromoAnimationStyle" disabled><option value="falling">Elementos cayendo</option><option value="sparkle">Destellos suaves</option><option value="none">Sin animación</option></select></label>
               <label class="promoToggleRow"><input type="checkbox" id="seasonalPromoAnimate" checked disabled> Activar animación</label>
               <label>Mostrar desde (opcional)<input type="datetime-local" id="seasonalPromoStartAt" disabled></label>
               <label>Mostrar hasta (opcional)<input type="datetime-local" id="seasonalPromoEndAt" disabled></label>
             </div>
             <div id="seasonalPromoAdminPreview" class="promoAdminPreviewFrame" aria-label="Vista previa del diseño de promoción"></div>
-            <p class="promoAdminHelp">Las opciones Muy pequeña y Circular hacen la promoción más discreta. Puedes cambiar la forma, tamaño, posición, paleta, animación, demora de aparición y cuánto tiempo permanece visible. Con 3 segundos se cerrará automáticamente; elige Sin cierre automático si prefieres que la persona la cierre. La promoción aparece una vez por sesión y respeta la preferencia de reducir movimiento. Las fechas usan la hora local del navegador. El botón admite #catalogo, #inicio, #contactanos o enlaces HTTP/HTTPS.</p>
+            <p class="promoAdminHelp">Las opciones Muy pequeña y Circular hacen la promoción más discreta. Puedes cambiar la forma, tamaño, posición, paleta, animación, demora de aparición y cuánto tiempo permanece visible. Con 3 segundos se cerrará automáticamente; elige Sin cierre automático si prefieres que la persona la cierre. En Frecuencia de aparición puedes elegir una vez por sesión o cada vez que se abre/recarga la página. Cada vez que guardes cambios, el catálogo podrá mostrar la versión nueva de la promoción. Respeta la preferencia de reducir movimiento. Las fechas usan la hora local del navegador. El botón admite #catalogo, #inicio, #contactanos o enlaces HTTP/HTTPS.</p>
             <div class="promoAdminActions"><button type="button" class="primary" id="saveSeasonalPromoBtn" onclick="saveSeasonalPromoSettings()" disabled>💾 Guardar promoción</button><button type="button" class="softbtn" onclick="previewSeasonalPromo()">👁️ Ver ventana previa</button><button type="button" class="softbtn" onclick="applySeasonalPromoSuggestedCopy()">✨ Usar textos sugeridos</button><button type="button" class="softbtn" onclick="loadSeasonalPromoSettingsAdmin(true)">↻ Recargar ajustes</button></div>
             <div id="seasonalPromoSettingsStatus" class="promoAdminStatus" role="status" aria-live="polite">Preparando configuración de promoción…</div>
           </div>
@@ -512,7 +513,7 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
               <label class="promoWide">Título de la combinación<input id="storefrontComboTitle" maxlength="90" value="Completa el look" disabled></label>
               <label class="promoWide">Mensaje<textarea id="storefrontComboMessage" maxlength="240" disabled>Combina estos productos para completar tu estilo.</textarea></label>
               <label>Texto del botón<input id="storefrontComboButtonLabel" maxlength="32" value="Ver combinación" disabled></label>
-              <label class="comboAdminToggle"><input type="checkbox" id="storefrontComboEnabled" disabled> Activar recomendación</label>
+              <label class="comboAdminToggle"><input type="checkbox" id="storefrontComboEnabled" checked disabled> Activar recomendación</label>
               <label>Mostrar desde (opcional)<input type="datetime-local" id="storefrontComboStartAt" disabled></label>
               <label>Mostrar hasta (opcional)<input type="datetime-local" id="storefrontComboEndAt" disabled></label>
             </div>
@@ -2506,7 +2507,7 @@ function renderStorefrontComboProductSelects(){
 }
 function comboLocalDate(value){if(!value)return '';const d=new Date(value);if(Number.isNaN(d.getTime()))return '';const pad=n=>String(n).padStart(2,'0');return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`}
 function comboDateIso(value){if(!value)return null;const d=new Date(value);if(Number.isNaN(d.getTime()))throw new Error('La fecha de una combinación no es válida.');return d.toISOString()}
-function resetStorefrontComboForm(){storefrontComboEditingId='';$('storefrontComboEditId').value='';$('storefrontComboProductA').value='';$('storefrontComboProductB').value='';$('storefrontComboTitle').value='Completa el look';$('storefrontComboMessage').value='Combina estos productos para completar tu estilo.';$('storefrontComboButtonLabel').value='Ver combinación';$('storefrontComboEnabled').checked=false;$('storefrontComboStartAt').value='';$('storefrontComboEndAt').value='';const button=$('saveStorefrontComboBtn');if(button)button.textContent='💾 Guardar combinación';renderStorefrontCombosAdminList();}
+function resetStorefrontComboForm(){storefrontComboEditingId='';$('storefrontComboEditId').value='';$('storefrontComboProductA').value='';$('storefrontComboProductB').value='';$('storefrontComboTitle').value='Completa el look';$('storefrontComboMessage').value='Combina estos productos para completar tu estilo.';$('storefrontComboButtonLabel').value='Ver combinación';$('storefrontComboEnabled').checked=true;$('storefrontComboStartAt').value='';$('storefrontComboEndAt').value='';const button=$('saveStorefrontComboBtn');if(button)button.textContent='💾 Guardar combinación';renderStorefrontCombosAdminList();}
 function editStorefrontCombo(id){const row=storefrontProductCombosAdmin.find(x=>String(x.id)===String(id));if(!row)return;storefrontComboEditingId=String(row.id);$('storefrontComboEditId').value=storefrontComboEditingId;renderStorefrontComboProductSelects();$('storefrontComboProductA').value=String(row.product_a_id);$('storefrontComboProductB').value=String(row.product_b_id);$('storefrontComboTitle').value=String(row.title||'Completa el look');$('storefrontComboMessage').value=String(row.message||'');$('storefrontComboButtonLabel').value=String(row.button_label||'Ver combinación');$('storefrontComboEnabled').checked=row.enabled===true;$('storefrontComboStartAt').value=comboLocalDate(row.start_at);$('storefrontComboEndAt').value=comboLocalDate(row.end_at);const button=$('saveStorefrontComboBtn');if(button)button.textContent='💾 Guardar cambios';$('storefrontComboProductA').focus({preventScroll:true})}
 function renderStorefrontCombosAdminList(){
  const host=$('storefrontCombosAdminList');if(!host)return;
@@ -2535,7 +2536,7 @@ async function saveStorefrontProductCombo(){
  try{
   const {data,error}=await sb.rpc('admin_save_storefront_product_combo',{p_combo_id:storefrontComboEditingId||null,p_product_a_id:a,p_product_b_id:b,p_title:title,p_message:message,p_button_label:buttonLabel,p_enabled:$('storefrontComboEnabled').checked,p_start_at:start,p_end_at:end});
   if(error)throw error;const row=Array.isArray(data)?data[0]:data;if(!row)throw new Error('Supabase no devolvió la combinación guardada.');
-  toast('Combinación guardada');resetStorefrontComboForm();storefrontCombosAdminLoaded=false;await loadStorefrontProductCombosAdmin(true);setStorefrontCombosAdminStatus('Combinación guardada y lista actualizada. El catálogo recibirá una notificación; el precio no cambia automáticamente.','ok');notifyPublicCatalogChanged('combo-changed');
+  toast(row.enabled===true?'Combinación guardada y activa':'Combinación guardada como inactiva');resetStorefrontComboForm();storefrontCombosAdminLoaded=false;await loadStorefrontProductCombosAdmin(true);setStorefrontCombosAdminStatus(row.enabled===true?'Combinación guardada y activa. Se mostrará en el catálogo si ambos productos tienen stock y las fechas permiten la campaña. El precio no cambia automáticamente.':'Combinación guardada, pero está inactiva y no se mostrará hasta marcar “Activar recomendación”. El precio no cambia automáticamente.','ok');notifyPublicCatalogChanged('combo-changed');
  }catch(error){setStorefrontCombosAdminStatus('No se guardó la combinación. Verifica los permisos de administrador y la migración SQL. Detalle: '+String(error?.message||error),'error')}
  finally{storefrontComboSaving=false;if(button){button.textContent=storefrontComboEditingId?'💾 Guardar cambios':'💾 Guardar combinación';button.disabled=!storefrontCombosAdminLoaded}}
 }
@@ -2645,15 +2646,16 @@ function seasonalPromoFieldValue(){
  const popupShape=['rounded','circle'].includes($('seasonalPromoShape')?.value)?$('seasonalPromoShape').value:'rounded';
  const popupPosition=['center','bottom-right','bottom-center'].includes($('seasonalPromoPosition')?.value)?$('seasonalPromoPosition').value:'center';
  const visibleDurationMs=[0,3000,5000,8000,10000].includes(Number($('seasonalPromoDuration')?.value))?Number($('seasonalPromoDuration').value):3000;
+ const displayFrequency=['once_per_session','every_page_load'].includes($('seasonalPromoFrequency')?.value)?$('seasonalPromoFrequency').value:'once_per_session';
  const animationStyle=['falling','sparkle','none'].includes($('seasonalPromoAnimationStyle')?.value)?$('seasonalPromoAnimationStyle').value:'falling';
- return {enabled:!!$('seasonalPromoEnabled')?.checked,style,eyebrow:$('seasonalPromoEyebrow')?.value.trim()||'',title:$('seasonalPromoTitleInput')?.value.trim()||'',message:$('seasonalPromoMessageInput')?.value.trim()||'',button_label:$('seasonalPromoButtonLabel')?.value.trim()||'',button_url:$('seasonalPromoButtonUrl')?.value.trim()||'#catalogo',background_color:background,accent_color:accent,text_color:textColor,popup_size:popupSize,popup_shape:popupShape,popup_position:popupPosition,animation_style:animationStyle,animate:!!$('seasonalPromoAnimate')?.checked,delay_ms:Number($('seasonalPromoDelay')?.value||0),visible_duration_ms:visibleDurationMs,start_at:$('seasonalPromoStartAt')?.value||'',end_at:$('seasonalPromoEndAt')?.value||''};
+ return {enabled:!!$('seasonalPromoEnabled')?.checked,style,eyebrow:$('seasonalPromoEyebrow')?.value.trim()||'',title:$('seasonalPromoTitleInput')?.value.trim()||'',message:$('seasonalPromoMessageInput')?.value.trim()||'',button_label:$('seasonalPromoButtonLabel')?.value.trim()||'',button_url:$('seasonalPromoButtonUrl')?.value.trim()||'#catalogo',background_color:background,accent_color:accent,text_color:textColor,popup_size:popupSize,popup_shape:popupShape,popup_position:popupPosition,animation_style:animationStyle,animate:!!$('seasonalPromoAnimate')?.checked,delay_ms:Number($('seasonalPromoDelay')?.value||0),visible_duration_ms:visibleDurationMs,display_frequency:displayFrequency,start_at:$('seasonalPromoStartAt')?.value||'',end_at:$('seasonalPromoEndAt')?.value||''};
 }
 function setSeasonalPromoStatus(message,kind=''){
  const el=$('seasonalPromoSettingsStatus');if(!el)return;
  el.textContent=message;el.classList.toggle('promoStatusError',kind==='error');el.classList.toggle('promoStatusOk',kind==='ok');
 }
 function setSeasonalPromoFormDisabled(disabled){
- ['seasonalPromoEnabled','seasonalPromoStyle','seasonalPromoSize','seasonalPromoShape','seasonalPromoPosition','seasonalPromoEyebrow','seasonalPromoTitleInput','seasonalPromoMessageInput','seasonalPromoButtonLabel','seasonalPromoButtonUrl','seasonalPromoBackgroundColor','seasonalPromoAccentColor','seasonalPromoTextColor','seasonalPromoAnimationStyle','seasonalPromoDelay','seasonalPromoDuration','seasonalPromoAnimate','seasonalPromoStartAt','seasonalPromoEndAt'].forEach(id=>{const el=$(id);if(el)el.disabled=disabled});
+ ['seasonalPromoEnabled','seasonalPromoStyle','seasonalPromoSize','seasonalPromoShape','seasonalPromoPosition','seasonalPromoEyebrow','seasonalPromoTitleInput','seasonalPromoMessageInput','seasonalPromoButtonLabel','seasonalPromoButtonUrl','seasonalPromoBackgroundColor','seasonalPromoAccentColor','seasonalPromoTextColor','seasonalPromoAnimationStyle','seasonalPromoDelay','seasonalPromoDuration','seasonalPromoFrequency','seasonalPromoAnimate','seasonalPromoStartAt','seasonalPromoEndAt'].forEach(id=>{const el=$(id);if(el)el.disabled=disabled});
  const save=$('saveSeasonalPromoBtn');if(save)save.disabled=disabled||seasonalPromoSaving;
 }
 function seasonalPromoSetLocalDate(value){
@@ -2678,6 +2680,7 @@ function applySeasonalPromoRow(row){
  $('seasonalPromoShape').value=['rounded','circle'].includes(row?.popup_shape)?row.popup_shape:'rounded';
  $('seasonalPromoPosition').value=['center','bottom-right','bottom-center'].includes(row?.popup_position)?row.popup_position:'center';
  $('seasonalPromoDuration').value=String([0,3000,5000,8000,10000].includes(Number(row?.visible_duration_ms))?Number(row.visible_duration_ms):3000);
+ $('seasonalPromoFrequency').value=['once_per_session','every_page_load'].includes(row?.display_frequency)?row.display_frequency:'once_per_session';
  $('seasonalPromoAnimationStyle').value=['falling','sparkle','none'].includes(row?.animation_style)?row.animation_style:(defaults.animation_style||'falling');
  $('seasonalPromoAnimate').checked=row?.animate!==false;
  $('seasonalPromoDelay').value=String([0,800,1600,3000,5000].includes(Number(row?.delay_ms))?Number(row.delay_ms):1600);
@@ -2781,7 +2784,7 @@ async function saveSeasonalPromoSettings(){
    p_enabled:config.enabled,p_style:config.style,p_eyebrow:config.eyebrow,p_title:config.title,p_message:config.message,
    p_button_label:config.button_label,p_button_url:config.button_url,p_background_color:config.background_color,
    p_accent_color:config.accent_color,p_text_color:config.text_color,p_popup_size:config.popup_size,p_popup_shape:config.popup_shape,p_popup_position:config.popup_position,
-   p_animation_style:config.animation_style,p_animate:config.animate,p_delay_ms:config.delay_ms,p_visible_duration_ms:config.visible_duration_ms,p_start_at:start,p_end_at:end
+   p_animation_style:config.animation_style,p_animate:config.animate,p_delay_ms:config.delay_ms,p_visible_duration_ms:config.visible_duration_ms,p_start_at:start,p_end_at:end,p_display_frequency:config.display_frequency
   });
   if(error)throw error;const row=Array.isArray(data)?data[0]:data;if(!row)throw new Error('Supabase no devolvió la configuración guardada.');
   seasonalPromoSettingsOriginal=row;applySeasonalPromoRow(row);setSeasonalPromoStatus('Promoción guardada en Supabase. Para verla en el mismo navegador se actualizará el catálogo; los demás dispositivos la consultarán al entrar o volver a la página.','ok');

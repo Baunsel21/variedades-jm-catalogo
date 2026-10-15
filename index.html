@@ -32,7 +32,7 @@
 .benefits{display:grid;grid-template-columns:repeat(3,1fr);background:#080808;border:1px solid rgba(231,25,63,.4);border-top:0}.benefit{padding:17px 20px;display:flex;align-items:center;justify-content:center;gap:12px;text-align:left;border-right:1px solid #26262a}.benefit:last-child{border-right:0}.benefitIcon{font-size:29px}.benefit b{display:block;font-size:14px}.benefit small{display:block;color:#d6c69e;margin-top:3px;font-size:12px}
 
 
-.directCategoryBar{display:none;align-items:center;justify-content:space-between;gap:10px;margin:18px 0 4px;padding:13px 15px;border:1px solid #3a3a3f;border-radius:15px;background:#0d0d0f}
+.directCategoryBar{display:none;align-items:center;justify-content:flex-end;gap:10px;margin:18px 0 4px;padding:13px 15px;border:1px solid #3a3a3f;border-radius:15px;background:#0d0d0f}
 .directCategoryBar.show{display:flex}
 .directCategoryName{font-family:Georgia,serif;font-size:20px;font-weight:900}
 .backAllBtn{border:1px solid #4a4a50;background:#17171a;color:#2b2520;border-radius:10px;padding:9px 12px;font-weight:850}
@@ -1526,6 +1526,35 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
 
 <style id="sirevyaProductComboStyles">
 .detailComboSection{margin:16px 0 0}.detailComboCard{display:grid;grid-template-columns:94px minmax(0,1fr);gap:12px;padding:12px;border:1px solid rgba(242,209,139,.2);border-radius:16px;background:linear-gradient(135deg,#131316,#0b0b0d);margin:10px 0}.detailComboImage{height:116px;border-radius:12px;overflow:hidden;background:#171719;display:grid;place-items:center;color:var(--gold);font-size:25px}.detailComboImage img{width:100%;height:100%;object-fit:cover;display:block}.detailComboCopy{min-width:0;display:flex;flex-direction:column;align-items:flex-start;gap:5px}.detailComboCopy strong{font-size:13px;color:var(--gold)}.detailComboCopy p{font-size:11px;color:#d0c6b5;margin:0;line-height:1.4}.detailComboButton{margin-top:4px;border:1px solid rgba(242,209,139,.4);border-radius:9px;background:linear-gradient(135deg,#9f1239,#e7193f);color:white;padding:8px 11px;font-weight:850;font-size:11px}.detailComboButton:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+
+/* Recomendaciones combinadas visibles en el catálogo, además de la ficha del producto. */
+.storefrontComboCatalogSection{margin:30px 0 12px;padding:24px 0 6px;border-top:1px solid #eee4e8}
+.storefrontComboCatalogSection[hidden]{display:none!important}
+.storefrontComboCatalogIntro{text-align:left;margin:0 0 16px}
+.storefrontComboEyebrow{display:block;color:#9d5269;font-size:10px;letter-spacing:.18em;font-weight:850;margin-bottom:6px}
+.storefrontComboCatalogIntro h2{margin:0;color:#30262c;font-family:Georgia,serif;font-size:clamp(23px,3vw,32px);line-height:1.15}
+.storefrontComboCatalogIntro p{margin:7px 0 0;color:#756b70;font-size:13px;line-height:1.5}
+.storefrontComboCatalogGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.storefrontComboCatalogCard{min-width:0;overflow:hidden;background:#fff;border:1px solid #eadfe4;border-radius:17px;box-shadow:0 5px 20px rgba(44,24,34,.055)}
+.storefrontComboCatalogPair{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:0;background:#faf7f8}
+.storefrontComboCatalogProduct{min-width:0;padding:0;border:0;border-radius:0;background:transparent;color:#30262c;text-align:left;cursor:pointer;display:flex;flex-direction:column}
+.storefrontComboCatalogProduct+.storefrontComboCatalogProduct{border-left:1px solid #e8dce2}
+.storefrontComboCatalogProduct img{width:100%;height:clamp(120px,20vw,230px);object-fit:cover;background:#f2ecef;display:block}
+.storefrontComboCatalogProductName{padding:9px 10px 3px;font-size:12px;line-height:1.35;font-weight:800;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:42px}
+.storefrontComboCatalogProductPrice{padding:0 10px 10px;font-size:13px;font-weight:850;color:#8e2948}
+.storefrontComboCatalogCopy{padding:14px 15px 15px}
+.storefrontComboCatalogCopy strong{display:block;font-family:Georgia,serif;font-size:18px;color:#30262c;line-height:1.25}
+.storefrontComboCatalogCopy p{font-size:12px;color:#73676e;line-height:1.5;margin:6px 0 12px}
+.storefrontComboCatalogAction{width:100%;min-height:42px;border:0;border-radius:999px;background:linear-gradient(135deg,#8e6bb2,#d846a8);color:#fff;font-size:13px;font-weight:850;padding:10px 14px;cursor:pointer}
+.storefrontComboCatalogAction:focus-visible,.storefrontComboCatalogProduct:focus-visible{outline:3px solid #b58acb;outline-offset:2px}
+@media(max-width:620px){
+ .storefrontComboCatalogSection{margin-top:24px;padding-top:20px}
+ .storefrontComboCatalogGrid{grid-template-columns:minmax(0,1fr);gap:12px}
+ .storefrontComboCatalogPair{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+ .storefrontComboCatalogProduct img{height:clamp(135px,43vw,210px)}
+ .storefrontComboCatalogCopy{padding:12px}
+}
+
 </style>
 </head>
 <body>
@@ -1595,13 +1624,22 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
 
 
 <section class="categoryPanel" id="catalogo"><h2 class="categoryTitle">Categorías</h2><p class="categoryHint">Selecciona una categoría para ver sus productos.</p><div id="categoryButtons" class="categoryButtons"></div><select id="category" onchange="selectCategory(this.value)" style="display:none"><option value="">Todas las categorías</option></select></section>
-<div id="directCategoryBar" class="directCategoryBar" aria-live="polite"><span>Estás viendo: <strong id="directCategoryName" class="directCategoryName">Categoría</strong></span><button type="button" class="backAllBtn" onclick="showAllCatalog()">Ver todos los productos</button></div>
+<div id="directCategoryBar" class="directCategoryBar" aria-live="polite"><button type="button" class="backAllBtn" onclick="showAllCatalog()">Ver todos los productos</button></div>
 <div class="catalogSearchRow" id="catalogSearchRow">
   <input id="search" class="search" placeholder="Buscar productos..." oninput="handleSearchInput()" aria-label="Buscar productos">
 </div>
 <div class="catalogCountLine"><span id="count" class="count">Cargando catálogo…</span></div>
 <section id="cartBar" class="cartBar" aria-hidden="true" onclick="if(event.target===this)hideCart()"><div class="cartPanel" role="dialog" aria-modal="true" aria-labelledby="cartDrawerTitle"><div class="cartDrawerBody"><div class="cartHead"><div><div id="cartDrawerTitle" class="cartTitle">Tu carrito</div><div id="cartSummary" class="cartSummary">0 productos</div></div><button class="cartClose" type="button" onclick="hideCart()" aria-label="Cerrar carrito">×</button></div><div class="cartShippingBox" aria-live="polite"><div id="cartShippingMessage" class="cartShippingMessage">Envío gratis en Cali y desde $130.000 en otras ciudades.</div><div class="cartShippingTrack" role="progressbar" aria-label="Progreso para envío gratis fuera de Cali" aria-valuemin="0" aria-valuemax="130000" aria-valuenow="0"><div id="cartShippingFill" class="cartShippingFill"></div><span id="cartShippingTruck" class="cartShippingTruck" aria-hidden="true">🚚</span></div><div class="cartShippingFoot"><span>Envío gratis desde $130.000 fuera de Cali</span><span id="cartShippingPercent">0%</span></div><div class="cartShippingLocalNote">🚚 Envío gratis a Cali también</div></div><div id="cartItems" class="cartItems"></div><div class="cartFooter"><div class="cartFooterTotal"><span>Total estimado</span><strong id="cartDrawerTotal">$0</strong></div><p class="cartFooterNote">El envío se confirma según tu ciudad en el siguiente paso.</p><button id="cartSend" class="cartSend" type="button" onclick="sendCart()">Pagar pedido</button></div></div></div></section>
+<section id="storefrontComboCatalogSection" class="storefrontComboCatalogSection" hidden aria-labelledby="storefrontComboCatalogTitle">
+  <div class="storefrontComboCatalogIntro">
+    <span class="storefrontComboEyebrow">SIREVYA · COMPLETA TU ESTILO</span>
+    <h2 id="storefrontComboCatalogTitle">Combina y descubre</h2>
+    <p>Ideas para llevar tus favoritos juntos. Cada artículo conserva su precio individual.</p>
+  </div>
+  <div id="storefrontComboCatalogGrid" class="storefrontComboCatalogGrid"></div>
+</section>
 <section id="grid" class="grid"><div class="loading">Cargando catálogo...</div></section>
+
 </main>
 <footer class="footer" id="contactanos"><div class="footerFeatures"><div class="footerFeature"><b>🚚 Envíos</b>Envíos a toda Colombia</div><div class="footerFeature"><b>💳 Pagos</b>Múltiples medios de pago</div><div class="footerFeature"><b>🛡️ Compra segura</b>Tu compra protegida</div><div class="footerFeature"><b>🎧 Atención</b>Soporte personalizado</div></div><div class="footerBrand">Sirevya</div><div class="footerSub">TU ESTILO, NUESTRA PASIÓN ♥</div><div class="contactInfo"><b>📞 Contáctanos</b><a href="tel:+573128561773">+57 312 856 1773</a><a href="tel:+573025469983">+57 302 546 9983</a><a href="mailto:alex21991021@gmail.com">alex21991021@gmail.com</a></div><div style="margin-top:24px;color:#777;font-size:12px">Catálogo actualizado desde el inventario · © Sirevya</div><div class="footerPolicyLinks"><button type="button" class="footerPolicyLink" onclick="openPrivacy(event)">Política de privacidad y datos personales</button></div></footer>
 
@@ -2681,6 +2719,7 @@ function updateDetailStockNotice(p){
 let storefrontProductCombos=[];
 let storefrontProductCombosLoading=null;
 let storefrontMarketingSessionKey=null;
+const storefrontComboCatalogImpressions=new Set();
 function getStorefrontMarketingSessionKey(){
  if(storefrontMarketingSessionKey)return storefrontMarketingSessionKey;
  try{
@@ -2707,6 +2746,7 @@ async function loadStorefrontProductCombos({force=false}={}){
    const {data,error}=await sb.rpc('get_public_storefront_product_combos');
    if(error)throw error;
    storefrontProductCombos=Array.isArray(data)?data:[];
+   renderStorefrontComboCatalog();
    if(detailProduct&&$('productDetailModal')?.classList.contains('open'))updateDetailDescription(detailProduct);
    return storefrontProductCombos;
   }catch(error){console.debug('Las recomendaciones de productos combinados no están instaladas; el catálogo sigue funcionando.',error?.message||error);return storefrontProductCombos}
@@ -2720,6 +2760,39 @@ function openComboPartner(button,event){
  const comboId=button?.dataset?.comboId;
  if(comboId)trackStorefrontMarketingEvent('combo',comboId,'click');
  if(id)openProductDetail(id,event);
+}
+function renderStorefrontComboCatalog(){
+ const section=$('storefrontComboCatalogSection'),host=$('storefrontComboCatalogGrid');
+ if(!section||!host)return;
+ const rows=(Array.isArray(storefrontProductCombos)?storefrontProductCombos:[])
+  .map(combo=>({combo,primary:productos.find(p=>String(p.id)===String(combo.product_a_id)),partner:productos.find(p=>String(p.id)===String(combo.product_b_id))}))
+  .filter(row=>row.primary&&row.partner&&productStockTotal(row.primary)>0&&productStockTotal(row.partner)>0)
+  .slice(0,8);
+ if(!rows.length){host.replaceChildren();section.hidden=true;return}
+ host.innerHTML=rows.map(({combo,primary,partner})=>{
+   const primaryImage=productImages(primary)[0]||publicImage(primary.image_url)||'';
+   const partnerImage=productImages(partner)[0]||publicImage(partner.image_url)||'';
+   return `<article class="storefrontComboCatalogCard" data-catalog-combo-id="${esc(combo.id)}">
+     <div class="storefrontComboCatalogPair">
+       <button type="button" class="storefrontComboCatalogProduct" data-combo-open-product="${esc(primary.id)}" data-combo-id="${esc(combo.id)}" aria-label="Ver ${esc(primary.name||'producto principal')}">
+         ${primaryImage?`<img src="${esc(primaryImage)}" alt="${esc(primary.name||'Producto principal')}" loading="lazy" decoding="async">`:'<span class="detailRelatedNoImage">✦</span>'}
+         <span class="storefrontComboCatalogProductName">${esc(primary.name||'Producto principal')}</span><span class="storefrontComboCatalogProductPrice">${money(primary.sale_price)}</span>
+       </button>
+       <button type="button" class="storefrontComboCatalogProduct" data-combo-open-product="${esc(partner.id)}" data-combo-id="${esc(combo.id)}" aria-label="Ver ${esc(partner.name||'producto recomendado')}">
+         ${partnerImage?`<img src="${esc(partnerImage)}" alt="${esc(partner.name||'Producto recomendado')}" loading="lazy" decoding="async">`:'<span class="detailRelatedNoImage">✦</span>'}
+         <span class="storefrontComboCatalogProductName">${esc(partner.name||'Producto recomendado')}</span><span class="storefrontComboCatalogProductPrice">${money(partner.sale_price)}</span>
+       </button>
+     </div>
+     <div class="storefrontComboCatalogCopy"><strong>${esc(combo.title||'Completa el look')}</strong><p>${esc(combo.message||'Descubre esta combinación de productos.')}</p><button type="button" class="storefrontComboCatalogAction" data-combo-open-product="${esc(primary.id)}" data-combo-id="${esc(combo.id)}">${esc(combo.button_label||'Ver combinación')}</button></div>
+   </article>`;
+ }).join('');
+ section.hidden=false;
+ host.querySelectorAll('[data-combo-open-product]').forEach(button=>button.addEventListener('click',event=>{
+   const productId=button.dataset.comboOpenProduct,comboId=button.dataset.comboId;
+   if(comboId)trackStorefrontMarketingEvent('combo',comboId,'click');
+   openProductDetail(productId,event);
+ }));
+ rows.forEach(({combo})=>{const id=String(combo.id||'');if(id&&!storefrontComboCatalogImpressions.has(id)){storefrontComboCatalogImpressions.add(id);trackStorefrontMarketingEvent('combo',id,'impression')}});
 }
 
 function updateDetailDescription(p){
@@ -3085,6 +3158,7 @@ return `<article class="card ${blocked?'inventoryUnavailable':''}" data-product-
  }).join(''):'<div class="empty">No encontramos productos con esos filtros.</div>';
  document.querySelectorAll('#grid .card').forEach(card=>{const p=productos.find(x=>String(x.id)===String(card.dataset.productId));if(p)updateVariantAvailability(card,p)});
  activateCatalogLazyImages();
+ renderStorefrontComboCatalog();
  renderCart();
 }
 
@@ -4282,7 +4356,8 @@ window.addEventListener('pageshow',()=>{if(catalogInitialLoadComplete&&document.
 
 
 // === Promoción de temporada configurable desde el administrador ===
-const SIREVYA_PROMO_SESSION_KEY='sirevya_seasonal_promo_shown_v1';
+const SIREVYA_PROMO_SESSION_KEY='sirevya_seasonal_promo_shown_v2';
+function seasonalPromoSessionKey(config){const version=String(config?.updated_at||'legacy');return `${SIREVYA_PROMO_SESSION_KEY}:${version}`}
 const SIREVYA_PROMO_PRESETS={
  halloween:{background_color:'#21132f',accent_color:'#ff914d',particles:['🕸️','🎃','🕷️','✦','🦇'],eyebrow:'TEMPORADA DE HALLOWEEN',title:'¡Halloween con estilo!',message:'Descubre la temporada y aprovecha el envío gratis a Cali.',button_label:'Ver promoción'},
  elegant:{background_color:'#17131d',accent_color:'#d7b779',particles:['✦','✧','❋','✦','✧'],eyebrow:'DETALLES QUE ENAMORAN',title:'Un detalle para ti',message:'Descubre tus favoritos y aprovecha el envío gratis a Cali.',button_label:'Explorar catálogo'},
@@ -4300,7 +4375,7 @@ function normalizeSeasonalPromoRow(row){
  if(!row||typeof row!=='object')return null;
  const style=SIREVYA_PROMO_PRESETS[row.style]?row.style:'halloween',preset=SIREVYA_PROMO_PRESETS[style];
  const color=value=>/^#[0-9a-f]{6}$/i.test(String(value||''))?String(value).toLowerCase():null;
- return {enabled:row.enabled===true,style,eyebrow:String(row.eyebrow??preset.eyebrow).slice(0,48),title:String(row.title??preset.title).slice(0,90),message:String(row.message??preset.message).slice(0,240),button_label:String(row.button_label??preset.button_label).slice(0,32),button_url:safeSeasonalPromoUrl(row.button_url||'#catalogo'),background_color:color(row.background_color)||preset.background_color,accent_color:color(row.accent_color)||preset.accent_color,text_color:color(row.text_color)||'#ffffff',popup_size:['tiny','small','medium','large'].includes(row.popup_size)?row.popup_size:'small',popup_shape:['rounded','circle'].includes(row.popup_shape)?row.popup_shape:'rounded',popup_position:['center','bottom-right','bottom-center'].includes(row.popup_position)?row.popup_position:'center',animation_style:['falling','sparkle','none'].includes(row.animation_style)?row.animation_style:(row.animate===false?'none':'falling'),animate:row.animate!==false,delay_ms:[0,800,1600,3000,5000].includes(Number(row.delay_ms))?Number(row.delay_ms):1600,visible_duration_ms:[0,3000,5000,8000,10000].includes(Number(row.visible_duration_ms))?Number(row.visible_duration_ms):3000,start_at:row.start_at||null,end_at:row.end_at||null,updated_at:row.updated_at||''};
+ return {enabled:row.enabled===true,style,eyebrow:String(row.eyebrow??preset.eyebrow).slice(0,48),title:String(row.title??preset.title).slice(0,90),message:String(row.message??preset.message).slice(0,240),button_label:String(row.button_label??preset.button_label).slice(0,32),button_url:safeSeasonalPromoUrl(row.button_url||'#catalogo'),background_color:color(row.background_color)||preset.background_color,accent_color:color(row.accent_color)||preset.accent_color,text_color:color(row.text_color)||'#ffffff',popup_size:['tiny','small','medium','large'].includes(row.popup_size)?row.popup_size:'small',popup_shape:['rounded','circle'].includes(row.popup_shape)?row.popup_shape:'rounded',popup_position:['center','bottom-right','bottom-center'].includes(row.popup_position)?row.popup_position:'center',animation_style:['falling','sparkle','none'].includes(row.animation_style)?row.animation_style:(row.animate===false?'none':'falling'),animate:row.animate!==false,delay_ms:[0,800,1600,3000,5000].includes(Number(row.delay_ms))?Number(row.delay_ms):1600,visible_duration_ms:[0,3000,5000,8000,10000].includes(Number(row.visible_duration_ms))?Number(row.visible_duration_ms):3000,display_frequency:['once_per_session','every_page_load'].includes(row.display_frequency)?row.display_frequency:'once_per_session',start_at:row.start_at||null,end_at:row.end_at||null,updated_at:row.updated_at||''};
 }
 function isSeasonalPromoInDateRange(config,now=new Date()){
  if(!config?.enabled)return false;
@@ -4353,7 +4428,7 @@ function openSeasonalPromo(config,{preview=false}={}){
  overlay.hidden=false;overlay.setAttribute('aria-hidden','false');
  requestAnimationFrame(()=>overlay.classList.add('is-visible'));
  sirevyaPromoPreviousFocus=document.activeElement;sirevyaPromoPreviousOverflow=document.body.style.overflow;document.body.style.overflow='hidden';
- if(!preview){try{sessionStorage.setItem(SIREVYA_PROMO_SESSION_KEY,'1')}catch{}
+ if(!preview){try{sessionStorage.setItem(seasonalPromoSessionKey(config),'1')}catch{}
   trackStorefrontMarketingEvent('popup','seasonal','impression');
   const duration=Number(config.visible_duration_ms);if([3000,5000,8000,10000].includes(duration))sirevyaPromoAutoCloseTimer=setTimeout(()=>closeSeasonalPromo(),duration);
  }
@@ -4371,12 +4446,14 @@ function handleSeasonalPromoBackdrop(event){if(event?.target===$('seasonalPromoO
 function handleSeasonalPromoAction(event){if(sirevyaPromoPreviewMode){event?.preventDefault?.();closeSeasonalPromo();return false}trackStorefrontMarketingEvent('popup','seasonal','click');closeSeasonalPromo();return true}
 function maybeShowSeasonalPromo(config){
  if(!config||!isSeasonalPromoInDateRange(config))return;
- try{if(sessionStorage.getItem(SIREVYA_PROMO_SESSION_KEY))return}catch{}
+ const everyPageLoad=config.display_frequency==='every_page_load';
+ const sessionKey=seasonalPromoSessionKey(config);
+ if(!everyPageLoad){try{if(sessionStorage.getItem(sessionKey))return}catch{}}
  if(sirevyaPromoTimer)clearTimeout(sirevyaPromoTimer);
  const attempt=()=>{
   if(document.visibilityState!=='visible'){sirevyaPromoTimer=setTimeout(attempt,1000);return}
   if(!catalogInitialLoadComplete||$('checkoutModal')?.classList.contains('open')){sirevyaPromoTimer=setTimeout(attempt,800);return}
-  try{if(sessionStorage.getItem(SIREVYA_PROMO_SESSION_KEY))return}catch{}
+  if(!everyPageLoad){try{if(sessionStorage.getItem(sessionKey))return}catch{}}
   openSeasonalPromo(config);
  };
  sirevyaPromoTimer=setTimeout(attempt,Math.max(0,Math.min(5000,Number(config.delay_ms)||0)));
