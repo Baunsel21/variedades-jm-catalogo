@@ -16,7 +16,12 @@
 <meta property="og:site_name" content="Sirevya">
 <meta property="og:title" content="Sirevya — Tu estilo, nuestra pasión">
 <meta property="og:description" content="Moda y accesorios con envío gratis en Cali y envío nacional gratis desde $130.000.">
-<meta name="twitter:card" content="summary">
+<meta property="og:image" content="https://sirevya.com.co/share-sirevya.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Sirevya, moda y accesorios">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://sirevya.com.co/share-sirevya.png">
 <link id="favicon" rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect x='4' y='4' width='92' height='92' rx='22' fill='%23101827'/%3E%3Ctext x='50' y='64' text-anchor='middle' font-family='Arial,sans-serif' font-size='42' font-weight='900' fill='white'%3EJM%3C/text%3E%3C/svg%3E">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
@@ -1451,6 +1456,77 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
 @media(prefers-reduced-motion:reduce){.mobileMenuPanel,.mobileMenuDrawerBrand{scroll-behavior:auto!important;transition:none!important}}
 </style>
 
+<style id="sirevyaSeasonalPromoStyles">
+/* Seasonal promotion popup: isolated styles, no dependencies on cart/checkout CSS. */
+.sirevyaPromoOverlay{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(9,6,15,.28);backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px);opacity:0;visibility:hidden;transition:opacity .2s ease,visibility .2s ease;overflow:hidden;isolation:isolate}
+.sirevyaPromoOverlay[hidden]{display:none!important}
+.sirevyaPromoOverlay.is-visible{opacity:1;visibility:visible}
+.sirevyaPromoCard{z-index:2;--promo-bg:#21132f;--promo-accent:#ff914d;--promo-text:#ffffff;--promo-button-text:#21132f;position:relative;isolation:isolate;overflow:hidden;width:min(82vw,252px);max-height:min(72vh,500px);overflow-y:auto;padding:15px 13px 11px;border:1px solid var(--promo-accent);border-radius:17px;background-color:var(--promo-bg);background-image:radial-gradient(circle at 50% -10%,rgba(255,255,255,.09),transparent 42%),linear-gradient(145deg,rgba(255,255,255,.065),transparent 65%);color:var(--promo-text);text-align:center;box-shadow:0 16px 48px rgba(0,0,0,.32),0 0 20px rgba(255,255,255,.05);transform:translateY(12px) scale(.98);transition:transform .24s cubic-bezier(.2,.8,.2,1);scrollbar-width:thin}
+.sirevyaPromoOverlay.is-visible .sirevyaPromoCard{transform:translateY(0) scale(1)}
+.sirevyaPromoCard:after{content:"";position:absolute;inset:6px;border:1px solid rgba(255,255,255,.13);border-radius:15px;pointer-events:none;z-index:-1}
+.sirevyaPromoClose{position:absolute;top:7px;right:7px;z-index:5;display:grid;place-items:center;width:29px;height:29px;border:1px solid rgba(255,255,255,.24);border-radius:50%;background:rgba(255,255,255,.09);color:var(--promo-text,#fff);font-size:20px;line-height:1;cursor:pointer;transition:background .15s ease,transform .15s ease}
+.sirevyaPromoClose:hover{background:rgba(255,255,255,.18);transform:rotate(5deg)}
+.sirevyaPromoWeb{position:absolute;top:-20px;right:-22px;width:126px;height:126px;color:var(--promo-accent);opacity:.27;pointer-events:none;background-image:repeating-radial-gradient(circle at 100% 0%,transparent 0 12px,currentColor 13px 14px,transparent 15px 19px),repeating-conic-gradient(from 0deg at 100% 0%,transparent 0deg 14deg,currentColor 14.5deg 15.5deg,transparent 16deg 30deg);mask-image:linear-gradient(135deg,#000 0%,#000 48%,transparent 80%);-webkit-mask-image:linear-gradient(135deg,#000 0%,#000 48%,transparent 80%)}
+.sirevyaPromoOrnament{position:relative;z-index:1;display:flex;justify-content:center;align-items:center;gap:10px;min-height:24px;margin:0 auto 5px;color:var(--promo-accent);font-size:19px;text-shadow:0 0 12px var(--promo-accent)}
+.sirevyaPromoBadge{position:relative;z-index:1;display:inline-flex;align-items:center;justify-content:center;max-width:100%;margin:0 auto 8px;padding:5px 9px;border:1px solid var(--promo-accent);border-radius:999px;background:rgba(255,255,255,.07);color:var(--promo-accent);font-size:8px;font-weight:900;letter-spacing:.12em;text-transform:uppercase;overflow-wrap:anywhere}
+.sirevyaPromoTitle{position:relative;z-index:1;margin:0 auto 8px;max-width:270px;color:var(--promo-text,#fff);font-family:Georgia,"Times New Roman",serif;font-size:23px;font-weight:700;letter-spacing:-.025em;line-height:1.1;text-wrap:balance;overflow-wrap:anywhere}
+.sirevyaPromoMessage{position:relative;z-index:1;max-width:270px;margin:0 auto 13px;color:var(--promo-text,#fff);opacity:.84;font-size:11.5px;line-height:1.45;white-space:pre-line;overflow-wrap:anywhere}
+.sirevyaPromoCta{position:relative;z-index:1;display:flex;align-items:center;justify-content:center;gap:7px;min-height:36px;width:100%;padding:9px 12px;border:1px solid rgba(255,255,255,.34);border-radius:10px;background:var(--promo-accent);color:var(--promo-button-text,#21132f);text-decoration:none;font-size:11.5px;font-weight:900;letter-spacing:.01em;box-shadow:0 5px 15px rgba(255,255,255,.08);transition:transform .15s ease,filter .15s ease;overflow-wrap:anywhere}
+.sirevyaPromoCta:hover{filter:brightness(1.06);transform:translateY(-1px)}
+.sirevyaPromoFoot{position:relative;z-index:1;margin:9px 0 0;color:var(--promo-text,#fff);opacity:.55;font-size:9px;letter-spacing:.04em}
+.sirevyaPromoFalling{position:absolute;inset:0;z-index:0;overflow:hidden;pointer-events:none}
+.sirevyaPromoFalling span{position:absolute;top:var(--fall-top,-12vh);left:var(--fall-left);font-size:var(--fall-size);opacity:var(--fall-opacity,.65);animation:sirevyaPromoFall var(--fall-duration,8s) linear var(--fall-delay,0s) infinite;filter:drop-shadow(0 2px 4px rgba(0,0,0,.25));will-change:transform}
+@keyframes sirevyaPromoFall{0%{transform:translate3d(0,-10vh,0) rotate(0deg)}100%{transform:translate3d(var(--fall-drift,24px),112vh,0) rotate(330deg)}}
+@keyframes sirevyaPromoSparkle{0%,100%{transform:translate3d(0,0,0) scale(.72) rotate(0deg);opacity:.15}50%{transform:translate3d(var(--fall-drift,10px),12px,0) scale(1.08) rotate(28deg);opacity:.58}}
+.sirevyaPromoOverlay[data-position="bottom-right"]{align-items:flex-end;justify-content:flex-end;padding:clamp(12px,3vw,26px)}
+.sirevyaPromoOverlay[data-position="bottom-center"]{align-items:flex-end;justify-content:center;padding:clamp(12px,3vw,26px)}
+.sirevyaPromoOverlay[data-animation="sparkle"] .sirevyaPromoFalling span{animation-name:sirevyaPromoSparkle;top:var(--fall-top,20%)}
+.sirevyaPromoOverlay[data-animation="none"] .sirevyaPromoFalling{display:none!important}
+.sirevyaPromoCard[data-size="small"]{width:min(82vw,252px);padding:15px 13px 11px;border-radius:17px}
+.sirevyaPromoCard[data-size="small"] .sirevyaPromoTitle{font-size:20px;line-height:1.14;margin-bottom:6px}
+.sirevyaPromoCard[data-size="small"] .sirevyaPromoMessage{font-size:10.5px;line-height:1.35;margin-bottom:9px}
+.sirevyaPromoCard[data-size="medium"]{width:min(88vw,300px);padding:20px 18px 15px;border-radius:20px}
+.sirevyaPromoCard[data-size="medium"] .sirevyaPromoTitle{font-size:24px;max-width:270px}
+.sirevyaPromoCard[data-size="medium"] .sirevyaPromoMessage{font-size:12px;max-width:270px;margin-bottom:12px}
+.sirevyaPromoCard[data-size="medium"] .sirevyaPromoOrnament{font-size:18px;min-height:24px}
+.sirevyaPromoCard[data-size="large"]{width:min(92vw,370px);padding:24px 22px 18px;border-radius:23px}
+.sirevyaPromoCard[data-size="large"] .sirevyaPromoTitle{font-size:29px;max-width:320px}
+.sirevyaPromoCard[data-size="large"] .sirevyaPromoMessage{font-size:13px;max-width:320px;margin-bottom:15px}
+/* Very small option plus circle shape; rules are isolated to the promo card. */
+.sirevyaPromoCard[data-size="tiny"]{width:min(74vw,218px);padding:12px 11px 9px;border-radius:15px}
+.sirevyaPromoCard[data-size="tiny"] .sirevyaPromoTitle{font-size:17px;line-height:1.12;margin-bottom:5px;max-width:190px}
+.sirevyaPromoCard[data-size="tiny"] .sirevyaPromoMessage{font-size:9.8px;line-height:1.3;margin-bottom:8px;max-width:190px}
+.sirevyaPromoCard[data-size="tiny"] .sirevyaPromoOrnament{font-size:15px;min-height:18px;gap:6px}
+.sirevyaPromoCard[data-size="tiny"] .sirevyaPromoCta{min-height:29px;padding:6px 9px;font-size:10px}
+.sirevyaPromoCard[data-style][data-shape="circle"]{width:min(65vw,224px,68vh);height:min(65vw,224px,68vh);max-height:min(65vw,224px,68vh);aspect-ratio:1/1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;padding:27px 22px 16px;border-radius:50%;overflow:hidden}
+.sirevyaPromoCard[data-shape="circle"]:after{inset:5px;border-radius:50%}
+.sirevyaPromoCard[data-shape="circle"] .sirevyaPromoWeb{top:-8px;right:-9px;width:78px;height:78px;opacity:.22}
+.sirevyaPromoCard[data-shape="circle"] .sirevyaPromoClose{top:27px;right:40px;width:22px;height:22px;font-size:15px}
+.sirevyaPromoCard[data-shape="circle"] .sirevyaPromoOrnament{min-height:16px;font-size:14px;gap:5px;margin:0 auto 3px}
+.sirevyaPromoCard[data-shape="circle"] .sirevyaPromoBadge{max-width:142px;margin-bottom:4px;padding:3px 6px;font-size:6px;letter-spacing:.06em}
+.sirevyaPromoCard[data-shape="circle"] .sirevyaPromoTitle{max-width:150px;margin:0 auto 4px;font-size:16px;line-height:1.05;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
+.sirevyaPromoCard[data-shape="circle"] .sirevyaPromoMessage{max-width:150px;margin:0 auto 6px;font-size:9px;line-height:1.18;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden}
+.sirevyaPromoCard[data-shape="circle"] .sirevyaPromoCta{width:auto;max-width:145px;min-height:27px;padding:6px 10px;border-radius:999px;font-size:9px}
+.sirevyaPromoCard[data-shape="circle"] .sirevyaPromoFoot{margin-top:4px;font-size:6px;white-space:nowrap}
+.sirevyaPromoCard[data-size="tiny"][data-shape="circle"]{width:min(56vw,188px,62vh);height:min(56vw,188px,62vh);max-height:min(56vw,188px,62vh);padding:24px 19px 14px}
+.sirevyaPromoCard[data-size="small"][data-shape="circle"]{width:min(65vw,224px,68vh);height:min(65vw,224px,68vh);max-height:min(65vw,224px,68vh)}
+.sirevyaPromoCard[data-size="medium"][data-shape="circle"]{width:min(73vw,252px,72vh);height:min(73vw,252px,72vh);max-height:min(73vw,252px,72vh)}
+.sirevyaPromoCard[data-size="large"][data-shape="circle"]{width:min(82vw,282px,76vh);height:min(82vw,282px,76vh);max-height:min(82vw,282px,76vh)}
+@media(max-width:480px){.sirevyaPromoCard[data-size="tiny"]{width:min(72vw,216px);padding:11px 10px 8px}.sirevyaPromoCard[data-shape="circle"]{padding:25px 20px 15px}.sirevyaPromoCard[data-shape="circle"] .sirevyaPromoClose{top:22px;right:35px}.sirevyaPromoCard[data-size="tiny"][data-shape="circle"]{width:min(57vw,184px,62vh);height:min(57vw,184px,62vh);max-height:min(57vw,184px,62vh);padding:23px 18px 13px}}
+
+.sirevyaPromoOverlay[data-position="bottom-right"] .sirevyaPromoCard{max-height:min(75vh,540px)}
+.sirevyaPromoCard[data-style="elegant"] .sirevyaPromoWeb{opacity:.13;transform:scale(.75)}
+.sirevyaPromoCard[data-style="romantic"] .sirevyaPromoWeb{display:none}
+.sirevyaPromoCard[data-style="festive"] .sirevyaPromoWeb{opacity:.1}
+.sirevyaPromoCard[data-style="romantic"] .sirevyaPromoBadge{border-radius:12px;letter-spacing:.11em}
+.sirevyaPromoCard[data-style="festive"]{border-radius:18px}
+@media(max-width:480px){.sirevyaPromoOverlay{padding:10px}.sirevyaPromoCard[data-size="small"]{width:min(84vw,260px);padding:13px 12px 10px;border-radius:16px}.sirevyaPromoCard[data-size="medium"]{width:min(90vw,310px);padding:18px 16px 13px}.sirevyaPromoCard[data-size="large"]{width:min(94vw,380px);padding:22px 18px 17px}.sirevyaPromoWeb{width:92px;height:92px}.sirevyaPromoClose{top:5px;right:5px;width:24px;height:24px;font-size:17px}.sirevyaPromoCard[data-size="small"] .sirevyaPromoTitle{font-size:19px}.sirevyaPromoCard[data-size="small"] .sirevyaPromoMessage{font-size:10.5px;margin-bottom:9px}.sirevyaPromoCard[data-size="medium"] .sirevyaPromoTitle{font-size:23px}.sirevyaPromoCard[data-size="large"] .sirevyaPromoTitle{font-size:27px}.sirevyaPromoOrnament{font-size:16px;gap:7px;min-height:20px}.sirevyaPromoBadge{font-size:7px;letter-spacing:.08em;padding:4px 7px;margin-bottom:6px}.sirevyaPromoCta{min-height:33px;padding:8px 10px;font-size:11px}.sirevyaPromoFoot{margin-top:7px;font-size:8px}.sirevyaPromoOverlay[data-position="bottom-right"],.sirevyaPromoOverlay[data-position="bottom-center"]{padding:10px}}
+@media(prefers-reduced-motion:reduce){.sirevyaPromoOverlay,.sirevyaPromoCard,.sirevyaPromoClose,.sirevyaPromoCta{transition:none!important}.sirevyaPromoFalling{display:none!important}.sirevyaPromoFalling span{animation:none!important;will-change:auto}}
+</style>
+
+<style id="sirevyaProductComboStyles">
+.detailComboSection{margin:16px 0 0}.detailComboCard{display:grid;grid-template-columns:94px minmax(0,1fr);gap:12px;padding:12px;border:1px solid rgba(242,209,139,.2);border-radius:16px;background:linear-gradient(135deg,#131316,#0b0b0d);margin:10px 0}.detailComboImage{height:116px;border-radius:12px;overflow:hidden;background:#171719;display:grid;place-items:center;color:var(--gold);font-size:25px}.detailComboImage img{width:100%;height:100%;object-fit:cover;display:block}.detailComboCopy{min-width:0;display:flex;flex-direction:column;align-items:flex-start;gap:5px}.detailComboCopy strong{font-size:13px;color:var(--gold)}.detailComboCopy p{font-size:11px;color:#d0c6b5;margin:0;line-height:1.4}.detailComboButton{margin-top:4px;border:1px solid rgba(242,209,139,.4);border-radius:9px;background:linear-gradient(135deg,#9f1239,#e7193f);color:white;padding:8px 11px;font-weight:850;font-size:11px}.detailComboButton:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+</style>
 </head>
 <body>
 <header class="top">
@@ -1530,6 +1606,19 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
 <footer class="footer" id="contactanos"><div class="footerFeatures"><div class="footerFeature"><b>🚚 Envíos</b>Envíos a toda Colombia</div><div class="footerFeature"><b>💳 Pagos</b>Múltiples medios de pago</div><div class="footerFeature"><b>🛡️ Compra segura</b>Tu compra protegida</div><div class="footerFeature"><b>🎧 Atención</b>Soporte personalizado</div></div><div class="footerBrand">Sirevya</div><div class="footerSub">TU ESTILO, NUESTRA PASIÓN ♥</div><div class="contactInfo"><b>📞 Contáctanos</b><a href="tel:+573128561773">+57 312 856 1773</a><a href="tel:+573025469983">+57 302 546 9983</a><a href="mailto:alex21991021@gmail.com">alex21991021@gmail.com</a></div><div style="margin-top:24px;color:#777;font-size:12px">Catálogo actualizado desde el inventario · © Sirevya</div><div class="footerPolicyLinks"><button type="button" class="footerPolicyLink" onclick="openPrivacy(event)">Política de privacidad y datos personales</button></div></footer>
 
 
+<div id="seasonalPromoOverlay" class="sirevyaPromoOverlay" hidden aria-hidden="true" onclick="handleSeasonalPromoBackdrop(event)">
+  <div id="seasonalPromoFalling" class="sirevyaPromoFalling" aria-hidden="true"></div>
+  <section id="seasonalPromoCard" class="sirevyaPromoCard" data-style="halloween" data-size="small" data-shape="rounded" role="dialog" aria-modal="true" aria-labelledby="seasonalPromoTitle" aria-describedby="seasonalPromoMessage" tabindex="-1">
+    <div class="sirevyaPromoWeb" aria-hidden="true"></div>
+    <button type="button" class="sirevyaPromoClose" aria-label="Cerrar promoción" title="Cerrar" onclick="closeSeasonalPromo()">×</button>
+    <div id="seasonalPromoOrnament" class="sirevyaPromoOrnament" aria-hidden="true"><span>🕸️</span><span>🎃</span><span>✦</span></div>
+    <div id="seasonalPromoBadge" class="sirevyaPromoBadge">TEMPORADA ESPECIAL</div>
+    <h2 id="seasonalPromoTitle" class="sirevyaPromoTitle">Una sorpresa para ti</h2>
+    <p id="seasonalPromoMessage" class="sirevyaPromoMessage">Descubre una promoción especial de Sirevya.</p>
+    <a id="seasonalPromoCta" class="sirevyaPromoCta" href="#catalogo" onclick="return handleSeasonalPromoAction(event)">Ver catálogo <span aria-hidden="true">↗</span></a>
+    <p class="sirevyaPromoFoot">SIREVYA · TU ESTILO, NUESTRA PASIÓN</p>
+  </section>
+</div>
 <div id="checkoutModal" class="checkoutModal" onclick="closeCheckout(event)">
   <div class="checkoutBox">
     <div class="checkoutHead"><div class="checkoutTitle">📦 Finalizar pedido</div><button class="checkoutClose" type="button" onclick="closeCheckout()">×</button></div>
@@ -1608,6 +1697,7 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
 
     <h3>5. Encargados y terceros</h3>
     <p>Para prestar el servicio podemos utilizar proveedores tecnológicos y de pago, como Supabase para servicios de almacenamiento y gestión de datos del sistema, y Wompi para el procesamiento de pagos. Estos proveedores podrán tratar información en la medida necesaria para prestar sus servicios y conforme a sus propias políticas y obligaciones aplicables.</p>
+    <p>El catálogo también puede registrar métricas limitadas de interacción con promociones y recomendaciones —por ejemplo, vistas y clics— mediante un identificador aleatorio de sesión y el día del evento. Estas métricas se usan para evaluar el rendimiento de las campañas y no incluyen nombre, teléfono, correo ni datos del pedido dentro del registro de analítica.</p>
 
     <h3>6. Seguridad</h3>
     <p>Adoptamos medidas técnicas, humanas y administrativas razonables para proteger los datos personales frente a pérdida, uso indebido, acceso no autorizado, alteración o divulgación no autorizada. Ningún sistema conectado a Internet puede garantizar seguridad absoluta.</p>
@@ -2002,7 +2092,7 @@ function changePhoto(i,d,event){if(event){event.preventDefault();event.stopPropa
 function openGallery(id,event){if(event){event.preventDefault();event.stopPropagation()}const p=productos.find(x=>String(x.id)===String(id));if(!p)return;const imgs=productImages(p);if(!imgs.length)return;galleryProduct=p;galleryIndex=0;galleryImages=imgs;renderGallery();$('galleryModal').classList.add('open');document.body.style.overflow='hidden'}
 function openSizeGuideZoom(image,event){if(event){event.preventDefault();event.stopPropagation()}const src=String(image?.currentSrc||image?.src||'').trim();if(!src)return;galleryProduct={name:image?.alt||'Guía de tallas'};galleryIndex=0;galleryImages=[src];renderGallery();$('galleryModal').classList.add('open');document.body.style.overflow='hidden'}
 let galleryProduct=null,galleryImages=[],galleryIndex=0;
-function renderGallery(){if(!galleryImages.length)return;$('galleryMain').loading='lazy';$('galleryMain').decoding='async';$('galleryMain').src=galleryImages[galleryIndex];$('galleryMain').alt=galleryProduct?.name||'Producto';$('galleryInfo').textContent=(galleryIndex+1)+' / '+galleryImages.length;const multi=galleryImages.length>1;$('galleryPrev').style.display=multi?'block':'none';$('galleryNext').style.display=multi?'block':'none'}
+function renderGallery(){if(!galleryImages.length)return;const main=$('galleryMain');main.loading='eager';main.fetchPriority='high';main.decoding='async';main.src=galleryImages[galleryIndex];main.alt=galleryProduct?.name||'Producto';$('galleryInfo').textContent=(galleryIndex+1)+' / '+galleryImages.length;const multi=galleryImages.length>1;$('galleryPrev').style.display=multi?'block':'none';$('galleryNext').style.display=multi?'block':'none'}
 function galleryMove(d,event){if(event){event.preventDefault();event.stopPropagation()}if(galleryImages.length<2)return;galleryIndex=(galleryIndex+d+galleryImages.length)%galleryImages.length;renderGallery()}
 function closeGallery(event){if(event&&event.target!==$('galleryModal'))return;$('galleryModal').classList.remove('open');document.body.style.overflow=$('productDetailModal')?.classList.contains('open')?'hidden':''}
 
@@ -2280,13 +2370,17 @@ function renderVariantOptions(p){
 }
 let detailProduct=null;
 let productDetailHistoryActive=false;
+let productDetailOpenedFromDirectLink=false;
+function productDetailUrl(productId){const u=new URL(window.location.href);u.searchParams.set('producto',String(productId||''));return u.href}
+function cleanDirectProductUrl(){try{const u=new URL(window.location.href);u.searchParams.delete('producto');const state=(history.state&&typeof history.state==='object'&&!Array.isArray(history.state))?{...history.state}:{ };delete state.sirevyaProductDetailOpen;delete state.sirevyaProductDetailId;history.replaceState(state,'',u.href)}catch{}}
 function pushProductDetailHistory(productId){
  try{
   const state=(history.state&&typeof history.state==='object'&&!Array.isArray(history.state))?{...history.state}:{};
   state.sirevyaProductDetailOpen=true;
   state.sirevyaProductDetailId=String(productId||'');
-  history.pushState(state,'',window.location.href);
+  history.pushState(state,'',productDetailUrl(productId));
   productDetailHistoryActive=true;
+  productDetailOpenedFromDirectLink=false;
   return true;
  }catch(error){
   productDetailHistoryActive=false;
@@ -2352,13 +2446,20 @@ function resetProductDetailScroll(modal,productId){
  requestAnimationFrame(reset);
  setTimeout(reset,80);
 }
-function openProductDetail(id,event){
+function openProductDetail(id,event,options={}){
  if(event){event.preventDefault();event.stopPropagation()}
  const p=productos.find(x=>String(x.id)===String(id));if(!p)return;
  if(productIsBlockedForThisDevice(p)){showInventoryBlockedMessage();return;}
  const modal=$('productDetailModal');if(!modal)return;
  const alreadyOpen=modal.classList.contains('open');
- if(!alreadyOpen)pushProductDetailHistory(p.id);
+ if(!alreadyOpen){
+  if(options.fromDirectLink){
+   productDetailOpenedFromDirectLink=true;productDetailHistoryActive=false;
+   try{const state=(history.state&&typeof history.state==='object'&&!Array.isArray(history.state))?{...history.state}:{ };state.sirevyaProductDetailOpen=true;state.sirevyaProductDetailId=String(p.id);history.replaceState(state,'',productDetailUrl(p.id))}catch{}
+  }else pushProductDetailHistory(p.id);
+ }else{
+  try{const state=(history.state&&typeof history.state==='object'&&!Array.isArray(history.state))?{...history.state}:{ };state.sirevyaProductDetailOpen=true;state.sirevyaProductDetailId=String(p.id);history.replaceState(state,'',productDetailUrl(p.id))}catch{}
+ }
  detailProduct=p;
  const scrollBox=modal.querySelector('.productDetailBox');if(scrollBox)scrollBox.scrollTop=0;
  modal.scrollTop=0;
@@ -2375,7 +2476,7 @@ function openProductDetail(id,event){
  const firstColor=colors.find(c=>colorStock(p,c)>0)||colors[0]||'';
  const firstSize=sizes.find(sz=>variantStock(p,firstColor,sz)>0)||sizes[0]||'';
  const image=variantImageUrl(p,firstColor)||(imgs[0]||'');
- $('detailImage').src=image;
+ const detailMainImage=$('detailImage');detailMainImage.loading='eager';detailMainImage.fetchPriority='high';detailMainImage.decoding='async';detailMainImage.src=image;
  renderDetailGallery(p,image);
  $('detailVariants').innerHTML=`<div class="detailCard" data-product-id="${esc(p.id)}">${renderDetailVariants(p,firstColor,firstSize)}</div>`;
  updateDetailVariantAvailability();
@@ -2577,6 +2678,50 @@ function updateDetailStockNotice(p){
    el.hidden=false;
  }else{el.textContent='';el.hidden=true}
 }
+let storefrontProductCombos=[];
+let storefrontProductCombosLoading=null;
+let storefrontMarketingSessionKey=null;
+function getStorefrontMarketingSessionKey(){
+ if(storefrontMarketingSessionKey)return storefrontMarketingSessionKey;
+ try{
+  let key=sessionStorage.getItem('sirevya_marketing_session_key');
+  if(!key){key=(crypto?.randomUUID?.()||([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g,c=>(c^Math.random()*16>>c/4).toString(16)));sessionStorage.setItem('sirevya_marketing_session_key',key)}
+  storefrontMarketingSessionKey=key;
+ }catch{storefrontMarketingSessionKey='00000000-0000-4000-8000-'+Math.random().toString(16).slice(2).padEnd(12,'0').slice(0,12)}
+ return storefrontMarketingSessionKey;
+}
+function trackStorefrontMarketingEvent(campaignType,campaignId,eventType){
+ if(!sb||!['popup','combo'].includes(campaignType)||!['impression','click'].includes(eventType))return;
+ const id=String(campaignId||'');if(campaignType==='popup'&&id!=='seasonal')return;
+ if(campaignType==='combo'&&!/^[0-9a-f-]{36}$/i.test(id))return;
+ const sessionKey=getStorefrontMarketingSessionKey();
+ // Non-blocking, deduplicated by the SQL RPC. A missing metrics migration never blocks shopping.
+ void sb.rpc('record_storefront_marketing_event',{p_campaign_type:campaignType,p_campaign_id:id,p_event_type:eventType,p_session_key:sessionKey})
+  .then(({error})=>{if(error)console.debug('Métricas promocionales no configuradas aún.',error.message||error)})
+  .catch(error=>console.debug('No se pudo registrar una métrica promocional.',error));
+}
+async function loadStorefrontProductCombos({force=false}={}){
+ if(storefrontProductCombosLoading&&!force)return storefrontProductCombosLoading;
+ storefrontProductCombosLoading=(async()=>{
+  try{
+   const {data,error}=await sb.rpc('get_public_storefront_product_combos');
+   if(error)throw error;
+   storefrontProductCombos=Array.isArray(data)?data:[];
+   if(detailProduct&&$('productDetailModal')?.classList.contains('open'))updateDetailDescription(detailProduct);
+   return storefrontProductCombos;
+  }catch(error){console.debug('Las recomendaciones de productos combinados no están instaladas; el catálogo sigue funcionando.',error?.message||error);return storefrontProductCombos}
+  finally{storefrontProductCombosLoading=null}
+ })();
+ return storefrontProductCombosLoading;
+}
+function openComboPartner(button,event){
+ if(event){event.preventDefault();event.stopPropagation()}
+ const id=button?.dataset?.comboPartnerId;
+ const comboId=button?.dataset?.comboId;
+ if(comboId)trackStorefrontMarketingEvent('combo',comboId,'click');
+ if(id)openProductDetail(id,event);
+}
+
 function updateDetailDescription(p){
  const host=$('detailAdditionalContent');if(!host||!p)return;
  const openSections=new Set(Array.from(host.querySelectorAll('.detailAccordion[open]')).map(el=>el.dataset.detailSection||''));
@@ -2601,7 +2746,10 @@ function updateDetailDescription(p){
    :'';
  const deliverySection=accordion('Tiempo de entrega',`<p class="detailLongText">${esc(deliveryText)}</p>`,'detailDeliveryAccordion');
  const relatedSection=related.length?`<section class="detailRelatedSection"><div class="detailSectionHeading"><h3>Productos relacionados</h3><span></span></div><div class="detailRelatedGrid">${related.map(item=>{const image=productImages(item)[0]||'';return `<button type="button" class="detailRelatedCard" data-related-product-id="${esc(item.id)}" onclick="openRelatedProduct(this,event)">${image?`<img src="${esc(image)}" alt="${esc(item.name||'Producto relacionado')}" loading="lazy" decoding="async">`:'<span class="detailRelatedNoImage">✦</span>'}<span class="detailRelatedName">${esc(item.name||'Producto')}</span><span class="detailRelatedPrice">${money(item.sale_price)}</span></button>`}).join('')}</div></section>`:'';
- host.innerHTML=`<div class="detailAccordionGroup">${descriptionSection}${sizeGuideSection}${deliverySection}</div>${relatedSection}`;
+ const comboCards=(storefrontProductCombos||[]).filter(combo=>String(combo.product_a_id)===String(p.id)).map(combo=>({combo,product:productos.find(item=>String(item.id)===String(combo.product_b_id))})).filter(x=>x.product&&productStockTotal(x.product)>0);
+ const comboSection=comboCards.length?`<section class="detailComboSection"><div class="detailSectionHeading"><h3>Combina con estilo</h3><span></span></div>${comboCards.map(({combo,product})=>{const image=productImages(product)[0]||product.image_url||'';return `<article class="detailComboCard"><div class="detailComboImage">${image?`<img src="${esc(image)}" alt="${esc(product.name||'Producto recomendado')}" loading="lazy" decoding="async">`:'<span>✦</span>'}</div><div class="detailComboCopy"><strong>${esc(combo.title||'Completa el look')}</strong><p>${esc(combo.message||'Descubre esta combinación de productos.')}</p><span class="detailRelatedPrice">${money(product.sale_price)}</span><button type="button" class="detailComboButton" data-combo-partner-id="${esc(product.id)}" data-combo-id="${esc(combo.id)}" onclick="openComboPartner(this,event)">${esc(combo.button_label||'Ver producto')}</button></div></article>`}).join('')}</section>`:'';
+ if(comboCards.length)comboCards.forEach(({combo})=>trackStorefrontMarketingEvent('combo',combo.id,'impression'));
+ host.innerHTML=`<div class="detailAccordionGroup">${descriptionSection}${sizeGuideSection}${deliverySection}</div>${comboSection}${relatedSection}`;
  host.querySelectorAll('.detailAccordion').forEach(el=>{if(openSections.has(el.dataset.detailSection||''))el.open=true});
  host.hidden=false;
 }
@@ -2620,7 +2768,12 @@ function renderDetailGallery(p,activeUrl){
  const box=$('detailGalleryThumbs');if(!box)return;
  const imgs=detailGalleryImages(p,activeUrl);
  const activeKey=normalizeImageUrl(activeUrl);
- box.innerHTML=imgs.map((u,i)=>`<button type="button" class="detailThumb ${normalizeImageUrl(u)===activeKey?'active':''}" onclick="selectDetailImage('${esc(u)}',event)"><img src="${esc(u)}" alt="Foto ${i+1}" loading="lazy" decoding="async"></button>`).join('');
+ // Store dynamic image URLs in an escaped data attribute, not inside inline JavaScript.
+ // This also handles valid URLs containing apostrophes without breaking the click handler.
+ box.innerHTML=imgs.map((u,i)=>`<button type="button" class="detailThumb ${normalizeImageUrl(u)===activeKey?'active':''}" data-detail-image-url="${esc(u)}"><img src="${esc(u)}" alt="Foto ${i+1}" loading="lazy" decoding="async"></button>`).join('');
+ box.querySelectorAll('button[data-detail-image-url]').forEach(button=>{
+  button.addEventListener('click',event=>selectDetailImage(button.dataset.detailImageUrl||'',event));
+ });
 }
 function selectDetailImage(url,event){
  if(event){event.preventDefault();event.stopPropagation()}
@@ -2715,7 +2868,9 @@ function closeProductDetail(event,options={}){
  detailProduct=null;
  const anotherOverlayOpen=$('mobileMenu')?.classList.contains('open')||$('checkoutModal')?.classList.contains('open')||$('cartBar')?.classList.contains('cartOpen')||$('galleryModal')?.classList.contains('open')||$('privacyModal')?.classList.contains('open')||$('orderSuccess')?.classList.contains('open');
  document.body.style.overflow=anotherOverlayOpen?'hidden':'';
- if(wasOpen&&productDetailHistoryActive&&!options.fromPopState&&!options.skipHistory)popProductDetailHistory();
+ if(wasOpen&&productDetailOpenedFromDirectLink&&!options.fromPopState){productDetailOpenedFromDirectLink=false;productDetailHistoryActive=false;cleanDirectProductUrl()}
+ else if(options.fromPopState){productDetailOpenedFromDirectLink=false;productDetailHistoryActive=false}
+ else if(wasOpen&&productDetailHistoryActive&&!options.skipHistory)popProductDetailHistory();
 }
 
 function toggleHeaderSearch(){
@@ -2738,7 +2893,15 @@ function openMobileMenu(){
  const el=$('mobileMenu');if(!el)return;
  const cats=[...document.querySelectorAll('#category option')].map(o=>o.value).filter(Boolean);
  const box=$('mobileMenuCategories');
- if(box)box.innerHTML=cats.map(c=>`<button type="button" onclick="selectCategoryFromMenu('${esc(c).replace(/'/g,"&#39;")}')">✦ ${esc(c)}</button>`).join('');
+ if(box){
+  // Keep category names in data attributes so apostrophes and other valid characters
+  // cannot break an inline JavaScript string in the generated menu.
+  box.innerHTML=cats.map(c=>`<button type="button" data-mobile-category="${esc(c)}">✦ ${esc(c)}</button>`).join('');
+  box.onclick=event=>{
+   const button=event.target.closest('button[data-mobile-category]');
+   if(button&&box.contains(button))selectCategoryFromMenu(button.dataset.mobileCategory||'');
+  };
+ }
  el.classList.add('open');el.setAttribute('aria-hidden','false');document.body.style.overflow='hidden';
 }
 function closeMobileMenu(event){
@@ -2933,6 +3096,17 @@ try{
  const savedCart=JSON.parse(localStorage.getItem(WOMPI_CART_KEY)||'null');
  if(Array.isArray(savedCart)) cart=savedCart;
 }catch(e){ console.warn('No se pudo restaurar el carrito de Wompi.',e); }
+function openDirectProductFromLocation(){
+ try{
+  const id=new URLSearchParams(window.location.search).get('producto');
+  if(!id||!productos.length||$('productDetailModal')?.classList.contains('open'))return false;
+  const p=productos.find(item=>String(item.id)===String(id));
+  if(!p)return false;
+  openProductDetail(p.id,null,{fromDirectLink:true});
+  return !!$('productDetailModal')?.classList.contains('open');
+ }catch(error){console.debug('No se pudo abrir el producto enlazado.',error);return false}
+}
+
 function restoreCheckoutFromReservation(){
  const ref=getActiveReservationReference();
  const saved=getActiveReservationItems();
@@ -3787,6 +3961,8 @@ async function load(){
   applyCatalogCategories(initialCats,true);
   $('error').style.display='none';
   render();restoreCheckoutFromReservation();
+  // Links shared from the admin may open a particular product without requiring a second page.
+  requestAnimationFrame(()=>openDirectProductFromLocation());
 
   // The optional requests never block initial interaction. Apply whichever results
   // succeed; any failed optional endpoint leaves the catalog usable.
@@ -4087,9 +4263,13 @@ window.addEventListener('storage',event=>{
  if(event.key!=='sirevya_public_catalog_changed'||document.visibilityState!=='visible'||!catalogInitialLoadComplete)return;
  let change=null;
  try{change=JSON.parse(event.newValue||'')}catch{}
+ // Keep the localStorage cross-tab fallback complete when Broadcast/Realtime is unavailable.
+ if(change?.type==='combo-changed'){void loadStorefrontProductCombos({force:true});return;}
+ if(change?.type==='promotion-changed'){void loadSeasonalPromoFromSupabase({force:true});return;}
  void refreshInventoryStatus(true);
- if(change?.type==='product-saved'&&change.productId){
-   void refreshEditedProductDetails(change.productId,!!change.refreshImages);
+ if((change?.type==='product-saved'||change?.type==='product-images-changed')&&change.productId){
+   const refreshImages=change.type==='product-images-changed'||!!change.refreshImages;
+   void refreshEditedProductDetails(change.productId,refreshImages);
  }
 });
 syncPaymentOptions();
@@ -4099,5 +4279,152 @@ setInterval(()=>{if(document.visibilityState==='visible')refreshInventoryStatus(
 setInterval(()=>{if(document.visibilityState==='visible')refreshOnlinePaymentSetting({silent:true})},30000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden){refreshOnlinePaymentSetting({silent:true});if(catalogInitialLoadComplete)void refreshInventoryStatus(true)}});
 window.addEventListener('pageshow',()=>{if(catalogInitialLoadComplete&&document.visibilityState==='visible')void refreshInventoryStatus(true)});
+
+
+// === Promoción de temporada configurable desde el administrador ===
+const SIREVYA_PROMO_SESSION_KEY='sirevya_seasonal_promo_shown_v1';
+const SIREVYA_PROMO_PRESETS={
+ halloween:{background_color:'#21132f',accent_color:'#ff914d',particles:['🕸️','🎃','🕷️','✦','🦇'],eyebrow:'TEMPORADA DE HALLOWEEN',title:'¡Halloween con estilo!',message:'Descubre la temporada y aprovecha el envío gratis a Cali.',button_label:'Ver promoción'},
+ elegant:{background_color:'#17131d',accent_color:'#d7b779',particles:['✦','✧','❋','✦','✧'],eyebrow:'DETALLES QUE ENAMORAN',title:'Un detalle para ti',message:'Descubre tus favoritos y aprovecha el envío gratis a Cali.',button_label:'Explorar catálogo'},
+ romantic:{background_color:'#381426',accent_color:'#ff78a6',particles:['♥','✦','💗','♡','♥'],eyebrow:'UNA SORPRESA PARA TI',title:'Tu estilo merece brillar',message:'Encuentra tu próximo favorito con una promoción especial.',button_label:'Quiero verlo'},
+ festive:{background_color:'#101f36',accent_color:'#83dcff',particles:['❄','✧','❄','✦','❄'],eyebrow:'CELEBRA CON SIREVYA',title:'La temporada se viste de estilo',message:'Descubre tus favoritos y promociones especiales.',button_label:'Ver favoritos'}
+};
+let sirevyaPromoConfig=null,sirevyaPromoTimer=null,sirevyaPromoStartTimer=null,sirevyaPromoAutoCloseTimer=null,sirevyaPromoPreviewMode=false,sirevyaPromoPreviousFocus=null,sirevyaPromoPreviousOverflow='';
+function safeSeasonalPromoUrl(value){
+ const v=String(value||'').trim();
+ if(['#catalogo','#inicio','#contactanos'].includes(v))return v;
+ try{const u=new URL(v,location.href);if((u.protocol==='https:'||u.protocol==='http:')&&/^https?:\/\//i.test(v))return u.href}catch{}
+ return '#catalogo';
+}
+function normalizeSeasonalPromoRow(row){
+ if(!row||typeof row!=='object')return null;
+ const style=SIREVYA_PROMO_PRESETS[row.style]?row.style:'halloween',preset=SIREVYA_PROMO_PRESETS[style];
+ const color=value=>/^#[0-9a-f]{6}$/i.test(String(value||''))?String(value).toLowerCase():null;
+ return {enabled:row.enabled===true,style,eyebrow:String(row.eyebrow??preset.eyebrow).slice(0,48),title:String(row.title??preset.title).slice(0,90),message:String(row.message??preset.message).slice(0,240),button_label:String(row.button_label??preset.button_label).slice(0,32),button_url:safeSeasonalPromoUrl(row.button_url||'#catalogo'),background_color:color(row.background_color)||preset.background_color,accent_color:color(row.accent_color)||preset.accent_color,text_color:color(row.text_color)||'#ffffff',popup_size:['tiny','small','medium','large'].includes(row.popup_size)?row.popup_size:'small',popup_shape:['rounded','circle'].includes(row.popup_shape)?row.popup_shape:'rounded',popup_position:['center','bottom-right','bottom-center'].includes(row.popup_position)?row.popup_position:'center',animation_style:['falling','sparkle','none'].includes(row.animation_style)?row.animation_style:(row.animate===false?'none':'falling'),animate:row.animate!==false,delay_ms:[0,800,1600,3000,5000].includes(Number(row.delay_ms))?Number(row.delay_ms):1600,visible_duration_ms:[0,3000,5000,8000,10000].includes(Number(row.visible_duration_ms))?Number(row.visible_duration_ms):3000,start_at:row.start_at||null,end_at:row.end_at||null,updated_at:row.updated_at||''};
+}
+function isSeasonalPromoInDateRange(config,now=new Date()){
+ if(!config?.enabled)return false;
+ const start=config.start_at?new Date(config.start_at):null,end=config.end_at?new Date(config.end_at):null;
+ if(start&&Number.isNaN(start.getTime()))return false;
+ if(end&&Number.isNaN(end.getTime()))return false;
+ return (!start||now>=start)&&(!end||now<end);
+}
+function fillSeasonalPromoPopup(config){
+ const overlay=$('seasonalPromoOverlay'),card=$('seasonalPromoCard');if(!overlay||!card||!config)return;
+ overlay.dataset.position=['center','bottom-right','bottom-center'].includes(config.popup_position)?config.popup_position:'center';
+ overlay.dataset.animation=config.animate===false?'none':(['falling','sparkle','none'].includes(config.animation_style)?config.animation_style:'falling');
+ card.dataset.style=config.style;card.dataset.size=['tiny','small','medium','large'].includes(config.popup_size)?config.popup_size:'small';card.dataset.shape=['rounded','circle'].includes(config.popup_shape)?config.popup_shape:'rounded';
+ card.style.setProperty('--promo-bg',config.background_color);
+ card.style.setProperty('--promo-accent',config.accent_color);
+ card.style.setProperty('--promo-text',config.text_color||'#ffffff');
+ const hex=String(config.accent_color||'#ff914d').replace('#','');const rgb=/^[0-9a-f]{6}$/i.test(hex)?[parseInt(hex.slice(0,2),16),parseInt(hex.slice(2,4),16),parseInt(hex.slice(4,6),16)]:[255,145,77];
+ card.style.setProperty('--promo-button-text',(0.299*rgb[0]+0.587*rgb[1]+0.114*rgb[2])>158?'#21132f':'#ffffff');
+ $('seasonalPromoBadge').textContent=config.eyebrow||'';
+ $('seasonalPromoTitle').textContent=config.title||'';
+ $('seasonalPromoMessage').textContent=config.message||'';
+ const cta=$('seasonalPromoCta');cta.textContent=config.button_label||'Ver catálogo';
+ const arrow=document.createElement('span');arrow.setAttribute('aria-hidden','true');arrow.textContent=' ↗';cta.appendChild(arrow);cta.href=safeSeasonalPromoUrl(config.button_url);
+ $('seasonalPromoFalling').style.display=(config.animate&&config.animation_style!=='none')?'':'none';
+ const ornament=$('seasonalPromoOrnament');ornament.replaceChildren();
+ const icons=SIREVYA_PROMO_PRESETS[config.style].particles.slice(0,3);
+ icons.forEach(glyph=>{const span=document.createElement('span');span.textContent=glyph;ornament.appendChild(span)});
+ const falling=$('seasonalPromoFalling');falling.replaceChildren();
+ if(config.animate&&config.animation_style!=='none'&&!window.matchMedia('(prefers-reduced-motion: reduce)').matches){
+   const particles=SIREVYA_PROMO_PRESETS[config.style].particles;
+   const count=config.animation_style==='sparkle'?7:8;
+   for(let i=0;i<count;i++){
+    const span=document.createElement('span');span.textContent=particles[i%particles.length];
+    span.style.setProperty('--fall-left',`${(i*37+5)%97}%`);
+    span.style.setProperty('--fall-top',`${8+((i*19)%74)}%`);
+    span.style.setProperty('--fall-delay',`${-((i*7)%19)/2}s`);
+    span.style.setProperty('--fall-duration',`${config.animation_style==='sparkle'?3.2+(i%4):8+(i%5)}s`);
+    span.style.setProperty('--fall-size',`${10+(i%3)*4}px`);
+    span.style.setProperty('--fall-opacity',`${.22+(i%4)*.1}`);
+    span.style.setProperty('--fall-drift',`${(i%2?1:-1)*(8+(i%4)*8)}px`);
+    falling.appendChild(span);
+   }
+ }
+}
+function openSeasonalPromo(config,{preview=false}={}){
+ const overlay=$('seasonalPromoOverlay');if(!overlay)return;
+ if(sirevyaPromoAutoCloseTimer){clearTimeout(sirevyaPromoAutoCloseTimer);sirevyaPromoAutoCloseTimer=null;}
+ fillSeasonalPromoPopup(config);sirevyaPromoPreviewMode=preview;
+ overlay.classList.toggle('adminPromoPreview',preview);
+ overlay.hidden=false;overlay.setAttribute('aria-hidden','false');
+ requestAnimationFrame(()=>overlay.classList.add('is-visible'));
+ sirevyaPromoPreviousFocus=document.activeElement;sirevyaPromoPreviousOverflow=document.body.style.overflow;document.body.style.overflow='hidden';
+ if(!preview){try{sessionStorage.setItem(SIREVYA_PROMO_SESSION_KEY,'1')}catch{}
+  trackStorefrontMarketingEvent('popup','seasonal','impression');
+  const duration=Number(config.visible_duration_ms);if([3000,5000,8000,10000].includes(duration))sirevyaPromoAutoCloseTimer=setTimeout(()=>closeSeasonalPromo(),duration);
+ }
+ setTimeout(()=>{$('seasonalPromoCard')?.querySelector('.sirevyaPromoClose')?.focus({preventScroll:true})},30);
+}
+function closeSeasonalPromo(){
+ if(sirevyaPromoAutoCloseTimer){clearTimeout(sirevyaPromoAutoCloseTimer);sirevyaPromoAutoCloseTimer=null;}
+ const overlay=$('seasonalPromoOverlay');if(!overlay||overlay.hidden)return;
+ overlay.classList.remove('is-visible');overlay.setAttribute('aria-hidden','true');document.body.style.overflow=sirevyaPromoPreviousOverflow||'';
+ setTimeout(()=>{if(!overlay.classList.contains('is-visible'))overlay.hidden=true},240);
+ const previous=sirevyaPromoPreviousFocus;if(previous&&previous.isConnected&&typeof previous.focus==='function')try{previous.focus({preventScroll:true})}catch{}
+ sirevyaPromoPreviewMode=false;
+}
+function handleSeasonalPromoBackdrop(event){if(event?.target===$('seasonalPromoOverlay'))closeSeasonalPromo()}
+function handleSeasonalPromoAction(event){if(sirevyaPromoPreviewMode){event?.preventDefault?.();closeSeasonalPromo();return false}trackStorefrontMarketingEvent('popup','seasonal','click');closeSeasonalPromo();return true}
+function maybeShowSeasonalPromo(config){
+ if(!config||!isSeasonalPromoInDateRange(config))return;
+ try{if(sessionStorage.getItem(SIREVYA_PROMO_SESSION_KEY))return}catch{}
+ if(sirevyaPromoTimer)clearTimeout(sirevyaPromoTimer);
+ const attempt=()=>{
+  if(document.visibilityState!=='visible'){sirevyaPromoTimer=setTimeout(attempt,1000);return}
+  if(!catalogInitialLoadComplete||$('checkoutModal')?.classList.contains('open')){sirevyaPromoTimer=setTimeout(attempt,800);return}
+  try{if(sessionStorage.getItem(SIREVYA_PROMO_SESSION_KEY))return}catch{}
+  openSeasonalPromo(config);
+ };
+ sirevyaPromoTimer=setTimeout(attempt,Math.max(0,Math.min(5000,Number(config.delay_ms)||0)));
+}
+async function loadSeasonalPromoFromSupabase({force=false}={}){
+ if(!force&&sirevyaPromoConfig&&document.visibilityState!=='visible')return sirevyaPromoConfig;
+ try{
+  const {data,error}=await sb.rpc('get_public_storefront_promotion');
+  if(error)throw error;
+  const row=Array.isArray(data)?data[0]:data;
+  sirevyaPromoConfig=normalizeSeasonalPromoRow(row);
+  if(!sirevyaPromoConfig){if(!$('seasonalPromoOverlay')?.hidden)closeSeasonalPromo();return null}
+  if(!isSeasonalPromoInDateRange(sirevyaPromoConfig)){
+    if(sirevyaPromoTimer){clearTimeout(sirevyaPromoTimer);sirevyaPromoTimer=null}
+    if(sirevyaPromoConfig.enabled&&sirevyaPromoConfig.start_at){const delay=new Date(sirevyaPromoConfig.start_at).getTime()-Date.now();if(delay>0&&delay<2147480000)sirevyaPromoStartTimer=setTimeout(()=>void loadSeasonalPromoFromSupabase({force:true}),delay+1000)}
+    return sirevyaPromoConfig;
+  }
+  maybeShowSeasonalPromo(sirevyaPromoConfig);return sirevyaPromoConfig;
+ }catch(error){console.info('La promoción emergente no está configurada todavía; el catálogo continúa normalmente.',error?.message||error);return null}
+}
+window.addEventListener('keydown',event=>{if(event.key==='Escape'&&!$('seasonalPromoOverlay')?.hidden)closeSeasonalPromo()});
+window.addEventListener('storage',event=>{if(event.key==='sirevya_seasonal_promo_changed'&&document.visibilityState==='visible')void loadSeasonalPromoFromSupabase({force:true})});
+void loadSeasonalPromoFromSupabase();
+void loadStorefrontProductCombos();
+let publicCatalogRealtimeChannel=null;
+function startPublicCatalogRealtime(){
+ if(publicCatalogRealtimeChannel||!sb||typeof sb.channel!=='function')return;
+ try{
+  publicCatalogRealtimeChannel=sb.channel('sirevya-public-catalog',{config:{private:true,broadcast:{self:false}}})
+   .on('broadcast',{event:'catalog_changed'},({payload})=>{
+    if(!payload||document.visibilityState!=='visible')return;
+    const type=String(payload.type||'');
+    if(type==='promotion-changed'){void loadSeasonalPromoFromSupabase({force:true});return}
+    if(type==='combo-changed'){void loadStorefrontProductCombos({force:true});return}
+    void refreshInventoryStatus(true);
+    const pid=String(payload.productId||'');
+    if(pid&&['product-saved','product-images-changed'].includes(type)){
+      setTimeout(()=>void refreshProductDetailsOnDemand(pid,true),240);
+      if(payload.refreshImages||type==='product-images-changed'){
+       const sig=productos.map(item=>normalizeDetailId(item.id)).sort().join('|');
+       setTimeout(()=>void refreshCatalogEnrichment(sig),500);
+      }
+    }
+   })
+   .subscribe(status=>{if(status==='CHANNEL_ERROR'||status==='TIMED_OUT')console.debug('Actualización en tiempo real no disponible; se conserva el refresco de respaldo.')});
+ }catch(error){publicCatalogRealtimeChannel=null;console.debug('Realtime no disponible; se conserva el refresco de respaldo.',error)}
+}
+startPublicCatalogRealtime();
+
 </script>
 </body></html>

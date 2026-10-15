@@ -176,6 +176,80 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
 .adminColorDetails .adminColorPalette{padding:0 11px 11px}
 @media(max-width:700px){.adminColorField{padding:10px}.adminColorDisclosure{padding:9px;gap:7px;min-height:50px}.adminColorDisclosureIcon{width:30px;height:30px;flex-basis:30px}.adminColorDisclosureText small{font-size:10px}.adminColorCount{font-size:9px;padding:4px 6px}.adminColorDisclosureEnd{gap:5px}.adminColorDetails .adminColorPalette{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;padding:0 8px 8px}.adminColorSwatch{gap:4px;padding:6px 4px;font-size:10px;min-height:40px}.adminColorCircle{width:18px;height:18px;flex-basis:18px}}
 </style>
+<style id="sirevyaSeasonalPromoAdminSharedStyles">
+/* Seasonal promotion popup: isolated styles, no dependencies on cart/checkout CSS. */
+.sirevyaPromoOverlay{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(9,6,15,.28);backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px);opacity:0;visibility:hidden;transition:opacity .2s ease,visibility .2s ease;overflow:hidden;isolation:isolate}
+.sirevyaPromoOverlay[hidden]{display:none!important}
+.sirevyaPromoOverlay.is-visible{opacity:1;visibility:visible}
+.sirevyaPromoCard{z-index:2;--promo-bg:#21132f;--promo-accent:#ff914d;--promo-text:#ffffff;--promo-button-text:#21132f;position:relative;isolation:isolate;overflow:hidden;width:min(82vw,252px);max-height:min(72vh,500px);overflow-y:auto;padding:15px 13px 11px;border:1px solid var(--promo-accent);border-radius:17px;background-color:var(--promo-bg);background-image:radial-gradient(circle at 50% -10%,rgba(255,255,255,.09),transparent 42%),linear-gradient(145deg,rgba(255,255,255,.065),transparent 65%);color:var(--promo-text);text-align:center;box-shadow:0 16px 48px rgba(0,0,0,.32),0 0 20px rgba(255,255,255,.05);transform:translateY(12px) scale(.98);transition:transform .24s cubic-bezier(.2,.8,.2,1);scrollbar-width:thin}
+.sirevyaPromoOverlay.is-visible .sirevyaPromoCard{transform:translateY(0) scale(1)}
+.sirevyaPromoCard:after{content:"";position:absolute;inset:6px;border:1px solid rgba(255,255,255,.13);border-radius:15px;pointer-events:none;z-index:-1}
+.sirevyaPromoClose{position:absolute;top:7px;right:7px;z-index:5;display:grid;place-items:center;width:29px;height:29px;border:1px solid rgba(255,255,255,.24);border-radius:50%;background:rgba(255,255,255,.09);color:var(--promo-text,#fff);font-size:20px;line-height:1;cursor:pointer;transition:background .15s ease,transform .15s ease}
+.sirevyaPromoClose:hover{background:rgba(255,255,255,.18);transform:rotate(5deg)}
+.sirevyaPromoWeb{position:absolute;top:-20px;right:-22px;width:126px;height:126px;color:var(--promo-accent);opacity:.27;pointer-events:none;background-image:repeating-radial-gradient(circle at 100% 0%,transparent 0 12px,currentColor 13px 14px,transparent 15px 19px),repeating-conic-gradient(from 0deg at 100% 0%,transparent 0deg 14deg,currentColor 14.5deg 15.5deg,transparent 16deg 30deg);mask-image:linear-gradient(135deg,#000 0%,#000 48%,transparent 80%);-webkit-mask-image:linear-gradient(135deg,#000 0%,#000 48%,transparent 80%)}
+.sirevyaPromoOrnament{position:relative;z-index:1;display:flex;justify-content:center;align-items:center;gap:10px;min-height:24px;margin:0 auto 5px;color:var(--promo-accent);font-size:19px;text-shadow:0 0 12px var(--promo-accent)}
+.sirevyaPromoBadge{position:relative;z-index:1;display:inline-flex;align-items:center;justify-content:center;max-width:100%;margin:0 auto 8px;padding:5px 9px;border:1px solid var(--promo-accent);border-radius:999px;background:rgba(255,255,255,.07);color:var(--promo-accent);font-size:8px;font-weight:900;letter-spacing:.12em;text-transform:uppercase;overflow-wrap:anywhere}
+.sirevyaPromoTitle{position:relative;z-index:1;margin:0 auto 8px;max-width:270px;color:var(--promo-text,#fff);font-family:Georgia,"Times New Roman",serif;font-size:23px;font-weight:700;letter-spacing:-.025em;line-height:1.1;text-wrap:balance;overflow-wrap:anywhere}
+.sirevyaPromoMessage{position:relative;z-index:1;max-width:270px;margin:0 auto 13px;color:var(--promo-text,#fff);opacity:.84;font-size:11.5px;line-height:1.45;white-space:pre-line;overflow-wrap:anywhere}
+.sirevyaPromoCta{position:relative;z-index:1;display:flex;align-items:center;justify-content:center;gap:7px;min-height:36px;width:100%;padding:9px 12px;border:1px solid rgba(255,255,255,.34);border-radius:10px;background:var(--promo-accent);color:var(--promo-button-text,#21132f);text-decoration:none;font-size:11.5px;font-weight:900;letter-spacing:.01em;box-shadow:0 5px 15px rgba(255,255,255,.08);transition:transform .15s ease,filter .15s ease;overflow-wrap:anywhere}
+.sirevyaPromoCta:hover{filter:brightness(1.06);transform:translateY(-1px)}
+.sirevyaPromoFoot{position:relative;z-index:1;margin:9px 0 0;color:var(--promo-text,#fff);opacity:.55;font-size:9px;letter-spacing:.04em}
+.sirevyaPromoFalling{position:absolute;inset:0;z-index:0;overflow:hidden;pointer-events:none}
+.sirevyaPromoFalling span{position:absolute;top:var(--fall-top,-12vh);left:var(--fall-left);font-size:var(--fall-size);opacity:var(--fall-opacity,.65);animation:sirevyaPromoFall var(--fall-duration,8s) linear var(--fall-delay,0s) infinite;filter:drop-shadow(0 2px 4px rgba(0,0,0,.25));will-change:transform}
+@keyframes sirevyaPromoFall{0%{transform:translate3d(0,-10vh,0) rotate(0deg)}100%{transform:translate3d(var(--fall-drift,24px),112vh,0) rotate(330deg)}}
+@keyframes sirevyaPromoSparkle{0%,100%{transform:translate3d(0,0,0) scale(.72) rotate(0deg);opacity:.15}50%{transform:translate3d(var(--fall-drift,10px),12px,0) scale(1.08) rotate(28deg);opacity:.58}}
+.sirevyaPromoOverlay[data-position="bottom-right"]{align-items:flex-end;justify-content:flex-end;padding:clamp(12px,3vw,26px)}
+.sirevyaPromoOverlay[data-position="bottom-center"]{align-items:flex-end;justify-content:center;padding:clamp(12px,3vw,26px)}
+.sirevyaPromoOverlay[data-animation="sparkle"] .sirevyaPromoFalling span{animation-name:sirevyaPromoSparkle;top:var(--fall-top,20%)}
+.sirevyaPromoOverlay[data-animation="none"] .sirevyaPromoFalling{display:none!important}
+.sirevyaPromoCard[data-size="small"]{width:min(82vw,252px);padding:15px 13px 11px;border-radius:17px}
+.sirevyaPromoCard[data-size="small"] .sirevyaPromoTitle{font-size:20px;line-height:1.14;margin-bottom:6px}
+.sirevyaPromoCard[data-size="small"] .sirevyaPromoMessage{font-size:10.5px;line-height:1.35;margin-bottom:9px}
+.sirevyaPromoCard[data-size="medium"]{width:min(88vw,300px);padding:20px 18px 15px;border-radius:20px}
+.sirevyaPromoCard[data-size="medium"] .sirevyaPromoTitle{font-size:24px;max-width:270px}
+.sirevyaPromoCard[data-size="medium"] .sirevyaPromoMessage{font-size:12px;max-width:270px;margin-bottom:12px}
+.sirevyaPromoCard[data-size="medium"] .sirevyaPromoOrnament{font-size:18px;min-height:24px}
+.sirevyaPromoCard[data-size="large"]{width:min(92vw,370px);padding:24px 22px 18px;border-radius:23px}
+.sirevyaPromoCard[data-size="large"] .sirevyaPromoTitle{font-size:29px;max-width:320px}
+.sirevyaPromoCard[data-size="large"] .sirevyaPromoMessage{font-size:13px;max-width:320px;margin-bottom:15px}
+/* Very small option plus circle shape; rules are isolated to the promo card. */
+.sirevyaPromoCard[data-size="tiny"]{width:min(74vw,218px);padding:12px 11px 9px;border-radius:15px}
+.sirevyaPromoCard[data-size="tiny"] .sirevyaPromoTitle{font-size:17px;line-height:1.12;margin-bottom:5px;max-width:190px}
+.sirevyaPromoCard[data-size="tiny"] .sirevyaPromoMessage{font-size:9.8px;line-height:1.3;margin-bottom:8px;max-width:190px}
+.sirevyaPromoCard[data-size="tiny"] .sirevyaPromoOrnament{font-size:15px;min-height:18px;gap:6px}
+.sirevyaPromoCard[data-size="tiny"] .sirevyaPromoCta{min-height:29px;padding:6px 9px;font-size:10px}
+.sirevyaPromoCard[data-style][data-shape="circle"]{width:min(65vw,224px,68vh);height:min(65vw,224px,68vh);max-height:min(65vw,224px,68vh);aspect-ratio:1/1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;padding:27px 22px 16px;border-radius:50%;overflow:hidden}
+.sirevyaPromoCard[data-shape="circle"]:after{inset:5px;border-radius:50%}
+.sirevyaPromoCard[data-shape="circle"] .sirevyaPromoWeb{top:-8px;right:-9px;width:78px;height:78px;opacity:.22}
+.sirevyaPromoCard[data-shape="circle"] .sirevyaPromoClose{top:27px;right:40px;width:22px;height:22px;font-size:15px}
+.sirevyaPromoCard[data-shape="circle"] .sirevyaPromoOrnament{min-height:16px;font-size:14px;gap:5px;margin:0 auto 3px}
+.sirevyaPromoCard[data-shape="circle"] .sirevyaPromoBadge{max-width:142px;margin-bottom:4px;padding:3px 6px;font-size:6px;letter-spacing:.06em}
+.sirevyaPromoCard[data-shape="circle"] .sirevyaPromoTitle{max-width:150px;margin:0 auto 4px;font-size:16px;line-height:1.05;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
+.sirevyaPromoCard[data-shape="circle"] .sirevyaPromoMessage{max-width:150px;margin:0 auto 6px;font-size:9px;line-height:1.18;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden}
+.sirevyaPromoCard[data-shape="circle"] .sirevyaPromoCta{width:auto;max-width:145px;min-height:27px;padding:6px 10px;border-radius:999px;font-size:9px}
+.sirevyaPromoCard[data-shape="circle"] .sirevyaPromoFoot{margin-top:4px;font-size:6px;white-space:nowrap}
+.sirevyaPromoCard[data-size="tiny"][data-shape="circle"]{width:min(56vw,188px,62vh);height:min(56vw,188px,62vh);max-height:min(56vw,188px,62vh);padding:24px 19px 14px}
+.sirevyaPromoCard[data-size="small"][data-shape="circle"]{width:min(65vw,224px,68vh);height:min(65vw,224px,68vh);max-height:min(65vw,224px,68vh)}
+.sirevyaPromoCard[data-size="medium"][data-shape="circle"]{width:min(73vw,252px,72vh);height:min(73vw,252px,72vh);max-height:min(73vw,252px,72vh)}
+.sirevyaPromoCard[data-size="large"][data-shape="circle"]{width:min(82vw,282px,76vh);height:min(82vw,282px,76vh);max-height:min(82vw,282px,76vh)}
+@media(max-width:480px){.sirevyaPromoCard[data-size="tiny"]{width:min(72vw,216px);padding:11px 10px 8px}.sirevyaPromoCard[data-shape="circle"]{padding:25px 20px 15px}.sirevyaPromoCard[data-shape="circle"] .sirevyaPromoClose{top:22px;right:35px}.sirevyaPromoCard[data-size="tiny"][data-shape="circle"]{width:min(57vw,184px,62vh);height:min(57vw,184px,62vh);max-height:min(57vw,184px,62vh);padding:23px 18px 13px}}
+
+.sirevyaPromoOverlay[data-position="bottom-right"] .sirevyaPromoCard{max-height:min(75vh,540px)}
+.sirevyaPromoCard[data-style="elegant"] .sirevyaPromoWeb{opacity:.13;transform:scale(.75)}
+.sirevyaPromoCard[data-style="romantic"] .sirevyaPromoWeb{display:none}
+.sirevyaPromoCard[data-style="festive"] .sirevyaPromoWeb{opacity:.1}
+.sirevyaPromoCard[data-style="romantic"] .sirevyaPromoBadge{border-radius:12px;letter-spacing:.11em}
+.sirevyaPromoCard[data-style="festive"]{border-radius:18px}
+@media(max-width:480px){.sirevyaPromoOverlay{padding:10px}.sirevyaPromoCard[data-size="small"]{width:min(84vw,260px);padding:13px 12px 10px;border-radius:16px}.sirevyaPromoCard[data-size="medium"]{width:min(90vw,310px);padding:18px 16px 13px}.sirevyaPromoCard[data-size="large"]{width:min(94vw,380px);padding:22px 18px 17px}.sirevyaPromoWeb{width:92px;height:92px}.sirevyaPromoClose{top:5px;right:5px;width:24px;height:24px;font-size:17px}.sirevyaPromoCard[data-size="small"] .sirevyaPromoTitle{font-size:19px}.sirevyaPromoCard[data-size="small"] .sirevyaPromoMessage{font-size:10.5px;margin-bottom:9px}.sirevyaPromoCard[data-size="medium"] .sirevyaPromoTitle{font-size:23px}.sirevyaPromoCard[data-size="large"] .sirevyaPromoTitle{font-size:27px}.sirevyaPromoOrnament{font-size:16px;gap:7px;min-height:20px}.sirevyaPromoBadge{font-size:7px;letter-spacing:.08em;padding:4px 7px;margin-bottom:6px}.sirevyaPromoCta{min-height:33px;padding:8px 10px;font-size:11px}.sirevyaPromoFoot{margin-top:7px;font-size:8px}.sirevyaPromoOverlay[data-position="bottom-right"],.sirevyaPromoOverlay[data-position="bottom-center"]{padding:10px}}
+@media(prefers-reduced-motion:reduce){.sirevyaPromoOverlay,.sirevyaPromoCard,.sirevyaPromoClose,.sirevyaPromoCta{transition:none!important}.sirevyaPromoFalling{display:none!important}.sirevyaPromoFalling span{animation:none!important;will-change:auto}}
+</style>
+<style id="sirevyaSeasonalPromoAdminStyles">
+.promoAdminGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:14px}.promoAdminGrid label{display:flex;flex-direction:column;gap:6px;font-size:13px;font-weight:750}.promoAdminGrid input:not([type=checkbox]):not([type=color]),.promoAdminGrid select,.promoAdminGrid textarea{width:100%;min-width:0;padding:10px 11px;border:1px solid var(--line,#ddd);border-radius:10px;background:var(--surface,#fff);color:var(--text,#222);font:inherit;font-weight:500;box-sizing:border-box}.promoAdminGrid textarea{min-height:86px;resize:vertical}.promoAdminGrid .promoWide{grid-column:1/-1}.promoAdminGrid .promoToggleRow{display:flex;align-items:center;gap:10px;flex-direction:row;font-weight:800}.promoAdminGrid input[type=color]{width:54px;height:38px;padding:3px;border:1px solid var(--line,#ddd);border-radius:9px;background:transparent}.promoAdminColorRow{display:flex;align-items:center;gap:10px}.promoAdminColorRow input[type=color]{flex:0 0 54px}.promoAdminColorRow small{color:var(--muted,#777);font-weight:500}.promoAdminActions{display:flex;gap:9px;flex-wrap:wrap;margin-top:14px}.promoAdminHelp{font-size:12px;line-height:1.55;color:var(--muted,#777);margin:8px 0 0}.promoAdminStatus{margin-top:12px;font-size:12px;line-height:1.5}.promoAdminPreviewFrame{position:relative;overflow:hidden;margin-top:14px;padding:18px;border-radius:16px;background:radial-gradient(circle at 50% 0%,#352343,#121019 75%);border:1px solid rgba(155,133,181,.24)}.promoAdminPreviewFrame .sirevyaPromoCard{max-width:100%;max-height:none;margin:0 auto;transform:none}.promoAdminPreviewFrame .sirevyaPromoClose{display:none}.promoAdminPreviewFrame .sirevyaPromoMessage{margin-bottom:13px}.promoAdminPreviewFrame .sirevyaPromoFoot{margin-top:10px}.promoAdminPreviewFrame .sirevyaPromoOrnament{min-height:28px;font-size:20px}.promoAdminPreviewFrame .sirevyaPromoTitle{font-size:27px}.promoAdminPreviewFrame .sirevyaPromoFalling{display:none}.sirevyaPromoOverlay.adminPromoPreview{z-index:10050}.sirevyaPromoOverlay.adminPromoPreview .sirevyaPromoCard{max-height:88vh}.promoStatusError{color:#b4233a}.promoStatusOk{color:#16845d}@media(max-width:700px){.promoAdminGrid{grid-template-columns:1fr}.promoAdminGrid .promoWide{grid-column:auto}.promoAdminActions button{flex:1 1 100%}}
+</style>
+
+<style id="sirevyaMarketingAdminStyles">
+.comboAdminGrid{margin-top:12px}.comboAdminToggle{display:flex;align-items:center;gap:9px;flex-direction:row;font-weight:800}.comboAdminToggle input{width:auto;margin:0}.detailComboSection{margin-top:12px}
+</style>
 </head>
 <body>
 
@@ -369,14 +443,16 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
         <div class="box" style="margin-top:15px"><h3>Últimos movimientos</h3><div id="listaMovimientos"></div></div>
       </section>
 
-<section id="reportes" class="view">
-        <div><h2 style="margin:0">📊 Reportes</h2><p class="muted">Resumen de ventas, ingresos y rentabilidad.</p></div>
+      <section id="reportes" class="view">
+        <div class="rowBetween" style="align-items:flex-start;flex-wrap:wrap;gap:12px"><div><h2 style="margin:0">📊 Reportes</h2><p class="muted">Resumen de ventas, ingresos y rentabilidad.</p></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="softbtn" type="button" onclick="exportSalesReportCSV()">📄 Exportar ventas CSV</button><button class="softbtn" type="button" onclick="refreshStorefrontMarketingMetrics()">↻ Actualizar métricas</button></div></div>
         <div class="cards">
           <div class="card stat"><small>Ventas</small><div class="num" id="rVentas">0</div><div class="sub">Registros</div></div>
           <div class="card stat"><small>Ingresos</small><div class="num" id="rIngresos">$0</div><div class="sub">Total vendido</div></div>
           <div class="card stat"><small>Costo vendido</small><div class="num" id="rCostos">$0</div><div class="sub">Costo de mercancía</div></div>
           <div class="card stat"><small>Ganancia</small><div class="num" id="rGanancia">$0</div><div class="sub">Ingresos − costos</div></div><div class="card stat"><small>Gastos</small><div class="num" id="rGastos">$0</div><div class="sub">Gastos del negocio</div></div><div class="card stat"><small>Ganancia después de gastos</small><div class="num" id="rNeta">$0</div><div class="sub">Ganancia − gastos</div></div>
         </div>
+        <div class="box" style="margin-top:16px"><h3>🏆 Productos más vendidos</h3><p class="muted">Basado en los registros de ventas disponibles en el administrador.</p><div id="bestSellingProducts"></div></div>
+        <div class="box" style="margin-top:16px"><div class="rowBetween" style="align-items:center;gap:12px;flex-wrap:wrap"><div><h3 style="margin-bottom:4px">📣 Rendimiento de promociones</h3><p class="muted" style="margin:0">Impresiones y clics únicos aproximados por sesión/día, durante los últimos 30 días.</p></div><button class="softbtn" type="button" onclick="refreshStorefrontMarketingMetrics()">↻ Consultar</button></div><div id="storefrontMarketingMetricsStatus" class="promoAdminStatus" role="status" aria-live="polite">Las métricas se consultan al abrir Reportes.</div><div id="storefrontMarketingMetricsReport"></div></div>
         <div class="sectionGrid">
           <div class="box"><h3>🏷️ Inventario por categoría</h3><div id="cats"></div></div>
           <div class="box"><h3>💵 Valor actual del inventario</h3><div id="inventoryValue" style="font-size:28px;font-weight:900">$0</div><p class="muted">Calculado con costo de compra × unidades disponibles.</p></div>
@@ -397,6 +473,53 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
             <div style="margin-top:12px"><button id="saveOnlinePaymentsBtn" class="primary" onclick="saveOnlinePaymentSettings()" disabled>💾 Guardar cambios</button></div>
             <p class="paymentSettingsHelp" style="margin-bottom:0">Los cambios se guardan en Supabase y se consultan desde el catálogo al abrir el pago y durante la navegación.</p>
           </div>
+          <div class="box" style="grid-column:1/-1" id="seasonalPromoSettingsBox">
+            <div class="rowBetween" style="align-items:flex-start;gap:12px;flex-wrap:wrap">
+              <div style="flex:1;min-width:220px"><h3 style="margin-bottom:7px">🎃 Promoción emergente del catálogo</h3><p class="muted" style="margin-top:0">Diseña una tarjeta promocional compacta para envío gratis, descuentos o campañas de temporada. Elige tamaño, posición, estilo, colores y animación; los cambios se guardan en Supabase y se comparten con los clientes.</p></div>
+              <label class="promoAdminToggle"><input type="checkbox" id="seasonalPromoEnabled" disabled> Activar promoción</label>
+            </div>
+            <div class="promoAdminGrid">
+              <label>Estilo visual<select id="seasonalPromoStyle" disabled onchange="onSeasonalPromoStyleChange()"><option value="halloween">🕸️ Halloween · telaraña y caída</option><option value="elegant">✨ Elegante · negro y dorado</option><option value="romantic">💗 Romántico · tonos rosados</option><option value="festive">❄️ Festivo · brillo y nieve</option></select></label>
+              <label>Tamaño de la ventana<select id="seasonalPromoSize" disabled><option value="tiny">Muy pequeña</option><option value="small">Pequeña · recomendada</option><option value="medium">Mediana</option><option value="large">Grande</option></select></label>
+              <label>Forma de la ventana<select id="seasonalPromoShape" disabled><option value="rounded">Tarjeta redondeada</option><option value="circle">Circular</option></select></label>
+              <label>Posición<select id="seasonalPromoPosition" disabled><option value="center">Centro</option><option value="bottom-right">Esquina inferior derecha</option><option value="bottom-center">Parte inferior, centrado</option></select></label>
+              <label>Texto pequeño superior<input id="seasonalPromoEyebrow" maxlength="48" value="TEMPORADA DE HALLOWEEN" disabled></label>
+              <label class="promoWide">Título principal<input id="seasonalPromoTitleInput" maxlength="90" value="¡Halloween con estilo!" disabled></label>
+              <label class="promoWide">Mensaje<textarea id="seasonalPromoMessageInput" maxlength="240" disabled>Descubre la temporada y aprovecha el envío gratis a Cali.</textarea></label>
+              <label>Texto del botón<input id="seasonalPromoButtonLabel" maxlength="32" value="Ver promoción" disabled></label>
+              <label>Destino del botón<input id="seasonalPromoButtonUrl" maxlength="300" value="#catalogo" placeholder="#catalogo o https://…" disabled></label>
+              <label>Color de fondo<div class="promoAdminColorRow"><input id="seasonalPromoBackgroundColor" type="color" value="#21132f" disabled><small>Fondo de la tarjeta</small></div></label>
+              <label>Color de acento<div class="promoAdminColorRow"><input id="seasonalPromoAccentColor" type="color" value="#ff914d" disabled><small>Botón, bordes y detalles</small></div></label>
+              <label>Color del texto<div class="promoAdminColorRow"><input id="seasonalPromoTextColor" type="color" value="#ffffff" disabled><small>Título y mensaje</small></div></label>
+              <label>Cuándo aparece<select id="seasonalPromoDelay" disabled><option value="0">Inmediatamente</option><option value="800">Después de 0,8 segundos</option><option value="1600" selected>Después de 1,6 segundos</option><option value="3000">Después de 3 segundos</option><option value="5000">Después de 5 segundos</option></select></label>
+              <label>Cuánto tiempo permanece<select id="seasonalPromoDuration" disabled><option value="0">Sin cierre automático</option><option value="3000" selected>3 segundos · recomendado</option><option value="5000">5 segundos</option><option value="8000">8 segundos</option><option value="10000">10 segundos</option></select></label>
+              <label>Tipo de animación<select id="seasonalPromoAnimationStyle" disabled><option value="falling">Elementos cayendo</option><option value="sparkle">Destellos suaves</option><option value="none">Sin animación</option></select></label>
+              <label class="promoToggleRow"><input type="checkbox" id="seasonalPromoAnimate" checked disabled> Activar animación</label>
+              <label>Mostrar desde (opcional)<input type="datetime-local" id="seasonalPromoStartAt" disabled></label>
+              <label>Mostrar hasta (opcional)<input type="datetime-local" id="seasonalPromoEndAt" disabled></label>
+            </div>
+            <div id="seasonalPromoAdminPreview" class="promoAdminPreviewFrame" aria-label="Vista previa del diseño de promoción"></div>
+            <p class="promoAdminHelp">Las opciones Muy pequeña y Circular hacen la promoción más discreta. Puedes cambiar la forma, tamaño, posición, paleta, animación, demora de aparición y cuánto tiempo permanece visible. Con 3 segundos se cerrará automáticamente; elige Sin cierre automático si prefieres que la persona la cierre. La promoción aparece una vez por sesión y respeta la preferencia de reducir movimiento. Las fechas usan la hora local del navegador. El botón admite #catalogo, #inicio, #contactanos o enlaces HTTP/HTTPS.</p>
+            <div class="promoAdminActions"><button type="button" class="primary" id="saveSeasonalPromoBtn" onclick="saveSeasonalPromoSettings()" disabled>💾 Guardar promoción</button><button type="button" class="softbtn" onclick="previewSeasonalPromo()">👁️ Ver ventana previa</button><button type="button" class="softbtn" onclick="applySeasonalPromoSuggestedCopy()">✨ Usar textos sugeridos</button><button type="button" class="softbtn" onclick="loadSeasonalPromoSettingsAdmin(true)">↻ Recargar ajustes</button></div>
+            <div id="seasonalPromoSettingsStatus" class="promoAdminStatus" role="status" aria-live="polite">Preparando configuración de promoción…</div>
+          </div>
+          <div class="box" style="grid-column:1/-1" id="storefrontCombosAdminBox">
+            <div class="rowBetween" style="align-items:flex-start;gap:12px;flex-wrap:wrap"><div style="flex:1;min-width:220px"><h3 style="margin-bottom:7px">🧩 Promociones de un producto con otro</h3><p class="muted" style="margin-top:0">Crea una recomendación combinada: al abrir el producto principal, el catálogo sugerirá el segundo artículo. Puedes editar texto, botón y fechas. Esta función no cambia precios ni aplica descuentos por sí sola.</p></div></div>
+            <input id="storefrontComboEditId" type="hidden" value="">
+            <div class="promoAdminGrid comboAdminGrid">
+              <label>Producto principal<select id="storefrontComboProductA" disabled><option value="">Carga productos…</option></select></label>
+              <label>Producto recomendado<select id="storefrontComboProductB" disabled><option value="">Carga productos…</option></select></label>
+              <label class="promoWide">Título de la combinación<input id="storefrontComboTitle" maxlength="90" value="Completa el look" disabled></label>
+              <label class="promoWide">Mensaje<textarea id="storefrontComboMessage" maxlength="240" disabled>Combina estos productos para completar tu estilo.</textarea></label>
+              <label>Texto del botón<input id="storefrontComboButtonLabel" maxlength="32" value="Ver combinación" disabled></label>
+              <label class="comboAdminToggle"><input type="checkbox" id="storefrontComboEnabled" disabled> Activar recomendación</label>
+              <label>Mostrar desde (opcional)<input type="datetime-local" id="storefrontComboStartAt" disabled></label>
+              <label>Mostrar hasta (opcional)<input type="datetime-local" id="storefrontComboEndAt" disabled></label>
+            </div>
+            <div class="promoAdminActions"><button type="button" class="primary" id="saveStorefrontComboBtn" onclick="saveStorefrontProductCombo()" disabled>💾 Guardar combinación</button><button type="button" class="softbtn" onclick="resetStorefrontComboForm()">＋ Nueva combinación</button><button type="button" class="softbtn" onclick="loadStorefrontProductCombosAdmin(true)">↻ Recargar combinaciones</button></div>
+            <div id="storefrontCombosAdminStatus" class="promoAdminStatus" role="status" aria-live="polite">Las combinaciones se cargarán al abrir Configuración.</div>
+            <div id="storefrontCombosAdminList" style="margin-top:12px"></div>
+          </div>
           <div class="box"><h3>🏪 Personalización</h3>
             <p class="muted">Cambia el nombre y el icono que aparecen en la aplicación.</p>
             <label>Nombre del negocio<input id="businessName" placeholder="Variedades JM" maxlength="40"></label>
@@ -412,15 +535,15 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
             <div id="categoryManager"></div>
           </div>
           <div class="box"><h3>🎨 Apariencia</h3><button class="softbtn" onclick="toggleCompact()">Cambiar modo compacto</button><p class="muted" style="font-size:12px">La preferencia queda guardada en este dispositivo.</p></div>
-          <div class="box"><h3>💾 Copia de respaldo</h3><p class="muted">Descarga una copia de los datos que tienes cargados actualmente.</p><button class="primary" onclick="exportBackup(event)">⬇️ Descargar respaldo JSON</button><button class="softbtn" style="margin-left:6px" onclick="exportCSV()">📄 Exportar inventario CSV</button></div>
+          <div class="box"><h3>💾 Copia de respaldo</h3><p class="muted">Descarga una copia de las tablas disponibles y sus referencias a imágenes. Las fotos binarias de R2 no se incluyen; para borrar productos en lote, conserva además una copia de las fotografías necesarias.</p><button class="primary" onclick="exportBackup(event)">⬇️ Descargar respaldo JSON</button><button class="softbtn" style="margin-left:6px" onclick="exportCSV()">📄 Exportar inventario CSV</button></div>
           <div class="box"><h3>🔐 Sesión</h3><p class="muted">Cuenta actualmente conectada:</p><b id="accountEmail">—</b><div style="margin-top:12px"><button class="dangerbtn" onclick="logout()">Cerrar sesión</button></div></div>
           <div class="box" style="grid-column:1/-1;border-color:#ffd2d5"><h3>🧹 Limpiar datos de prueba</h3>
             <p class="muted">Si hiciste ventas de prueba, puedes eliminar <b>solo el historial de ventas</b>. Tus productos, cantidades, fotos y clientes no se borrarán.</p>
             <button class="dangerbtn" onclick="limpiarVentas()">🗑️ Borrar historial de ventas</button>
-            <p class="muted" style="font-size:11px;margin-bottom:0">Los reportes de ingresos, costos y ganancias quedarán en $0 porque se calculan a partir de las ventas.</p>
+            <p class="muted" style="font-size:11px;margin-bottom:0">Los reportes de ingresos, costos y ganancias quedarán en $0 porque se calculan a partir de las ventas. Antes de continuar debes reconocer que tienes un respaldo reciente descargado.</p>
           </div>
           <div class="box" style="grid-column:1/-1;border-color:#ffd2d5"><h3>🧹 Borrar productos, ventas y clientes</h3>
-            <p class="muted">Elimina únicamente productos, ventas y clientes de esta cuenta. No elimina pedidos web, proveedores, gastos, movimientos ni categorías. <b>Esta acción no se puede deshacer.</b></p>
+            <p class="muted">Elimina únicamente productos, ventas y clientes de esta cuenta. No elimina pedidos web, proveedores, gastos, movimientos ni categorías. <b>Esta acción no se puede deshacer.</b> Descarga antes un respaldo JSON; las imágenes binarias de R2 requieren respaldo separado.</p>
             <button class="dangerbtn" onclick="borrarTodo()">⚠️ Eliminar productos, ventas y clientes</button>
           </div>
         </div>
@@ -429,6 +552,19 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
   </div>
 </div>
 
+<div id="seasonalPromoOverlay" class="sirevyaPromoOverlay" hidden aria-hidden="true" onclick="handleSeasonalPromoBackdrop(event)">
+  <div id="seasonalPromoFalling" class="sirevyaPromoFalling" aria-hidden="true"></div>
+  <section id="seasonalPromoCard" class="sirevyaPromoCard" data-style="halloween" data-size="small" data-shape="rounded" role="dialog" aria-modal="true" aria-labelledby="seasonalPromoTitle" aria-describedby="seasonalPromoMessage" tabindex="-1">
+    <div class="sirevyaPromoWeb" aria-hidden="true"></div>
+    <button type="button" class="sirevyaPromoClose" aria-label="Cerrar promoción" title="Cerrar" onclick="closeSeasonalPromo()">×</button>
+    <div id="seasonalPromoOrnament" class="sirevyaPromoOrnament" aria-hidden="true"><span>🕸️</span><span>🎃</span><span>✦</span></div>
+    <div id="seasonalPromoBadge" class="sirevyaPromoBadge">TEMPORADA ESPECIAL</div>
+    <h2 id="seasonalPromoTitle" class="sirevyaPromoTitle">Una sorpresa para ti</h2>
+    <p id="seasonalPromoMessage" class="sirevyaPromoMessage">Descubre una promoción especial de Sirevya.</p>
+    <a id="seasonalPromoCta" class="sirevyaPromoCta" href="#catalogo" onclick="return handleSeasonalPromoAction(event)">Ver catálogo <span aria-hidden="true">↗</span></a>
+    <p class="sirevyaPromoFoot">SIREVYA · TU ESTILO, NUESTRA PASIÓN</p>
+  </section>
+</div>
 <div id="productModal" class="modalBack"><div class="modal"><div class="modalHead"><h2 id="modalTitle">Producto</h2><button class="iconbtn" onclick="closeModal()">✕</button></div><div id="modalBody"></div></div></div>
 <div id="toast" class="toast"></div>
 
@@ -441,6 +577,8 @@ let editingSizeGuideImagePath="",sizeGuideImageRemoveRequested=false,sizeGuidePr
 let proveedores=[],gastos=[],movimientos=[];
 // Mantiene el error de carga por módulo para no mostrar como vacío un dato que falló al consultarse.
 let moduleLoadErrors={};
+let adminDeferredModuleLoaded={clients:false,suppliers:false,expenses:false,movements:false,orders:false};
+let adminDeferredModuleInFlight={};
 let pedidos=[];
 let brandName=localStorage.getItem("jm_brand_name")||"Variedades JM";
 let brandIcon=localStorage.getItem("jm_brand_icon")||"";
@@ -594,10 +732,10 @@ async function uploadImageToR2(path,file){
  let lastError=null;
  // Las redes móviles pueden tardar en establecer la conexión. Reintentar la misma
  // clave es seguro: R2 reemplaza el mismo objeto en lugar de crear duplicados.
- const maxAttempts=6;
+ const maxAttempts=3;
  for(let attempt=0;attempt<maxAttempts;attempt++){
    const controller=new AbortController();
-   const timeout=setTimeout(()=>controller.abort(),120000);
+   const timeout=setTimeout(()=>controller.abort(),60000);
    let res;
    try{
      res=await fetch(workerObjectUrl(uploadPath),{
@@ -611,17 +749,17 @@ async function uploadImageToR2(path,file){
      lastError=error;
      if(attempt<maxAttempts-1){
        clearTimeout(timeout);
-       await waitForUploadRetry(Math.min(1000*Math.pow(2,attempt),6000));
+       await waitForUploadRetry(Math.min(1000*Math.pow(2,attempt),3000));
        continue;
      }
      clearTimeout(timeout);
-     throw new Error(`No se pudo completar la conexión para subir “${file.name||"la foto"}” después de ${maxAttempts} intentos. La conexión móvil pudo interrumpirse${error?.name==="AbortError"?" o la subida tardó más de 90 segundos":""}. El producto puede estar guardado sin foto: no lo crees de nuevo; entra a “Completar/Editar producto” y vuelve a subirla cuando tengas mejor conexión.`);
+     throw new Error(`No se pudo completar la conexión para subir “${file.name||"la foto"}” después de ${maxAttempts} intentos de hasta 60 segundos. La conexión móvil pudo interrumpirse${error?.name==="AbortError"?" o la subida tardó más de 60 segundos":""}. El producto puede estar guardado sin foto: no lo crees de nuevo; entra a “Completar/Editar producto” y vuelve a subirla cuando tengas mejor conexión.`);
    }
    let body="";
    try{body=await res.text()}catch(error){
      clearTimeout(timeout);
      lastError=error;
-     if(attempt<maxAttempts-1){await waitForUploadRetry(Math.min(1000*Math.pow(2,attempt),6000));continue;}
+     if(attempt<maxAttempts-1){await waitForUploadRetry(Math.min(1000*Math.pow(2,attempt),3000));continue;}
      throw new Error("La conexión se interrumpió al confirmar la foto. No crees el producto otra vez: entra a “Completar/Editar producto” y vuelve a subirla.");
    }
    clearTimeout(timeout);
@@ -632,7 +770,7 @@ async function uploadImageToR2(path,file){
      // deben mostrarse enseguida para no ocultar su causa.
      if((res.status>=500||res.status===429||res.status===408)&&attempt<maxAttempts-1){
        lastError=new Error(message||`Error ${res.status}`);
-       await waitForUploadRetry(Math.min(1000*Math.pow(2,attempt),6000));
+       await waitForUploadRetry(Math.min(1000*Math.pow(2,attempt),3000));
        continue;
      }
      throw new Error(message||`No se pudo subir la foto (${res.status}).`);
@@ -734,10 +872,10 @@ function applyBrand(){
   document.querySelectorAll(".brand small").forEach(x=>x.textContent="Gestión del negocio");
   $("docTitle").textContent=brandName+" • Sistema de gestión";
   $("businessName").value=brandName;
-  $("iconPreview").innerHTML=brandIcon?`<img class="brandIconImg" src="${brandIcon}" alt="">`:"✦";
+  $("iconPreview").innerHTML=brandIcon?`<img class="brandIconImg" src="${esc(brandIcon)}" alt="">`:"✦";
   document.querySelectorAll(".logo").forEach((el,i)=>{
     if(el.id==="iconPreview")return;
-    el.innerHTML=brandIcon?`<img class="brandIconImg" src="${brandIcon}" alt="">`:"✦";
+    el.innerHTML=brandIcon?`<img class="brandIconImg" src="${esc(brandIcon)}" alt="">`:"✦";
   });
   if(brandIcon){$("appFavicon").href=brandIcon}else $("appFavicon").removeAttribute("href");
 }
@@ -792,6 +930,7 @@ async function signup(){
 async function logout(){await sb.auth.signOut();location.reload()}
 async function startApp(){
  $("loginScreen").classList.add("hidden");$("app").classList.remove("hidden");
+ startAdminCatalogRealtime();
  const {data:{user}}=await sb.auth.getUser();$("accountEmail").textContent=user?.email||"Cuenta de negocio";
  const meta=user?.user_metadata||{};
  if(meta.jm_brand_name)brandName=meta.jm_brand_name;
@@ -807,7 +946,7 @@ async function startApp(){
    brandIcon=publicWorkerImage(brandIcon);
  }
  localStorage.setItem("jm_brand_name",brandName);localStorage.setItem("jm_brand_icon",brandIcon);localStorage.setItem("jm_brand_icon_path",brandIconPath);applyBrand();
- $("vFecha").value=new Date().toISOString().slice(0,10);$("gFecha").value=new Date().toISOString().slice(0,10);setDateText();await cargarTodo();await loadCategoriesFromTable();await loadOnlinePaymentSettingsAdmin();setInventoryMode(inventoryMode,false);
+ $("vFecha").value=new Date().toISOString().slice(0,10);$("gFecha").value=new Date().toISOString().slice(0,10);setDateText();await cargarTodo();setInventoryMode(inventoryMode,false);
 }
 function setDateText(){const d=new Date();$("todayText").textContent=d.toLocaleDateString("es-CO",{weekday:"long",day:"numeric",month:"long",year:"numeric"})}
 function show(id,btn){
@@ -817,17 +956,23 @@ function show(id,btn){
  $("pageTitle").textContent=titles[id]||"Variedades JM";
  if(id==="ventas"){refreshSalePreview();renderVentaCatalogo();}
  if(id==="pedidos"){cargarPedidos();}
- if(id==="clientes")renderClientes();
- if(id==="proveedores")renderProveedores();
+ if(id==="clientes")void loadAdminDeferredModule('clients');
+ if(id==="proveedores")void loadAdminDeferredModule('suppliers');
+ if(id==="gastos")void loadAdminDeferredModule('expenses');
+ if(id==="reportes"){void loadAdminDeferredModule('expenses');void refreshStorefrontMarketingMetrics();}
+ if(id==="movimientos")void loadAdminDeferredModule('movements');
  if(id==="inventario")renderProductos();
 
  // FIX: las categorías se vuelven a cargar cada vez que se abre
  // Nuevo producto o Configuración. Así no dependemos de que la
  // primera carga de la página haya terminado correctamente.
  if((id==="producto" || id==="config") && sb){
-   loadCategoriesFromTable().catch(err=>{
-     console.error("Error actualizando categorías al abrir la sección:",err);
-   });
+   loadCategoriesFromTable().catch(err=>{console.error("Error actualizando categorías al abrir la sección:",err);});
+ }
+ if(id==="config"&&sb){
+   if(!onlinePaymentSettingLoaded)void loadOnlinePaymentSettingsAdmin();
+   if(!seasonalPromoSettingsLoaded)void loadSeasonalPromoSettingsAdmin();
+   void loadStorefrontProductCombosAdmin();
  }
  if(adminViewNeedsLiveAvailability())void refreshPublicAvailability();
  closeSidebar();
@@ -910,41 +1055,49 @@ let cargarTodoBusy=false;
 async function cargarTodo(){
  if(cargarTodoBusy)return;
  cargarTodoBusy=true;
+ const previousErrors={...moduleLoadErrors};
  try{
- const [p,v,c,pr,g,m,o,avail]=await Promise.all([
+  const skipped={deferred:true,data:null,error:null};
+  const [p,v,c,pr,g,m,o,avail]=await Promise.all([
    fetchAllTableRows("products","created_at",false),
    fetchAllTableRows("sales","created_at",false),
-   fetchAllTableRows("clients","name",true),
-   fetchAllTableRows("suppliers","name",true),
-   fetchAllTableRows("expenses","expense_date",false),
-   fetchAllTableRows("inventory_movements","created_at",false),
-   fetchAllTableRows("web_orders","created_at",false),
+   adminDeferredModuleLoaded.clients?fetchAllTableRows("clients","name",true):Promise.resolve(skipped),
+   adminDeferredModuleLoaded.suppliers?fetchAllTableRows("suppliers","name",true):Promise.resolve(skipped),
+   adminDeferredModuleLoaded.expenses?fetchAllTableRows("expenses","expense_date",false):Promise.resolve(skipped),
+   adminDeferredModuleLoaded.movements?fetchAllTableRows("inventory_movements","created_at",false):Promise.resolve(skipped),
+   adminDeferredModuleLoaded.orders?fetchAllTableRows("web_orders","created_at",false):Promise.resolve(skipped),
    sb.rpc("get_public_catalog")
- ]);
- if(p.error||v.error){alert("No se pudieron cargar inventario o ventas. Revisa la conexión y los permisos SQL/RLS en Supabase.");return}
- const availabilityMap=new Map((!avail?.error?(avail?.data||[]):[]).map(x=>[String(x.id),x]));
- productos=(p.data||[]).map(raw=>{
-   const current=availabilityMap.get(String(raw.id));
-   return {...raw,
-     availableQuantity:current?Math.max(0,Number(current.quantity)||0):Math.max(0,Number(raw.quantity)||0),
-     availableVariants:current?parseVariants(current.variants):parseVariants(raw.variants)
-   };
- });
- if(avail?.error)console.warn("No se pudo calcular disponibilidad reservada; se mostrará el stock físico.",avail.error);
- ventas=v.data||[];
- const partialErrors=[];
- moduleLoadErrors={};
- if(!c.error)clientes=c.data||[];else{moduleLoadErrors.clients=describeAdminTableError('clients',c.error);partialErrors.push({name:'clientes',table:'clients',error:c.error});}
- if(!pr.error){proveedores=pr.data||[];if(pr.orderMode&&pr.orderMode!=='stable')console.warn('Proveedores se cargó usando orden alternativo:',pr.orderMode);}else{moduleLoadErrors.suppliers=describeAdminTableError('suppliers',pr.error);partialErrors.push({name:'proveedores',table:'suppliers',error:pr.error});}
- if(!g.error){gastos=g.data||[];if(g.orderMode&&g.orderMode!=='stable')console.warn('Gastos se cargó usando orden alternativo:',g.orderMode);}else{moduleLoadErrors.expenses=describeAdminTableError('expenses',g.error);partialErrors.push({name:'gastos',table:'expenses',error:g.error});}
- if(!m.error)movimientos=m.data||[];else{moduleLoadErrors.movements=describeAdminTableError('inventory_movements',m.error);partialErrors.push({name:'movimientos',table:'inventory_movements',error:m.error});}
- if(!o.error){pedidos=o.data||[];setOrdersUpdatedAt();}else{moduleLoadErrors.orders=describeAdminTableError('web_orders',o.error);partialErrors.push({name:'pedidos',table:'web_orders',error:o.error});}
- populateFilters();renderInicio();renderProductos();renderVentas();renderClientes();renderProveedores();renderGastos();renderMovimientos();renderReportes();refrescarSelects();renderVentaCatalogo();
- renderPedidos();
- if(partialErrors.length){
-   console.error('Detalle de errores en módulos de Supabase:',partialErrors.map(item=>({modulo:item.name,tabla:item.table,codigo:item.error?.code||'',mensaje:item.error?.message||String(item.error)})));
-   toast('No se cargaron: '+partialErrors.map(item=>item.name).join(', ')+'. Abre la sección para ver el motivo.');
- }
+  ]);
+  if(p.error||v.error){alert("No se pudieron cargar inventario o ventas. Revisa la conexión y los permisos SQL/RLS en Supabase.");return}
+  const availabilityMap=new Map((!avail?.error?(avail?.data||[]):[]).map(x=>[String(x.id),x]));
+  productos=(p.data||[]).map(raw=>{
+    const current=availabilityMap.get(String(raw.id));
+    return {...raw,availableQuantity:current?Math.max(0,Number(current.quantity)||0):Math.max(0,Number(raw.quantity)||0),availableVariants:current?parseVariants(current.variants):parseVariants(raw.variants)};
+  });
+  ventas=v.data||[];
+  moduleLoadErrors={};
+  for(const key of ['clients','suppliers','expenses','movements','orders']){
+   const result=({clients:c,suppliers:pr,expenses:g,movements:m,orders:o})[key];
+   if(result?.deferred){if(previousErrors[key])moduleLoadErrors[key]=previousErrors[key];continue}
+   const table=({clients:'clients',suppliers:'suppliers',expenses:'expenses',movements:'inventory_movements',orders:'web_orders'})[key];
+   if(result?.error){moduleLoadErrors[key]=describeAdminTableError(table,result.error);continue}
+   const data=result?.data||[];
+   if(key==='clients'){clientes=data;adminDeferredModuleLoaded.clients=true}
+   if(key==='suppliers'){proveedores=data;adminDeferredModuleLoaded.suppliers=true}
+   if(key==='expenses'){gastos=data;adminDeferredModuleLoaded.expenses=true}
+   if(key==='movements'){movimientos=data;adminDeferredModuleLoaded.movements=true}
+   if(key==='orders'){pedidos=data;adminDeferredModuleLoaded.orders=true;setOrdersUpdatedAt()}
+   if(result?.orderMode&&result.orderMode!=='stable')console.warn('Módulo '+key+' se cargó usando orden alternativo:',result.orderMode);
+  }
+  if(avail?.error)console.warn("No se pudo calcular disponibilidad reservada; se mostrará el stock físico.",avail.error);
+  populateFilters();renderInicio();renderProductos();renderVentas();renderReportes();refrescarSelects();renderVentaCatalogo();
+  if(adminDeferredModuleLoaded.clients)renderClientes();
+  if(adminDeferredModuleLoaded.suppliers)renderProveedores();
+  if(adminDeferredModuleLoaded.expenses)renderGastos();
+  if(adminDeferredModuleLoaded.movements)renderMovimientos();
+  if(adminDeferredModuleLoaded.orders)renderPedidos();
+  const errors=Object.keys(moduleLoadErrors).filter(key=>['clients','suppliers','expenses','movements','orders'].includes(key));
+  if(errors.length){console.error('Detalle de errores en módulos de Supabase:',errors.map(key=>({modulo:key,error:moduleLoadErrors[key]})));toast('No se cargaron algunos módulos. Ábrelos para consultar el detalle.');}
  }finally{cargarTodoBusy=false}
 }
 
@@ -1007,6 +1160,7 @@ async function cargarPedidos(){
       return;
     }
     pedidos=data||[];
+    adminDeferredModuleLoaded.orders=true;delete moduleLoadErrors.orders;
     setOrdersUpdatedAt();
     renderPedidos();
   }catch(fetchError){
@@ -1388,7 +1542,7 @@ function renderPhotoPreview(){
  const box=$("photoPreview");if(!box)return;
  productPreviewObjectUrls.forEach(url=>{try{URL.revokeObjectURL(url)}catch{}});productPreviewObjectUrls=[];
  const files=[...($('pFoto').files||[])];
- box.innerHTML=files.map((f,i)=>{const url=URL.createObjectURL(f);productPreviewObjectUrls.push(url);return `<div class="photoItem"><img src="${url}" alt="Foto nueva ${i+1}"><span>${editingId?'Nueva '+(i+1):(i===0?'Principal nueva':'Nueva '+(i+1))}</span></div>`}).join('');
+ box.innerHTML=files.map((f,i)=>{const url=URL.createObjectURL(f);productPreviewObjectUrls.push(url);return `<div class="photoItem"><img src="${esc(url)}" alt="Foto nueva ${i+1}"><span>${editingId?'Nueva '+(i+1):(i===0?'Principal nueva':'Nueva '+(i+1))}</span></div>`}).join('');
 }
 async function loadExistingProductImages(productId,primaryImage){
  const token=++editingProductImageLoadToken;
@@ -1499,6 +1653,8 @@ async function eliminarFotoProducto(index){
    editingProductImages.forEach(item=>{item.isPrimary=item===replacement;});
   }
   renderExistingProductPhotoPreview();
+  // Refresh the public gallery immediately after Supabase confirms the reference change.
+  notifyPublicCatalogChanged('product-images-changed',{productId,refreshImages:true});
   let cleanupWarning='';
   const photoKey=imageObjectKey(photo.path);
   const stillReferenced=!!photoKey&&productos.some(p=>{
@@ -1766,11 +1922,30 @@ async function uploadVariantPhotos(productId, variants, files){
 document.addEventListener('change',e=>{if(e.target?.id==='pTallas'){variantDraft=collectVariantDraft();renderVariantEditor(variantMemory.length?variantMemory:variantDraft);variantDraft=collectVariantDraft()}});
 document.addEventListener('input',e=>{if(e.target?.classList?.contains('variantAdminStock')){const total=[...document.querySelectorAll('#variantEditorRows .variantAdminStock')].reduce((s,x)=>s+Math.max(0,Number(x.value)||0),0);if($("pCantidad"))$("pCantidad").value=total}});
 
-function notifyPublicCatalogChanged(type='catalog',details={}){
+let adminCatalogRealtimeChannel=null,adminCatalogRealtimeReady=false,adminCatalogRealtimePending=[];
+function startAdminCatalogRealtime(){
+ if(adminCatalogRealtimeChannel||!sb||typeof sb.channel!=='function')return;
  try{
-   const payload={type,productId:String(details.productId||''),refreshImages:!!details.refreshImages,at:Date.now(),nonce:Math.random().toString(36).slice(2)};
+  adminCatalogRealtimeChannel=sb.channel('sirevya-public-catalog',{config:{private:true,broadcast:{self:false}}});
+  adminCatalogRealtimeChannel.subscribe(status=>{
+   adminCatalogRealtimeReady=status==='SUBSCRIBED';
+   if(adminCatalogRealtimeReady&&adminCatalogRealtimePending.length){
+    const pending=adminCatalogRealtimePending.splice(0,8);
+    pending.forEach(payload=>{void adminCatalogRealtimeChannel.send({type:'broadcast',event:'catalog_changed',payload})});
+   }
+  });
+ }catch(error){adminCatalogRealtimeChannel=null;adminCatalogRealtimeReady=false;console.debug('No se pudo activar la notificación Realtime; se conserva localStorage y el refresco periódico.',error)}
+}
+function notifyPublicCatalogChanged(type='catalog',details={}){
+ let payload=null;
+ try{
+   payload={type,productId:String(details.productId||''),refreshImages:!!details.refreshImages,at:Date.now(),nonce:Math.random().toString(36).slice(2)};
    localStorage.setItem('sirevya_public_catalog_changed',JSON.stringify(payload));
  }catch{}
+ if(payload&&adminCatalogRealtimeChannel){
+  if(adminCatalogRealtimeReady)void adminCatalogRealtimeChannel.send({type:'broadcast',event:'catalog_changed',payload}).then(result=>{if(result?.status==='error')console.debug('No se pudo enviar el aviso de catálogo en tiempo real.')}).catch(()=>{});
+  else{adminCatalogRealtimePending.push(payload);if(adminCatalogRealtimePending.length>8)adminCatalogRealtimePending.shift()}
+ }
 }
 async function guardarProducto(agregarOtro=false){
  const nombre=$("pNombre").value.trim();if(!nombre)return alert("Escribe el nombre del producto.");
@@ -1878,18 +2053,18 @@ async function renderProductos(){
    return {p,img,margin};
  }));
  $("inventoryCards").innerHTML=rows.length?rows.map(({p,img,margin})=>`
-   <div class="card productCard"><img loading="lazy" decoding="async" class="productImg" src="${img}" onerror="this.style.display='none'" alt="">
+   <div class="card productCard"><img loading="lazy" decoding="async" class="productImg" src="${esc(img)}" onerror="this.style.display='none'" alt="">
    <div class="productBody"><div class="productCode">${esc(p.code)}</div><div class="productName">${esc(p.name)}</div><div class="mini">${esc(p.category)} • ${esc(p.location||"Sin ubicación")}</div>
    <div style="display:flex;justify-content:space-between;align-items:end;margin-top:11px"><div><div class="price">${money(p.sale_price)}</div><div class="mini">Compra ${money(p.cost_price)}</div></div><div style="text-align:right"><b>${availableQuantity(p)}</b><div class="mini">disponibles</div></div></div>
    <div style="margin-top:10px">${stockBadge(availableQuantity(p))}</div><div style="margin-top:12px"><button class="action" onclick="openProduct('${p.id}')">👁️ Ver</button><button class="action" onclick="compartirProducto('${p.id}')">📘</button><button class="action" onclick="editarProducto('${p.id}')">✏️</button><button class="action" onclick="borrarProducto('${p.id}')">🗑️</button></div></div></div>`).join(""):'<div class="empty card" style="grid-column:1/-1">No encontramos productos con esos filtros.</div>';
- $("tablaProductos").innerHTML=rows.length?rows.map(({p,img,margin})=>`<tr><td>${img?`<img loading="lazy" decoding="async" class="thumb" src="${img}" alt="">`:'<div class="noimg">📦</div>'}</td><td><b>${esc(p.code)}</b></td><td><b>${esc(p.name)}</b></td><td>${esc(p.category)}</td><td><b>${availableQuantity(p)}</b><br>${stockBadge(availableQuantity(p))}</td><td>${money(p.cost_price)}</td><td>${money(p.sale_price)}</td><td>${money(margin)}</td><td>${esc(p.location||"-")}</td><td><button class="action" onclick="openProduct('${p.id}')">👁️</button><button class="action" onclick="compartirProducto('${p.id}')">📘</button><button class="action" onclick="editarProducto('${p.id}')">✏️</button><button class="action" onclick="borrarProducto('${p.id}')">🗑️</button></td></tr>`).join(""):'<tr><td colspan="10" class="empty">No hay productos.</td></tr>';
+ $("tablaProductos").innerHTML=rows.length?rows.map(({p,img,margin})=>`<tr><td>${img?`<img loading="lazy" decoding="async" class="thumb" src="${esc(img)}" alt="">`:'<div class="noimg">📦</div>'}</td><td><b>${esc(p.code)}</b></td><td><b>${esc(p.name)}</b></td><td>${esc(p.category)}</td><td><b>${availableQuantity(p)}</b><br>${stockBadge(availableQuantity(p))}</td><td>${money(p.cost_price)}</td><td>${money(p.sale_price)}</td><td>${money(margin)}</td><td>${esc(p.location||"-")}</td><td><button class="action" onclick="openProduct('${p.id}')">👁️</button><button class="action" onclick="compartirProducto('${p.id}')">📘</button><button class="action" onclick="editarProducto('${p.id}')">✏️</button><button class="action" onclick="borrarProducto('${p.id}')">🗑️</button></td></tr>`).join(""):'<tr><td colspan="10" class="empty">No hay productos.</td></tr>';
 }
 function setInventoryMode(mode,save=true){inventoryMode=mode;if(save)localStorage.setItem("jm_inventory_mode",mode);$("inventoryCards").classList.toggle("hidden",mode!=="cards");$("inventoryTable").classList.toggle("hidden",mode!=="table");if(productos.length)renderProductos()}
 async function openProduct(id){
  const p=productos.find(x=>x.id===id);if(!p)return;
  $("modalTitle").textContent=p.code+" — "+p.name;$("modalBody").innerHTML='<div class="empty">Cargando…</div>';$("productModal").classList.add("show");
  const img=await getImageUrl(p.image_url),margin=Number(p.sale_price)-Number(p.cost_price);
- $("modalBody").innerHTML=`${img?`<img src="${img}" style="width:100%;max-height:320px;object-fit:contain;border-radius:15px;background:#f1f2f6">`:''}<div class="kpis" style="margin-top:15px"><div class="kpi">Disponible<b>${availableQuantity(p)}</b></div><div class="kpi">Stock físico<b>${Number(p.quantity)||0}</b></div><div class="kpi">Venta<b>${money(p.sale_price)}</b></div><div class="kpi">Ganancia/unid.<b>${money(margin)}</b></div></div><div style="margin-top:15px" class="grid"><div><b>Categoría</b><br>${esc(p.category)}</div><div><b>Ubicación</b><br>${esc(p.location||"Sin ubicación")}</div><div><b>Precio compra</b><br>${money(p.cost_price)}</div><div><b>Estado disponible</b><br>${stockBadge(availableQuantity(p))}</div></div>${String(p.description||'').trim()?`<div style="margin-top:15px;white-space:pre-line;line-height:1.5"><b>Descripción</b><br>${esc(p.description)}</div>`:''}<div style="margin-top:18px;display:flex;gap:8px;flex-wrap:wrap"><button class="primary" onclick="closeModal();editarProducto('${p.id}')">✏️ Editar</button><button class="softbtn" onclick="compartirProducto('${p.id}')">📘 Compartir en Facebook</button></div>`;
+ $("modalBody").innerHTML=`${img?`<img src="${esc(img)}" style="width:100%;max-height:320px;object-fit:contain;border-radius:15px;background:#f1f2f6">`:''}<div class="kpis" style="margin-top:15px"><div class="kpi">Disponible<b>${availableQuantity(p)}</b></div><div class="kpi">Stock físico<b>${Number(p.quantity)||0}</b></div><div class="kpi">Venta<b>${money(p.sale_price)}</b></div><div class="kpi">Ganancia/unid.<b>${money(margin)}</b></div></div><div style="margin-top:15px" class="grid"><div><b>Categoría</b><br>${esc(p.category)}</div><div><b>Ubicación</b><br>${esc(p.location||"Sin ubicación")}</div><div><b>Precio compra</b><br>${money(p.cost_price)}</div><div><b>Estado disponible</b><br>${stockBadge(availableQuantity(p))}</div></div>${String(p.description||'').trim()?`<div style="margin-top:15px;white-space:pre-line;line-height:1.5"><b>Descripción</b><br>${esc(p.description)}</div>`:''}<div style="margin-top:18px;display:flex;gap:8px;flex-wrap:wrap"><button class="primary" onclick="closeModal();editarProducto('${p.id}')">✏️ Editar</button><button class="softbtn" onclick="compartirProducto('${p.id}')">📘 Compartir en Facebook</button></div>`;
 }
 function closeModal(){$("productModal").classList.remove("show")}
 
@@ -1936,7 +2111,7 @@ async function compartirProducto(id){
  const p=productos.find(x=>String(x.id)===String(id));
  if(!p)return;
  const text=`Variedades JM 👋\n\n📦 ${p.name}\n🔖 Código: ${p.code}\n🏷️ Categoría: ${p.category||"Producto"}\n💰 Precio: ${money(p.sale_price)}\n${availableQuantity(p)>0?"✅ Disponible":"❌ Agotado"}`;
- const url=location.href.split("#")[0];
+ const publicUrl=new URL("https://sirevya.com.co/");publicUrl.searchParams.set("producto",String(p.id));const url=publicUrl.href;
  try{
    if(navigator.share){
      await navigator.share({title:`${p.name} — Variedades JM`,text,url});
@@ -2054,6 +2229,7 @@ async function agregarCliente(){
 }
 function renderClientes(){
  const host=$("listaClientes");if(!host)return;
+ if(moduleLoadErrors.clients){host.innerHTML=`<div class="alert"><b>No se pudieron cargar los clientes.</b><br>${esc(moduleLoadErrors.clients)}</div>`;return;}
  host.innerHTML=clientes.map(c=>`<div class="card listItem" style="padding:15px;margin-bottom:9px"><div class="rowBetween"><div><b>${esc(c.name)}</b><div class="muted">📞 ${esc(c.phone||"Sin teléfono")}</div>${c.note?`<div class="muted">📝 ${esc(c.note)}</div>`:""}</div><span class="badge ok">Cliente</span></div></div>`).join("")||'<div class="empty card">No hay clientes registrados.</div>';
 }
 
@@ -2157,6 +2333,7 @@ async function registrarMovimiento(){
  }
 }
 function renderMovimientos(){
+ if(moduleLoadErrors.movements){$("listaMovimientos").innerHTML=`<div class="alert"><b>No se pudieron cargar los movimientos.</b><br>${esc(moduleLoadErrors.movements)}</div>`;return;}
  $("listaMovimientos").innerHTML=movimientos.slice(0,100).map(m=>`<div class="listItem"><div class="rowBetween"><div><b>${esc(m.product_code)} — ${esc(m.product_name)}</b><div class="muted">${m.created_at?new Date(m.created_at).toLocaleString("es-CO"):""} • ${esc(m.motive||"Sin motivo")}</div></div><span class="badge ${m.type==="entrada"?"ok":m.type==="salida"?"low":"out"}">${esc(m.type)}</span></div></div>`).join("")||'<div class="empty">No hay movimientos.</div>';
 }
 function reciboVenta(id){
@@ -2168,8 +2345,10 @@ function reciboVenta(id){
 function renderReportes(){
  const ing=ventas.reduce((s,v)=>s+Number(v.quantity)*Number(v.sale_price),0),cost=ventas.reduce((s,v)=>s+Number(v.quantity)*Number(v.cost_price),0),inv=productos.reduce((s,p)=>s+Number(p.quantity)*Number(p.cost_price),0),gt=gastos.reduce((s,g)=>s+Number(g.amount),0);
  $("rVentas").textContent=ventas.length;$("rIngresos").textContent=money(ing);$("rCostos").textContent=money(cost);$("rGanancia").textContent=money(ing-cost);$("rGastos").textContent=money(gt);$("rNeta").textContent=money(ing-cost-gt);$("inventoryValue").textContent=money(inv);
- // Si la consulta de gastos falló, no presentar $0 ni una ganancia neta engañosa.
- if(moduleLoadErrors.expenses){$("rGastos").textContent="—";$("rNeta").textContent="—";}
+ // No presentar $0 en gastos/ganancia neta hasta consultar esa tabla.
+ if(moduleLoadErrors.expenses||!adminDeferredModuleLoaded.expenses){$("rGastos").textContent="—";$("rNeta").textContent="—";}
+ const soldByProduct=new Map();(ventas||[]).forEach(sale=>{const key=String(sale.product_id||sale.product_code||sale.product_name||'Producto');const entry=soldByProduct.get(key)||{name:sale.product_name||'Producto',code:sale.product_code||'',quantity:0,revenue:0,profit:0};const qty=Number(sale.quantity)||0,price=Number(sale.sale_price)||0,cost=Number(sale.cost_price)||0;entry.quantity+=qty;entry.revenue+=qty*price;entry.profit+=qty*(price-cost);soldByProduct.set(key,entry)});
+ const best=[...soldByProduct.values()].sort((a,b)=>b.quantity-a.quantity||b.revenue-a.revenue).slice(0,8);const bestHost=$("bestSellingProducts");if(bestHost)bestHost.innerHTML=best.map((row,i)=>`<div class="listItem"><div class="rowBetween"><div><b>${i+1}. ${esc(row.code?row.code+' — ':'')}${esc(row.name)}</b><div class="muted">${row.quantity} unidades vendidas · Ingresos ${money(row.revenue)}</div></div><b>${money(row.profit)}</b></div></div>`).join('')||'<div class="empty">Los productos más vendidos aparecerán al registrar ventas.</div>';
  const c={};productos.forEach(p=>c[p.category]=(c[p.category]||0)+Number(p.quantity));
  const max=Math.max(...Object.values(c),1);
  $("cats").innerHTML=Object.entries(c).map(([k,v])=>`<div class="listItem"><div class="rowBetween"><b>${esc(k)}</b><span>${v} unidades</span></div><div class="progress"><span style="width:${Math.max(4,(v/max)*100)}%"></span></div></div>`).join("")||'<div class="empty">Sin datos.</div>';
@@ -2179,14 +2358,16 @@ async function limpiarVentas(){
   if(!ventas.length){toast("No hay ventas para borrar");return}
   const ok=confirm("⚠️ BORRAR HISTORIAL DE VENTAS\n\nSe eliminarán todas las ventas y los reportes de ingresos, costos y ganancias quedarán en $0.\n\nNO se borrarán productos, stock, fotos ni clientes.\n\n¿Quieres continuar?");
   if(!ok)return;
+  if(!requireBackupAcknowledgement('borrar el historial de ventas'))return;
   const {error}=await sb.from("sales").delete().neq("id","00000000-0000-0000-0000-000000000000");
   if(error){alert("No se pudo borrar el historial: "+error.message);return}
   toast("Historial de ventas borrado");
   await cargarTodo();
 }
 async function borrarTodo(){
-  const ok=confirm("⚠️ REINICIO DE ESTA CUENTA\n\nSe eliminarán productos, ventas, clientes y movimientos de inventario asociados. Se conservarán los pedidos web, gastos, proveedores y categorías. Las imágenes guardadas en Cloudflare R2 no se borran desde Supabase y pueden quedar sin referencia.\n\nEsta acción no se puede deshacer. ¿Quieres continuar?");
+  const ok=confirm("⚠️ REINICIO DE ESTA CUENTA\n\nSe eliminarán productos, ventas, clientes y movimientos de inventario asociados. También se eliminarán las recomendaciones combinadas vinculadas a los productos borrados. Se conservarán los pedidos web, gastos, proveedores y categorías. Las imágenes guardadas en Cloudflare R2 no se borran desde Supabase y pueden quedar sin referencia.\n\nDescarga el respaldo JSON y verifica que contenga configuraciones.combinaciones_productos. Esta acción no se puede deshacer. ¿Quieres continuar?");
   if(!ok)return false;
+  if(!requireBackupAcknowledgement('reiniciar los datos del negocio'))return false;
   const phrase=prompt('Para confirmar, escribe exactamente: BORRAR TODO');
   if(phrase!=="BORRAR TODO"){toast("Cancelado. No se borró ningún dato.");return false}
   let result;
@@ -2226,6 +2407,22 @@ function isMissingTableError(error,table){
    (/does not exist|not found|could not find.*table|schema cache/.test(message))
  );
 }
+function isMissingFunctionError(error,functionName){
+ const code=String(error?.code||'');
+ const message=String(error?.message||'').toLowerCase();
+ return code==='42883'||code==='PGRST202'||(
+   message.includes(String(functionName||'').toLowerCase())&&
+   (/does not exist|could not find the function|schema cache|not found/.test(message))
+ );
+}
+async function fetchOptionalRpcForBackup(functionName,args){
+ const {data,error}=args===undefined?await sb.rpc(functionName):await sb.rpc(functionName,args);
+ if(error){
+   if(isMissingFunctionError(error,functionName))return {available:false,data:null,reason:'La función '+functionName+' no está instalada en esta versión de Supabase.'};
+   throw new Error('No se pudo respaldar la configuración '+functionName+': '+String(error.message||error));
+ }
+ return {available:true,data:data??null};
+}
 async function exportBackup(event){
  const button=event?.currentTarget;
  if(button){button.disabled=true;button.dataset.originalText=button.textContent;button.textContent="Preparando respaldo...";}
@@ -2241,19 +2438,129 @@ async function exportBackup(event){
        throw error;
      }
    }));
-   const omitted=results.filter(([,v])=>!v.available).map(([table,v])=>({table,reason:v.reason}));
-   const data={exportado:new Date().toISOString(),version:3,
+   const omitted=results.filter(([,v])=>!v.available).map(([table,v])=>({table,elemento:table,reason:v.reason}));
+   // Exportar también configuraciones guardadas mediante RPC, porque las tablas
+   // storefront_product_combos tienen ON DELETE CASCADE al borrar productos.
+   // Un fallo de permisos/red cancela la copia; una RPC inexistente queda señalada.
+   const configSpecs=[
+     ['combinaciones_productos','admin_list_storefront_product_combos'],
+     ['promocion_temporada','get_public_storefront_promotion'],
+     ['estado_pagos_en_linea','get_online_payment_status']
+   ];
+   const configResults=await Promise.all(configSpecs.map(async ([key,fn])=>[key,await fetchOptionalRpcForBackup(fn)]));
+   const configurationSnapshots=Object.fromEntries(configResults.map(([key,result])=>[key,result.data]));
+   const configurationOmitted=configResults.filter(([,result])=>!result.available).map(([key,result])=>({elemento:key,reason:result.reason}));
+   const data={exportado:new Date().toISOString(),version:4,
      tablas:Object.fromEntries(results.map(([table,v])=>[table,v.rows])),
+     configuraciones:configurationSnapshots,
      tablas_omitidas:omitted,
-     nota:'Las fotos binarias de Cloudflare R2 no se embeben en este JSON; se incluyen referencias/métadatos disponibles. Un valor null en tablas indica tabla opcional ausente.'};
+     configuraciones_omitidas:configurationOmitted,
+     nota:'Las fotos binarias de Cloudflare R2 no se embeben en este JSON; se guardan las referencias/metadatos disponibles. Las configuraciones incluyen instantáneas de combinaciones de productos, promoción de temporada y estado de pagos cuando sus RPC están instaladas. Las configuraciones omitidas quedan enumeradas; este JSON no es un restaurador automático.'};
    downloadFile("variedades_jm_respaldo_completo.json",JSON.stringify(data,null,2),"application/json");
-   toast(omitted.length?'Respaldo descargado; product_images no existe y quedó señalado.':'Respaldo completo descargado');
+   if(omitted.length||configurationOmitted.length){
+     const details=[...omitted,...configurationOmitted].map(item=>item.elemento+': '+item.reason).join('\n');
+     alert('El respaldo se descargó, pero no incluye algunos elementos opcionales:\n\n'+details+'\n\nNo borres productos ni reinicies la cuenta hasta confirmar que esas configuraciones no se necesitan o realizar una copia por separado.');
+     toast('Respaldo descargado con elementos opcionales omitidos.');
+   }else toast('Respaldo de datos y configuraciones descargado');
  }catch(error){
    console.error('Error exportando respaldo completo:',error);
    alert((error?.message||String(error))+". No se descargó un respaldo incompleto.");
  }finally{
    if(button){button.disabled=false;button.textContent=button.dataset.originalText||"⬇️ Descargar respaldo JSON";delete button.dataset.originalText;}
  }
+}
+
+// --- Carga diferida de módulos secundarios: no descargar clientes/proveedores/gastos/movimientos al abrir Inicio. ---
+async function loadAdminDeferredModule(key,force=false){
+ const cfg={
+  clients:{table:'clients',order:'name',ascending:true,assign:data=>{clientes=data},render:renderClientes,host:'listaClientes'},
+  suppliers:{table:'suppliers',order:'name',ascending:true,assign:data=>{proveedores=data},render:renderProveedores,host:'listaProveedores'},
+  expenses:{table:'expenses',order:'expense_date',ascending:false,assign:data=>{gastos=data},render:()=>{renderGastos();renderReportes()},host:'listaGastos'},
+  movements:{table:'inventory_movements',order:'created_at',ascending:false,assign:data=>{movimientos=data},render:renderMovimientos,host:'listaMovimientos'}
+ };
+ if(!cfg[key])return false;
+ if(adminDeferredModuleLoaded[key]&&!force)return true;
+ if(adminDeferredModuleInFlight[key])return adminDeferredModuleInFlight[key];
+ const spec=cfg[key],host=$(spec.host);if(host)host.innerHTML='<div class="empty">Consultando Supabase…</div>';
+ delete moduleLoadErrors[key];
+ adminDeferredModuleInFlight[key]=(async()=>{
+  try{
+   const result=await fetchAllTableRows(spec.table,spec.order,spec.ascending);
+   if(result.error){moduleLoadErrors[key]=describeAdminTableError(spec.table,result.error);spec.render();return false;}
+   spec.assign(result.data||[]);adminDeferredModuleLoaded[key]=true;delete moduleLoadErrors[key];
+   if(result.orderMode&&result.orderMode!=='stable')console.warn('Módulo '+key+' cargado con orden alternativo:',result.orderMode);
+   spec.render();return true;
+  }catch(error){moduleLoadErrors[key]=describeAdminTableError(spec.table,error);spec.render();return false;}
+  finally{delete adminDeferredModuleInFlight[key];}
+ })();
+ return adminDeferredModuleInFlight[key];
+}
+
+// Product-combo admin editor. Its optional SQL migration is independent of checkout/inventory functions.
+let storefrontProductCombosAdmin=[],storefrontCombosAdminLoaded=false,storefrontComboSaving=false,storefrontComboEditingId='';
+function setStorefrontCombosAdminStatus(message,kind=''){const el=$('storefrontCombosAdminStatus');if(el){el.className='promoAdminStatus'+(kind?' '+(kind==='error'?'promoStatusError':kind==='ok'?'promoStatusOk':''):'');el.textContent=message}}
+function setStorefrontComboFormDisabled(disabled){['storefrontComboProductA','storefrontComboProductB','storefrontComboTitle','storefrontComboMessage','storefrontComboButtonLabel','storefrontComboEnabled','storefrontComboStartAt','storefrontComboEndAt'].forEach(id=>{const el=$(id);if(el)el.disabled=disabled});const save=$('saveStorefrontComboBtn');if(save)save.disabled=disabled||storefrontComboSaving}
+function renderStorefrontComboProductSelects(){
+ const options='<option value="">Selecciona un producto…</option>'+productos.map(p=>`<option value="${esc(p.id)}">${esc((p.code?String(p.code)+' — ':'')+String(p.name||'Producto'))}</option>`).join('');
+ ['storefrontComboProductA','storefrontComboProductB'].forEach(id=>{const sel=$(id);if(!sel)return;const current=sel.value;sel.innerHTML=options;if(productos.some(p=>String(p.id)===String(current)))sel.value=current});
+}
+function comboLocalDate(value){if(!value)return '';const d=new Date(value);if(Number.isNaN(d.getTime()))return '';const pad=n=>String(n).padStart(2,'0');return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`}
+function comboDateIso(value){if(!value)return null;const d=new Date(value);if(Number.isNaN(d.getTime()))throw new Error('La fecha de una combinación no es válida.');return d.toISOString()}
+function resetStorefrontComboForm(){storefrontComboEditingId='';$('storefrontComboEditId').value='';$('storefrontComboProductA').value='';$('storefrontComboProductB').value='';$('storefrontComboTitle').value='Completa el look';$('storefrontComboMessage').value='Combina estos productos para completar tu estilo.';$('storefrontComboButtonLabel').value='Ver combinación';$('storefrontComboEnabled').checked=false;$('storefrontComboStartAt').value='';$('storefrontComboEndAt').value='';const button=$('saveStorefrontComboBtn');if(button)button.textContent='💾 Guardar combinación';renderStorefrontCombosAdminList();}
+function editStorefrontCombo(id){const row=storefrontProductCombosAdmin.find(x=>String(x.id)===String(id));if(!row)return;storefrontComboEditingId=String(row.id);$('storefrontComboEditId').value=storefrontComboEditingId;renderStorefrontComboProductSelects();$('storefrontComboProductA').value=String(row.product_a_id);$('storefrontComboProductB').value=String(row.product_b_id);$('storefrontComboTitle').value=String(row.title||'Completa el look');$('storefrontComboMessage').value=String(row.message||'');$('storefrontComboButtonLabel').value=String(row.button_label||'Ver combinación');$('storefrontComboEnabled').checked=row.enabled===true;$('storefrontComboStartAt').value=comboLocalDate(row.start_at);$('storefrontComboEndAt').value=comboLocalDate(row.end_at);const button=$('saveStorefrontComboBtn');if(button)button.textContent='💾 Guardar cambios';$('storefrontComboProductA').focus({preventScroll:true})}
+function renderStorefrontCombosAdminList(){
+ const host=$('storefrontCombosAdminList');if(!host)return;
+ if(!storefrontCombosAdminLoaded){host.innerHTML='';return}
+ if(!storefrontProductCombosAdmin.length){host.innerHTML='<div class="empty">Todavía no has creado combinaciones.</div>';return}
+ host.innerHTML=storefrontProductCombosAdmin.map(row=>`<article class="listItem"><div class="rowBetween" style="align-items:flex-start;gap:10px;flex-wrap:wrap"><div style="flex:1;min-width:180px"><b>${esc(row.product_a_name||'Producto principal')} → ${esc(row.product_b_name||'Producto recomendado')}</b><div class="muted">${esc(row.title||'Combinación')}: ${esc(row.message||'')}</div><small class="muted">${row.enabled?'Activa':'Inactiva'}${row.start_at?' · Desde '+new Date(row.start_at).toLocaleDateString('es-CO'):''}${row.end_at?' · Hasta '+new Date(row.end_at).toLocaleDateString('es-CO'):''}</small></div><div style="display:flex;gap:6px;flex-wrap:wrap"><button class="action" type="button" data-combo-admin-edit="${esc(row.id)}">✏️ Editar</button><button class="action" type="button" data-combo-admin-delete="${esc(row.id)}">🗑️ Eliminar</button></div></div></article>`).join('');
+}
+async function loadStorefrontProductCombosAdmin(force=false){
+ if(!sb)return false;if(storefrontCombosAdminLoaded&&!force)return true;
+ setStorefrontCombosAdminStatus('Cargando combinaciones…');setStorefrontComboFormDisabled(true);
+ try{
+  const {data,error}=await sb.rpc('admin_list_storefront_product_combos');if(error)throw error;
+  storefrontProductCombosAdmin=Array.isArray(data)?data:[];storefrontCombosAdminLoaded=true;renderStorefrontComboProductSelects();renderStorefrontCombosAdminList();setStorefrontComboFormDisabled(false);setStorefrontCombosAdminStatus('Combinaciones cargadas desde Supabase.','ok');return true;
+ }catch(error){
+  const msg=String(error?.message||error||'Error desconocido');setStorefrontCombosAdminStatus('No se pudieron cargar las combinaciones. Ejecuta sirevya_mejoras_catalogo_admin.sql en Supabase y vuelve a intentar. Detalle: '+msg,'error');setStorefrontComboFormDisabled(true);const host=$('storefrontCombosAdminList');if(host)host.innerHTML='<div class="alert">La tienda seguirá funcionando sin recomendaciones combinadas hasta instalar las funciones SQL de esta mejora.</div>';return false;
+ }
+}
+async function saveStorefrontProductCombo(){
+ if(!storefrontCombosAdminLoaded||storefrontComboSaving)return alert('Primero carga las combinaciones de Supabase.');
+ const a=String($('storefrontComboProductA').value||''),b=String($('storefrontComboProductB').value||'');
+ const title=String($('storefrontComboTitle').value||'').trim(),message=String($('storefrontComboMessage').value||'').trim(),buttonLabel=String($('storefrontComboButtonLabel').value||'').trim();
+ if(!a||!b)return alert('Selecciona ambos productos.');if(a===b)return alert('El producto principal y el recomendado deben ser diferentes.');if(!title||!message||!buttonLabel)return alert('Completa el título, el mensaje y el botón.');
+ if(title.length>90||message.length>240||buttonLabel.length>32)return alert('Uno de los textos supera su límite.');
+ let start,end;try{start=comboDateIso($('storefrontComboStartAt').value);end=comboDateIso($('storefrontComboEndAt').value)}catch(error){return alert(error.message)}if(start&&end&&new Date(start)>=new Date(end))return alert('La fecha final debe ser posterior a la inicial.');
+ storefrontComboSaving=true;const button=$('saveStorefrontComboBtn');if(button){button.disabled=true;button.textContent='⏳ Guardando…'}
+ try{
+  const {data,error}=await sb.rpc('admin_save_storefront_product_combo',{p_combo_id:storefrontComboEditingId||null,p_product_a_id:a,p_product_b_id:b,p_title:title,p_message:message,p_button_label:buttonLabel,p_enabled:$('storefrontComboEnabled').checked,p_start_at:start,p_end_at:end});
+  if(error)throw error;const row=Array.isArray(data)?data[0]:data;if(!row)throw new Error('Supabase no devolvió la combinación guardada.');
+  toast('Combinación guardada');resetStorefrontComboForm();storefrontCombosAdminLoaded=false;await loadStorefrontProductCombosAdmin(true);setStorefrontCombosAdminStatus('Combinación guardada y lista actualizada. El catálogo recibirá una notificación; el precio no cambia automáticamente.','ok');notifyPublicCatalogChanged('combo-changed');
+ }catch(error){setStorefrontCombosAdminStatus('No se guardó la combinación. Verifica los permisos de administrador y la migración SQL. Detalle: '+String(error?.message||error),'error')}
+ finally{storefrontComboSaving=false;if(button){button.textContent=storefrontComboEditingId?'💾 Guardar cambios':'💾 Guardar combinación';button.disabled=!storefrontCombosAdminLoaded}}
+}
+async function deleteStorefrontProductCombo(id){if(!confirm('¿Eliminar esta recomendación combinada? No se modifican los productos ni sus precios.'))return;try{const {data,error}=await sb.rpc('admin_delete_storefront_product_combo',{p_combo_id:id});if(error)throw error;if(data!==true&&!(Array.isArray(data)&&data[0]===true))throw new Error('Supabase no confirmó la eliminación.');storefrontProductCombosAdmin=storefrontProductCombosAdmin.filter(row=>String(row.id)!==String(id));renderStorefrontCombosAdminList();notifyPublicCatalogChanged('combo-changed');toast('Combinación eliminada')}catch(error){setStorefrontCombosAdminStatus('No se eliminó la combinación. '+String(error?.message||error),'error')}}
+let storefrontMarketingMetricsBusy=false;
+async function refreshStorefrontMarketingMetrics(){
+ if(storefrontMarketingMetricsBusy||!sb)return;storefrontMarketingMetricsBusy=true;const status=$('storefrontMarketingMetricsStatus'),host=$('storefrontMarketingMetricsReport');if(status)status.textContent='Consultando métricas…';
+ try{const {data,error}=await sb.rpc('admin_get_storefront_marketing_metrics',{p_days:30});if(error)throw error;const rows=Array.isArray(data)?data:[];if(!host)return;if(!rows.length){host.innerHTML='<div class="empty">Todavía no hay impresiones o clics registrados, o la promoción no se ha mostrado tras instalar la migración.</div>';if(status)status.textContent='Consulta completada.';return;}
+  const group=new Map();rows.forEach(row=>{const key=String(row.campaign_type)+'|'+String(row.campaign_id);const item=group.get(key)||{type:row.campaign_type,id:row.campaign_id,impression:0,click:0};item[row.event_type]=Number(row.event_count)||0;group.set(key,item)});
+  host.innerHTML='<div class="tableWrap" style="margin-top:10px"><table style="min-width:480px"><thead><tr><th>Campaña</th><th>Vistas únicas aprox.</th><th>Clics únicos aprox.</th><th>CTR</th></tr></thead><tbody>'+[...group.values()].map(item=>{const views=item.impression,clicks=item.click,ctr=views?((clicks/views)*100).toFixed(1)+'%':'—';return `<tr><td>${item.type==='popup'?'Popup de temporada':'Combinación de productos'}<br><small>${esc(item.id==='seasonal'?'Temporada':item.id)}</small></td><td>${views}</td><td>${clicks}</td><td>${ctr}</td></tr>`}).join('')+'</tbody></table></div>';
+  if(status)status.textContent='Métricas de los últimos 30 días. Son impresiones/clics deduplicados por sesión/día; las ventas atribuidas todavía no se vinculan automáticamente.';
+ }catch(error){if(host)host.innerHTML='';if(status)status.textContent='No se pudieron leer las métricas. Instala sirevya_mejoras_catalogo_admin.sql y vuelve a consultar. Detalle: '+String(error?.message||error)}
+ finally{storefrontMarketingMetricsBusy=false}
+}
+
+function exportSalesReportCSV(){
+ const head=['Fecha','Código','Producto','Cantidad','Costo unidad','Venta unidad','Ingreso','Ganancia bruta estimada'];
+ const rows=(ventas||[]).map(v=>{const qty=Number(v.quantity)||0,sale=Number(v.sale_price)||0,cost=Number(v.cost_price)||0;return [v.sale_date||v.created_at||'',v.product_code||'',v.product_name||'',qty,cost,sale,qty*sale,qty*(sale-cost)]});
+ const content=[head,...rows].map(row=>row.map(value=>'"'+String(value??'').replace(/"/g,'""')+'"').join(';')).join('\n');
+ downloadFile('sirevya_reporte_ventas.csv','\uFEFF'+content,'text/csv;charset=utf-8');toast('Reporte de ventas descargado');
+}
+function requireBackupAcknowledgement(actionLabel){
+ const ok=confirm('Antes de '+actionLabel+', descarga primero “Copia de respaldo → Descargar respaldo JSON” desde Configuración. El JSON incluye las referencias de fotos, pero no los archivos binarios de R2.\n\n¿Ya descargaste y verificaste un respaldo reciente?');if(!ok)return false;
+ const phrase=prompt('Para confirmar que tienes el respaldo, escribe exactamente: RESPALDO DESCARGADO');
+ if(phrase!=='RESPALDO DESCARGADO'){toast('Operación cancelada; no se borró nada.');return false}return true;
 }
 function exportCSV(){
  const head=["Código","Producto","Categoría","Cantidad","Compra","Venta","Ganancia unidad","Ubicación"];
@@ -2288,6 +2595,7 @@ document.addEventListener("DOMContentLoaded",()=>{
     });
   }
   const paymentToggle=$("onlinePaymentsToggle");if(paymentToggle)paymentToggle.addEventListener("change",updateOnlinePaymentAdminLabel);
+  const combosHost=$("storefrontCombosAdminList");if(combosHost)combosHost.addEventListener('click',event=>{const edit=event.target.closest('[data-combo-admin-edit]'),del=event.target.closest('[data-combo-admin-delete]');if(edit)editStorefrontCombo(edit.dataset.comboAdminEdit);if(del)void deleteStorefrontProductCombo(del.dataset.comboAdminDelete)});
   const f=$("pFoto");if(f)f.addEventListener("change",renderPhotoPreview);
   const guideFile=$("pGuiaTallasFoto");if(guideFile)guideFile.addEventListener("change",()=>{if(guideFile.files?.length)sizeGuideImageRemoveRequested=false;renderSizeGuidePhotoPreview()});
 
@@ -2318,6 +2626,175 @@ window.confirmarPedido=confirmarPedido;
 window.rechazarPedido=rechazarPedido;
 window.cambiarEstadoPedido=cambiarEstadoPedido;
 window.whatsappPedido=whatsappPedido;
+
+
+// === Configuración de promociones emergentes para Sirevya ===
+const SIREVYA_PROMO_PRESETS={
+ halloween:{background_color:'#21132f',accent_color:'#ff914d',text_color:'#ffffff',popup_size:'small',popup_position:'center',animation_style:'falling',eyebrow:'TEMPORADA DE HALLOWEEN',title:'¡Halloween con estilo!',message:'Descubre la temporada y aprovecha el envío gratis a Cali.',button_label:'Ver promoción'},
+ elegant:{background_color:'#17131d',accent_color:'#d7b779',text_color:'#ffffff',popup_size:'small',popup_position:'center',animation_style:'sparkle',eyebrow:'DETALLES QUE ENAMORAN',title:'Un detalle para ti',message:'Descubre tus favoritos y aprovecha el envío gratis a Cali.',button_label:'Explorar catálogo'},
+ romantic:{background_color:'#381426',accent_color:'#ff78a6',text_color:'#ffffff',popup_size:'small',popup_position:'center',animation_style:'sparkle',eyebrow:'UNA SORPRESA PARA TI',title:'Tu estilo merece brillar',message:'Encuentra tu próximo favorito con una promoción especial.',button_label:'Quiero verlo'},
+ festive:{background_color:'#101f36',accent_color:'#83dcff',text_color:'#ffffff',popup_size:'small',popup_position:'center',animation_style:'falling',eyebrow:'CELEBRA CON SIREVYA',title:'La temporada se viste de estilo',message:'Descubre tus favoritos y promociones especiales.',button_label:'Ver favoritos'}
+};
+let seasonalPromoSettingsLoaded=false,seasonalPromoSettingsOriginal=null,seasonalPromoSaving=false,seasonalPromoAutoCloseTimer=null;
+function seasonalPromoFieldValue(){
+ const style=$('seasonalPromoStyle')?.value||'halloween';
+ const background=$('seasonalPromoBackgroundColor')?.value||SIREVYA_PROMO_PRESETS[style].background_color;
+ const accent=$('seasonalPromoAccentColor')?.value||SIREVYA_PROMO_PRESETS[style].accent_color;
+ const textColor=$('seasonalPromoTextColor')?.value||'#ffffff';
+ const popupSize=['tiny','small','medium','large'].includes($('seasonalPromoSize')?.value)?$('seasonalPromoSize').value:'small';
+ const popupShape=['rounded','circle'].includes($('seasonalPromoShape')?.value)?$('seasonalPromoShape').value:'rounded';
+ const popupPosition=['center','bottom-right','bottom-center'].includes($('seasonalPromoPosition')?.value)?$('seasonalPromoPosition').value:'center';
+ const visibleDurationMs=[0,3000,5000,8000,10000].includes(Number($('seasonalPromoDuration')?.value))?Number($('seasonalPromoDuration').value):3000;
+ const animationStyle=['falling','sparkle','none'].includes($('seasonalPromoAnimationStyle')?.value)?$('seasonalPromoAnimationStyle').value:'falling';
+ return {enabled:!!$('seasonalPromoEnabled')?.checked,style,eyebrow:$('seasonalPromoEyebrow')?.value.trim()||'',title:$('seasonalPromoTitleInput')?.value.trim()||'',message:$('seasonalPromoMessageInput')?.value.trim()||'',button_label:$('seasonalPromoButtonLabel')?.value.trim()||'',button_url:$('seasonalPromoButtonUrl')?.value.trim()||'#catalogo',background_color:background,accent_color:accent,text_color:textColor,popup_size:popupSize,popup_shape:popupShape,popup_position:popupPosition,animation_style:animationStyle,animate:!!$('seasonalPromoAnimate')?.checked,delay_ms:Number($('seasonalPromoDelay')?.value||0),visible_duration_ms:visibleDurationMs,start_at:$('seasonalPromoStartAt')?.value||'',end_at:$('seasonalPromoEndAt')?.value||''};
+}
+function setSeasonalPromoStatus(message,kind=''){
+ const el=$('seasonalPromoSettingsStatus');if(!el)return;
+ el.textContent=message;el.classList.toggle('promoStatusError',kind==='error');el.classList.toggle('promoStatusOk',kind==='ok');
+}
+function setSeasonalPromoFormDisabled(disabled){
+ ['seasonalPromoEnabled','seasonalPromoStyle','seasonalPromoSize','seasonalPromoShape','seasonalPromoPosition','seasonalPromoEyebrow','seasonalPromoTitleInput','seasonalPromoMessageInput','seasonalPromoButtonLabel','seasonalPromoButtonUrl','seasonalPromoBackgroundColor','seasonalPromoAccentColor','seasonalPromoTextColor','seasonalPromoAnimationStyle','seasonalPromoDelay','seasonalPromoDuration','seasonalPromoAnimate','seasonalPromoStartAt','seasonalPromoEndAt'].forEach(id=>{const el=$(id);if(el)el.disabled=disabled});
+ const save=$('saveSeasonalPromoBtn');if(save)save.disabled=disabled||seasonalPromoSaving;
+}
+function seasonalPromoSetLocalDate(value){
+ if(!value)return '';
+ const date=new Date(value);if(Number.isNaN(date.getTime()))return '';
+ const local=new Date(date.getTime()-date.getTimezoneOffset()*60000);return local.toISOString().slice(0,16);
+}
+function seasonalPromoDateIso(value){if(!value)return null;const date=new Date(value);if(Number.isNaN(date.getTime()))throw new Error('Una de las fechas no es válida.');return date.toISOString()}
+function applySeasonalPromoRow(row){
+ const defaults=SIREVYA_PROMO_PRESETS[row?.style]||SIREVYA_PROMO_PRESETS.halloween;
+ $('seasonalPromoEnabled').checked=row?.enabled===true;
+ $('seasonalPromoStyle').value=SIREVYA_PROMO_PRESETS[row?.style]?row.style:'halloween';
+ $('seasonalPromoEyebrow').value=String(row?.eyebrow??defaults.eyebrow);
+ $('seasonalPromoTitleInput').value=String(row?.title??defaults.title);
+ $('seasonalPromoMessageInput').value=String(row?.message??defaults.message);
+ $('seasonalPromoButtonLabel').value=String(row?.button_label??defaults.button_label);
+ $('seasonalPromoButtonUrl').value=String(row?.button_url||'#catalogo');
+ $('seasonalPromoBackgroundColor').value=/^#[0-9a-f]{6}$/i.test(row?.background_color||'')?row.background_color:defaults.background_color;
+ $('seasonalPromoAccentColor').value=/^#[0-9a-f]{6}$/i.test(row?.accent_color||'')?row.accent_color:defaults.accent_color;
+ $('seasonalPromoTextColor').value=/^#[0-9a-f]{6}$/i.test(row?.text_color||'')?row.text_color:(defaults.text_color||'#ffffff');
+ $('seasonalPromoSize').value=['tiny','small','medium','large'].includes(row?.popup_size)?row.popup_size:'small';
+ $('seasonalPromoShape').value=['rounded','circle'].includes(row?.popup_shape)?row.popup_shape:'rounded';
+ $('seasonalPromoPosition').value=['center','bottom-right','bottom-center'].includes(row?.popup_position)?row.popup_position:'center';
+ $('seasonalPromoDuration').value=String([0,3000,5000,8000,10000].includes(Number(row?.visible_duration_ms))?Number(row.visible_duration_ms):3000);
+ $('seasonalPromoAnimationStyle').value=['falling','sparkle','none'].includes(row?.animation_style)?row.animation_style:(defaults.animation_style||'falling');
+ $('seasonalPromoAnimate').checked=row?.animate!==false;
+ $('seasonalPromoDelay').value=String([0,800,1600,3000,5000].includes(Number(row?.delay_ms))?Number(row.delay_ms):1600);
+ $('seasonalPromoStartAt').value=seasonalPromoSetLocalDate(row?.start_at);
+ $('seasonalPromoEndAt').value=seasonalPromoSetLocalDate(row?.end_at);
+ renderSeasonalPromoAdminPreview();
+}
+async function loadSeasonalPromoSettingsAdmin(showStatus=true){
+ const reloadButton=[...document.querySelectorAll('#seasonalPromoSettingsBox button')].find(button=>button.textContent.includes('Recargar'));
+ if(reloadButton)reloadButton.disabled=true;
+ setSeasonalPromoFormDisabled(true);seasonalPromoSettingsLoaded=false;
+ if(showStatus)setSeasonalPromoStatus('Consultando la configuración compartida…');
+ try{
+  const {data,error}=await sb.rpc('get_public_storefront_promotion');if(error)throw error;
+  const row=Array.isArray(data)?data[0]:data;if(!row)throw new Error('Supabase no devolvió la fila de promoción.');
+  seasonalPromoSettingsOriginal=row;applySeasonalPromoRow(row);seasonalPromoSettingsLoaded=true;setSeasonalPromoFormDisabled(false);
+  setSeasonalPromoStatus('Configuración cargada desde Supabase. Los cambios guardados aparecerán en el catálogo.','ok');
+  return true;
+ }catch(error){
+  console.error('No se pudo cargar la configuración de promoción:',error);
+  setSeasonalPromoStatus('Todavía no está instalada la configuración de promociones. En Supabase abre SQL Editor, ejecuta sirevya_promocion_temporada.sql y pulsa Recargar ajustes. Detalle: '+(error?.message||error),'error');
+  setSeasonalPromoFormDisabled(true);return false;
+ }finally{if(reloadButton)reloadButton.disabled=false}
+}
+function onSeasonalPromoStyleChange(){
+ const style=$('seasonalPromoStyle')?.value||'halloween',preset=SIREVYA_PROMO_PRESETS[style]||SIREVYA_PROMO_PRESETS.halloween;
+ $('seasonalPromoBackgroundColor').value=preset.background_color;$('seasonalPromoAccentColor').value=preset.accent_color;$('seasonalPromoTextColor').value=preset.text_color||'#ffffff';$('seasonalPromoAnimationStyle').value=preset.animation_style||'falling';renderSeasonalPromoAdminPreview();
+}
+function applySeasonalPromoSuggestedCopy(){
+ const style=$('seasonalPromoStyle')?.value||'halloween',preset=SIREVYA_PROMO_PRESETS[style]||SIREVYA_PROMO_PRESETS.halloween;
+ $('seasonalPromoEyebrow').value=preset.eyebrow;$('seasonalPromoTitleInput').value=preset.title;$('seasonalPromoMessageInput').value=preset.message;$('seasonalPromoButtonLabel').value=preset.button_label;
+ $('seasonalPromoBackgroundColor').value=preset.background_color;$('seasonalPromoAccentColor').value=preset.accent_color;$('seasonalPromoTextColor').value=preset.text_color||'#ffffff';$('seasonalPromoAnimationStyle').value=preset.animation_style||'falling';renderSeasonalPromoAdminPreview();
+}
+function renderSeasonalPromoAdminPreview(){
+ const config=seasonalPromoFieldValue(),frame=$('seasonalPromoAdminPreview');if(!frame)return;
+ const card=$('seasonalPromoCard');if(!card)return;
+ // The actual preview modal is filled on demand to avoid duplicating custom copy as HTML.
+ frame.innerHTML='';
+ const mini=card.cloneNode(true);mini.removeAttribute('id');mini.querySelectorAll('[id]').forEach(node=>node.removeAttribute('id'));
+ mini.dataset.style=config.style;mini.dataset.size=config.popup_size;mini.dataset.shape=config.popup_shape;mini.style.setProperty('--promo-bg',config.background_color);mini.style.setProperty('--promo-accent',config.accent_color);mini.style.setProperty('--promo-text',config.text_color);mini.style.setProperty('--promo-button-text',seasonalPromoButtonText(config.accent_color));
+ const badge=mini.querySelector('.sirevyaPromoBadge'),title=mini.querySelector('.sirevyaPromoTitle'),message=mini.querySelector('.sirevyaPromoMessage'),cta=mini.querySelector('.sirevyaPromoCta'),ornament=mini.querySelector('.sirevyaPromoOrnament');
+ if(badge)badge.textContent=config.eyebrow;if(title)title.textContent=config.title;if(message)message.textContent=config.message;
+ if(cta){cta.textContent=config.button_label;const arrow=document.createElement('span');arrow.textContent=' ↗';cta.appendChild(arrow);cta.removeAttribute('onclick');cta.href='#';cta.onclick=e=>e.preventDefault()}
+ if(ornament){ornament.replaceChildren();const glyphs={halloween:['🕸️','🎃','✦'],elegant:['✦','✧','❋'],romantic:['♥','💗','♡'],festive:['❄','✧','❄']}[config.style]||['✦'];glyphs.forEach(g=>{const span=document.createElement('span');span.textContent=g;ornament.appendChild(span)})}
+ const falling=mini.querySelector('.sirevyaPromoFalling');if(falling)falling.remove();
+ const close=mini.querySelector('.sirevyaPromoClose');if(close)close.remove();
+ mini.style.maxHeight='none';mini.style.margin='0 auto';mini.style.width='';
+ frame.appendChild(mini);
+}
+function seasonalPromoButtonText(hex){const h=String(hex||'#ff914d').replace('#','');if(!/^[0-9a-f]{6}$/i.test(h))return '#21132f';const r=parseInt(h.slice(0,2),16),g=parseInt(h.slice(2,4),16),b=parseInt(h.slice(4,6),16);return (0.299*r+0.587*g+0.114*b)>158?'#21132f':'#ffffff'}
+function fillSeasonalPromoPopup(config){
+ const overlay=$('seasonalPromoOverlay'),card=$('seasonalPromoCard');if(!overlay||!card||!config)return;
+ const palette={halloween:['🕸️','🎃','🕷️','✦','🦇'],elegant:['✦','✧','❋','✦','✧'],romantic:['♥','✦','💗','♡','♥'],festive:['❄','✧','❄','✦','❄']};
+ const glyphs=palette[config.style]||palette.halloween;
+ overlay.dataset.position=['center','bottom-right','bottom-center'].includes(config.popup_position)?config.popup_position:'center';
+ overlay.dataset.animation=config.animate===false?'none':(['falling','sparkle','none'].includes(config.animation_style)?config.animation_style:'falling');
+ card.dataset.style=config.style;card.dataset.size=['tiny','small','medium','large'].includes(config.popup_size)?config.popup_size:'small';card.dataset.shape=['rounded','circle'].includes(config.popup_shape)?config.popup_shape:'rounded';card.style.setProperty('--promo-bg',config.background_color);card.style.setProperty('--promo-accent',config.accent_color);card.style.setProperty('--promo-text',config.text_color||'#ffffff');card.style.setProperty('--promo-button-text',seasonalPromoButtonText(config.accent_color));
+ $('seasonalPromoBadge').textContent=config.eyebrow||'';$('seasonalPromoTitle').textContent=config.title||'';$('seasonalPromoMessage').textContent=config.message||'';
+ const cta=$('seasonalPromoCta');cta.textContent=config.button_label||'Ver catálogo';const arrow=document.createElement('span');arrow.setAttribute('aria-hidden','true');arrow.textContent=' ↗';cta.appendChild(arrow);cta.href=seasonalPromoUrlIsSafe(config.button_url)?config.button_url:'#catalogo';
+ const ornament=$('seasonalPromoOrnament');ornament.replaceChildren();glyphs.slice(0,3).forEach(glyph=>{const span=document.createElement('span');span.textContent=glyph;ornament.appendChild(span)});
+ const falling=$('seasonalPromoFalling');falling.replaceChildren();falling.style.display=(config.animate&&config.animation_style!=='none')?'':'none';
+ if(config.animate&&config.animation_style!=='none'&&!window.matchMedia('(prefers-reduced-motion: reduce)').matches){
+  const count=config.animation_style==='sparkle'?7:8;
+  for(let i=0;i<count;i++){const span=document.createElement('span');span.textContent=glyphs[i%glyphs.length];span.style.setProperty('--fall-left',`${(i*37+5)%97}%`);span.style.setProperty('--fall-top',`${8+((i*19)%74)}%`);span.style.setProperty('--fall-delay',`${-((i*7)%19)/2}s`);span.style.setProperty('--fall-duration',`${config.animation_style==='sparkle'?3.2+(i%4):8+(i%5)}s`);span.style.setProperty('--fall-size',`${10+(i%3)*4}px`);span.style.setProperty('--fall-opacity',`${.22+(i%4)*.1}`);span.style.setProperty('--fall-drift',`${(i%2?1:-1)*(8+(i%4)*8)}px`);falling.appendChild(span)}
+ }
+}
+function openSeasonalPromoPreview(){
+ const config=seasonalPromoFieldValue();
+ if(seasonalPromoAutoCloseTimer){clearTimeout(seasonalPromoAutoCloseTimer);seasonalPromoAutoCloseTimer=null;}
+ const start=seasonalPromoDateIso(config.start_at),end=seasonalPromoDateIso(config.end_at);
+ if(!config.title||!config.message||!config.button_label){alert('Completa el título, el mensaje y el texto del botón para ver la vista previa.');return}
+ const url=String(config.button_url||'').trim();if(!seasonalPromoUrlIsSafe(url)){alert('El destino debe ser #catalogo, #inicio, #contactanos o una URL HTTP/HTTPS.');return}
+ const overlay=$('seasonalPromoOverlay');
+ const normalized={...config,start_at:start,end_at:end};
+ fillSeasonalPromoPopup(normalized);window.__sirevyaAdminPromoPreview=true;
+ overlay.classList.add('adminPromoPreview');overlay.hidden=false;overlay.setAttribute('aria-hidden','false');requestAnimationFrame(()=>overlay.classList.add('is-visible'));
+ window.__sirevyaAdminPromoFocus=document.activeElement;setTimeout(()=>overlay.querySelector('.sirevyaPromoClose')?.focus({preventScroll:true}),30);
+ if(config.visible_duration_ms>0)seasonalPromoAutoCloseTimer=setTimeout(()=>closeSeasonalPromo(),Math.max(3000,Math.min(10000,Number(config.visible_duration_ms)||3000)));
+}
+function previewSeasonalPromo(){openSeasonalPromoPreview()}
+function closeSeasonalPromo(){
+ const overlay=$('seasonalPromoOverlay');if(seasonalPromoAutoCloseTimer){clearTimeout(seasonalPromoAutoCloseTimer);seasonalPromoAutoCloseTimer=null;}if(!overlay||overlay.hidden)return;
+ overlay.classList.remove('is-visible');overlay.setAttribute('aria-hidden','true');setTimeout(()=>{if(!overlay.classList.contains('is-visible'))overlay.hidden=true},240);
+ const previous=window.__sirevyaAdminPromoFocus;if(previous&&previous.isConnected)try{previous.focus({preventScroll:true})}catch{}
+ window.__sirevyaAdminPromoPreview=false;
+}
+function handleSeasonalPromoBackdrop(event){if(event?.target===$('seasonalPromoOverlay'))closeSeasonalPromo()}
+function handleSeasonalPromoAction(event){if(window.__sirevyaAdminPromoPreview){event?.preventDefault?.();closeSeasonalPromo();return false}closeSeasonalPromo();return true}
+function seasonalPromoUrlIsSafe(value){const v=String(value||'').trim();if(['#catalogo','#inicio','#contactanos'].includes(v))return true;try{const u=new URL(v,location.href);return /^https?:\/\//i.test(v)&&(u.protocol==='https:'||u.protocol==='http:')}catch{return false}}
+async function saveSeasonalPromoSettings(){
+ if(!seasonalPromoSettingsLoaded||seasonalPromoSaving)return alert('Primero carga correctamente la configuración compartida desde Supabase.');
+ const config=seasonalPromoFieldValue();
+ if(!config.title||!config.message||!config.button_label)return alert('El título, el mensaje y el texto del botón son obligatorios.');
+ if(config.eyebrow.length>48||config.title.length>90||config.message.length>240||config.button_label.length>32)return alert('Uno de los textos supera el límite permitido.');
+ if(!seasonalPromoUrlIsSafe(config.button_url))return alert('El destino debe ser #catalogo, #inicio, #contactanos o una URL HTTP/HTTPS.');
+ let start,end;try{start=seasonalPromoDateIso(config.start_at);end=seasonalPromoDateIso(config.end_at)}catch(error){return alert(error.message)}
+ if(start&&end&&new Date(start)>=new Date(end))return alert('La fecha final debe ser posterior a la inicial.');
+ const button=$('saveSeasonalPromoBtn');seasonalPromoSaving=true;if(button){button.disabled=true;button.textContent='⏳ Guardando…'}
+ try{
+  const {data,error}=await sb.rpc('set_public_storefront_promotion',{
+   p_enabled:config.enabled,p_style:config.style,p_eyebrow:config.eyebrow,p_title:config.title,p_message:config.message,
+   p_button_label:config.button_label,p_button_url:config.button_url,p_background_color:config.background_color,
+   p_accent_color:config.accent_color,p_text_color:config.text_color,p_popup_size:config.popup_size,p_popup_shape:config.popup_shape,p_popup_position:config.popup_position,
+   p_animation_style:config.animation_style,p_animate:config.animate,p_delay_ms:config.delay_ms,p_visible_duration_ms:config.visible_duration_ms,p_start_at:start,p_end_at:end
+  });
+  if(error)throw error;const row=Array.isArray(data)?data[0]:data;if(!row)throw new Error('Supabase no devolvió la configuración guardada.');
+  seasonalPromoSettingsOriginal=row;applySeasonalPromoRow(row);setSeasonalPromoStatus('Promoción guardada en Supabase. Para verla en el mismo navegador se actualizará el catálogo; los demás dispositivos la consultarán al entrar o volver a la página.','ok');
+  try{localStorage.setItem('sirevya_seasonal_promo_changed',JSON.stringify({at:Date.now(),nonce:Math.random().toString(36).slice(2)}))}catch{}
+  notifyPublicCatalogChanged('promotion-changed');
+  toast('Promoción guardada');
+ }catch(error){console.error('No se pudo guardar la promoción:',error);setSeasonalPromoStatus('No se guardaron los cambios. Revisa que el SQL esté instalado y que esta sea la cuenta administradora. Detalle: '+(error?.message||error),'error')}
+ finally{seasonalPromoSaving=false;if(button){button.textContent='💾 Guardar promoción';button.disabled=!seasonalPromoSettingsLoaded}}
+}
+window.addEventListener('input',event=>{if(event.target?.closest?.('#seasonalPromoSettingsBox'))renderSeasonalPromoAdminPreview()});
+window.addEventListener('change',event=>{if(event.target?.closest?.('#seasonalPromoSettingsBox')&&event.target.id!=='seasonalPromoStyle')renderSeasonalPromoAdminPreview()});
+window.addEventListener('keydown',event=>{if(event.key==='Escape'&&!$('seasonalPromoOverlay')?.hidden)closeSeasonalPromo()});
+
 </script>
 </body>
 </html>
