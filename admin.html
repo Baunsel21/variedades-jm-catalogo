@@ -245,10 +245,28 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
 </style>
 <style id="sirevyaSeasonalPromoAdminStyles">
 .promoAdminGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:14px}.promoAdminGrid label{display:flex;flex-direction:column;gap:6px;font-size:13px;font-weight:750}.promoAdminGrid input:not([type=checkbox]):not([type=color]),.promoAdminGrid select,.promoAdminGrid textarea{width:100%;min-width:0;padding:10px 11px;border:1px solid var(--line,#ddd);border-radius:10px;background:var(--surface,#fff);color:var(--text,#222);font:inherit;font-weight:500;box-sizing:border-box}.promoAdminGrid textarea{min-height:86px;resize:vertical}.promoAdminGrid .promoWide{grid-column:1/-1}.promoAdminGrid .promoToggleRow{display:flex;align-items:center;gap:10px;flex-direction:row;font-weight:800}.promoAdminGrid input[type=color]{width:54px;height:38px;padding:3px;border:1px solid var(--line,#ddd);border-radius:9px;background:transparent}.promoAdminColorRow{display:flex;align-items:center;gap:10px}.promoAdminColorRow input[type=color]{flex:0 0 54px}.promoAdminColorRow small{color:var(--muted,#777);font-weight:500}.promoAdminActions{display:flex;gap:9px;flex-wrap:wrap;margin-top:14px}.promoAdminHelp{font-size:12px;line-height:1.55;color:var(--muted,#777);margin:8px 0 0}.promoAdminStatus{margin-top:12px;font-size:12px;line-height:1.5}.promoAdminPreviewFrame{position:relative;overflow:hidden;margin-top:14px;padding:18px;border-radius:16px;background:radial-gradient(circle at 50% 0%,#352343,#121019 75%);border:1px solid rgba(155,133,181,.24)}.promoAdminPreviewFrame .sirevyaPromoCard{max-width:100%;max-height:none;margin:0 auto;transform:none}.promoAdminPreviewFrame .sirevyaPromoClose{display:none}.promoAdminPreviewFrame .sirevyaPromoMessage{margin-bottom:13px}.promoAdminPreviewFrame .sirevyaPromoFoot{margin-top:10px}.promoAdminPreviewFrame .sirevyaPromoOrnament{min-height:28px;font-size:20px}.promoAdminPreviewFrame .sirevyaPromoTitle{font-size:27px}.promoAdminPreviewFrame .sirevyaPromoFalling{display:none}.sirevyaPromoOverlay.adminPromoPreview{z-index:10050}.sirevyaPromoOverlay.adminPromoPreview .sirevyaPromoCard{max-height:88vh}.promoStatusError{color:#b4233a}.promoStatusOk{color:#16845d}@media(max-width:700px){.promoAdminGrid{grid-template-columns:1fr}.promoAdminGrid .promoWide{grid-column:auto}.promoAdminActions button{flex:1 1 100%}}
+
+/* Extra-small popup option. Kept local to the promo widget. */
+.sirevyaPromoCard[data-size="micro"]{width:min(55vw,160px);max-height:min(64vh,360px);padding:10px 9px 8px;border-radius:12px}
+.sirevyaPromoCard[data-size="micro"] .sirevyaPromoTitle{font-size:13px;line-height:1.08;margin-bottom:3px;max-width:140px}
+.sirevyaPromoCard[data-size="micro"] .sirevyaPromoMessage{font-size:8.5px;line-height:1.2;margin-bottom:5px;max-width:140px}
+.sirevyaPromoCard[data-size="micro"] .sirevyaPromoOrnament{font-size:12px;min-height:13px;gap:4px;margin-bottom:2px}
+.sirevyaPromoCard[data-size="micro"] .sirevyaPromoBadge{font-size:6px;padding:3px 5px;margin-bottom:4px}
+.sirevyaPromoCard[data-size="micro"] .sirevyaPromoCta{min-height:24px;padding:4px 7px;font-size:8px}
+.sirevyaPromoCard[data-size="micro"] .sirevyaPromoFoot{font-size:6px;margin-top:5px}
+.sirevyaPromoCard[data-size="micro"][data-shape="circle"]{width:min(36vw,138px,42vh);height:min(36vw,138px,42vh);max-height:min(36vw,138px,42vh);padding:18px 12px 9px}
+.sirevyaPromoCard[data-size="micro"][data-shape="circle"] .sirevyaPromoClose{top:16px;right:24px;width:17px;height:17px;font-size:12px}
+.sirevyaPromoCard[data-size="micro"][data-shape="circle"] .sirevyaPromoOrnament{font-size:9px;min-height:9px;gap:3px;margin:0 auto 1px}
+.sirevyaPromoCard[data-size="micro"][data-shape="circle"] .sirevyaPromoBadge{max-width:100px;font-size:4.8px;padding:2px 4px;letter-spacing:.03em;margin-bottom:2px}
+.sirevyaPromoCard[data-size="micro"][data-shape="circle"] .sirevyaPromoTitle{max-width:108px;font-size:10.5px;line-height:1.02;margin:0 auto 2px;-webkit-line-clamp:2}
+.sirevyaPromoCard[data-size="micro"][data-shape="circle"] .sirevyaPromoMessage{max-width:108px;font-size:6.5px;line-height:1.08;margin:0 auto 3px;-webkit-line-clamp:2}
+.sirevyaPromoCard[data-size="micro"][data-shape="circle"] .sirevyaPromoCta{max-width:105px;min-height:20px;padding:3px 5px;font-size:7px}
+.sirevyaPromoCard[data-size="micro"][data-shape="circle"] .sirevyaPromoFoot{font-size:4.5px;margin-top:2px}
+@media(max-width:480px){.sirevyaPromoCard[data-size="micro"]{width:min(48vw,152px);padding:9px 8px 7px}.sirevyaPromoCard[data-size="micro"][data-shape="circle"]{width:min(37vw,132px,42vh);height:min(37vw,132px,42vh);max-height:min(37vw,132px,42vh);padding:17px 11px 8px}}
 </style>
 
 <style id="sirevyaMarketingAdminStyles">
-.comboAdminGrid{margin-top:12px}.comboAdminToggle{display:flex;align-items:center;gap:9px;flex-direction:row;font-weight:800}.comboAdminToggle input{width:auto;margin:0}.detailComboSection{margin-top:12px}
+.comboAdminGrid{margin-top:12px}.comboAdminGrid[hidden],[hidden]#storefrontComboCategoryFields{display:none!important}.comboAdminGrid .promoWide{grid-column:1/-1}.comboAdminGrid input[type=number]{font-variant-numeric:tabular-nums}.comboAdminToggle{display:flex;align-items:center;gap:9px;flex-direction:row;font-weight:800}.comboAdminToggle input{width:auto;margin:0}.detailComboSection{margin-top:12px}
 </style>
 </head>
 <body>
@@ -480,7 +498,7 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
             </div>
             <div class="promoAdminGrid">
               <label>Estilo visual<select id="seasonalPromoStyle" disabled onchange="onSeasonalPromoStyleChange()"><option value="halloween">🕸️ Halloween · telaraña y caída</option><option value="elegant">✨ Elegante · negro y dorado</option><option value="romantic">💗 Romántico · tonos rosados</option><option value="festive">❄️ Festivo · brillo y nieve</option></select></label>
-              <label>Tamaño de la ventana<select id="seasonalPromoSize" disabled><option value="tiny">Muy pequeña</option><option value="small">Pequeña · recomendada</option><option value="medium">Mediana</option><option value="large">Grande</option></select></label>
+              <label>Tamaño de la ventana<select id="seasonalPromoSize" disabled><option value="micro">Extra pequeña</option><option value="tiny">Muy pequeña</option><option value="small">Pequeña · recomendada</option><option value="medium">Mediana</option><option value="large">Grande</option></select></label>
               <label>Forma de la ventana<select id="seasonalPromoShape" disabled><option value="rounded">Tarjeta redondeada</option><option value="circle">Circular</option></select></label>
               <label>Posición<select id="seasonalPromoPosition" disabled><option value="center">Centro</option><option value="bottom-right">Esquina inferior derecha</option><option value="bottom-center">Parte inferior, centrado</option></select></label>
               <label>Texto pequeño superior<input id="seasonalPromoEyebrow" maxlength="48" value="TEMPORADA DE HALLOWEEN" disabled></label>
@@ -505,17 +523,27 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
             <div id="seasonalPromoSettingsStatus" class="promoAdminStatus" role="status" aria-live="polite">Preparando configuración de promoción…</div>
           </div>
           <div class="box" style="grid-column:1/-1" id="storefrontCombosAdminBox">
-            <div class="rowBetween" style="align-items:flex-start;gap:12px;flex-wrap:wrap"><div style="flex:1;min-width:220px"><h3 style="margin-bottom:7px">🧩 Promociones de un producto con otro</h3><p class="muted" style="margin-top:0">Crea una recomendación combinada: al abrir el producto principal, el catálogo sugerirá el segundo artículo. Puedes editar texto, botón y fechas. Esta función no cambia precios ni aplica descuentos por sí sola.</p></div></div>
+            <div class="rowBetween" style="align-items:flex-start;gap:12px;flex-wrap:wrap"><div style="flex:1;min-width:220px"><h3 style="margin-bottom:7px">🧩 Promociones de un producto con otro</h3><p class="muted" style="margin-top:0">Crea un combo de dos productos concretos o de dos categorías. El descuento se aplica automáticamente al carrito por cada pareja válida de una unidad de cada lado. Puedes fijar un porcentaje, una rebaja en pesos o el precio final de la pareja. Las mismas unidades no reciben dos descuentos de combo.</p></div></div>
             <input id="storefrontComboEditId" type="hidden" value="">
             <div class="promoAdminGrid comboAdminGrid">
-              <label>Producto principal<select id="storefrontComboProductA" disabled><option value="">Carga productos…</option></select></label>
-              <label>Producto recomendado<select id="storefrontComboProductB" disabled><option value="">Carga productos…</option></select></label>
+              <label>Tipo de combo<select id="storefrontComboRuleType" disabled><option value="product_pair">Dos productos concretos</option><option value="category_pair">Una categoría + otra categoría</option></select></label>
+              <div id="storefrontComboProductFields" class="promoAdminGrid promoWide" style="margin:0;grid-template-columns:repeat(2,minmax(0,1fr))">
+                <label>Producto A<select id="storefrontComboProductA" disabled><option value="">Carga productos…</option></select></label>
+                <label>Producto B<select id="storefrontComboProductB" disabled><option value="">Carga productos…</option></select></label>
+              </div>
+              <div id="storefrontComboCategoryFields" class="promoAdminGrid promoWide" style="margin:0;grid-template-columns:repeat(2,minmax(0,1fr))" hidden>
+                <label>Categoría A<select id="storefrontComboCategoryA" disabled><option value="">Carga categorías…</option></select></label>
+                <label>Categoría B<select id="storefrontComboCategoryB" disabled><option value="">Carga categorías…</option></select></label>
+              </div>
+              <label>Tipo de beneficio<select id="storefrontComboDiscountType" disabled><option value="none">Solo recomendar · sin descuento</option><option value="percent">Porcentaje de descuento</option><option value="fixed_amount">Descuento fijo en pesos por pareja</option><option value="combo_price">Precio final fijo de los dos productos</option></select></label>
+              <label id="storefrontComboDiscountValueLabel">Descuento (%)<input id="storefrontComboDiscountValue" type="number" min="0" max="100" step="1" value="10" disabled></label>
               <label class="promoWide">Título de la combinación<input id="storefrontComboTitle" maxlength="90" value="Completa el look" disabled></label>
-              <label class="promoWide">Mensaje<textarea id="storefrontComboMessage" maxlength="240" disabled>Combina estos productos para completar tu estilo.</textarea></label>
+              <label class="promoWide">Mensaje<textarea id="storefrontComboMessage" maxlength="240" value="" disabled>Combina estos productos para completar tu estilo.</textarea></label>
               <label>Texto del botón<input id="storefrontComboButtonLabel" maxlength="32" value="Ver combinación" disabled></label>
-              <label class="comboAdminToggle"><input type="checkbox" id="storefrontComboEnabled" checked disabled> Activar recomendación</label>
+              <label class="comboAdminToggle"><input type="checkbox" id="storefrontComboEnabled" checked disabled> Activar promoción</label>
               <label>Mostrar desde (opcional)<input type="datetime-local" id="storefrontComboStartAt" disabled></label>
               <label>Mostrar hasta (opcional)<input type="datetime-local" id="storefrontComboEndAt" disabled></label>
+              <p id="storefrontComboDiscountHelp" class="muted promoWide" style="margin:0">Cada pareja es 1 unidad del lado A + 1 unidad del lado B. Si hay varias unidades, se descuentan tantas parejas como permita el carrito y el stock.</p>
             </div>
             <div class="promoAdminActions"><button type="button" class="primary" id="saveStorefrontComboBtn" onclick="saveStorefrontProductCombo()" disabled>💾 Guardar combinación</button><button type="button" class="softbtn" onclick="resetStorefrontComboForm()">＋ Nueva combinación</button><button type="button" class="softbtn" onclick="loadStorefrontProductCombosAdmin(true)">↻ Recargar combinaciones</button></div>
             <div id="storefrontCombosAdminStatus" class="promoAdminStatus" role="status" aria-live="polite">Las combinaciones se cargarán al abrir Configuración.</div>
@@ -1198,8 +1226,14 @@ function pedidoItemsText(items){
     const code=x.code||x.product_code||"";
     const qty=Number(x.qty??x.quantity??1)||1;
     const price=Number(x.price??x.sale_price??0)||0;
+    const originalSubtotal=Number(x.original_subtotal??(qty*price))||0;
+    const lineDiscount=Math.max(0,Number(x.discount_total)||0);
+    const netSubtotal=x.net_subtotal!==undefined&&x.net_subtotal!==null
+      ? Math.max(0,Number(x.net_subtotal)||0)
+      : Math.max(0,originalSubtotal-lineDiscount);
     const variant=[x.color,x.size].filter(Boolean).join(" / ");
-    return `• ${esc(name)}${code?` (${esc(code)})`:""}${variant?` — ${esc(variant)}`:""} — ${qty} × ${money(price)} = ${money(qty*price)}`;
+    const discountLabel=lineDiscount>0?` · Descuento: −${money(lineDiscount)} · Neto: ${money(netSubtotal)}`:"";
+    return `• ${esc(name)}${code?` (${esc(code)})`:""}${variant?` — ${esc(variant)}`:""} — ${qty} × ${money(price)} = ${money(originalSubtotal)}${discountLabel}`;
   }).join("<br>")||"Sin productos.";
 }
 
@@ -2497,50 +2531,79 @@ async function loadAdminDeferredModule(key,force=false){
  return adminDeferredModuleInFlight[key];
 }
 
-// Product-combo admin editor. Its optional SQL migration is independent of checkout/inventory functions.
+// Editor de combos: productos/categorías y reglas de descuento.
 let storefrontProductCombosAdmin=[],storefrontCombosAdminLoaded=false,storefrontComboSaving=false,storefrontComboEditingId='';
 function setStorefrontCombosAdminStatus(message,kind=''){const el=$('storefrontCombosAdminStatus');if(el){el.className='promoAdminStatus'+(kind?' '+(kind==='error'?'promoStatusError':kind==='ok'?'promoStatusOk':''):'');el.textContent=message}}
-function setStorefrontComboFormDisabled(disabled){['storefrontComboProductA','storefrontComboProductB','storefrontComboTitle','storefrontComboMessage','storefrontComboButtonLabel','storefrontComboEnabled','storefrontComboStartAt','storefrontComboEndAt'].forEach(id=>{const el=$(id);if(el)el.disabled=disabled});const save=$('saveStorefrontComboBtn');if(save)save.disabled=disabled||storefrontComboSaving}
+function setStorefrontComboFormDisabled(disabled){['storefrontComboRuleType','storefrontComboProductA','storefrontComboProductB','storefrontComboCategoryA','storefrontComboCategoryB','storefrontComboDiscountType','storefrontComboDiscountValue','storefrontComboTitle','storefrontComboMessage','storefrontComboButtonLabel','storefrontComboEnabled','storefrontComboStartAt','storefrontComboEndAt'].forEach(id=>{const el=$(id);if(el)el.disabled=disabled});const save=$('saveStorefrontComboBtn');if(save)save.disabled=disabled||storefrontComboSaving;}
 function renderStorefrontComboProductSelects(){
- const options='<option value="">Selecciona un producto…</option>'+productos.map(p=>`<option value="${esc(p.id)}">${esc((p.code?String(p.code)+' — ':'')+String(p.name||'Producto'))}</option>`).join('');
- ['storefrontComboProductA','storefrontComboProductB'].forEach(id=>{const sel=$(id);if(!sel)return;const current=sel.value;sel.innerHTML=options;if(productos.some(p=>String(p.id)===String(current)))sel.value=current});
+ const productOptions='<option value="">Selecciona un producto…</option>'+productos.map(p=>`<option value="${esc(p.id)}">${esc((p.code?String(p.code)+' — ':'')+String(p.name||'Producto'))}</option>`).join('');
+ ['storefrontComboProductA','storefrontComboProductB'].forEach(id=>{const sel=$(id);if(!sel)return;const current=sel.value;sel.innerHTML=productOptions;if(productos.some(p=>String(p.id)===String(current)))sel.value=current});
+ const inferred=(productos||[]).map(p=>String(p.category||'').trim()).filter(Boolean);
+ const categoryNames=[...new Set([...(Array.isArray(categorias)?categorias:[]),...inferred].map(x=>String(x||'').trim()).filter(Boolean))].sort((x,y)=>x.localeCompare(y,'es',{sensitivity:'base'}));
+ const categoryOptions='<option value="">Selecciona una categoría…</option>'+categoryNames.map(name=>`<option value="${esc(name)}">${esc(name)}</option>`).join('');
+ ['storefrontComboCategoryA','storefrontComboCategoryB'].forEach(id=>{const sel=$(id);if(!sel)return;const current=sel.value;sel.innerHTML=categoryOptions;if(categoryNames.some(name=>name===current))sel.value=current});
 }
-function comboLocalDate(value){if(!value)return '';const d=new Date(value);if(Number.isNaN(d.getTime()))return '';const pad=n=>String(n).padStart(2,'0');return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`}
-function comboDateIso(value){if(!value)return null;const d=new Date(value);if(Number.isNaN(d.getTime()))throw new Error('La fecha de una combinación no es válida.');return d.toISOString()}
-function resetStorefrontComboForm(){storefrontComboEditingId='';$('storefrontComboEditId').value='';$('storefrontComboProductA').value='';$('storefrontComboProductB').value='';$('storefrontComboTitle').value='Completa el look';$('storefrontComboMessage').value='Combina estos productos para completar tu estilo.';$('storefrontComboButtonLabel').value='Ver combinación';$('storefrontComboEnabled').checked=true;$('storefrontComboStartAt').value='';$('storefrontComboEndAt').value='';const button=$('saveStorefrontComboBtn');if(button)button.textContent='💾 Guardar combinación';renderStorefrontCombosAdminList();}
-function editStorefrontCombo(id){const row=storefrontProductCombosAdmin.find(x=>String(x.id)===String(id));if(!row)return;storefrontComboEditingId=String(row.id);$('storefrontComboEditId').value=storefrontComboEditingId;renderStorefrontComboProductSelects();$('storefrontComboProductA').value=String(row.product_a_id);$('storefrontComboProductB').value=String(row.product_b_id);$('storefrontComboTitle').value=String(row.title||'Completa el look');$('storefrontComboMessage').value=String(row.message||'');$('storefrontComboButtonLabel').value=String(row.button_label||'Ver combinación');$('storefrontComboEnabled').checked=row.enabled===true;$('storefrontComboStartAt').value=comboLocalDate(row.start_at);$('storefrontComboEndAt').value=comboLocalDate(row.end_at);const button=$('saveStorefrontComboBtn');if(button)button.textContent='💾 Guardar cambios';$('storefrontComboProductA').focus({preventScroll:true})}
-function renderStorefrontCombosAdminList(){
- const host=$('storefrontCombosAdminList');if(!host)return;
- if(!storefrontCombosAdminLoaded){host.innerHTML='';return}
- if(!storefrontProductCombosAdmin.length){host.innerHTML='<div class="empty">Todavía no has creado combinaciones.</div>';return}
- host.innerHTML=storefrontProductCombosAdmin.map(row=>`<article class="listItem"><div class="rowBetween" style="align-items:flex-start;gap:10px;flex-wrap:wrap"><div style="flex:1;min-width:180px"><b>${esc(row.product_a_name||'Producto principal')} → ${esc(row.product_b_name||'Producto recomendado')}</b><div class="muted">${esc(row.title||'Combinación')}: ${esc(row.message||'')}</div><small class="muted">${row.enabled?'Activa':'Inactiva'}${row.start_at?' · Desde '+new Date(row.start_at).toLocaleDateString('es-CO'):''}${row.end_at?' · Hasta '+new Date(row.end_at).toLocaleDateString('es-CO'):''}</small></div><div style="display:flex;gap:6px;flex-wrap:wrap"><button class="action" type="button" data-combo-admin-edit="${esc(row.id)}">✏️ Editar</button><button class="action" type="button" data-combo-admin-delete="${esc(row.id)}">🗑️ Eliminar</button></div></div></article>`).join('');
-}
-async function loadStorefrontProductCombosAdmin(force=false){
- if(!sb)return false;if(storefrontCombosAdminLoaded&&!force)return true;
- setStorefrontCombosAdminStatus('Cargando combinaciones…');setStorefrontComboFormDisabled(true);
- try{
-  const {data,error}=await sb.rpc('admin_list_storefront_product_combos');if(error)throw error;
-  storefrontProductCombosAdmin=Array.isArray(data)?data:[];storefrontCombosAdminLoaded=true;renderStorefrontComboProductSelects();renderStorefrontCombosAdminList();setStorefrontComboFormDisabled(false);setStorefrontCombosAdminStatus('Combinaciones cargadas desde Supabase.','ok');return true;
- }catch(error){
-  const msg=String(error?.message||error||'Error desconocido');setStorefrontCombosAdminStatus('No se pudieron cargar las combinaciones. Ejecuta sirevya_mejoras_catalogo_admin.sql en Supabase y vuelve a intentar. Detalle: '+msg,'error');setStorefrontComboFormDisabled(true);const host=$('storefrontCombosAdminList');if(host)host.innerHTML='<div class="alert">La tienda seguirá funcionando sin recomendaciones combinadas hasta instalar las funciones SQL de esta mejora.</div>';return false;
+function updateStorefrontComboRuleFields(){
+ const type=$('storefrontComboRuleType')?.value||'product_pair';const categoryMode=type==='category_pair';
+ const productFields=$('storefrontComboProductFields'),categoryFields=$('storefrontComboCategoryFields');
+ if(productFields)productFields.hidden=categoryMode;if(categoryFields)categoryFields.hidden=!categoryMode;
+ const discountType=$('storefrontComboDiscountType')?.value||'none';const value=$('storefrontComboDiscountValue'),label=$('storefrontComboDiscountValueLabel'),help=$('storefrontComboDiscountHelp');
+ if(label){
+  const name=discountType==='percent'?'Porcentaje (%)':discountType==='fixed_amount'?'Descuento en pesos (COP)':discountType==='combo_price'?'Precio final del combo (COP)':'Valor (no se usa sin descuento)';
+  label.childNodes[0].textContent=name;
+ }
+ if(value){value.disabled=!storefrontCombosAdminLoaded||discountType==='none';value.min=discountType==='percent'?'1':'0';value.max=discountType==='percent'?'100':'';value.step='1';value.placeholder=discountType==='percent'?'Ej. 10':discountType==='fixed_amount'?'Ej. 10000':'Ej. 95000';}
+ if(help){
+  help.textContent=categoryMode
+   ?'Por cada pareja de 1 unidad de la categoría A + 1 de la categoría B se aplica el beneficio. Ejemplo: un corset + una cadena de cuerpo. El descuento no se multiplica por mezclar cantidades de una sola categoría.'
+   :'El beneficio se aplica por cada pareja de una unidad del producto A + una unidad del producto B. Las unidades no reciben descuentos combinados duplicados.';
  }
 }
+function comboDiscountAdminLabel(row){const type=String(row.discount_type||'none'),value=Number(row.discount_value)||0;if(type==='percent')return `${value}% de descuento`;if(type==='fixed_amount')return `${money(value)} de descuento por pareja`;if(type==='combo_price')return `Combo por ${money(row.combo_price)}`;return 'Sin descuento';}
+function normalizeComboCategoryAdmin(value){return String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase().replace(/\s+/g,' ')}
+function comboLocalDate(value){if(!value)return '';const d=new Date(value);if(Number.isNaN(d.getTime()))return '';const pad=n=>String(n).padStart(2,'0');return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`}
+function comboDateIso(value){if(!value)return null;const d=new Date(value);if(Number.isNaN(d.getTime()))throw new Error('La fecha de una combinación no es válida.');return d.toISOString()}
+function resetStorefrontComboForm(){
+ storefrontComboEditingId='';$('storefrontComboEditId').value='';$('storefrontComboRuleType').value='product_pair';$('storefrontComboProductA').value='';$('storefrontComboProductB').value='';$('storefrontComboCategoryA').value='';$('storefrontComboCategoryB').value='';$('storefrontComboDiscountType').value='none';$('storefrontComboDiscountValue').value='10';$('storefrontComboTitle').value='Completa el look';$('storefrontComboMessage').value='Combina estos productos para completar tu estilo.';$('storefrontComboButtonLabel').value='Ver combinación';$('storefrontComboEnabled').checked=true;$('storefrontComboStartAt').value='';$('storefrontComboEndAt').value='';
+ const button=$('saveStorefrontComboBtn');if(button)button.textContent='💾 Guardar promoción';updateStorefrontComboRuleFields();renderStorefrontCombosAdminList();
+}
+function editStorefrontCombo(id){
+ const row=storefrontProductCombosAdmin.find(x=>String(x.id)===String(id));if(!row)return;
+ storefrontComboEditingId=String(row.id);$('storefrontComboEditId').value=storefrontComboEditingId;renderStorefrontComboProductSelects();
+ $('storefrontComboRuleType').value=String(row.rule_type||'product_pair');$('storefrontComboProductA').value=String(row.product_a_id||'');$('storefrontComboProductB').value=String(row.product_b_id||'');$('storefrontComboCategoryA').value=String(row.category_a||'');$('storefrontComboCategoryB').value=String(row.category_b||'');
+ $('storefrontComboDiscountType').value=String(row.discount_type||'none');$('storefrontComboDiscountValue').value=String(row.discount_type==='combo_price'?(Number(row.combo_price)||0):(Number(row.discount_value)||0));
+ $('storefrontComboTitle').value=String(row.title||'Completa el look');$('storefrontComboMessage').value=String(row.message||'');$('storefrontComboButtonLabel').value=String(row.button_label||'Ver combinación');$('storefrontComboEnabled').checked=row.enabled===true;$('storefrontComboStartAt').value=comboLocalDate(row.start_at);$('storefrontComboEndAt').value=comboLocalDate(row.end_at);
+ const button=$('saveStorefrontComboBtn');if(button)button.textContent='💾 Guardar cambios';updateStorefrontComboRuleFields();$('storefrontComboTitle').focus({preventScroll:true});
+}
+function renderStorefrontCombosAdminList(){
+ const host=$('storefrontCombosAdminList');if(!host)return;if(!storefrontCombosAdminLoaded){host.innerHTML='';return}if(!storefrontProductCombosAdmin.length){host.innerHTML='<div class="empty">Todavía no has creado combinaciones.</div>';return}
+ host.innerHTML=storefrontProductCombosAdmin.map(row=>{const isCat=String(row.rule_type||'product_pair')==='category_pair';const left=isCat?`Categoría: ${row.category_a||'—'}`:(row.product_a_name||'Producto A');const right=isCat?`Categoría: ${row.category_b||'—'}`:(row.product_b_name||'Producto B');return `<article class="listItem"><div class="rowBetween" style="align-items:flex-start;gap:10px;flex-wrap:wrap"><div style="flex:1;min-width:180px"><b>${esc(left)} → ${esc(right)}</b><div class="muted">${esc(row.title||'Combinación')}: ${esc(row.message||'')}</div><div class="comboDiscountPill">${esc(comboDiscountAdminLabel(row))}</div><small class="muted" style="display:block;margin-top:5px">${row.enabled?'Activa':'Inactiva'} · ${isCat?'Categorías':'Productos'}${row.start_at?' · Desde '+new Date(row.start_at).toLocaleDateString('es-CO'):''}${row.end_at?' · Hasta '+new Date(row.end_at).toLocaleDateString('es-CO'):''}</small></div><div style="display:flex;gap:6px;flex-wrap:wrap"><button class="action" type="button" data-combo-admin-edit="${esc(row.id)}">✏️ Editar</button><button class="action" type="button" data-combo-admin-delete="${esc(row.id)}">🗑️ Eliminar</button></div></div></article>`}).join('');
+}
+async function loadStorefrontProductCombosAdmin(force=false){
+ if(!sb)return false;if(storefrontCombosAdminLoaded&&!force)return true;setStorefrontCombosAdminStatus('Cargando promociones…');setStorefrontComboFormDisabled(true);
+ try{const {data,error}=await sb.rpc('admin_list_storefront_product_combos');if(error)throw error;storefrontProductCombosAdmin=Array.isArray(data)?data:[];storefrontCombosAdminLoaded=true;renderStorefrontComboProductSelects();renderStorefrontCombosAdminList();setStorefrontComboFormDisabled(false);updateStorefrontComboRuleFields();setStorefrontCombosAdminStatus('Promociones cargadas. Los descuentos se calculan a partir de los precios guardados en Supabase.','ok');return true;}
+ catch(error){const msg=String(error?.message||error||'Error desconocido');setStorefrontCombosAdminStatus('No se pudieron cargar las promociones. Ejecuta la migración de combos y descuentos incluida en este paquete. Detalle: '+msg,'error');setStorefrontComboFormDisabled(true);const host=$('storefrontCombosAdminList');if(host)host.innerHTML='<div class="alert">No se modifica ningún precio hasta que la migración de descuentos esté instalada.</div>';return false;}
+}
 async function saveStorefrontProductCombo(){
- if(!storefrontCombosAdminLoaded||storefrontComboSaving)return alert('Primero carga las combinaciones de Supabase.');
- const a=String($('storefrontComboProductA').value||''),b=String($('storefrontComboProductB').value||'');
+ if(!storefrontCombosAdminLoaded||storefrontComboSaving)return alert('Primero carga las promociones de Supabase.');
+ const ruleType=String($('storefrontComboRuleType').value||'product_pair');const categoryMode=ruleType==='category_pair';
+ const a=String($('storefrontComboProductA').value||''),b=String($('storefrontComboProductB').value||''),categoryA=String($('storefrontComboCategoryA').value||'').trim(),categoryB=String($('storefrontComboCategoryB').value||'').trim();
+ const discountType=String($('storefrontComboDiscountType').value||'none');const entered=Number($('storefrontComboDiscountValue').value);
  const title=String($('storefrontComboTitle').value||'').trim(),message=String($('storefrontComboMessage').value||'').trim(),buttonLabel=String($('storefrontComboButtonLabel').value||'').trim();
- if(!a||!b)return alert('Selecciona ambos productos.');if(a===b)return alert('El producto principal y el recomendado deben ser diferentes.');if(!title||!message||!buttonLabel)return alert('Completa el título, el mensaje y el botón.');
- if(title.length>90||message.length>240||buttonLabel.length>32)return alert('Uno de los textos supera su límite.');
+ if(!categoryMode&&(!a||!b))return alert('Selecciona ambos productos.');if(!categoryMode&&a===b)return alert('El producto A y el producto B deben ser diferentes.');
+ if(categoryMode&&(!categoryA||!categoryB))return alert('Selecciona las dos categorías.');if(categoryMode&&normalizeComboCategoryAdmin(categoryA)===normalizeComboCategoryAdmin(categoryB))return alert('Elige dos categorías diferentes.');
+ if(discountType!=='none'&&(!Number.isFinite(entered)||entered<0))return alert('Ingresa un descuento válido.');if(discountType==='percent'&&(entered<=0||entered>100))return alert('El porcentaje debe ser mayor que 0 y no superar el 100%.');if(['fixed_amount','combo_price'].includes(discountType)&&entered<0)return alert('El valor no puede ser negativo.');if(discountType==='fixed_amount'&&entered<=0)return alert('El descuento en pesos debe ser mayor que cero.');
+ if(!title||!message||!buttonLabel)return alert('Completa el título, mensaje y botón.');if(title.length>90||message.length>240||buttonLabel.length>32)return alert('Uno de los textos supera su límite.');
  let start,end;try{start=comboDateIso($('storefrontComboStartAt').value);end=comboDateIso($('storefrontComboEndAt').value)}catch(error){return alert(error.message)}if(start&&end&&new Date(start)>=new Date(end))return alert('La fecha final debe ser posterior a la inicial.');
  storefrontComboSaving=true;const button=$('saveStorefrontComboBtn');if(button){button.disabled=true;button.textContent='⏳ Guardando…'}
  try{
-  const {data,error}=await sb.rpc('admin_save_storefront_product_combo',{p_combo_id:storefrontComboEditingId||null,p_product_a_id:a,p_product_b_id:b,p_title:title,p_message:message,p_button_label:buttonLabel,p_enabled:$('storefrontComboEnabled').checked,p_start_at:start,p_end_at:end});
-  if(error)throw error;const row=Array.isArray(data)?data[0]:data;if(!row)throw new Error('Supabase no devolvió la combinación guardada.');
-  toast(row.enabled===true?'Combinación guardada y activa':'Combinación guardada como inactiva');resetStorefrontComboForm();storefrontCombosAdminLoaded=false;await loadStorefrontProductCombosAdmin(true);setStorefrontCombosAdminStatus(row.enabled===true?'Combinación guardada y activa. Se mostrará en el catálogo si ambos productos tienen stock y las fechas permiten la campaña. El precio no cambia automáticamente.':'Combinación guardada, pero está inactiva y no se mostrará hasta marcar “Activar recomendación”. El precio no cambia automáticamente.','ok');notifyPublicCatalogChanged('combo-changed');
- }catch(error){setStorefrontCombosAdminStatus('No se guardó la combinación. Verifica los permisos de administrador y la migración SQL. Detalle: '+String(error?.message||error),'error')}
- finally{storefrontComboSaving=false;if(button){button.textContent=storefrontComboEditingId?'💾 Guardar cambios':'💾 Guardar combinación';button.disabled=!storefrontCombosAdminLoaded}}
+  const {data,error}=await sb.rpc('admin_save_storefront_product_combo',{p_combo_id:storefrontComboEditingId||null,p_rule_type:ruleType,p_product_a_id:categoryMode?null:a||null,p_product_b_id:categoryMode?null:b||null,p_category_a:categoryMode?categoryA:null,p_category_b:categoryMode?categoryB:null,p_title:title,p_message:message,p_button_label:buttonLabel,p_enabled:$('storefrontComboEnabled').checked,p_start_at:start,p_end_at:end,p_discount_type:discountType,p_discount_value:discountType==='percent'||discountType==='fixed_amount'?entered:0,p_combo_price:discountType==='combo_price'?entered:null});
+  if(error)throw error;const row=Array.isArray(data)?data[0]:data;if(!row)throw new Error('Supabase no devolvió la promoción guardada.');
+  toast(row.enabled?'Promoción guardada y activa':'Promoción guardada como inactiva');resetStorefrontComboForm();storefrontCombosAdminLoaded=false;await loadStorefrontProductCombosAdmin(true);setStorefrontCombosAdminStatus(row.enabled?'Promoción guardada y activa. El beneficio se aplica automáticamente cuando el carrito tenga una pareja válida.':'Promoción guardada como inactiva; no afectará al carrito hasta activarla.','ok');notifyPublicCatalogChanged('combo-changed');
+ }catch(error){setStorefrontCombosAdminStatus('No se guardó la promoción. Comprueba que ejecutaste la migración de descuentos y que eres la cuenta administradora. Detalle: '+String(error?.message||error),'error')}
+ finally{storefrontComboSaving=false;if(button){button.textContent=storefrontComboEditingId?'💾 Guardar cambios':'💾 Guardar promoción';button.disabled=!storefrontCombosAdminLoaded}}
 }
-async function deleteStorefrontProductCombo(id){if(!confirm('¿Eliminar esta recomendación combinada? No se modifican los productos ni sus precios.'))return;try{const {data,error}=await sb.rpc('admin_delete_storefront_product_combo',{p_combo_id:id});if(error)throw error;if(data!==true&&!(Array.isArray(data)&&data[0]===true))throw new Error('Supabase no confirmó la eliminación.');storefrontProductCombosAdmin=storefrontProductCombosAdmin.filter(row=>String(row.id)!==String(id));renderStorefrontCombosAdminList();notifyPublicCatalogChanged('combo-changed');toast('Combinación eliminada')}catch(error){setStorefrontCombosAdminStatus('No se eliminó la combinación. '+String(error?.message||error),'error')}}
+async function deleteStorefrontProductCombo(id){if(!confirm('¿Eliminar esta promoción? No se modifican los precios de los productos.'))return;try{const {data,error}=await sb.rpc('admin_delete_storefront_product_combo',{p_combo_id:id});if(error)throw error;if(data!==true&&!(Array.isArray(data)&&data[0]===true))throw new Error('Supabase no confirmó la eliminación.');storefrontProductCombosAdmin=storefrontProductCombosAdmin.filter(row=>String(row.id)!==String(id));renderStorefrontCombosAdminList();notifyPublicCatalogChanged('combo-changed');toast('Promoción eliminada')}catch(error){setStorefrontCombosAdminStatus('No se eliminó la promoción. '+String(error?.message||error),'error')}}
 let storefrontMarketingMetricsBusy=false;
 async function refreshStorefrontMarketingMetrics(){
  if(storefrontMarketingMetricsBusy||!sb)return;storefrontMarketingMetricsBusy=true;const status=$('storefrontMarketingMetricsStatus'),host=$('storefrontMarketingMetricsReport');if(status)status.textContent='Consultando métricas…';
@@ -2597,6 +2660,7 @@ document.addEventListener("DOMContentLoaded",()=>{
   }
   const paymentToggle=$("onlinePaymentsToggle");if(paymentToggle)paymentToggle.addEventListener("change",updateOnlinePaymentAdminLabel);
   const combosHost=$("storefrontCombosAdminList");if(combosHost)combosHost.addEventListener('click',event=>{const edit=event.target.closest('[data-combo-admin-edit]'),del=event.target.closest('[data-combo-admin-delete]');if(edit)editStorefrontCombo(edit.dataset.comboAdminEdit);if(del)void deleteStorefrontProductCombo(del.dataset.comboAdminDelete)});
+  const comboRuleType=$('storefrontComboRuleType');if(comboRuleType)comboRuleType.addEventListener('change',updateStorefrontComboRuleFields);const comboDiscountType=$('storefrontComboDiscountType');if(comboDiscountType)comboDiscountType.addEventListener('change',updateStorefrontComboRuleFields);
   const f=$("pFoto");if(f)f.addEventListener("change",renderPhotoPreview);
   const guideFile=$("pGuiaTallasFoto");if(guideFile)guideFile.addEventListener("change",()=>{if(guideFile.files?.length)sizeGuideImageRemoveRequested=false;renderSizeGuidePhotoPreview()});
 
@@ -2642,7 +2706,7 @@ function seasonalPromoFieldValue(){
  const background=$('seasonalPromoBackgroundColor')?.value||SIREVYA_PROMO_PRESETS[style].background_color;
  const accent=$('seasonalPromoAccentColor')?.value||SIREVYA_PROMO_PRESETS[style].accent_color;
  const textColor=$('seasonalPromoTextColor')?.value||'#ffffff';
- const popupSize=['tiny','small','medium','large'].includes($('seasonalPromoSize')?.value)?$('seasonalPromoSize').value:'small';
+ const popupSize=['micro','tiny','small','medium','large'].includes($('seasonalPromoSize')?.value)?$('seasonalPromoSize').value:'small';
  const popupShape=['rounded','circle'].includes($('seasonalPromoShape')?.value)?$('seasonalPromoShape').value:'rounded';
  const popupPosition=['center','bottom-right','bottom-center'].includes($('seasonalPromoPosition')?.value)?$('seasonalPromoPosition').value:'center';
  const visibleDurationMs=[0,3000,5000,8000,10000].includes(Number($('seasonalPromoDuration')?.value))?Number($('seasonalPromoDuration').value):3000;
@@ -2676,7 +2740,7 @@ function applySeasonalPromoRow(row){
  $('seasonalPromoBackgroundColor').value=/^#[0-9a-f]{6}$/i.test(row?.background_color||'')?row.background_color:defaults.background_color;
  $('seasonalPromoAccentColor').value=/^#[0-9a-f]{6}$/i.test(row?.accent_color||'')?row.accent_color:defaults.accent_color;
  $('seasonalPromoTextColor').value=/^#[0-9a-f]{6}$/i.test(row?.text_color||'')?row.text_color:(defaults.text_color||'#ffffff');
- $('seasonalPromoSize').value=['tiny','small','medium','large'].includes(row?.popup_size)?row.popup_size:'small';
+ $('seasonalPromoSize').value=['micro','tiny','small','medium','large'].includes(row?.popup_size)?row.popup_size:'small';
  $('seasonalPromoShape').value=['rounded','circle'].includes(row?.popup_shape)?row.popup_shape:'rounded';
  $('seasonalPromoPosition').value=['center','bottom-right','bottom-center'].includes(row?.popup_position)?row.popup_position:'center';
  $('seasonalPromoDuration').value=String([0,3000,5000,8000,10000].includes(Number(row?.visible_duration_ms))?Number(row.visible_duration_ms):3000);
@@ -2737,7 +2801,7 @@ function fillSeasonalPromoPopup(config){
  const glyphs=palette[config.style]||palette.halloween;
  overlay.dataset.position=['center','bottom-right','bottom-center'].includes(config.popup_position)?config.popup_position:'center';
  overlay.dataset.animation=config.animate===false?'none':(['falling','sparkle','none'].includes(config.animation_style)?config.animation_style:'falling');
- card.dataset.style=config.style;card.dataset.size=['tiny','small','medium','large'].includes(config.popup_size)?config.popup_size:'small';card.dataset.shape=['rounded','circle'].includes(config.popup_shape)?config.popup_shape:'rounded';card.style.setProperty('--promo-bg',config.background_color);card.style.setProperty('--promo-accent',config.accent_color);card.style.setProperty('--promo-text',config.text_color||'#ffffff');card.style.setProperty('--promo-button-text',seasonalPromoButtonText(config.accent_color));
+ card.dataset.style=config.style;card.dataset.size=['micro','tiny','small','medium','large'].includes(config.popup_size)?config.popup_size:'small';card.dataset.shape=['rounded','circle'].includes(config.popup_shape)?config.popup_shape:'rounded';card.style.setProperty('--promo-bg',config.background_color);card.style.setProperty('--promo-accent',config.accent_color);card.style.setProperty('--promo-text',config.text_color||'#ffffff');card.style.setProperty('--promo-button-text',seasonalPromoButtonText(config.accent_color));
  $('seasonalPromoBadge').textContent=config.eyebrow||'';$('seasonalPromoTitle').textContent=config.title||'';$('seasonalPromoMessage').textContent=config.message||'';
  const cta=$('seasonalPromoCta');cta.textContent=config.button_label||'Ver catálogo';const arrow=document.createElement('span');arrow.setAttribute('aria-hidden','true');arrow.textContent=' ↗';cta.appendChild(arrow);cta.href=seasonalPromoUrlIsSafe(config.button_url)?config.button_url:'#catalogo';
  const ornament=$('seasonalPromoOrnament');ornament.replaceChildren();glyphs.slice(0,3).forEach(glyph=>{const span=document.createElement('span');span.textContent=glyph;ornament.appendChild(span)});

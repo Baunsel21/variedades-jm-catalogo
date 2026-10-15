@@ -1522,6 +1522,24 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
 .sirevyaPromoCard[data-style="festive"]{border-radius:18px}
 @media(max-width:480px){.sirevyaPromoOverlay{padding:10px}.sirevyaPromoCard[data-size="small"]{width:min(84vw,260px);padding:13px 12px 10px;border-radius:16px}.sirevyaPromoCard[data-size="medium"]{width:min(90vw,310px);padding:18px 16px 13px}.sirevyaPromoCard[data-size="large"]{width:min(94vw,380px);padding:22px 18px 17px}.sirevyaPromoWeb{width:92px;height:92px}.sirevyaPromoClose{top:5px;right:5px;width:24px;height:24px;font-size:17px}.sirevyaPromoCard[data-size="small"] .sirevyaPromoTitle{font-size:19px}.sirevyaPromoCard[data-size="small"] .sirevyaPromoMessage{font-size:10.5px;margin-bottom:9px}.sirevyaPromoCard[data-size="medium"] .sirevyaPromoTitle{font-size:23px}.sirevyaPromoCard[data-size="large"] .sirevyaPromoTitle{font-size:27px}.sirevyaPromoOrnament{font-size:16px;gap:7px;min-height:20px}.sirevyaPromoBadge{font-size:7px;letter-spacing:.08em;padding:4px 7px;margin-bottom:6px}.sirevyaPromoCta{min-height:33px;padding:8px 10px;font-size:11px}.sirevyaPromoFoot{margin-top:7px;font-size:8px}.sirevyaPromoOverlay[data-position="bottom-right"],.sirevyaPromoOverlay[data-position="bottom-center"]{padding:10px}}
 @media(prefers-reduced-motion:reduce){.sirevyaPromoOverlay,.sirevyaPromoCard,.sirevyaPromoClose,.sirevyaPromoCta{transition:none!important}.sirevyaPromoFalling{display:none!important}.sirevyaPromoFalling span{animation:none!important;will-change:auto}}
+
+/* Extra-small popup option. Kept local to the promo widget. */
+.sirevyaPromoCard[data-size="micro"]{width:min(55vw,160px);max-height:min(64vh,360px);padding:10px 9px 8px;border-radius:12px}
+.sirevyaPromoCard[data-size="micro"] .sirevyaPromoTitle{font-size:13px;line-height:1.08;margin-bottom:3px;max-width:140px}
+.sirevyaPromoCard[data-size="micro"] .sirevyaPromoMessage{font-size:8.5px;line-height:1.2;margin-bottom:5px;max-width:140px}
+.sirevyaPromoCard[data-size="micro"] .sirevyaPromoOrnament{font-size:12px;min-height:13px;gap:4px;margin-bottom:2px}
+.sirevyaPromoCard[data-size="micro"] .sirevyaPromoBadge{font-size:6px;padding:3px 5px;margin-bottom:4px}
+.sirevyaPromoCard[data-size="micro"] .sirevyaPromoCta{min-height:24px;padding:4px 7px;font-size:8px}
+.sirevyaPromoCard[data-size="micro"] .sirevyaPromoFoot{font-size:6px;margin-top:5px}
+.sirevyaPromoCard[data-size="micro"][data-shape="circle"]{width:min(36vw,138px,42vh);height:min(36vw,138px,42vh);max-height:min(36vw,138px,42vh);padding:18px 12px 9px}
+.sirevyaPromoCard[data-size="micro"][data-shape="circle"] .sirevyaPromoClose{top:16px;right:24px;width:17px;height:17px;font-size:12px}
+.sirevyaPromoCard[data-size="micro"][data-shape="circle"] .sirevyaPromoOrnament{font-size:9px;min-height:9px;gap:3px;margin:0 auto 1px}
+.sirevyaPromoCard[data-size="micro"][data-shape="circle"] .sirevyaPromoBadge{max-width:100px;font-size:4.8px;padding:2px 4px;letter-spacing:.03em;margin-bottom:2px}
+.sirevyaPromoCard[data-size="micro"][data-shape="circle"] .sirevyaPromoTitle{max-width:108px;font-size:10.5px;line-height:1.02;margin:0 auto 2px;-webkit-line-clamp:2}
+.sirevyaPromoCard[data-size="micro"][data-shape="circle"] .sirevyaPromoMessage{max-width:108px;font-size:6.5px;line-height:1.08;margin:0 auto 3px;-webkit-line-clamp:2}
+.sirevyaPromoCard[data-size="micro"][data-shape="circle"] .sirevyaPromoCta{max-width:105px;min-height:20px;padding:3px 5px;font-size:7px}
+.sirevyaPromoCard[data-size="micro"][data-shape="circle"] .sirevyaPromoFoot{font-size:4.5px;margin-top:2px}
+@media(max-width:480px){.sirevyaPromoCard[data-size="micro"]{width:min(48vw,152px);padding:9px 8px 7px}.sirevyaPromoCard[data-size="micro"][data-shape="circle"]{width:min(37vw,132px,42vh);height:min(37vw,132px,42vh);max-height:min(37vw,132px,42vh);padding:17px 11px 8px}}
 </style>
 
 <style id="sirevyaProductComboStyles">
@@ -1555,6 +1573,16 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
  .storefrontComboCatalogCopy{padding:12px}
 }
 
+
+.comboDiscountPill{display:inline-flex;align-items:center;gap:5px;margin-top:7px;padding:6px 9px;border-radius:999px;background:#fbe8ef;color:#8d173e;border:1px solid #edc4d2;font-size:11px;font-weight:850;line-height:1.25}
+.comboDiscountMeta{font-size:11px!important;font-weight:800;color:#8d173e!important;margin:7px 0 0!important}
+.cartDiscountSummary{padding:8px 0 10px;border-top:1px dashed #eadce2;margin-top:5px;font-size:12px;color:#6f1f3b;line-height:1.45}
+.cartDiscountSummary[hidden],.checkoutComboDiscountSummary[hidden]{display:none!important}
+.checkoutComboDiscountSummary{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin:8px 0 4px;padding:10px 12px;background:#fff5f8;border:1px solid #efd5df;border-radius:12px;color:#821b40;font-size:12px;font-weight:800;line-height:1.4}
+.checkoutComboDiscountSummary small{display:block;font-weight:600;color:#7f6a72;margin-top:3px}
+.checkoutSummaryPriceWrap{display:flex;flex-direction:column;align-items:flex-end;gap:2px;white-space:nowrap;font-weight:850}
+.checkoutSummaryOriginal{color:#8b7f82;text-decoration:line-through;font-size:10px;font-weight:600}
+.checkoutSummaryNet{color:#8e2948;font-weight:900}
 </style>
 </head>
 <body>
@@ -1629,12 +1657,12 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
   <input id="search" class="search" placeholder="Buscar productos..." oninput="handleSearchInput()" aria-label="Buscar productos">
 </div>
 <div class="catalogCountLine"><span id="count" class="count">Cargando catálogo…</span></div>
-<section id="cartBar" class="cartBar" aria-hidden="true" onclick="if(event.target===this)hideCart()"><div class="cartPanel" role="dialog" aria-modal="true" aria-labelledby="cartDrawerTitle"><div class="cartDrawerBody"><div class="cartHead"><div><div id="cartDrawerTitle" class="cartTitle">Tu carrito</div><div id="cartSummary" class="cartSummary">0 productos</div></div><button class="cartClose" type="button" onclick="hideCart()" aria-label="Cerrar carrito">×</button></div><div class="cartShippingBox" aria-live="polite"><div id="cartShippingMessage" class="cartShippingMessage">Envío gratis en Cali y desde $130.000 en otras ciudades.</div><div class="cartShippingTrack" role="progressbar" aria-label="Progreso para envío gratis fuera de Cali" aria-valuemin="0" aria-valuemax="130000" aria-valuenow="0"><div id="cartShippingFill" class="cartShippingFill"></div><span id="cartShippingTruck" class="cartShippingTruck" aria-hidden="true">🚚</span></div><div class="cartShippingFoot"><span>Envío gratis desde $130.000 fuera de Cali</span><span id="cartShippingPercent">0%</span></div><div class="cartShippingLocalNote">🚚 Envío gratis a Cali también</div></div><div id="cartItems" class="cartItems"></div><div class="cartFooter"><div class="cartFooterTotal"><span>Total estimado</span><strong id="cartDrawerTotal">$0</strong></div><p class="cartFooterNote">El envío se confirma según tu ciudad en el siguiente paso.</p><button id="cartSend" class="cartSend" type="button" onclick="sendCart()">Pagar pedido</button></div></div></div></section>
+<section id="cartBar" class="cartBar" aria-hidden="true" onclick="if(event.target===this)hideCart()"><div class="cartPanel" role="dialog" aria-modal="true" aria-labelledby="cartDrawerTitle"><div class="cartDrawerBody"><div class="cartHead"><div><div id="cartDrawerTitle" class="cartTitle">Tu carrito</div><div id="cartSummary" class="cartSummary">0 productos</div></div><button class="cartClose" type="button" onclick="hideCart()" aria-label="Cerrar carrito">×</button></div><div class="cartShippingBox" aria-live="polite"><div id="cartShippingMessage" class="cartShippingMessage">Envío gratis en Cali y desde $130.000 en otras ciudades.</div><div class="cartShippingTrack" role="progressbar" aria-label="Progreso para envío gratis fuera de Cali" aria-valuemin="0" aria-valuemax="130000" aria-valuenow="0"><div id="cartShippingFill" class="cartShippingFill"></div><span id="cartShippingTruck" class="cartShippingTruck" aria-hidden="true">🚚</span></div><div class="cartShippingFoot"><span>Envío gratis desde $130.000 fuera de Cali</span><span id="cartShippingPercent">0%</span></div><div class="cartShippingLocalNote">🚚 Envío gratis a Cali también</div></div><div id="cartItems" class="cartItems"></div><div class="cartFooter"><div class="cartFooterTotal"><span>Total estimado</span><strong id="cartDrawerTotal">$0</strong></div><div id="cartDiscountLine" class="cartDiscountSummary" hidden></div><p class="cartFooterNote">El envío se confirma según tu ciudad en el siguiente paso.</p><button id="cartSend" class="cartSend" type="button" onclick="sendCart()">Pagar pedido</button></div></div></div></section>
 <section id="storefrontComboCatalogSection" class="storefrontComboCatalogSection" hidden aria-labelledby="storefrontComboCatalogTitle">
   <div class="storefrontComboCatalogIntro">
     <span class="storefrontComboEyebrow">SIREVYA · COMPLETA TU ESTILO</span>
     <h2 id="storefrontComboCatalogTitle">Combina y descubre</h2>
-    <p>Ideas para llevar tus favoritos juntos. Cada artículo conserva su precio individual.</p>
+    <p>Combina los productos indicados o compra una pieza de cada categoría participante. Si hay un descuento configurado, se aplica automáticamente en el carrito.</p>
   </div>
   <div id="storefrontComboCatalogGrid" class="storefrontComboCatalogGrid"></div>
 </section>
@@ -2747,12 +2775,50 @@ async function loadStorefrontProductCombos({force=false}={}){
    if(error)throw error;
    storefrontProductCombos=Array.isArray(data)?data:[];
    renderStorefrontComboCatalog();
+   renderCart();
+   if($('checkoutModal')?.classList.contains('open'))updateShipping();
    if(detailProduct&&$('productDetailModal')?.classList.contains('open'))updateDetailDescription(detailProduct);
    return storefrontProductCombos;
   }catch(error){console.debug('Las recomendaciones de productos combinados no están instaladas; el catálogo sigue funcionando.',error?.message||error);return storefrontProductCombos}
   finally{storefrontProductCombosLoading=null}
  })();
  return storefrontProductCombosLoading;
+}
+function normalizeComboCategory(value){
+ return String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase().replace(/\s+/g,' ');
+}
+function comboCategoryMatches(product,category){
+ return !!product&&normalizeComboCategory(product.category)===normalizeComboCategory(category);
+}
+function storefrontComboDiscountLabel(combo){
+ const type=String(combo?.discount_type||'none');
+ const value=Math.max(0,Number(combo?.discount_value)||0);
+ if(type==='percent'&&value>0)return `${value}% de descuento por pareja`;
+ if(type==='fixed_amount'&&value>0)return `${money(value)} de descuento por pareja`;
+ if(type==='combo_price'&&Number(combo?.combo_price)>=0)return `Precio total del combo: ${money(combo.combo_price)}`;
+ return 'Recomendación de productos';
+}
+function getStorefrontComboRepresentativeProducts(combo){
+ const available=productos.filter(p=>productStockTotal(p)>0);
+ if(String(combo?.rule_type||'product_pair')==='category_pair'){
+  const a=available.find(p=>comboCategoryMatches(p,combo.category_a));
+  const b=available.find(p=>comboCategoryMatches(p,combo.category_b)&&String(p.id)!==String(a?.id));
+  return a&&b?{primary:a,partner:b}:null;
+ }
+ const primary=available.find(p=>String(p.id)===String(combo?.product_a_id));
+ const partner=available.find(p=>String(p.id)===String(combo?.product_b_id));
+ return primary&&partner?{primary,partner}:null;
+}
+function getStorefrontComboPartnerForProduct(product,combo){
+ if(!product||!combo)return null;
+ if(String(combo.rule_type||'product_pair')==='category_pair'){
+  if(comboCategoryMatches(product,combo.category_a))return productos.find(p=>String(p.id)!==String(product.id)&&comboCategoryMatches(p,combo.category_b)&&productStockTotal(p)>0)||null;
+  if(comboCategoryMatches(product,combo.category_b))return productos.find(p=>String(p.id)!==String(product.id)&&comboCategoryMatches(p,combo.category_a)&&productStockTotal(p)>0)||null;
+  return null;
+ }
+ if(String(product.id)===String(combo.product_a_id))return productos.find(p=>String(p.id)===String(combo.product_b_id)&&productStockTotal(p)>0)||null;
+ if(String(product.id)===String(combo.product_b_id))return productos.find(p=>String(p.id)===String(combo.product_a_id)&&productStockTotal(p)>0)||null;
+ return null;
 }
 function openComboPartner(button,event){
  if(event){event.preventDefault();event.stopPropagation()}
@@ -2765,25 +2831,28 @@ function renderStorefrontComboCatalog(){
  const section=$('storefrontComboCatalogSection'),host=$('storefrontComboCatalogGrid');
  if(!section||!host)return;
  const rows=(Array.isArray(storefrontProductCombos)?storefrontProductCombos:[])
-  .map(combo=>({combo,primary:productos.find(p=>String(p.id)===String(combo.product_a_id)),partner:productos.find(p=>String(p.id)===String(combo.product_b_id))}))
-  .filter(row=>row.primary&&row.partner&&productStockTotal(row.primary)>0&&productStockTotal(row.partner)>0)
+  .map(combo=>({combo,...(getStorefrontComboRepresentativeProducts(combo)||{})}))
+  .filter(row=>row.primary&&row.partner)
   .slice(0,8);
  if(!rows.length){host.replaceChildren();section.hidden=true;return}
  host.innerHTML=rows.map(({combo,primary,partner})=>{
    const primaryImage=productImages(primary)[0]||publicImage(primary.image_url)||'';
    const partnerImage=productImages(partner)[0]||publicImage(partner.image_url)||'';
+   const isCategory=String(combo.rule_type||'product_pair')==='category_pair';
+   const context=isCategory?`Compra 1 producto de ${esc(combo.category_a)} + 1 de ${esc(combo.category_b)}.`:'Compra los dos productos indicados para aplicar la promoción.';
+   const discountLabel=storefrontComboDiscountLabel(combo);
    return `<article class="storefrontComboCatalogCard" data-catalog-combo-id="${esc(combo.id)}">
      <div class="storefrontComboCatalogPair">
        <button type="button" class="storefrontComboCatalogProduct" data-combo-open-product="${esc(primary.id)}" data-combo-id="${esc(combo.id)}" aria-label="Ver ${esc(primary.name||'producto principal')}">
          ${primaryImage?`<img src="${esc(primaryImage)}" alt="${esc(primary.name||'Producto principal')}" loading="lazy" decoding="async">`:'<span class="detailRelatedNoImage">✦</span>'}
-         <span class="storefrontComboCatalogProductName">${esc(primary.name||'Producto principal')}</span><span class="storefrontComboCatalogProductPrice">${money(primary.sale_price)}</span>
+         <span class="storefrontComboCatalogProductName">${esc(isCategory?combo.category_a:(primary.name||'Producto principal'))}</span><span class="storefrontComboCatalogProductPrice">${isCategory?'Desde ':''}${money(primary.sale_price)}</span>
        </button>
        <button type="button" class="storefrontComboCatalogProduct" data-combo-open-product="${esc(partner.id)}" data-combo-id="${esc(combo.id)}" aria-label="Ver ${esc(partner.name||'producto recomendado')}">
          ${partnerImage?`<img src="${esc(partnerImage)}" alt="${esc(partner.name||'Producto recomendado')}" loading="lazy" decoding="async">`:'<span class="detailRelatedNoImage">✦</span>'}
-         <span class="storefrontComboCatalogProductName">${esc(partner.name||'Producto recomendado')}</span><span class="storefrontComboCatalogProductPrice">${money(partner.sale_price)}</span>
+         <span class="storefrontComboCatalogProductName">${esc(isCategory?combo.category_b:(partner.name||'Producto recomendado'))}</span><span class="storefrontComboCatalogProductPrice">${isCategory?'Desde ':''}${money(partner.sale_price)}</span>
        </button>
      </div>
-     <div class="storefrontComboCatalogCopy"><strong>${esc(combo.title||'Completa el look')}</strong><p>${esc(combo.message||'Descubre esta combinación de productos.')}</p><button type="button" class="storefrontComboCatalogAction" data-combo-open-product="${esc(primary.id)}" data-combo-id="${esc(combo.id)}">${esc(combo.button_label||'Ver combinación')}</button></div>
+     <div class="storefrontComboCatalogCopy"><strong>${esc(combo.title||'Completa el look')}</strong><p>${esc(combo.message||context)}${isCategory?' '+context:''}</p><div class="comboDiscountPill">${esc(discountLabel)}</div><button type="button" class="storefrontComboCatalogAction" data-combo-open-product="${esc(primary.id)}" data-combo-id="${esc(combo.id)}">${esc(combo.button_label||'Ver combinación')}</button></div>
    </article>`;
  }).join('');
  section.hidden=false;
@@ -2819,8 +2888,8 @@ function updateDetailDescription(p){
    :'';
  const deliverySection=accordion('Tiempo de entrega',`<p class="detailLongText">${esc(deliveryText)}</p>`,'detailDeliveryAccordion');
  const relatedSection=related.length?`<section class="detailRelatedSection"><div class="detailSectionHeading"><h3>Productos relacionados</h3><span></span></div><div class="detailRelatedGrid">${related.map(item=>{const image=productImages(item)[0]||'';return `<button type="button" class="detailRelatedCard" data-related-product-id="${esc(item.id)}" onclick="openRelatedProduct(this,event)">${image?`<img src="${esc(image)}" alt="${esc(item.name||'Producto relacionado')}" loading="lazy" decoding="async">`:'<span class="detailRelatedNoImage">✦</span>'}<span class="detailRelatedName">${esc(item.name||'Producto')}</span><span class="detailRelatedPrice">${money(item.sale_price)}</span></button>`}).join('')}</div></section>`:'';
- const comboCards=(storefrontProductCombos||[]).filter(combo=>String(combo.product_a_id)===String(p.id)).map(combo=>({combo,product:productos.find(item=>String(item.id)===String(combo.product_b_id))})).filter(x=>x.product&&productStockTotal(x.product)>0);
- const comboSection=comboCards.length?`<section class="detailComboSection"><div class="detailSectionHeading"><h3>Combina con estilo</h3><span></span></div>${comboCards.map(({combo,product})=>{const image=productImages(product)[0]||product.image_url||'';return `<article class="detailComboCard"><div class="detailComboImage">${image?`<img src="${esc(image)}" alt="${esc(product.name||'Producto recomendado')}" loading="lazy" decoding="async">`:'<span>✦</span>'}</div><div class="detailComboCopy"><strong>${esc(combo.title||'Completa el look')}</strong><p>${esc(combo.message||'Descubre esta combinación de productos.')}</p><span class="detailRelatedPrice">${money(product.sale_price)}</span><button type="button" class="detailComboButton" data-combo-partner-id="${esc(product.id)}" data-combo-id="${esc(combo.id)}" onclick="openComboPartner(this,event)">${esc(combo.button_label||'Ver producto')}</button></div></article>`}).join('')}</section>`:'';
+ const comboCards=(storefrontProductCombos||[]).map(combo=>({combo,product:getStorefrontComboPartnerForProduct(p,combo)})).filter(x=>x.product&&productStockTotal(x.product)>0);
+ const comboSection=comboCards.length?`<section class="detailComboSection"><div class="detailSectionHeading"><h3>Combina con estilo</h3><span></span></div>${comboCards.map(({combo,product})=>{const image=productImages(product)[0]||product.image_url||'';return `<article class="detailComboCard"><div class="detailComboImage">${image?`<img src="${esc(image)}" alt="${esc(product.name||'Producto recomendado')}" loading="lazy" decoding="async">`:'<span>✦</span>'}</div><div class="detailComboCopy"><strong>${esc(combo.title||'Completa el look')}</strong><p>${esc(combo.message||'Descubre esta combinación de productos.')}</p><span class="detailRelatedPrice">${money(product.sale_price)}</span><span class="comboDiscountMeta">${esc(storefrontComboDiscountLabel(combo))}</span><button type="button" class="detailComboButton" data-combo-partner-id="${esc(product.id)}" data-combo-id="${esc(combo.id)}" onclick="openComboPartner(this,event)">${esc(combo.button_label||'Ver producto')}</button></div></article>`}).join('')}</section>`:'';
  if(comboCards.length)comboCards.forEach(({combo})=>trackStorefrontMarketingEvent('combo',combo.id,'impression'));
  host.innerHTML=`<div class="detailAccordionGroup">${descriptionSection}${sizeGuideSection}${deliverySection}</div>${comboSection}${relatedSection}`;
  host.querySelectorAll('.detailAccordion').forEach(el=>{if(openSections.has(el.dataset.detailSection||''))el.open=true});
@@ -3166,6 +3235,59 @@ let cart=[];
 let cartOpen=false;
 let checkoutCart=null;
 function getCheckoutItems(){return checkoutCart||cart;}
+function comboPriceForItem(item){
+ const p=productos.find(row=>String(row.id)===String(item?.id));
+ const price=p&&Number.isFinite(Number(p.sale_price))?Number(p.sale_price):Number(item?.price)||0;
+ return Math.max(0,price);
+}
+function calculateStorefrontComboPricing(items){
+ const source=Array.isArray(items)?items:[];
+ const lines=source.map((item,index)=>{
+  const product=productos.find(row=>String(row.id)===String(item?.id))||null;
+  const qty=Math.max(0,Math.floor(Number(item?.qty)||0));
+  const unitPrice=comboPriceForItem(item);
+  return {index,item,product,qty,unitPrice,remaining:qty,lineDiscount:0,originalSubtotal:unitPrice*qty};
+ });
+ const originalSubtotal=lines.reduce((sum,line)=>sum+line.originalSubtotal,0);
+ const rules=[...(storefrontProductCombos||[])].filter(row=>String(row.discount_type||'none')!=='none')
+  .sort((a,b)=>String(a.created_at||'').localeCompare(String(b.created_at||''))||String(a.id||'').localeCompare(String(b.id||'')));
+ const applied=[];
+ for(const rule of rules){
+  let unitsApplied=0,discountApplied=0;
+  for(let i=0;i<lines.length;i++){
+   const a=lines[i];if(a.remaining<=0||!a.product)continue;
+   const isA=String(rule.rule_type||'product_pair')==='category_pair'
+    ?comboCategoryMatches(a.product,rule.category_a):String(a.product.id)===String(rule.product_a_id);
+   if(!isA)continue;
+   for(let j=0;j<lines.length;j++){
+    const b=lines[j];if(i===j||b.remaining<=0||!b.product)continue;
+    const isB=String(rule.rule_type||'product_pair')==='category_pair'
+     ?comboCategoryMatches(b.product,rule.category_b):String(b.product.id)===String(rule.product_b_id);
+    if(!isB)continue;
+    const pairSubtotal=a.unitPrice+b.unitPrice;
+    if(pairSubtotal<=0)continue;
+    let savingPerPair=0;
+    const discountType=String(rule.discount_type||'none');
+    const discountValue=Math.max(0,Number(rule.discount_value)||0);
+    if(discountType==='percent')savingPerPair=Math.round(pairSubtotal*Math.min(100,discountValue)/100);
+    else if(discountType==='fixed_amount')savingPerPair=Math.min(pairSubtotal,discountValue);
+    else if(discountType==='combo_price')savingPerPair=Math.max(0,pairSubtotal-Math.max(0,Number(rule.combo_price)||0));
+    savingPerPair=Math.min(pairSubtotal,Math.max(0,savingPerPair));
+    if(!savingPerPair)continue;
+    const units=Math.min(a.remaining,b.remaining);
+    const saveTotal=savingPerPair*units;
+    const shareA=Math.round(savingPerPair*a.unitPrice/pairSubtotal);
+    const shareB=savingPerPair-shareA;
+    a.lineDiscount+=shareA*units;b.lineDiscount+=shareB*units;
+    a.remaining-=units;b.remaining-=units;
+    unitsApplied+=units;discountApplied+=saveTotal;
+   }
+  }
+  if(discountApplied>0)applied.push({id:String(rule.id),title:String(rule.title||'Promoción combinada'),type:String(rule.discount_type),value:Number(rule.discount_value)||0,combo_price:Number(rule.combo_price)||0,units:unitsApplied,discount:discountApplied});
+ }
+ const discountTotal=lines.reduce((sum,line)=>sum+line.lineDiscount,0);
+ return {lines:lines.map(line=>({...line,lineDiscount:Math.min(line.originalSubtotal,line.lineDiscount),netSubtotal:Math.max(0,line.originalSubtotal-line.lineDiscount)})),originalSubtotal,discountTotal,subtotal:Math.max(0,originalSubtotal-discountTotal),applied};
+}
 try{
  const savedCart=JSON.parse(localStorage.getItem(WOMPI_CART_KEY)||'null');
  if(Array.isArray(savedCart)) cart=savedCart;
@@ -3273,25 +3395,27 @@ function renderCart(){
  updateCartBadge();
  if(!bar||!items||!sum)return;
  if(!cart.length){
-   cartOpen=false;
-   bar.classList.remove('cartOpen');
-   bar.setAttribute('aria-hidden','true');
-   items.innerHTML='';
-   sum.textContent='0 productos';
+   cartOpen=false;bar.classList.remove('cartOpen');bar.setAttribute('aria-hidden','true');items.innerHTML='';sum.textContent='0 productos';
    if($('cartDrawerTotal'))$('cartDrawerTotal').textContent=money(0);
+   const discountLine=$('cartDiscountLine');if(discountLine){discountLine.hidden=true;discountLine.textContent='';}
    updateCartShippingProgress(0);
    if(!$('checkoutModal')?.classList.contains('open'))document.body.style.overflow='';
    return;
  }
  if(cartOpen){bar.classList.add('cartOpen');bar.setAttribute('aria-hidden','false');}
  else{bar.classList.remove('cartOpen');bar.setAttribute('aria-hidden','true');}
- const qty=cart.reduce((a,x)=>a+x.qty,0),total=cart.reduce((a,x)=>a+x.qty*x.price,0);
+ const priced=calculateStorefrontComboPricing(cart);
+ const qty=cart.reduce((a,x)=>a+(Number(x.qty)||0),0),total=priced.subtotal;
  sum.textContent=qty+' '+(qty===1?'unidad':'unidades')+' • '+money(total);
  if($('cartDrawerTotal'))$('cartDrawerTotal').textContent=money(total);
+ const discountLine=$('cartDiscountLine');
+ if(discountLine){
+  discountLine.hidden=priced.discountTotal<=0;
+  discountLine.innerHTML=priced.discountTotal>0?`<div style="display:flex;justify-content:space-between;gap:12px"><span>Subtotal: ${money(priced.originalSubtotal)}</span><strong>Descuento combos: −${money(priced.discountTotal)}</strong></div><div style="margin-top:3px">${priced.applied.map(row=>`${esc(row.title)}: −${money(row.discount)}`).join(' · ')}</div>`:'';
+ }
  updateCartShippingProgress(total);
- items.innerHTML=cart.map((x,i)=>{const p=productos.find(p=>String(p.id)===String(x.id));const img=p?productImages(p)[0]:'';return `<div class="cartItem">${img?`<img class="cartThumb" src="${esc(img)}" alt="${esc(x.name)}" loading="lazy" decoding="async">`:''}<div class="cartItemInfo"><div class="cartName">${esc(x.name)}</div><div class="cartMeta">${esc(x.code)}${x.size?' • Talla '+esc(x.size):''}${x.color?' • '+esc(x.color):''} • ${x.qty} × ${money(x.price)}</div></div><div class="cartActions"><button type="button" aria-label="Disminuir cantidad" onclick="changeCart(${i},-1)">−</button><b>${x.qty}</b><button type="button" aria-label="Aumentar cantidad" onclick="changeCart(${i},1)">+</button><button type="button" class="cartRemove" aria-label="Eliminar producto" onclick="removeCart(${i})">×</button></div></div>`}).join('');
+ items.innerHTML=priced.lines.map(line=>{const x=line.item,i=line.index,p=line.product;const img=p?productImages(p)[0]:'';const discountMeta=line.lineDiscount>0?` · Ahorro ${money(line.lineDiscount)}`:'';return `<div class="cartItem">${img?`<img class="cartThumb" src="${esc(img)}" alt="${esc(x.name)}" loading="lazy" decoding="async">`:''}<div class="cartItemInfo"><div class="cartName">${esc(x.name)}</div><div class="cartMeta">${esc(x.code||p?.code||'')}${x.size?' • Talla '+esc(x.size):''}${x.color?' • '+esc(x.color):''} • ${x.qty} × ${money(line.unitPrice)}${discountMeta}</div></div><div class="cartActions"><button type="button" aria-label="Disminuir cantidad" onclick="changeCart(${i},-1)">−</button><b>${x.qty}</b><button type="button" aria-label="Aumentar cantidad" onclick="changeCart(${i},1)">+</button><button type="button" class="cartRemove" aria-label="Eliminar producto" onclick="removeCart(${i})">×</button></div></div>`}).join('');
 }
-
 function sendCart(){
  if(!cart.length)return;
  checkoutCart=null;
@@ -3465,50 +3589,43 @@ function updateShipping(){
  const selectedCity=$('customerCity')?.value||'';
  const city=checkoutCityValue();
  updateContraEntregaAvailability(city);
- const checkoutItems=getCheckoutItems();
- const productsTotal=checkoutItems.reduce((sum,item)=>sum+(Number(item.qty)||0)*(Number(item.price)||0),0);
+ const priced=calculateStorefrontComboPricing(getCheckoutItems());
+ const productsTotal=priced.subtotal;
  checkoutShipping = !selectedCity ? 0 : (city==='Cali' || productsTotal>=130000 ? 0 : ENVIO_NACIONAL);
- if($('shippingValue')){
-   $('shippingValue').textContent = !selectedCity
-     ? 'Selecciona una ciudad'
-     : (checkoutShipping===0 ? 'GRATIS' : money(checkoutShipping));
- }
+ if($('shippingValue'))$('shippingValue').textContent=!selectedCity?'Selecciona una ciudad':(checkoutShipping===0?'GRATIS':money(checkoutShipping));
  if($('shippingNote')){
-   $('shippingNote').textContent = !selectedCity
-     ? 'Cali: envío gratis. Otras ciudades: $15.000. Envío gratis desde $130.000.'
-     : city==='Cali'
-       ? 'Envío gratis dentro de Cali.'
-       : selectedCity==='Otra' && !city
-         ? 'Escribe tu ciudad. Envío nacional: $15.000 o gratis desde $130.000.'
-         : productsTotal>=130000
-           ? 'Envío gratis por compra igual o superior a $130.000.'
-           : 'Envío nacional: $15.000. Envío gratis desde $130.000.';
+   $('shippingNote').textContent=!selectedCity
+     ?'Cali: envío gratis. Otras ciudades: $15.000. Envío gratis desde $130.000 después de descuentos.'
+     :city==='Cali'?'Envío gratis dentro de Cali.'
+     :selectedCity==='Otra'&&!city?'Escribe tu ciudad. Envío nacional: $15.000 o gratis desde $130.000 después de descuentos.'
+     :productsTotal>=130000?'Envío gratis por compra igual o superior a $130.000 después de descuentos.':'Envío nacional: $15.000. Envío gratis desde $130.000 después de descuentos.';
  }
  updateCheckoutSummary();
 }
 function updateCheckoutSummary(){
  const checkoutItems=getCheckoutItems();
- const totalProducts=checkoutItems.reduce((a,x)=>a+(Number(x.qty)||0)*(Number(x.price)||0),0);
- const summary=$('checkoutItemSummary');
- const summaryItems=$('checkoutSummaryItems');
+ const priced=calculateStorefrontComboPricing(checkoutItems);
+ const summary=$('checkoutItemSummary'),summaryItems=$('checkoutSummaryItems');
  if(summary&&summaryItems){
-   if(!checkoutItems.length){summary.hidden=true;summaryItems.innerHTML='';}
-   else{
-     summary.hidden=false;
-     summaryItems.innerHTML=checkoutItems.map(item=>{
-       const product=productos.find(p=>String(p.id)===String(item.id));
-       const thumb=(product&&variantImageUrl(product,item.color||''))||(product&&productImages(product)[0])||'';
-       const title=esc(item.name||product?.name||'Producto');
-       const color=String(item.color||'').trim()||'No aplica';
-       const size=String(item.size||'').trim()||'No aplica';
-       const qty=Math.max(1,Number(item.qty)||1);
-       const subtotal=(Number(item.price)||0)*qty;
-       const image=thumb?`<img class="checkoutSummaryThumb" src="${esc(thumb)}" alt="${title}" loading="lazy" decoding="async" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'checkoutSummaryThumbFallback',textContent:'🛍️'}))">`:'<div class="checkoutSummaryThumbFallback" aria-hidden="true">🛍️</div>';
-       return `<div class="checkoutSummaryItem">${image}<div><div class="checkoutSummaryName">${title}</div><div class="checkoutSummaryVariant">Talla: ${esc(size)} · Color: ${esc(color)} · Cant.: ${qty}</div></div><div class="checkoutSummaryPrice">${money(subtotal)}</div></div>`;
-     }).join('');
-   }
+  if(!checkoutItems.length){summary.hidden=true;summaryItems.innerHTML='';}
+  else{
+   summary.hidden=false;
+   summaryItems.innerHTML=priced.lines.map(line=>{
+    const item=line.item,product=line.product;
+    const thumb=(product&&variantImageUrl(product,item.color||''))||(product&&productImages(product)[0])||'';
+    const title=esc(item.name||product?.name||'Producto'),color=String(item.color||'').trim()||'No aplica',size=String(item.size||'').trim()||'No aplica';
+    const qty=Math.max(1,Number(item.qty)||1),original=line.originalSubtotal,net=line.netSubtotal;
+    const image=thumb?`<img class="checkoutSummaryThumb" src="${esc(thumb)}" alt="${title}" loading="lazy" decoding="async" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'checkoutSummaryThumbFallback',textContent:'🛍️'}))">`:'<div class="checkoutSummaryThumbFallback" aria-hidden="true">🛍️</div>';
+    const prices=line.lineDiscount>0?`<div class="checkoutSummaryPriceWrap"><span class="checkoutSummaryOriginal">${money(original)}</span><span class="checkoutSummaryNet">${money(net)}</span><small>−${money(line.lineDiscount)}</small></div>`:`<div class="checkoutSummaryPrice">${money(original)}</div>`;
+    return `<div class="checkoutSummaryItem">${image}<div><div class="checkoutSummaryName">${title}</div><div class="checkoutSummaryVariant">Talla: ${esc(size)} · Color: ${esc(color)} · Cant.: ${qty}</div></div>${prices}</div>`;
+   }).join('');
+   let discountBox=$('checkoutComboDiscountSummary');
+   if(!discountBox){discountBox=document.createElement('div');discountBox.id='checkoutComboDiscountSummary';discountBox.className='checkoutComboDiscountSummary';summaryItems.after(discountBox);}
+   discountBox.hidden=priced.discountTotal<=0;
+   discountBox.innerHTML=priced.discountTotal>0?`<span>Descuento por combo<small>${priced.applied.map(row=>`${esc(row.title)} (${row.units} pareja${row.units===1?'':'s'})`).join(' · ')}</small></span><strong>−${money(priced.discountTotal)}</strong>`:'';
+  }
  }
- $('checkoutTotal').textContent=money(totalProducts+checkoutShipping);
+ $('checkoutTotal').textContent=money(priced.subtotal+checkoutShipping);
 }
 function selectedPayment(){
  return document.querySelector('input[name="paymentMethod"]:checked:not(:disabled)')?.value||'';
@@ -3531,7 +3648,7 @@ function buildOrderPayload(){
  const payload={name,cedula,phone,email,city,address,neighborhood,payment:selectedPayment(),
          environment:'production',
          shipping:checkoutShipping,
-         items:getCheckoutItems().map(x=>({id:x.id,name:x.name,code:x.code,qty:x.qty,price:x.price,color:x.color||'',size:x.size||''}))};
+         items:getCheckoutItems().map(x=>({id:x.id,name:x.name,code:x.code,qty:x.qty,price:comboPriceForItem(x),color:x.color||'',size:x.size||''}))};
 
  // No reutilizar la referencia anterior de Wompi. La reserva del inventario
  // se mantiene por separado y el checkout puede generar una referencia nueva.
@@ -3607,6 +3724,7 @@ async function payWithWompi(payload){
 
  let reservationReference='';
  let createdReservation=false;
+ let authoritativeComboQuote=null;
 
  try{
   const checkoutItems=getCheckoutItems().map(x=>({
@@ -3617,6 +3735,20 @@ async function payWithWompi(payload){
     size:String(x.size||'').trim()
   }));
   if(!checkoutItems.length)throw new Error('No hay productos para reservar.');
+
+  // Fuente autoritativa de precios/descuentos. Si falta la migración, no abrimos Wompi
+  // ni dejamos al cliente expuesto a un importe distinto del mostrado en el carrito.
+  const {data:comboQuote,error:comboQuoteError}=await sb.rpc('get_storefront_cart_quote',{
+    p_items:checkoutItems.map(x=>({id:String(x.id),qty:Math.max(1,Number(x.qty)||1),color:String(x.color||''),size:String(x.size||'')})),
+    p_city:String(payload.city||'')
+  });
+  if(comboQuoteError)throw new Error('No se pudo verificar el total promocional en Supabase; no se abrió Wompi. Verifica la migración de descuentos y vuelve a intentar. '+String(comboQuoteError.message||''));
+  authoritativeComboQuote=comboQuote;
+  if(!authoritativeComboQuote||authoritativeComboQuote.success!==true||!Number.isFinite(Number(authoritativeComboQuote.total)))throw new Error('Supabase no devolvió un total promocional válido; no se abrió Wompi.');
+  payload.shipping=Number(authoritativeComboQuote.shipping)||0;
+  payload.storefront_pricing_version='combo-discounts-v1';
+  payload.expected_total=Number(authoritativeComboQuote.total);
+  payload.expected_discount_total=Number(authoritativeComboQuote.discount_total)||0;
 
   const storedReference=getActiveReservationReference()||getPendingWompiReference()||'';
   const storedItems=getActiveReservationItems();
@@ -3683,6 +3815,10 @@ async function payWithWompi(payload){
   const amountInCents=Number(data.amountInCents);
   if(!data.reference||!data.signature||!Number.isSafeInteger(amountInCents)||amountInCents<=0){
     throw new Error('Wompi devolvió datos incompletos para el pago. No se abrió la página de cobro; puedes reintentar desde el catálogo publicado.');
+  }
+  const expectedAmountInCents=Math.round(Number(authoritativeComboQuote?.total)*100);
+  if(!Number.isSafeInteger(expectedAmountInCents)||expectedAmountInCents<=0||amountInCents!==expectedAmountInCents){
+    throw new Error('No abrimos Wompi porque el servidor de pago todavía devuelve un valor distinto al total del carrito con descuento. No se realizó ningún cobro. Debe actualizarse wompi-create-checkout para calcular el importe mediante get_storefront_cart_quote antes de activar los descuentos en pagos en línea.');
   }
 
   // Si el endpoint devuelve otra referencia, trasladar la reserva EXISTENTE una
@@ -3980,9 +4116,36 @@ async function confirmCheckout(){
    updateShipping();
    return;
  }
- const payload=buildOrderPayload();
- if(payment!=='Contra entrega'){payWithWompi(payload);return}
- await saveContraEntregaOrder(payload);
+ // Alinea lo que ve el cliente con la cotización del servidor antes de crear un pedido o un pago.
+ // Si las reglas públicas no coinciden con la cotización (o falta la migración), no se cobra ni se registra nada.
+ try{
+  await loadStorefrontProductCombos({force:true});
+  const itemsForQuote=checkoutItems.map(x=>({id:String(x.id),qty:Math.max(1,Number(x.qty)||1),color:String(x.color||''),size:String(x.size||'')}));
+  const {data:cartQuote,error:cartQuoteError}=await sb.rpc('get_storefront_cart_quote',{p_items:itemsForQuote,p_city:checkoutCityValue()});
+  if(cartQuoteError)throw cartQuoteError;
+  if(!cartQuote||cartQuote.success!==true||!Number.isFinite(Number(cartQuote.total)))throw new Error(cartQuote?.message||'Supabase no devolvió una cotización válida.');
+  const localPricing=calculateStorefrontComboPricing(checkoutItems);
+  const localExpected=Math.round(localPricing.subtotal+checkoutShipping);
+  if(localExpected!==Math.round(Number(cartQuote.total))||Math.round(localPricing.discountTotal)!==Math.round(Number(cartQuote.discount_total)||0)){
+   updateCheckoutSummary();
+   showToast('La promoción acaba de actualizarse. Revisa el total del carrito y pulsa confirmar otra vez; no se creó ningún pedido ni se inició un cobro.');
+   return;
+  }
+  checkoutShipping=Number(cartQuote.shipping)||0;
+  updateCheckoutSummary();
+  const payload=buildOrderPayload();
+  payload.shipping=checkoutShipping;
+  payload.expected_total=Number(cartQuote.total);
+  payload.expected_discount_total=Number(cartQuote.discount_total)||0;
+  payload.storefront_pricing_version='combo-discounts-v1';
+  if(payment!=='Contra entrega'){payWithWompi(payload);return}
+  await saveContraEntregaOrder(payload);
+ }catch(quoteError){
+  console.error('Cotización promocional no validada; checkout detenido:',quoteError);
+  showToast('No pudimos verificar el descuento en Supabase. No se registró ni cobró el pedido. Revisa que la migración de combos y descuentos esté instalada.');
+  resetWompiButton();
+  return;
+ }
 }
 
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('cartBar')?.classList.contains('cartOpen')){hideCart();return}if($('privacyModal')?.classList.contains('open')&&e.key==='Escape'){closePrivacy();return}if($('checkoutModal')?.classList.contains('open')&&e.key==='Escape'){closeCheckout();return}if(!$('galleryModal')?.classList.contains('open'))return;if(e.key==='Escape')closeGallery();if(e.key==='ArrowLeft')galleryMove(-1);if(e.key==='ArrowRight')galleryMove(1)});
@@ -4375,7 +4538,7 @@ function normalizeSeasonalPromoRow(row){
  if(!row||typeof row!=='object')return null;
  const style=SIREVYA_PROMO_PRESETS[row.style]?row.style:'halloween',preset=SIREVYA_PROMO_PRESETS[style];
  const color=value=>/^#[0-9a-f]{6}$/i.test(String(value||''))?String(value).toLowerCase():null;
- return {enabled:row.enabled===true,style,eyebrow:String(row.eyebrow??preset.eyebrow).slice(0,48),title:String(row.title??preset.title).slice(0,90),message:String(row.message??preset.message).slice(0,240),button_label:String(row.button_label??preset.button_label).slice(0,32),button_url:safeSeasonalPromoUrl(row.button_url||'#catalogo'),background_color:color(row.background_color)||preset.background_color,accent_color:color(row.accent_color)||preset.accent_color,text_color:color(row.text_color)||'#ffffff',popup_size:['tiny','small','medium','large'].includes(row.popup_size)?row.popup_size:'small',popup_shape:['rounded','circle'].includes(row.popup_shape)?row.popup_shape:'rounded',popup_position:['center','bottom-right','bottom-center'].includes(row.popup_position)?row.popup_position:'center',animation_style:['falling','sparkle','none'].includes(row.animation_style)?row.animation_style:(row.animate===false?'none':'falling'),animate:row.animate!==false,delay_ms:[0,800,1600,3000,5000].includes(Number(row.delay_ms))?Number(row.delay_ms):1600,visible_duration_ms:[0,3000,5000,8000,10000].includes(Number(row.visible_duration_ms))?Number(row.visible_duration_ms):3000,display_frequency:['once_per_session','every_page_load'].includes(row.display_frequency)?row.display_frequency:'once_per_session',start_at:row.start_at||null,end_at:row.end_at||null,updated_at:row.updated_at||''};
+ return {enabled:row.enabled===true,style,eyebrow:String(row.eyebrow??preset.eyebrow).slice(0,48),title:String(row.title??preset.title).slice(0,90),message:String(row.message??preset.message).slice(0,240),button_label:String(row.button_label??preset.button_label).slice(0,32),button_url:safeSeasonalPromoUrl(row.button_url||'#catalogo'),background_color:color(row.background_color)||preset.background_color,accent_color:color(row.accent_color)||preset.accent_color,text_color:color(row.text_color)||'#ffffff',popup_size:['micro','tiny','small','medium','large'].includes(row.popup_size)?row.popup_size:'small',popup_shape:['rounded','circle'].includes(row.popup_shape)?row.popup_shape:'rounded',popup_position:['center','bottom-right','bottom-center'].includes(row.popup_position)?row.popup_position:'center',animation_style:['falling','sparkle','none'].includes(row.animation_style)?row.animation_style:(row.animate===false?'none':'falling'),animate:row.animate!==false,delay_ms:[0,800,1600,3000,5000].includes(Number(row.delay_ms))?Number(row.delay_ms):1600,visible_duration_ms:[0,3000,5000,8000,10000].includes(Number(row.visible_duration_ms))?Number(row.visible_duration_ms):3000,display_frequency:['once_per_session','every_page_load'].includes(row.display_frequency)?row.display_frequency:'once_per_session',start_at:row.start_at||null,end_at:row.end_at||null,updated_at:row.updated_at||''};
 }
 function isSeasonalPromoInDateRange(config,now=new Date()){
  if(!config?.enabled)return false;
@@ -4388,7 +4551,7 @@ function fillSeasonalPromoPopup(config){
  const overlay=$('seasonalPromoOverlay'),card=$('seasonalPromoCard');if(!overlay||!card||!config)return;
  overlay.dataset.position=['center','bottom-right','bottom-center'].includes(config.popup_position)?config.popup_position:'center';
  overlay.dataset.animation=config.animate===false?'none':(['falling','sparkle','none'].includes(config.animation_style)?config.animation_style:'falling');
- card.dataset.style=config.style;card.dataset.size=['tiny','small','medium','large'].includes(config.popup_size)?config.popup_size:'small';card.dataset.shape=['rounded','circle'].includes(config.popup_shape)?config.popup_shape:'rounded';
+ card.dataset.style=config.style;card.dataset.size=['micro','tiny','small','medium','large'].includes(config.popup_size)?config.popup_size:'small';card.dataset.shape=['rounded','circle'].includes(config.popup_shape)?config.popup_shape:'rounded';
  card.style.setProperty('--promo-bg',config.background_color);
  card.style.setProperty('--promo-accent',config.accent_color);
  card.style.setProperty('--promo-text',config.text_color||'#ffffff');
