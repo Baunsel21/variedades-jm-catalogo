@@ -268,6 +268,13 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
 <style id="sirevyaMarketingAdminStyles">
 .comboAdminGrid{margin-top:12px}.comboAdminGrid[hidden],[hidden]#storefrontComboCategoryFields{display:none!important}.comboAdminGrid .promoWide{grid-column:1/-1}.comboAdminGrid input[type=number]{font-variant-numeric:tabular-nums}.comboAdminToggle{display:flex;align-items:center;gap:9px;flex-direction:row;font-weight:800}.comboAdminToggle input{width:auto;margin:0}.detailComboSection{margin-top:12px}
 </style>
+<style id="sirevyaAdminCodAndComboStyles">
+.codCitiesOptions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:12px 0;padding:12px;background:#faf7f5;border:1px solid #eee3dc;border-radius:12px}
+.codCitiesOptions label{display:flex;align-items:center;gap:8px;min-width:0;padding:8px 9px;border:1px solid #e7ddd5;background:white;border-radius:9px;font-weight:650;font-size:12px}
+.codCitiesOptions label input{width:auto;flex:0 0 auto;margin:0}
+.codCitiesOptions .codAllCitiesOption{border-color:#be9aab;background:#fff1f6;font-weight:850}
+@media(max-width:680px){.codCitiesOptions{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}.codCitiesOptions label{padding:8px 6px;font-size:11px}}
+</style>
 </head>
 <body>
 
@@ -483,13 +490,25 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
           <div class="box"><h3>☁️ Conexión</h3><p class="muted">Los datos principales se guardan en Supabase y pueden consultarse desde tus dispositivos con la misma cuenta.</p><div class="status ok">✓ Conexión preparada</div></div>
           <div class="box" style="grid-column:1/-1" id="onlinePaymentsSettingsBox">
             <div class="rowBetween" style="align-items:flex-start;gap:16px;flex-wrap:wrap">
-              <div style="flex:1;min-width:220px"><h3 style="margin-bottom:7px">💳 Pagos en línea del catálogo</h3><p class="muted" style="margin-top:0">Controla si los clientes pueden pagar mediante Wompi. Al desactivarlo, el catálogo ocultará PSE, tarjetas, Nequi y Botón Bancolombia; solo quedará contraentrega en Cali, con envío gratis.</p></div>
+              <div style="flex:1;min-width:220px"><h3 style="margin-bottom:7px">💳 Pagos en línea del catálogo</h3><p class="muted" style="margin-top:0">Controla si los clientes pueden pagar mediante Wompi. Al desactivarlo, el catálogo ocultará las dos opciones de pago en línea. La contraentrega solo estará disponible en las ciudades que habilites abajo.</p></div>
               <label class="paymentSwitch" for="onlinePaymentsToggle" aria-label="Activar o desactivar pagos en línea"><input id="onlinePaymentsToggle" type="checkbox" checked disabled><span class="paymentSwitchTrack" aria-hidden="true"></span></label>
             </div>
             <div id="onlinePaymentsStateText" class="paymentSettingsHelp" aria-live="polite">Cargando configuración de pagos…</div>
             <div id="onlinePaymentsStatus" class="status" role="status" aria-live="polite" style="margin-top:10px">Consultando Supabase…</div>
             <div style="margin-top:12px"><button id="saveOnlinePaymentsBtn" class="primary" onclick="saveOnlinePaymentSettings()" disabled>💾 Guardar cambios</button></div>
             <p class="paymentSettingsHelp" style="margin-bottom:0">Los cambios se guardan en Supabase y se consultan desde el catálogo al abrir el pago y durante la navegación.</p>
+          </div>
+          <div class="box" style="grid-column:1/-1" id="codCitiesSettingsBox">
+            <div class="rowBetween" style="align-items:flex-start;gap:16px;flex-wrap:wrap">
+              <div style="flex:1;min-width:220px"><h3 style="margin-bottom:7px">💵 Ciudades con pago contra entrega</h3><p class="muted" style="margin-top:0">Activa o desactiva la contraentrega y elige una o varias ciudades. “Todas las ciudades” incluye también las ciudades escritas manualmente por tus clientes. Sin esta configuración instalada, el catálogo conserva el comportamiento anterior: solo Cali.</p></div>
+              <label class="paymentSwitch" for="codPaymentsToggle" aria-label="Activar o desactivar contraentrega"><input id="codPaymentsToggle" type="checkbox" checked disabled><span class="paymentSwitchTrack" aria-hidden="true"></span></label>
+            </div>
+            <div id="codCitiesOptions" class="codCitiesOptions" aria-label="Ciudades habilitadas para contraentrega">
+              <label><input type="checkbox" value="Cali" disabled> Cali</label><label><input type="checkbox" value="Bogotá" disabled> Bogotá</label><label><input type="checkbox" value="Medellín" disabled> Medellín</label><label><input type="checkbox" value="Barranquilla" disabled> Barranquilla</label><label><input type="checkbox" value="Cartagena" disabled> Cartagena</label><label><input type="checkbox" value="Bucaramanga" disabled> Bucaramanga</label><label><input type="checkbox" value="Pereira" disabled> Pereira</label><label><input type="checkbox" value="Armenia" disabled> Armenia</label><label><input type="checkbox" value="Manizales" disabled> Manizales</label><label><input type="checkbox" value="Cúcuta" disabled> Cúcuta</label><label><input type="checkbox" value="Pasto" disabled> Pasto</label><label><input type="checkbox" value="__other__" disabled> Otras ciudades escritas manualmente</label><label class="codAllCitiesOption"><input type="checkbox" value="*" disabled> Todas las ciudades</label>
+            </div>
+            <div id="codCitiesSettingsStatus" class="status" role="status" aria-live="polite" style="margin-top:10px">Cargando configuración de contraentrega…</div>
+            <div style="margin-top:12px"><button id="saveCODCitiesBtn" class="primary" onclick="saveCODCitiesSettings()" disabled>💾 Guardar ciudades</button></div>
+            <p class="paymentSettingsHelp" style="margin-bottom:0">Esta configuración limita también la validación del servidor del pedido contraentrega; no solo cambia lo que muestra el navegador.</p>
           </div>
           <div class="box" style="grid-column:1/-1" id="seasonalPromoSettingsBox">
             <div class="rowBetween" style="align-items:flex-start;gap:12px;flex-wrap:wrap">
@@ -540,6 +559,8 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
               <label class="promoWide">Título de la combinación<input id="storefrontComboTitle" maxlength="90" value="Completa el look" disabled></label>
               <label class="promoWide">Mensaje<textarea id="storefrontComboMessage" maxlength="240" value="" disabled>Combina estos productos para completar tu estilo.</textarea></label>
               <label>Texto del botón<input id="storefrontComboButtonLabel" maxlength="32" value="Ver combinación" disabled></label>
+              <label>Dónde mostrar la combinación<select id="storefrontComboDisplayLocation" disabled><option value="home">Pantalla de inicio</option><option value="category">Dentro de una categoría</option><option value="both">Inicio y una categoría</option></select></label>
+              <label id="storefrontComboDisplayCategoryWrap">Categoría donde mostrarla<select id="storefrontComboDisplayCategory" disabled><option value="">Selecciona una categoría…</option></select></label>
               <label class="comboAdminToggle"><input type="checkbox" id="storefrontComboEnabled" checked disabled> Activar promoción</label>
               <label>Mostrar desde (opcional)<input type="datetime-local" id="storefrontComboStartAt" disabled></label>
               <label>Mostrar hasta (opcional)<input type="datetime-local" id="storefrontComboEndAt" disabled></label>
@@ -635,6 +656,8 @@ let editingProductImageLoadToken=0;
 let editingProductImagesLoadError=null;
 let onlinePaymentSettingLoaded=false;
 let onlinePaymentSettingOriginal=true;
+let codCitiesSettingsLoaded=false;
+let codCitiesSettingsOriginal={enabled:true,allowed_cities:["Cali"]};
 const money=n=>new Intl.NumberFormat("es-CO",{style:"currency",currency:"COP",maximumFractionDigits:0}).format(Number(n)||0);
 const esc=s=>String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));
 const $=id=>document.getElementById(id);
@@ -835,8 +858,8 @@ function updateOnlinePaymentAdminLabel(){
  if(!input||!text)return;
  const enabled=!!input.checked;
  text.textContent=enabled
-  ?'Activado: se verá como el catálogo original: PSE, tarjetas, Nequi, Botón Bancolombia y contraentrega en Cali. Cali tiene envío gratis; en otras ciudades el envío es de $15.000, gratis desde $130.000.'
-  :'Desactivado: solo se mostrará Pago contraentrega, disponible únicamente en Cali y con envío gratis. PSE, tarjetas, Nequi y Botón Bancolombia no aparecerán.';
+  ?'Activado: los clientes verán dos opciones de pago en línea mediante Wompi, además de contraentrega en las ciudades habilitadas.'
+  :'Desactivado: se ocultan los pagos en línea; solo queda contraentrega en las ciudades habilitadas abajo.';
  if(save)save.disabled=!onlinePaymentSettingLoaded||enabled===onlinePaymentSettingOriginal;
 }
 async function loadOnlinePaymentSettingsAdmin(){
@@ -1000,6 +1023,7 @@ function show(id,btn){
  }
  if(id==="config"&&sb){
    if(!onlinePaymentSettingLoaded)void loadOnlinePaymentSettingsAdmin();
+   if(!codCitiesSettingsLoaded)void loadCODCitiesSettingsAdmin();
    if(!seasonalPromoSettingsLoaded)void loadSeasonalPromoSettingsAdmin();
    void loadStorefrontProductCombosAdmin();
  }
@@ -2531,22 +2555,82 @@ async function loadAdminDeferredModule(key,force=false){
  return adminDeferredModuleInFlight[key];
 }
 
+// Configuración de contraentrega por ciudad: se guarda mediante RPC protegida en Supabase.
+const COD_ADMIN_CITIES=["Cali","Bogotá","Medellín","Barranquilla","Cartagena","Bucaramanga","Pereira","Armenia","Manizales","Cúcuta","Pasto","__other__","*"];
+function setCODCitiesStatus(message,kind=''){const el=$("codCitiesSettingsStatus");if(el){el.className='status'+(kind?' '+(kind==='error'?'err':kind==='ok'?'ok':''):'');el.textContent=message}}
+function codCitiesCurrentValue(){return [...document.querySelectorAll('#codCitiesOptions input[type="checkbox"]:checked')].map(x=>x.value)}
+function updateCODCitiesControls(){
+ const enabled=$("codPaymentsToggle"),wrap=$("codCitiesOptions"),save=$("saveCODCitiesBtn");
+ const active=!!enabled?.checked,all=!!wrap?.querySelector('input[value="*"]')?.checked;
+ wrap?.querySelectorAll('input[type="checkbox"]').forEach(input=>{input.disabled=!codCitiesSettingsLoaded||!active||(input.value!=='*'&&all);if(input.value==='*')input.disabled=!codCitiesSettingsLoaded||!active;});
+ if(save)save.disabled=!codCitiesSettingsLoaded||(active&&codCitiesCurrentValue().length===0)||(active===!!codCitiesSettingsOriginal.enabled&&JSON.stringify(codCitiesCurrentValue().slice().sort())===JSON.stringify((codCitiesSettingsOriginal.allowed_cities||[]).slice().sort()));
+}
+async function loadCODCitiesSettingsAdmin(){
+ const enabled=$("codPaymentsToggle"),save=$("saveCODCitiesBtn");codCitiesSettingsLoaded=false;if(enabled)enabled.disabled=true;if(save)save.disabled=true;
+ setCODCitiesStatus('Cargando la configuración desde Supabase…');
+ try{
+  const {data,error}=await sb.rpc('admin_get_storefront_cod_settings');if(error)throw error;
+  const row=Array.isArray(data)?data[0]:data;if(!row||typeof row.enabled!=='boolean'||!Array.isArray(row.allowed_cities))throw new Error('Respuesta de configuración no válida.');
+  codCitiesSettingsOriginal={enabled:row.enabled,allowed_cities:row.allowed_cities.map(String)};
+  if(enabled){enabled.checked=row.enabled;enabled.disabled=false;}
+  const current=row.allowed_cities.map(String);
+  document.querySelectorAll('#codCitiesOptions input[type="checkbox"]').forEach(input=>input.checked=current.includes(input.value));
+  codCitiesSettingsLoaded=true;setCODCitiesStatus('Configuración cargada desde Supabase.','ok');updateCODCitiesControls();return true;
+ }catch(error){
+  console.error('No se pudo cargar la configuración de contraentrega:',error);
+  if(enabled)enabled.disabled=true;if(save)save.disabled=true;
+  setCODCitiesStatus('No se pudo cargar. Ejecuta SIREVYA_MIGRACION_COMBOS_UBICACION_Y_CONTRAENTREGA.sql después de la migración de combos. Detalle: '+String(error?.message||error),'error');return false;
+ }
+}
+async function saveCODCitiesSettings(){
+ if(!codCitiesSettingsLoaded)return alert('Primero carga la configuración de contraentrega desde Supabase.');
+ const enabled=$("codPaymentsToggle"),save=$("saveCODCitiesBtn");const desired=!!enabled?.checked;
+ const selected=codCitiesCurrentValue();if(desired&&!selected.length)return alert('Selecciona al menos una ciudad o “Todas las ciudades”, o desactiva la contraentrega.');
+ const cities=selected.includes('*')?['*']:selected;
+ if(save){save.disabled=true;save.textContent='⏳ Guardando…'}if(enabled)enabled.disabled=true;
+ document.querySelectorAll('#codCitiesOptions input[type="checkbox"]').forEach(x=>x.disabled=true);
+ try{
+  const {data,error}=await sb.rpc('admin_save_storefront_cod_settings',{p_enabled:desired,p_allowed_cities:cities});if(error)throw error;
+  const row=Array.isArray(data)?data[0]:data;if(!row||typeof row.enabled!=='boolean'||!Array.isArray(row.allowed_cities))throw new Error('Supabase no confirmó el cambio.');
+  codCitiesSettingsOriginal={enabled:row.enabled,allowed_cities:row.allowed_cities.map(String)};
+  if(enabled)enabled.checked=row.enabled;
+  document.querySelectorAll('#codCitiesOptions input[type="checkbox"]').forEach(input=>input.checked=codCitiesSettingsOriginal.allowed_cities.includes(input.value));
+  setCODCitiesStatus('Configuración guardada. El catálogo y la validación del servidor consultarán estas ciudades.','ok');toast('Ciudades de contraentrega guardadas');
+ }catch(error){
+  console.error('No se pudo guardar configuración COD:',error);if(enabled)enabled.checked=codCitiesSettingsOriginal.enabled;
+  document.querySelectorAll('#codCitiesOptions input[type="checkbox"]').forEach(input=>input.checked=(codCitiesSettingsOriginal.allowed_cities||[]).includes(input.value));
+  setCODCitiesStatus('No se guardaron los cambios. Comprueba permisos de administrador y la migración SQL. Detalle: '+String(error?.message||error),'error');
+ }finally{
+  if(enabled)enabled.disabled=!codCitiesSettingsLoaded;if(save){save.textContent='💾 Guardar ciudades';updateCODCitiesControls();}
+ }
+}
+document.addEventListener('change',event=>{
+ if(event.target?.id==='codPaymentsToggle'){if(!event.target.checked){document.querySelectorAll('#codCitiesOptions input[type="checkbox"]').forEach(input=>input.checked=false);}else if(!codCitiesCurrentValue().length){const cali=document.querySelector('#codCitiesOptions input[value="Cali"]');if(cali)cali.checked=true;}updateCODCitiesControls();}
+ if(event.target?.matches('#codCitiesOptions input[type="checkbox"]')){
+  const all=document.querySelector('#codCitiesOptions input[value="*"]');
+  if(event.target.value==='*'&&event.target.checked)document.querySelectorAll('#codCitiesOptions input[type="checkbox"]').forEach(input=>{if(input!==all)input.checked=false;});
+  else if(event.target.checked&&all)all.checked=false;
+  updateCODCitiesControls();
+ }
+});
+
 // Editor de combos: productos/categorías y reglas de descuento.
 let storefrontProductCombosAdmin=[],storefrontCombosAdminLoaded=false,storefrontComboSaving=false,storefrontComboEditingId='';
 function setStorefrontCombosAdminStatus(message,kind=''){const el=$('storefrontCombosAdminStatus');if(el){el.className='promoAdminStatus'+(kind?' '+(kind==='error'?'promoStatusError':kind==='ok'?'promoStatusOk':''):'');el.textContent=message}}
-function setStorefrontComboFormDisabled(disabled){['storefrontComboRuleType','storefrontComboProductA','storefrontComboProductB','storefrontComboCategoryA','storefrontComboCategoryB','storefrontComboDiscountType','storefrontComboDiscountValue','storefrontComboTitle','storefrontComboMessage','storefrontComboButtonLabel','storefrontComboEnabled','storefrontComboStartAt','storefrontComboEndAt'].forEach(id=>{const el=$(id);if(el)el.disabled=disabled});const save=$('saveStorefrontComboBtn');if(save)save.disabled=disabled||storefrontComboSaving;}
+function setStorefrontComboFormDisabled(disabled){['storefrontComboRuleType','storefrontComboProductA','storefrontComboProductB','storefrontComboCategoryA','storefrontComboCategoryB','storefrontComboDiscountType','storefrontComboDiscountValue','storefrontComboTitle','storefrontComboMessage','storefrontComboButtonLabel','storefrontComboDisplayLocation','storefrontComboDisplayCategory','storefrontComboEnabled','storefrontComboStartAt','storefrontComboEndAt'].forEach(id=>{const el=$(id);if(el)el.disabled=disabled});const save=$('saveStorefrontComboBtn');if(save)save.disabled=disabled||storefrontComboSaving;}
 function renderStorefrontComboProductSelects(){
  const productOptions='<option value="">Selecciona un producto…</option>'+productos.map(p=>`<option value="${esc(p.id)}">${esc((p.code?String(p.code)+' — ':'')+String(p.name||'Producto'))}</option>`).join('');
  ['storefrontComboProductA','storefrontComboProductB'].forEach(id=>{const sel=$(id);if(!sel)return;const current=sel.value;sel.innerHTML=productOptions;if(productos.some(p=>String(p.id)===String(current)))sel.value=current});
  const inferred=(productos||[]).map(p=>String(p.category||'').trim()).filter(Boolean);
  const categoryNames=[...new Set([...(Array.isArray(categorias)?categorias:[]),...inferred].map(x=>String(x||'').trim()).filter(Boolean))].sort((x,y)=>x.localeCompare(y,'es',{sensitivity:'base'}));
  const categoryOptions='<option value="">Selecciona una categoría…</option>'+categoryNames.map(name=>`<option value="${esc(name)}">${esc(name)}</option>`).join('');
- ['storefrontComboCategoryA','storefrontComboCategoryB'].forEach(id=>{const sel=$(id);if(!sel)return;const current=sel.value;sel.innerHTML=categoryOptions;if(categoryNames.some(name=>name===current))sel.value=current});
+ ['storefrontComboCategoryA','storefrontComboCategoryB','storefrontComboDisplayCategory'].forEach(id=>{const sel=$(id);if(!sel)return;const current=sel.value;sel.innerHTML=categoryOptions;if(categoryNames.some(name=>name===current))sel.value=current});
 }
 function updateStorefrontComboRuleFields(){
  const type=$('storefrontComboRuleType')?.value||'product_pair';const categoryMode=type==='category_pair';
  const productFields=$('storefrontComboProductFields'),categoryFields=$('storefrontComboCategoryFields');
  if(productFields)productFields.hidden=categoryMode;if(categoryFields)categoryFields.hidden=!categoryMode;
+ const location=$('storefrontComboDisplayLocation')?.value||'home';const placementWrap=$('storefrontComboDisplayCategoryWrap');if(placementWrap)placementWrap.hidden=location==='home';
  const discountType=$('storefrontComboDiscountType')?.value||'none';const value=$('storefrontComboDiscountValue'),label=$('storefrontComboDiscountValueLabel'),help=$('storefrontComboDiscountHelp');
  if(label){
   const name=discountType==='percent'?'Porcentaje (%)':discountType==='fixed_amount'?'Descuento en pesos (COP)':discountType==='combo_price'?'Precio final del combo (COP)':'Valor (no se usa sin descuento)';
@@ -2564,7 +2648,7 @@ function normalizeComboCategoryAdmin(value){return String(value||'').normalize('
 function comboLocalDate(value){if(!value)return '';const d=new Date(value);if(Number.isNaN(d.getTime()))return '';const pad=n=>String(n).padStart(2,'0');return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`}
 function comboDateIso(value){if(!value)return null;const d=new Date(value);if(Number.isNaN(d.getTime()))throw new Error('La fecha de una combinación no es válida.');return d.toISOString()}
 function resetStorefrontComboForm(){
- storefrontComboEditingId='';$('storefrontComboEditId').value='';$('storefrontComboRuleType').value='product_pair';$('storefrontComboProductA').value='';$('storefrontComboProductB').value='';$('storefrontComboCategoryA').value='';$('storefrontComboCategoryB').value='';$('storefrontComboDiscountType').value='none';$('storefrontComboDiscountValue').value='10';$('storefrontComboTitle').value='Completa el look';$('storefrontComboMessage').value='Combina estos productos para completar tu estilo.';$('storefrontComboButtonLabel').value='Ver combinación';$('storefrontComboEnabled').checked=true;$('storefrontComboStartAt').value='';$('storefrontComboEndAt').value='';
+ storefrontComboEditingId='';$('storefrontComboEditId').value='';$('storefrontComboRuleType').value='product_pair';$('storefrontComboProductA').value='';$('storefrontComboProductB').value='';$('storefrontComboCategoryA').value='';$('storefrontComboCategoryB').value='';$('storefrontComboDiscountType').value='none';$('storefrontComboDiscountValue').value='10';$('storefrontComboTitle').value='Completa el look';$('storefrontComboMessage').value='Combina estos productos para completar tu estilo.';$('storefrontComboButtonLabel').value='Ver combinación';$('storefrontComboDisplayLocation').value='home';$('storefrontComboDisplayCategory').value='';$('storefrontComboEnabled').checked=true;$('storefrontComboStartAt').value='';$('storefrontComboEndAt').value='';
  const button=$('saveStorefrontComboBtn');if(button)button.textContent='💾 Guardar promoción';updateStorefrontComboRuleFields();renderStorefrontCombosAdminList();
 }
 function editStorefrontCombo(id){
@@ -2572,12 +2656,12 @@ function editStorefrontCombo(id){
  storefrontComboEditingId=String(row.id);$('storefrontComboEditId').value=storefrontComboEditingId;renderStorefrontComboProductSelects();
  $('storefrontComboRuleType').value=String(row.rule_type||'product_pair');$('storefrontComboProductA').value=String(row.product_a_id||'');$('storefrontComboProductB').value=String(row.product_b_id||'');$('storefrontComboCategoryA').value=String(row.category_a||'');$('storefrontComboCategoryB').value=String(row.category_b||'');
  $('storefrontComboDiscountType').value=String(row.discount_type||'none');$('storefrontComboDiscountValue').value=String(row.discount_type==='combo_price'?(Number(row.combo_price)||0):(Number(row.discount_value)||0));
- $('storefrontComboTitle').value=String(row.title||'Completa el look');$('storefrontComboMessage').value=String(row.message||'');$('storefrontComboButtonLabel').value=String(row.button_label||'Ver combinación');$('storefrontComboEnabled').checked=row.enabled===true;$('storefrontComboStartAt').value=comboLocalDate(row.start_at);$('storefrontComboEndAt').value=comboLocalDate(row.end_at);
+ $('storefrontComboTitle').value=String(row.title||'Completa el look');$('storefrontComboMessage').value=String(row.message||'');$('storefrontComboButtonLabel').value=String(row.button_label||'Ver combinación');$('storefrontComboDisplayLocation').value=String(row.display_location||'home');$('storefrontComboDisplayCategory').value=String(row.display_category||'');$('storefrontComboEnabled').checked=row.enabled===true;$('storefrontComboStartAt').value=comboLocalDate(row.start_at);$('storefrontComboEndAt').value=comboLocalDate(row.end_at);
  const button=$('saveStorefrontComboBtn');if(button)button.textContent='💾 Guardar cambios';updateStorefrontComboRuleFields();$('storefrontComboTitle').focus({preventScroll:true});
 }
 function renderStorefrontCombosAdminList(){
  const host=$('storefrontCombosAdminList');if(!host)return;if(!storefrontCombosAdminLoaded){host.innerHTML='';return}if(!storefrontProductCombosAdmin.length){host.innerHTML='<div class="empty">Todavía no has creado combinaciones.</div>';return}
- host.innerHTML=storefrontProductCombosAdmin.map(row=>{const isCat=String(row.rule_type||'product_pair')==='category_pair';const left=isCat?`Categoría: ${row.category_a||'—'}`:(row.product_a_name||'Producto A');const right=isCat?`Categoría: ${row.category_b||'—'}`:(row.product_b_name||'Producto B');return `<article class="listItem"><div class="rowBetween" style="align-items:flex-start;gap:10px;flex-wrap:wrap"><div style="flex:1;min-width:180px"><b>${esc(left)} → ${esc(right)}</b><div class="muted">${esc(row.title||'Combinación')}: ${esc(row.message||'')}</div><div class="comboDiscountPill">${esc(comboDiscountAdminLabel(row))}</div><small class="muted" style="display:block;margin-top:5px">${row.enabled?'Activa':'Inactiva'} · ${isCat?'Categorías':'Productos'}${row.start_at?' · Desde '+new Date(row.start_at).toLocaleDateString('es-CO'):''}${row.end_at?' · Hasta '+new Date(row.end_at).toLocaleDateString('es-CO'):''}</small></div><div style="display:flex;gap:6px;flex-wrap:wrap"><button class="action" type="button" data-combo-admin-edit="${esc(row.id)}">✏️ Editar</button><button class="action" type="button" data-combo-admin-delete="${esc(row.id)}">🗑️ Eliminar</button></div></div></article>`}).join('');
+ host.innerHTML=storefrontProductCombosAdmin.map(row=>{const isCat=String(row.rule_type||'product_pair')==='category_pair';const left=isCat?`Categoría: ${row.category_a||'—'}`:(row.product_a_name||'Producto A');const right=isCat?`Categoría: ${row.category_b||'—'}`:(row.product_b_name||'Producto B');return `<article class="listItem"><div class="rowBetween" style="align-items:flex-start;gap:10px;flex-wrap:wrap"><div style="flex:1;min-width:180px"><b>${esc(left)} → ${esc(right)}</b><div class="muted">${esc(row.title||'Combinación')}: ${esc(row.message||'')}</div><div class="comboDiscountPill">${esc(comboDiscountAdminLabel(row))}</div><small class="muted" style="display:block;margin-top:5px">${row.enabled?'Activa':'Inactiva'} · ${isCat?'Categorías':'Productos'} · ${({home:'Pantalla de inicio',category:'Categoría: '+(row.display_category||'—'),both:'Inicio y categoría: '+(row.display_category||'—')})[String(row.display_location||'home')]||'Pantalla de inicio'}${row.start_at?' · Desde '+new Date(row.start_at).toLocaleDateString('es-CO'):''}${row.end_at?' · Hasta '+new Date(row.end_at).toLocaleDateString('es-CO'):''}</small></div><div style="display:flex;gap:6px;flex-wrap:wrap"><button class="action" type="button" data-combo-admin-edit="${esc(row.id)}">✏️ Editar</button><button class="action" type="button" data-combo-admin-delete="${esc(row.id)}">🗑️ Eliminar</button></div></div></article>`}).join('');
 }
 async function loadStorefrontProductCombosAdmin(force=false){
  if(!sb)return false;if(storefrontCombosAdminLoaded&&!force)return true;setStorefrontCombosAdminStatus('Cargando promociones…');setStorefrontComboFormDisabled(true);
@@ -2589,15 +2673,18 @@ async function saveStorefrontProductCombo(){
  const ruleType=String($('storefrontComboRuleType').value||'product_pair');const categoryMode=ruleType==='category_pair';
  const a=String($('storefrontComboProductA').value||''),b=String($('storefrontComboProductB').value||''),categoryA=String($('storefrontComboCategoryA').value||'').trim(),categoryB=String($('storefrontComboCategoryB').value||'').trim();
  const discountType=String($('storefrontComboDiscountType').value||'none');const entered=Number($('storefrontComboDiscountValue').value);
+ const displayLocation=String($('storefrontComboDisplayLocation').value||'home'),displayCategory=String($('storefrontComboDisplayCategory').value||'').trim();
  const title=String($('storefrontComboTitle').value||'').trim(),message=String($('storefrontComboMessage').value||'').trim(),buttonLabel=String($('storefrontComboButtonLabel').value||'').trim();
  if(!categoryMode&&(!a||!b))return alert('Selecciona ambos productos.');if(!categoryMode&&a===b)return alert('El producto A y el producto B deben ser diferentes.');
  if(categoryMode&&(!categoryA||!categoryB))return alert('Selecciona las dos categorías.');if(categoryMode&&normalizeComboCategoryAdmin(categoryA)===normalizeComboCategoryAdmin(categoryB))return alert('Elige dos categorías diferentes.');
  if(discountType!=='none'&&(!Number.isFinite(entered)||entered<0))return alert('Ingresa un descuento válido.');if(discountType==='percent'&&(entered<=0||entered>100))return alert('El porcentaje debe ser mayor que 0 y no superar el 100%.');if(['fixed_amount','combo_price'].includes(discountType)&&entered<0)return alert('El valor no puede ser negativo.');if(discountType==='fixed_amount'&&entered<=0)return alert('El descuento en pesos debe ser mayor que cero.');
  if(!title||!message||!buttonLabel)return alert('Completa el título, mensaje y botón.');if(title.length>90||message.length>240||buttonLabel.length>32)return alert('Uno de los textos supera su límite.');
+ if(!['home','category','both'].includes(displayLocation))return alert('Selecciona dónde mostrar la combinación.');
+ if(['category','both'].includes(displayLocation)&&!displayCategory)return alert('Selecciona la categoría donde se mostrará la combinación.');
  let start,end;try{start=comboDateIso($('storefrontComboStartAt').value);end=comboDateIso($('storefrontComboEndAt').value)}catch(error){return alert(error.message)}if(start&&end&&new Date(start)>=new Date(end))return alert('La fecha final debe ser posterior a la inicial.');
  storefrontComboSaving=true;const button=$('saveStorefrontComboBtn');if(button){button.disabled=true;button.textContent='⏳ Guardando…'}
  try{
-  const {data,error}=await sb.rpc('admin_save_storefront_product_combo',{p_combo_id:storefrontComboEditingId||null,p_rule_type:ruleType,p_product_a_id:categoryMode?null:a||null,p_product_b_id:categoryMode?null:b||null,p_category_a:categoryMode?categoryA:null,p_category_b:categoryMode?categoryB:null,p_title:title,p_message:message,p_button_label:buttonLabel,p_enabled:$('storefrontComboEnabled').checked,p_start_at:start,p_end_at:end,p_discount_type:discountType,p_discount_value:discountType==='percent'||discountType==='fixed_amount'?entered:0,p_combo_price:discountType==='combo_price'?entered:null});
+  const {data,error}=await sb.rpc('admin_save_storefront_product_combo',{p_combo_id:storefrontComboEditingId||null,p_rule_type:ruleType,p_product_a_id:categoryMode?null:a||null,p_product_b_id:categoryMode?null:b||null,p_category_a:categoryMode?categoryA:null,p_category_b:categoryMode?categoryB:null,p_title:title,p_message:message,p_button_label:buttonLabel,p_enabled:$('storefrontComboEnabled').checked,p_start_at:start,p_end_at:end,p_discount_type:discountType,p_discount_value:discountType==='percent'||discountType==='fixed_amount'?entered:0,p_combo_price:discountType==='combo_price'?entered:null,p_display_location:displayLocation,p_display_category:['category','both'].includes(displayLocation)?displayCategory:null});
   if(error)throw error;const row=Array.isArray(data)?data[0]:data;if(!row)throw new Error('Supabase no devolvió la promoción guardada.');
   toast(row.enabled?'Promoción guardada y activa':'Promoción guardada como inactiva');resetStorefrontComboForm();storefrontCombosAdminLoaded=false;await loadStorefrontProductCombosAdmin(true);setStorefrontCombosAdminStatus(row.enabled?'Promoción guardada y activa. El beneficio se aplica automáticamente cuando el carrito tenga una pareja válida.':'Promoción guardada como inactiva; no afectará al carrito hasta activarla.','ok');notifyPublicCatalogChanged('combo-changed');
  }catch(error){setStorefrontCombosAdminStatus('No se guardó la promoción. Comprueba que ejecutaste la migración de descuentos y que eres la cuenta administradora. Detalle: '+String(error?.message||error),'error')}
@@ -2660,7 +2747,7 @@ document.addEventListener("DOMContentLoaded",()=>{
   }
   const paymentToggle=$("onlinePaymentsToggle");if(paymentToggle)paymentToggle.addEventListener("change",updateOnlinePaymentAdminLabel);
   const combosHost=$("storefrontCombosAdminList");if(combosHost)combosHost.addEventListener('click',event=>{const edit=event.target.closest('[data-combo-admin-edit]'),del=event.target.closest('[data-combo-admin-delete]');if(edit)editStorefrontCombo(edit.dataset.comboAdminEdit);if(del)void deleteStorefrontProductCombo(del.dataset.comboAdminDelete)});
-  const comboRuleType=$('storefrontComboRuleType');if(comboRuleType)comboRuleType.addEventListener('change',updateStorefrontComboRuleFields);const comboDiscountType=$('storefrontComboDiscountType');if(comboDiscountType)comboDiscountType.addEventListener('change',updateStorefrontComboRuleFields);
+  const comboRuleType=$('storefrontComboRuleType');if(comboRuleType)comboRuleType.addEventListener('change',updateStorefrontComboRuleFields);const comboPlacement=$('storefrontComboDisplayLocation');if(comboPlacement)comboPlacement.addEventListener('change',updateStorefrontComboRuleFields);const comboDiscountType=$('storefrontComboDiscountType');if(comboDiscountType)comboDiscountType.addEventListener('change',updateStorefrontComboRuleFields);
   const f=$("pFoto");if(f)f.addEventListener("change",renderPhotoPreview);
   const guideFile=$("pGuiaTallasFoto");if(guideFile)guideFile.addEventListener("change",()=>{if(guideFile.files?.length)sizeGuideImageRemoveRequested=false;renderSizeGuidePhotoPreview()});
 

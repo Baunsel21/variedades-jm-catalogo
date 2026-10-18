@@ -918,10 +918,11 @@ body{background:linear-gradient(180deg,#fffaf0 0%,#fff6e6 55%,#f8ecd7 100%);colo
   .detailThumb{width:33px!important;height:39px!important;flex-basis:33px!important;}
 }
 </style>
-<style id="detail-gallery-no-horizontal-swipe">
-/* Mantiene el desplazamiento vertical de la ficha; el cambio por gesto horizontal está desactivado. */
-#detailImageWrap{touch-action:pan-y;user-select:none;-webkit-user-select:none}
-#detailImageWrap img{user-select:none;-webkit-user-drag:none}
+<style id="detail-gallery-horizontal-swipe">
+/* La imagen admite gesto horizontal para cambiar de foto y mantiene el scroll vertical de la ficha. */
+#detailImageWrap{touch-action:pan-y pinch-zoom;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent}
+#detailImageWrap img{touch-action:pan-y pinch-zoom;user-select:none;-webkit-user-drag:none;-webkit-touch-callout:none}
+#galleryMain{touch-action:pan-y pinch-zoom;user-select:none;-webkit-user-drag:none;-webkit-touch-callout:none}
 </style>
 <style id="product-detail-scroll-from-anywhere">
 /* En móvil, desplazar verticalmente desde cualquier sección de la ficha debe mover
@@ -1372,8 +1373,8 @@ main#inicio>.benefits .benefit:last-child{border-right:0!important}
 main#inicio>.benefits .benefitIcon{font-size:23px!important;flex:none!important;color:#7b1730!important}
 main#inicio>.benefits .benefit b{font-size:13px!important;font-weight:700!important;color:#302b27!important}
 main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!important;font-size:11px!important;line-height:1.25!important;white-space:normal!important;color:#776f69!important}
-/* La galería no cambia fotos por arrastre horizontal; mantiene toque breve y hover de escritorio. */
-.photoSwipe,#productDetailModal .detailImageWrap{touch-action:pan-y}
+/* Las tarjetas de catálogo conservan su gesto breve y hover; la ficha tiene swipe horizontal propio. */
+.photoSwipe,#productDetailModal .detailImageWrap{touch-action:pan-y pinch-zoom}
 .photoSwipe img{backface-visibility:hidden;will-change:opacity,transform}
 @media(max-width:680px){
   .topin{height:84px!important;grid-template-columns:auto minmax(0,1fr) auto!important;gap:5px!important}
@@ -1584,6 +1585,48 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
 .checkoutSummaryOriginal{color:#8b7f82;text-decoration:line-through;font-size:10px;font-weight:600}
 .checkoutSummaryNet{color:#8e2948;font-weight:900}
 </style>
+
+<style id="sirevyaComboCheckoutEnhancements">
+/* Los productos relacionados forman una sola cinta horizontal, cómoda para deslizar en móvil. */
+#productDetailModal .detailRelatedGrid{display:flex!important;grid-template-columns:none!important;gap:12px!important;overflow-x:auto!important;overflow-y:hidden!important;overscroll-behavior-x:contain;scroll-snap-type:x mandatory;scrollbar-width:thin;padding:3px 2px 10px!important;-webkit-overflow-scrolling:touch;}
+#productDetailModal .detailRelatedCard{flex:0 0 clamp(138px,31vw,198px)!important;width:clamp(138px,31vw,198px)!important;scroll-snap-align:start;}
+#productDetailModal .detailRelatedCard img,#productDetailModal .detailRelatedNoImage{aspect-ratio:4/5;min-height:0;max-height:none;object-fit:cover;}
+.detailRelatedSwipeHint{margin:0;color:#8c7b80;font-size:11px;text-align:right;}
+.detailComboBlock{margin-top:10px;border:1px solid #eee2d8;border-radius:15px;background:#fffdfb;padding:12px;}
+.detailComboBlockIntro>strong{display:block;color:#30262c;font-family:Georgia,serif;font-size:17px;}
+.detailComboBlockIntro>p{margin:5px 0 7px;color:#786b70;font-size:12px;line-height:1.45;}
+.detailComboChoices{display:flex;gap:11px;overflow-x:auto;overscroll-behavior-x:contain;scroll-snap-type:x mandatory;padding:8px 2px 12px;-webkit-overflow-scrolling:touch;}
+.detailComboChoice{flex:0 0 min(82%,300px);min-width:0;border:1px solid #eadfe4;border-radius:13px;background:#fff;overflow:hidden;scroll-snap-align:start;display:grid;grid-template-columns:90px minmax(0,1fr);gap:10px;padding:9px;}
+.detailComboChoice .detailComboImage{height:118px;}
+.detailComboChoice .detailComboCopy{gap:5px;}
+.detailComboUnitPrice{font-size:11px;color:#746970;}
+.comboPairPriceSummary{border:1px solid #efdee5;background:#fff8fb;border-radius:11px;padding:9px 10px;margin:7px 0;color:#3b2b32;font-size:12px;}
+.comboPairPriceRow{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:3px 0;}
+.comboPairPriceRow span{font-size:11px;color:#71636b;}
+.comboPairPriceRow del{color:#9a8c91;font-size:11px;}
+.comboPairSaving strong{color:#18804b;}
+.comboPairFinal{padding-top:6px;margin-top:6px;border-top:1px solid #ead5df;font-weight:850;}
+.comboPairFinal strong{font-size:15px;color:#8d173e;white-space:nowrap;}
+.storefrontComboManualCard .storefrontComboCatalogCopy{padding-bottom:8px;}
+.comboManualPickerGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;padding:0 14px 10px;}
+.comboManualPickerGrid label{display:flex;flex-direction:column;gap:7px;min-width:0;font-size:12px;font-weight:800;color:#4b3a43;}
+.comboManualPickerGrid select{width:100%;min-width:0;border:1px solid #e3d4dc;border-radius:10px;background:#fff;padding:10px 8px;color:#342931;font-size:12px;}
+.comboManualView{border:1px solid #ddc4d1;background:#fff5fa;color:#8d173e;border-radius:999px;min-height:34px;padding:7px 10px;font-weight:800;font-size:11px;}
+.comboManualView:disabled{opacity:.45;cursor:not-allowed;}
+.comboPairPriceSummary[data-combo-price-summary]{margin:0 14px 12px;}
+.comboPairPriceSummary[data-combo-price-summary]>span{font-size:12px;color:#71636b;}
+.comboManualFooter{display:grid;gap:10px;padding:0 14px 14px;}
+.comboManualFooter small{color:#766a70;font-size:11px;line-height:1.45;}
+.comboManualFooter .storefrontComboCatalogAction:disabled{opacity:.45;cursor:not-allowed;}
+@media(max-width:620px){
+ #productDetailModal .detailRelatedCard{flex-basis:44vw!important;width:44vw!important;}
+ .detailComboChoice{flex-basis:87%;grid-template-columns:82px minmax(0,1fr);}
+ .detailComboChoice .detailComboImage{height:110px;}
+ .comboManualPickerGrid{grid-template-columns:minmax(0,1fr);}
+}
+@media(prefers-reduced-motion:reduce){.detailComboChoices{scroll-behavior:auto!important;}}
+</style>
+
 </head>
 <body>
 <header class="top">
@@ -1652,14 +1695,14 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
 
 
 <section class="categoryPanel" id="catalogo"><h2 class="categoryTitle">Categorías</h2><p class="categoryHint">Selecciona una categoría para ver sus productos.</p><div id="categoryButtons" class="categoryButtons"></div><select id="category" onchange="selectCategory(this.value)" style="display:none"><option value="">Todas las categorías</option></select></section>
-<div id="directCategoryBar" class="directCategoryBar" aria-live="polite"><button type="button" class="backAllBtn" onclick="showAllCatalog()">Ver todos los productos</button></div>
+<div id="directCategoryBar" class="directCategoryBar" aria-live="polite"><span id="directCategoryName" class="directCategoryName">Categoría</span><button type="button" class="backAllBtn" onclick="showAllCatalog()">Ver todos los productos</button></div>
 <div class="catalogSearchRow" id="catalogSearchRow">
   <input id="search" class="search" placeholder="Buscar productos..." oninput="handleSearchInput()" aria-label="Buscar productos">
 </div>
 <div class="catalogCountLine"><span id="count" class="count">Cargando catálogo…</span></div>
 <section id="cartBar" class="cartBar" aria-hidden="true" onclick="if(event.target===this)hideCart()"><div class="cartPanel" role="dialog" aria-modal="true" aria-labelledby="cartDrawerTitle"><div class="cartDrawerBody"><div class="cartHead"><div><div id="cartDrawerTitle" class="cartTitle">Tu carrito</div><div id="cartSummary" class="cartSummary">0 productos</div></div><button class="cartClose" type="button" onclick="hideCart()" aria-label="Cerrar carrito">×</button></div><div class="cartShippingBox" aria-live="polite"><div id="cartShippingMessage" class="cartShippingMessage">Envío gratis en Cali y desde $130.000 en otras ciudades.</div><div class="cartShippingTrack" role="progressbar" aria-label="Progreso para envío gratis fuera de Cali" aria-valuemin="0" aria-valuemax="130000" aria-valuenow="0"><div id="cartShippingFill" class="cartShippingFill"></div><span id="cartShippingTruck" class="cartShippingTruck" aria-hidden="true">🚚</span></div><div class="cartShippingFoot"><span>Envío gratis desde $130.000 fuera de Cali</span><span id="cartShippingPercent">0%</span></div><div class="cartShippingLocalNote">🚚 Envío gratis a Cali también</div></div><div id="cartItems" class="cartItems"></div><div class="cartFooter"><div class="cartFooterTotal"><span>Total estimado</span><strong id="cartDrawerTotal">$0</strong></div><div id="cartDiscountLine" class="cartDiscountSummary" hidden></div><p class="cartFooterNote">El envío se confirma según tu ciudad en el siguiente paso.</p><button id="cartSend" class="cartSend" type="button" onclick="sendCart()">Pagar pedido</button></div></div></div></section>
 <section id="storefrontComboCatalogSection" class="storefrontComboCatalogSection" hidden aria-labelledby="storefrontComboCatalogTitle">
-  <div class="storefrontComboCatalogIntro">
+  <div id="storefrontComboCatalogIntro" class="storefrontComboCatalogIntro">
     <span class="storefrontComboEyebrow">SIREVYA · COMPLETA TU ESTILO</span>
     <h2 id="storefrontComboCatalogTitle">Combina y descubre</h2>
     <p>Combina los productos indicados o compra una pieza de cada categoría participante. Si hay un descuento configurado, se aplica automáticamente en el carrito.</p>
@@ -1705,11 +1748,9 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
       <div class="shippingBox"><div class="shippingLine"><span>🚚 Envío</span><span id="shippingValue">Selecciona una ciudad</span></div><div id="shippingNote" class="shippingSmall">Cali: envío gratis. Otras ciudades: $15.000. Envío gratis desde $130.000.</div></div>
       <label>Forma de pago</label>
       <div class="paymentOptions">
-        <label class="paymentOption onlinePaymentOption"><input type="radio" name="paymentMethod" value="PSE" checked> 🏦 <span><b>Pago con PSE</b><small>Pago en línea mediante Wompi</small></span></label>
-        <label class="paymentOption onlinePaymentOption"><input type="radio" name="paymentMethod" value="Tarjeta"> 💳 <span><b>Tarjeta débito o crédito</b><small>Visa, Mastercard o American Express</small></span></label>
-        <label class="paymentOption onlinePaymentOption"><input type="radio" name="paymentMethod" value="Nequi"> 📱 <span><b>Pago con Nequi</b><small>Pago en línea mediante Wompi</small></span></label>
-        <label class="paymentOption onlinePaymentOption"><input type="radio" name="paymentMethod" value="Bancolombia"> 🏦 <span><b>Botón Bancolombia</b><small>Pago en línea mediante Wompi</small></span></label>
-        <label class="paymentOption paymentContraEntrega"><input type="radio" name="paymentMethod" value="Contra entrega" disabled> 💵 <span><b>Pago contra entrega (solo disponible en Cali)</b><small id="contraEntregaNote">Solo disponible al seleccionar Cali como ciudad de destino.</small></span></label>
+        <label class="paymentOption onlinePaymentOption"><input type="radio" name="paymentMethod" value="PSE" checked> 🏦 <span><b>Pago en línea · PSE o Nequi</b><small>Continuar a Wompi para elegir el medio disponible.</small></span></label>
+        <label class="paymentOption onlinePaymentOption"><input type="radio" name="paymentMethod" value="Tarjeta"> 💳 <span><b>Tarjeta, Bancolombia y otros medios</b><small>Pago seguro mediante Wompi; allí confirmas el medio.</small></span></label>
+        <label class="paymentOption paymentContraEntrega"><input type="radio" name="paymentMethod" value="Contra entrega" disabled> 💵 <span><b>Pago contra entrega</b><small id="contraEntregaNote">Disponible según las ciudades habilitadas por la tienda.</small></span></label>
       </div>
       <section id="checkoutItemSummary" class="checkoutItemSummary" aria-label="Resumen de tu compra" aria-live="polite" hidden>
         <h3 class="checkoutSummaryTitle">🛍️ Resumen de tu compra</h3>
@@ -1836,6 +1877,10 @@ const IMAGE_WORKER_URL="https://sirevya-images.variedadesjm99.workers.dev";
 const ONLINE_PAYMENT_SETTINGS_RPC="get_online_payment_status";
 let onlinePaymentsEnabled=false;
 let onlinePaymentSettingsPromise=null;
+let codPaymentEnabled=true;
+let codAllowedCities=['cali'];
+let codPaymentSettingsPromise=null;
+let codPaymentSettingsLoaded=false;
 
 // Wompi: llave pública de producción.
 // La firma de integridad se genera en Supabase, nunca aquí en el navegador.
@@ -2158,7 +2203,7 @@ function changePhoto(i,d,event){if(event){event.preventDefault();event.stopPropa
 function openGallery(id,event){if(event){event.preventDefault();event.stopPropagation()}const p=productos.find(x=>String(x.id)===String(id));if(!p)return;const imgs=productImages(p);if(!imgs.length)return;galleryProduct=p;galleryIndex=0;galleryImages=imgs;renderGallery();$('galleryModal').classList.add('open');document.body.style.overflow='hidden'}
 function openSizeGuideZoom(image,event){if(event){event.preventDefault();event.stopPropagation()}const src=String(image?.currentSrc||image?.src||'').trim();if(!src)return;galleryProduct={name:image?.alt||'Guía de tallas'};galleryIndex=0;galleryImages=[src];renderGallery();$('galleryModal').classList.add('open');document.body.style.overflow='hidden'}
 let galleryProduct=null,galleryImages=[],galleryIndex=0;
-function renderGallery(){if(!galleryImages.length)return;const main=$('galleryMain');main.loading='eager';main.fetchPriority='high';main.decoding='async';main.src=galleryImages[galleryIndex];main.alt=galleryProduct?.name||'Producto';$('galleryInfo').textContent=(galleryIndex+1)+' / '+galleryImages.length;const multi=galleryImages.length>1;$('galleryPrev').style.display=multi?'block':'none';$('galleryNext').style.display=multi?'block':'none'}
+function renderGallery(){if(!galleryImages.length)return;const main=$('galleryMain');main.loading='eager';main.fetchPriority='high';main.decoding='async';main.src=galleryImages[galleryIndex];main.alt=galleryProduct?.name||'Producto';animateGalleryImage(main);$('galleryInfo').textContent=(galleryIndex+1)+' / '+galleryImages.length;const multi=galleryImages.length>1;$('galleryPrev').style.display=multi?'block':'none';$('galleryNext').style.display=multi?'block':'none'}
 function galleryMove(d,event){if(event){event.preventDefault();event.stopPropagation()}if(galleryImages.length<2)return;galleryIndex=(galleryIndex+d+galleryImages.length)%galleryImages.length;renderGallery()}
 function closeGallery(event){if(event&&event.target!==$('galleryModal'))return;$('galleryModal').classList.remove('open');document.body.style.overflow=$('productDetailModal')?.classList.contains('open')?'hidden':''}
 
@@ -2800,96 +2845,197 @@ function storefrontComboDiscountLabel(combo){
 }
 function getStorefrontComboRepresentativeProducts(combo){
  const available=productos.filter(p=>productStockTotal(p)>0);
- if(String(combo?.rule_type||'product_pair')==='category_pair'){
-  const a=available.find(p=>comboCategoryMatches(p,combo.category_a));
-  const b=available.find(p=>comboCategoryMatches(p,combo.category_b)&&String(p.id)!==String(a?.id));
-  return a&&b?{primary:a,partner:b}:null;
- }
+ if(String(combo?.rule_type||'product_pair')==='category_pair')return null; // Las categorías nunca eligen artículos al azar.
  const primary=available.find(p=>String(p.id)===String(combo?.product_a_id));
  const partner=available.find(p=>String(p.id)===String(combo?.product_b_id));
  return primary&&partner?{primary,partner}:null;
 }
-function getStorefrontComboPartnerForProduct(product,combo){
- if(!product||!combo)return null;
+function getStorefrontComboPartnerOptions(product,combo){
+ if(!product||!combo)return [];
+ const available=productos.filter(p=>String(p.id)!==String(product.id)&&productStockTotal(p)>0);
  if(String(combo.rule_type||'product_pair')==='category_pair'){
-  if(comboCategoryMatches(product,combo.category_a))return productos.find(p=>String(p.id)!==String(product.id)&&comboCategoryMatches(p,combo.category_b)&&productStockTotal(p)>0)||null;
-  if(comboCategoryMatches(product,combo.category_b))return productos.find(p=>String(p.id)!==String(product.id)&&comboCategoryMatches(p,combo.category_a)&&productStockTotal(p)>0)||null;
-  return null;
+  if(comboCategoryMatches(product,combo.category_a))return available.filter(p=>comboCategoryMatches(p,combo.category_b));
+  if(comboCategoryMatches(product,combo.category_b))return available.filter(p=>comboCategoryMatches(p,combo.category_a));
+  return [];
  }
- if(String(product.id)===String(combo.product_a_id))return productos.find(p=>String(p.id)===String(combo.product_b_id)&&productStockTotal(p)>0)||null;
- if(String(product.id)===String(combo.product_b_id))return productos.find(p=>String(p.id)===String(combo.product_a_id)&&productStockTotal(p)>0)||null;
- return null;
+ let partnerId='';
+ if(String(product.id)===String(combo.product_a_id))partnerId=String(combo.product_b_id);
+ else if(String(product.id)===String(combo.product_b_id))partnerId=String(combo.product_a_id);
+ return partnerId?available.filter(p=>String(p.id)===partnerId):[];
+}
+function getStorefrontComboPartnerForProduct(product,combo){
+ return getStorefrontComboPartnerOptions(product,combo)[0]||null;
+}
+function storefrontComboPairPreview(combo,productA,productB){
+ const priceA=Math.max(0,Number(productA?.sale_price)||0),priceB=Math.max(0,Number(productB?.sale_price)||0);
+ const original=Math.round(priceA+priceB);let discount=0;
+ const type=String(combo?.discount_type||'none'),value=Math.max(0,Number(combo?.discount_value)||0);
+ if(type==='percent')discount=Math.round(original*Math.min(100,value)/100);
+ else if(type==='fixed_amount')discount=Math.min(original,Math.round(value));
+ else if(type==='combo_price')discount=Math.max(0,original-Math.max(0,Math.round(Number(combo?.combo_price)||0)));
+ discount=Math.min(original,Math.max(0,discount));
+ return {original,discount,total:Math.max(0,original-discount)};
+}
+function storefrontComboPlacementVisible(combo,selectedCategory){
+ const place=String(combo?.display_location||'home');
+ const categoryKey=normalizeComboCategory(combo?.display_category||'');
+ const currentKey=normalizeComboCategory(selectedCategory||'');
+ if(place==='home')return !currentKey;
+ if(place==='category')return !!currentKey&&!!categoryKey&&currentKey===categoryKey;
+ if(place==='both')return !currentKey|| (!!currentKey&&!!categoryKey&&currentKey===categoryKey);
+ return !currentKey;
+}
+function productNeedsComboOptions(product){
+ return !!(product&&(variantList(product).length||parseVariantList(product.colors).length||parseVariantList(product.sizes).length));
+}
+function comboCatalogProductOptions(category){
+ return productos.filter(p=>productStockTotal(p)>0&&comboCategoryMatches(p,category)).map(p=>`<option value="${esc(p.id)}">${esc(p.name||'Producto')} · ${money(p.sale_price)}</option>`).join('');
+}
+function openSelectedComboProduct(button,event){
+ if(event){event.preventDefault();event.stopPropagation();}
+ const card=button?.closest('[data-catalog-combo-id]');if(!card)return;
+ const side=button.dataset.comboOpenSelected||'a';const select=card.querySelector(`select[data-combo-choice="${side}"]`);
+ const id=select?.value||button.dataset.comboOpenProduct||'';
+ if(!id){showToast('Selecciona primero un producto de esa categoría.');return;}
+ const comboId=card.dataset.catalogComboId;if(comboId)trackStorefrontMarketingEvent('combo',comboId,'click');
+ openProductDetail(id,event);
+}
+function updateStorefrontComboCatalogChoice(card){
+ if(!card)return;
+ const combo=(storefrontProductCombos||[]).find(row=>String(row.id)===String(card.dataset.catalogComboId||''));
+ const aId=card.querySelector('select[data-combo-choice="a"]')?.value||'';
+ const bId=card.querySelector('select[data-combo-choice="b"]')?.value||'';
+ const a=productos.find(p=>String(p.id)===aId),b=productos.find(p=>String(p.id)===bId);
+ const summary=card.querySelector('[data-combo-price-summary]');
+ const openA=card.querySelector('[data-combo-open-selected="a"]'),openB=card.querySelector('[data-combo-open-selected="b"]');
+ const add=card.querySelector('[data-combo-add-selected]');
+ if(openA)openA.disabled=!a;if(openB)openB.disabled=!b;
+ if(add)add.disabled=!(a&&b);
+ if(!summary)return;
+ if(!(a&&b)){summary.innerHTML='<span>Elige un producto de cada categoría para calcular el precio de la pareja.</span>';return;}
+ const preview=storefrontComboPairPreview(combo,a,b);
+ summary.innerHTML=`<div class="comboPairPriceRow"><span>Precio normal de ambos</span><del>${money(preview.original)}</del></div>${preview.discount>0?`<div class="comboPairPriceRow comboPairSaving"><span>Ahorro del combo</span><strong>−${money(preview.discount)}</strong></div>`:''}<div class="comboPairPriceRow comboPairFinal"><span>Precio de los dos con promoción</span><strong>${money(preview.total)}</strong></div>`;
+}
+function addSelectedStorefrontComboToCart(button,event){
+ if(event){event.preventDefault();event.stopPropagation();}
+ const card=button?.closest('[data-catalog-combo-id]');if(!card)return;
+ const combo=(storefrontProductCombos||[]).find(row=>String(row.id)===String(card.dataset.catalogComboId||''));
+ const a=productos.find(p=>String(p.id)===String(card.querySelector('select[data-combo-choice="a"]')?.value||''));
+ const b=productos.find(p=>String(p.id)===String(card.querySelector('select[data-combo-choice="b"]')?.value||''));
+ if(!a||!b){showToast('Selecciona un producto de cada categoría.');return;}
+ if(productNeedsComboOptions(a)||productNeedsComboOptions(b)){
+  showToast('Este combo necesita seleccionar talla o color. Usa “Personalizar A” y “Personalizar B”; el descuento se aplicará al tener ambos en el carrito.');return;
+ }
+ const items=[a,b];
+ for(const p of items){
+  const stock=productStockTotal(p);
+  const qtyInCart=cart.filter(x=>String(x.id)===String(p.id)).reduce((sum,x)=>sum+(Number(x.qty)||0),0);
+  if(stock<1||qtyInCart>=stock){showToast(`No hay stock suficiente de ${p.name||'uno de los productos'} para agregar el combo.`);return;}
+ }
+ for(const p of items){
+  const max=productStockTotal(p);
+  const found=cart.find(x=>String(x.id)===String(p.id)&&!String(x.color||'')&&!String(x.size||''));
+  if(found){found.qty=Math.min(max,Math.max(0,Number(found.qty)||0)+1);found.max=max;}
+  else cart.push({id:p.id,name:p.name,code:p.code,price:Number(p.sale_price)||0,qty:1,max,color:'',size:''});
+ }
+ saveWompiCart();renderCart();
+ const preview=storefrontComboPairPreview(combo,a,b);
+ showToast(preview.discount>0?`Combo agregado. Ahorras ${money(preview.discount)} al comprar ambos.`:'Los dos productos se agregaron al carrito.');
 }
 function openComboPartner(button,event){
- if(event){event.preventDefault();event.stopPropagation()}
- const id=button?.dataset?.comboPartnerId;
- const comboId=button?.dataset?.comboId;
+ if(event){event.preventDefault();event.stopPropagation();}
+ const id=button?.dataset?.comboPartnerId;const comboId=button?.dataset?.comboId;
  if(comboId)trackStorefrontMarketingEvent('combo',comboId,'click');
  if(id)openProductDetail(id,event);
 }
 function renderStorefrontComboCatalog(){
  const section=$('storefrontComboCatalogSection'),host=$('storefrontComboCatalogGrid');
  if(!section||!host)return;
+ const selectedCategory=$('category')?.value||'';
+ const searchText=normalizeText($('search')?.value||'');
  const rows=(Array.isArray(storefrontProductCombos)?storefrontProductCombos:[])
-  .map(combo=>({combo,...(getStorefrontComboRepresentativeProducts(combo)||{})}))
-  .filter(row=>row.primary&&row.partner)
-  .slice(0,8);
- if(!rows.length){host.replaceChildren();section.hidden=true;return}
- host.innerHTML=rows.map(({combo,primary,partner})=>{
-   const primaryImage=productImages(primary)[0]||publicImage(primary.image_url)||'';
-   const partnerImage=productImages(partner)[0]||publicImage(partner.image_url)||'';
-   const isCategory=String(combo.rule_type||'product_pair')==='category_pair';
-   const context=isCategory?`Compra 1 producto de ${esc(combo.category_a)} + 1 de ${esc(combo.category_b)}.`:'Compra los dos productos indicados para aplicar la promoción.';
-   const discountLabel=storefrontComboDiscountLabel(combo);
-   return `<article class="storefrontComboCatalogCard" data-catalog-combo-id="${esc(combo.id)}">
-     <div class="storefrontComboCatalogPair">
-       <button type="button" class="storefrontComboCatalogProduct" data-combo-open-product="${esc(primary.id)}" data-combo-id="${esc(combo.id)}" aria-label="Ver ${esc(primary.name||'producto principal')}">
-         ${primaryImage?`<img src="${esc(primaryImage)}" alt="${esc(primary.name||'Producto principal')}" loading="lazy" decoding="async">`:'<span class="detailRelatedNoImage">✦</span>'}
-         <span class="storefrontComboCatalogProductName">${esc(isCategory?combo.category_a:(primary.name||'Producto principal'))}</span><span class="storefrontComboCatalogProductPrice">${isCategory?'Desde ':''}${money(primary.sale_price)}</span>
-       </button>
-       <button type="button" class="storefrontComboCatalogProduct" data-combo-open-product="${esc(partner.id)}" data-combo-id="${esc(combo.id)}" aria-label="Ver ${esc(partner.name||'producto recomendado')}">
-         ${partnerImage?`<img src="${esc(partnerImage)}" alt="${esc(partner.name||'Producto recomendado')}" loading="lazy" decoding="async">`:'<span class="detailRelatedNoImage">✦</span>'}
-         <span class="storefrontComboCatalogProductName">${esc(isCategory?combo.category_b:(partner.name||'Producto recomendado'))}</span><span class="storefrontComboCatalogProductPrice">${isCategory?'Desde ':''}${money(partner.sale_price)}</span>
-       </button>
-     </div>
-     <div class="storefrontComboCatalogCopy"><strong>${esc(combo.title||'Completa el look')}</strong><p>${esc(combo.message||context)}${isCategory?' '+context:''}</p><div class="comboDiscountPill">${esc(discountLabel)}</div><button type="button" class="storefrontComboCatalogAction" data-combo-open-product="${esc(primary.id)}" data-combo-id="${esc(combo.id)}">${esc(combo.button_label||'Ver combinación')}</button></div>
+  .filter(combo=>storefrontComboPlacementVisible(combo,selectedCategory))
+  .filter(combo=>!searchText)
+  .filter(combo=>{
+    if(String(combo.rule_type||'product_pair')==='category_pair'){
+      return productos.some(p=>productStockTotal(p)>0&&comboCategoryMatches(p,combo.category_a))&&productos.some(p=>productStockTotal(p)>0&&comboCategoryMatches(p,combo.category_b));
+    }
+    return productos.some(p=>String(p.id)===String(combo.product_a_id)&&productStockTotal(p)>0)&&productos.some(p=>String(p.id)===String(combo.product_b_id)&&productStockTotal(p)>0);
+  }).slice(0,8);
+ if(!rows.length){host.replaceChildren();section.hidden=true;return;}
+ const selectedMode=!!selectedCategory;
+ $('storefrontComboCatalogTitle').textContent=selectedMode?'Combos para '+selectedCategory:'Combina y descubre';
+ $('storefrontComboCatalogIntro').querySelector('p').textContent=selectedMode
+  ?'Explora estas promociones de la categoría. Elige los productos y revisa el precio combinado antes de agregarlos.'
+  :'Escoge los productos que más te gusten. En los combos por categoría, tú eliges cada producto y ves el precio de ambos con el descuento antes de agregarlos.';
+ host.innerHTML=rows.map(combo=>{
+  const isCategory=String(combo.rule_type||'product_pair')==='category_pair';
+  const discountLabel=storefrontComboDiscountLabel(combo);
+  if(isCategory){
+    const listA=comboCatalogProductOptions(combo.category_a),listB=comboCatalogProductOptions(combo.category_b);
+    return `<article class="storefrontComboCatalogCard storefrontComboManualCard" data-catalog-combo-id="${esc(combo.id)}">
+      <div class="storefrontComboCatalogCopy"><span class="storefrontComboEyebrow">COMBO POR CATEGORÍA</span><strong>${esc(combo.title||'Completa el look')}</strong><p>${esc(combo.message||'Selecciona un producto de cada categoría.')}</p><div class="comboDiscountPill">${esc(discountLabel)}</div></div>
+      <div class="comboManualPickerGrid">
+       <label><span>1. Elige de ${esc(combo.category_a)}</span><select data-combo-choice="a"><option value="">Selecciona un producto…</option>${listA}</select><button type="button" class="comboManualView" data-combo-open-selected="a" disabled>Personalizar A</button></label>
+       <label><span>2. Elige de ${esc(combo.category_b)}</span><select data-combo-choice="b"><option value="">Selecciona un producto…</option>${listB}</select><button type="button" class="comboManualView" data-combo-open-selected="b" disabled>Personalizar B</button></label>
+      </div>
+      <div class="comboPairPriceSummary" data-combo-price-summary>Elige un producto de cada categoría para calcular el precio de la pareja.</div>
+      <div class="comboManualFooter"><small>Si ambos productos no requieren talla ni color, podrás agregarlos juntos. Si tienen variantes, personaliza cada uno para no escoger opciones equivocadas.</small><button type="button" class="storefrontComboCatalogAction" data-combo-add-selected disabled>Agregar combo al carrito</button></div>
+     </article>`;
+  }
+  const pair=getStorefrontComboRepresentativeProducts(combo);if(!pair)return '';
+  const primary=pair.primary,partner=pair.partner;
+  const primaryImage=productImages(primary)[0]||publicImage(primary.image_url)||'';
+  const partnerImage=productImages(partner)[0]||publicImage(partner.image_url)||'';
+  const preview=storefrontComboPairPreview(combo,primary,partner);
+  return `<article class="storefrontComboCatalogCard" data-catalog-combo-id="${esc(combo.id)}">
+    <div class="storefrontComboCatalogPair">
+      <button type="button" class="storefrontComboCatalogProduct" data-combo-open-product="${esc(primary.id)}" data-combo-id="${esc(combo.id)}" aria-label="Ver ${esc(primary.name||'producto A')}">${primaryImage?`<img src="${esc(primaryImage)}" alt="${esc(primary.name||'Producto A')}" loading="lazy" decoding="async">`:'<span class="detailRelatedNoImage">✦</span>'}<span class="storefrontComboCatalogProductName">${esc(primary.name||'Producto A')}</span><span class="storefrontComboCatalogProductPrice">${money(primary.sale_price)}</span></button>
+      <button type="button" class="storefrontComboCatalogProduct" data-combo-open-product="${esc(partner.id)}" data-combo-id="${esc(combo.id)}" aria-label="Ver ${esc(partner.name||'producto B')}">${partnerImage?`<img src="${esc(partnerImage)}" alt="${esc(partner.name||'Producto B')}" loading="lazy" decoding="async">`:'<span class="detailRelatedNoImage">✦</span>'}<span class="storefrontComboCatalogProductName">${esc(partner.name||'Producto B')}</span><span class="storefrontComboCatalogProductPrice">${money(partner.sale_price)}</span></button>
+    </div>
+    <div class="storefrontComboCatalogCopy"><strong>${esc(combo.title||'Completa el look')}</strong><p>${esc(combo.message||'Compra los dos productos indicados para aplicar la promoción.')}</p><div class="comboPairPriceSummary"><div class="comboPairPriceRow"><span>Precio normal de ambos</span><del>${money(preview.original)}</del></div>${preview.discount>0?`<div class="comboPairPriceRow comboPairSaving"><span>Ahorro del combo</span><strong>−${money(preview.discount)}</strong></div>`:''}<div class="comboPairPriceRow comboPairFinal"><span>Precio de los dos con promoción</span><strong>${money(preview.total)}</strong></div></div><button type="button" class="storefrontComboCatalogAction" data-combo-open-product="${esc(primary.id)}" data-combo-id="${esc(combo.id)}">${esc(combo.button_label||'Ver y comprar combo')}</button></div>
    </article>`;
- }).join('');
- section.hidden=false;
+ }).filter(Boolean).join('');
+ section.hidden=!host.innerHTML.trim();
  host.querySelectorAll('[data-combo-open-product]').forEach(button=>button.addEventListener('click',event=>{
-   const productId=button.dataset.comboOpenProduct,comboId=button.dataset.comboId;
-   if(comboId)trackStorefrontMarketingEvent('combo',comboId,'click');
-   openProductDetail(productId,event);
+  const productId=button.dataset.comboOpenProduct,comboId=button.dataset.comboId;
+  if(comboId)trackStorefrontMarketingEvent('combo',comboId,'click');openProductDetail(productId,event);
  }));
- rows.forEach(({combo})=>{const id=String(combo.id||'');if(id&&!storefrontComboCatalogImpressions.has(id)){storefrontComboCatalogImpressions.add(id);trackStorefrontMarketingEvent('combo',id,'impression')}});
+ host.querySelectorAll('[data-catalog-combo-id]').forEach(card=>{
+  card.querySelectorAll('select[data-combo-choice]').forEach(sel=>sel.addEventListener('change',()=>updateStorefrontComboCatalogChoice(card)));
+  card.querySelectorAll('[data-combo-open-selected]').forEach(button=>button.addEventListener('click',event=>openSelectedComboProduct(button,event)));
+  card.querySelector('[data-combo-add-selected]')?.addEventListener('click',event=>addSelectedStorefrontComboToCart(event.currentTarget,event));
+  updateStorefrontComboCatalogChoice(card);
+ });
+ rows.forEach(combo=>{const id=String(combo.id||'');if(id&&!storefrontComboCatalogImpressions.has(id)){storefrontComboCatalogImpressions.add(id);trackStorefrontMarketingEvent('combo',id,'impression')}});
 }
-
 function updateDetailDescription(p){
  const host=$('detailAdditionalContent');if(!host||!p)return;
  const openSections=new Set(Array.from(host.querySelectorAll('.detailAccordion[open]')).map(el=>el.dataset.detailSection||''));
- const description=String(p.description||'').trim();
- const sizeGuide=String(p.size_guide||'').trim();
- const sizeGuideImage=String(p.size_guide_image||'').trim();
+ const description=String(p.description||'').trim(),sizeGuide=String(p.size_guide||'').trim(),sizeGuideImage=String(p.size_guide_image||'').trim();
  const deliveryText='El tiempo de entrega depende de la ciudad de destino y de la transportadora. Durante la compra podrás confirmar la información del envío para tu dirección.';
  const categoryKey=normalizeText(p.category||'');
- const related=categoryKey?productos.filter(item=>String(item.id)!==String(p.id)&&normalizeText(item.category||'')===categoryKey&&productStockTotal(item)>0).slice(0,8):[];
+ const related=categoryKey?productos.filter(item=>String(item.id)!==String(p.id)&&normalizeText(item.category||'')===categoryKey&&productStockTotal(item)>0).slice(0,12):[];
  const accordion=(title,content,cls='')=>`<details class="detailAccordion ${cls}" data-detail-section="${esc(title)}"><summary>${esc(title)}<span class="detailAccordionChevron" aria-hidden="true">⌄</span></summary><div class="detailAccordionBody">${content}</div></details>`;
- // Solo mostrar cada apartado opcional cuando el administrador haya guardado contenido.
- // Si se recuperan detalles de forma asíncrona, esta función reconstruye la ficha y
- // añade los apartados en ese momento; si se dejan vacíos, no deja desplegables vacíos.
- const descriptionSection=description
-   ?accordion('Información del producto',`<p class="detailLongText">${esc(description)}</p>`,'detailDescriptionAccordion')
-   :'';
+ const descriptionSection=description?accordion('Información del producto',`<p class="detailLongText">${esc(description)}</p>`,'detailDescriptionAccordion'):'';
  const guideImageUrl=sizeGuideImage?publicImage(sizeGuideImage):'';
  const guideImageMarkup=guideImageUrl?`<figure class="detailSizeGuideFigure"><img class="detailSizeGuideImage" src="${esc(guideImageUrl)}" alt="Guía de tallas${p.name?` de ${esc(p.name)}`:''}" loading="lazy" decoding="async" role="button" tabindex="0" aria-label="Ampliar guía de tallas" title="Toca para ampliar" onclick="openSizeGuideZoom(this,event)" onkeydown="if(event.key==='Enter'||event.key===' '){openSizeGuideZoom(this,event)}" onerror="this.style.display='none'"></figure>`:'';
  const guideTextMarkup=sizeGuide?`<p class="detailLongText ${guideImageUrl?'detailSizeGuideTextAfterImage':''}">${esc(sizeGuide)}</p>`:'';
- const sizeGuideSection=(guideImageUrl||sizeGuide)
-   ?accordion('Guía de tallas',`${guideImageMarkup}${guideTextMarkup}`,'detailSizeGuideAccordion')
-   :'';
+ const sizeGuideSection=(guideImageUrl||sizeGuide)?accordion('Guía de tallas',`${guideImageMarkup}${guideTextMarkup}`,'detailSizeGuideAccordion'):'';
  const deliverySection=accordion('Tiempo de entrega',`<p class="detailLongText">${esc(deliveryText)}</p>`,'detailDeliveryAccordion');
- const relatedSection=related.length?`<section class="detailRelatedSection"><div class="detailSectionHeading"><h3>Productos relacionados</h3><span></span></div><div class="detailRelatedGrid">${related.map(item=>{const image=productImages(item)[0]||'';return `<button type="button" class="detailRelatedCard" data-related-product-id="${esc(item.id)}" onclick="openRelatedProduct(this,event)">${image?`<img src="${esc(image)}" alt="${esc(item.name||'Producto relacionado')}" loading="lazy" decoding="async">`:'<span class="detailRelatedNoImage">✦</span>'}<span class="detailRelatedName">${esc(item.name||'Producto')}</span><span class="detailRelatedPrice">${money(item.sale_price)}</span></button>`}).join('')}</div></section>`:'';
- const comboCards=(storefrontProductCombos||[]).map(combo=>({combo,product:getStorefrontComboPartnerForProduct(p,combo)})).filter(x=>x.product&&productStockTotal(x.product)>0);
- const comboSection=comboCards.length?`<section class="detailComboSection"><div class="detailSectionHeading"><h3>Combina con estilo</h3><span></span></div>${comboCards.map(({combo,product})=>{const image=productImages(product)[0]||product.image_url||'';return `<article class="detailComboCard"><div class="detailComboImage">${image?`<img src="${esc(image)}" alt="${esc(product.name||'Producto recomendado')}" loading="lazy" decoding="async">`:'<span>✦</span>'}</div><div class="detailComboCopy"><strong>${esc(combo.title||'Completa el look')}</strong><p>${esc(combo.message||'Descubre esta combinación de productos.')}</p><span class="detailRelatedPrice">${money(product.sale_price)}</span><span class="comboDiscountMeta">${esc(storefrontComboDiscountLabel(combo))}</span><button type="button" class="detailComboButton" data-combo-partner-id="${esc(product.id)}" data-combo-id="${esc(combo.id)}" onclick="openComboPartner(this,event)">${esc(combo.button_label||'Ver producto')}</button></div></article>`}).join('')}</section>`:'';
+ const relatedSection=related.length?`<section class="detailRelatedSection"><div class="detailSectionHeading"><h3>Productos relacionados</h3><span></span></div><div class="detailRelatedGrid" aria-label="Desliza horizontalmente para ver más productos">${related.map(item=>{const image=productImages(item)[0]||'';return `<button type="button" class="detailRelatedCard" data-related-product-id="${esc(item.id)}" onclick="openRelatedProduct(this,event)">${image?`<img src="${esc(image)}" alt="${esc(item.name||'Producto relacionado')}" loading="lazy" decoding="async">`:'<span class="detailRelatedNoImage">✦</span>'}<span class="detailRelatedName">${esc(item.name||'Producto')}</span><span class="detailRelatedPrice">${money(item.sale_price)}</span></button>`}).join('')}</div><p class="detailRelatedSwipeHint">Desliza para descubrir más productos ↔</p></section>`:'';
+ const comboCards=(storefrontProductCombos||[]).map(combo=>({combo,partners:getStorefrontComboPartnerOptions(p,combo)})).filter(x=>x.partners.length>0);
+ const comboSection=comboCards.length?`<section class="detailComboSection"><div class="detailSectionHeading"><h3>Combina con estilo</h3><span></span></div>${comboCards.map(({combo,partners})=>{
+   const isCategory=String(combo.rule_type||'product_pair')==='category_pair';
+   const otherCategory=isCategory?(comboCategoryMatches(p,combo.category_a)?combo.category_b:combo.category_a):'';
+   const detailIntro=isCategory?`Elige tú un producto de ${esc(otherCategory)} para combinarlo con este. El precio final incluye el descuento de los dos artículos.`:'Estos son los dos productos que participan en esta promoción.';
+   const cards=partners.slice(0,30).map(product=>{
+    const image=productImages(product)[0]||publicImage(product.image_url)||'';
+    const preview=storefrontComboPairPreview(combo,p,product);
+    return `<article class="detailComboChoice"><div class="detailComboImage">${image?`<img src="${esc(image)}" alt="${esc(product.name||'Producto recomendado')}" loading="lazy" decoding="async">`:'<span>✦</span>'}</div><div class="detailComboCopy"><strong>${esc(product.name||'Producto recomendado')}</strong><p>${esc(product.category||'')}</p><span class="detailComboUnitPrice">Este producto: ${money(product.sale_price)}</span><div class="comboPairPriceSummary"><div class="comboPairPriceRow"><span>Ambos sin descuento</span><del>${money(preview.original)}</del></div>${preview.discount>0?`<div class="comboPairPriceRow comboPairSaving"><span>Ahorras</span><strong>−${money(preview.discount)}</strong></div>`:''}<div class="comboPairPriceRow comboPairFinal"><span>Total de los dos</span><strong>${money(preview.total)}</strong></div></div><button type="button" class="detailComboButton" data-combo-partner-id="${esc(product.id)}" data-combo-id="${esc(combo.id)}" onclick="openComboPartner(this,event)">${esc(combo.button_label||'Elegir este producto')}</button></div></article>`;
+   }).join('');
+   return `<div class="detailComboBlock"><div class="detailComboBlockIntro"><strong>${esc(combo.title||'Completa el look')}</strong><p>${esc(combo.message||detailIntro)}${isCategory?' '+detailIntro:''}</p><span class="comboDiscountMeta">${esc(storefrontComboDiscountLabel(combo))}</span></div><div class="detailComboChoices">${cards}</div></div>`;
+ }).join('')}</section>`:'';
  if(comboCards.length)comboCards.forEach(({combo})=>trackStorefrontMarketingEvent('combo',combo.id,'impression'));
  host.innerHTML=`<div class="detailAccordionGroup">${descriptionSection}${sizeGuideSection}${deliverySection}</div>${comboSection}${relatedSection}`;
  host.querySelectorAll('.detailAccordion').forEach(el=>{if(openSections.has(el.dataset.detailSection||''))el.open=true});
@@ -2912,19 +3058,78 @@ function renderDetailGallery(p,activeUrl){
  const activeKey=normalizeImageUrl(activeUrl);
  // Store dynamic image URLs in an escaped data attribute, not inside inline JavaScript.
  // This also handles valid URLs containing apostrophes without breaking the click handler.
- box.innerHTML=imgs.map((u,i)=>`<button type="button" class="detailThumb ${normalizeImageUrl(u)===activeKey?'active':''}" data-detail-image-url="${esc(u)}"><img src="${esc(u)}" alt="Foto ${i+1}" loading="lazy" decoding="async"></button>`).join('');
+ box.innerHTML=imgs.map((u,i)=>{const active=normalizeImageUrl(u)===activeKey;return `<button type="button" class="detailThumb ${active?'active':''}" data-detail-image-url="${esc(u)}" aria-label="Ver foto ${i+1} de ${esc(p.name||'producto')}" aria-pressed="${active?'true':'false'}"><img src="${esc(u)}" alt="Foto ${i+1}" loading="lazy" decoding="async" draggable="false"></button>`}).join('');
  box.querySelectorAll('button[data-detail-image-url]').forEach(button=>{
   button.addEventListener('click',event=>selectDetailImage(button.dataset.detailImageUrl||'',event));
  });
+}
+function animateGalleryImage(image){
+ try{
+  if(!image||typeof image.animate!=='function'||window.matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+  image.animate([{opacity:.84},{opacity:1}],{duration:130,easing:'ease-out'});
+ }catch{}
 }
 function selectDetailImage(url,event){
  if(event){event.preventDefault();event.stopPropagation()}
  const image=$('detailImage');if(!image)return;
  image.src=url;
- document.querySelectorAll('.detailThumb').forEach(b=>b.classList.toggle('active',b.querySelector('img')?.src===url));
+ image.alt=String(detailProduct?.name||'Producto');
+ animateGalleryImage(image);
+ const selectedKey=normalizeImageUrl(url);
+ document.querySelectorAll('#detailGalleryThumbs .detailThumb').forEach(b=>{
+  const thumbUrl=b.dataset.detailImageUrl||b.querySelector('img')?.src||'';
+  const active=normalizeImageUrl(thumbUrl)===selectedKey;
+  b.classList.toggle('active',active);
+  b.setAttribute('aria-pressed',active?'true':'false');
+ });
 }
-/* La foto principal no cambia por deslizamiento; la galería sigue disponible desde las miniaturas y al tocar la imagen. */
+/* Gestos de galería: swipe horizontal cambia la foto; swipe vertical queda para el scroll nativo. */
+let sirevyaProductGalleryGesture=null;
+let sirevyaBlockDetailImageClickUntil=0;
+document.addEventListener('pointerdown',event=>{
+ if(event.pointerType==='mouse'&&event.button!==0)return;
+ const target=event.target;
+ if(target?.closest?.('#detailImageWrap')){
+  sirevyaProductGalleryGesture={pointerId:event.pointerId,startX:event.clientX,startY:event.clientY,mode:'detail'};
+ }else if(target?.closest?.('#galleryMain')){
+  sirevyaProductGalleryGesture={pointerId:event.pointerId,startX:event.clientX,startY:event.clientY,mode:'zoom'};
+ }
+},{passive:true});
+document.addEventListener('pointercancel',event=>{
+ if(sirevyaProductGalleryGesture&&sirevyaProductGalleryGesture.pointerId===event.pointerId)sirevyaProductGalleryGesture=null;
+},{passive:true});
+document.addEventListener('pointerup',event=>{
+ const gesture=sirevyaProductGalleryGesture;
+ if(!gesture||gesture.pointerId!==event.pointerId)return;
+ sirevyaProductGalleryGesture=null;
+ const dx=event.clientX-gesture.startX,dy=event.clientY-gesture.startY;
+ /* Ignora toques y gestos diagonales: evita cambiar fotos al intentar desplazarse por la ficha. */
+ if(Math.abs(dx)<40||Math.abs(dx)<Math.abs(dy)*1.2)return;
+ if(gesture.mode==='detail'){
+  if(!$('productDetailModal')?.classList.contains('open')||!detailProduct)return;
+  const image=$('detailImage');
+  if(!image)return;
+  const current=String(image.currentSrc||image.src||'');
+  const urls=[...document.querySelectorAll('#detailGalleryThumbs [data-detail-image-url]')]
+   .map(button=>String(button.dataset.detailImageUrl||'').trim()).filter(Boolean);
+  if(current&&!urls.some(url=>normalizeImageUrl(url)===normalizeImageUrl(current)))urls.unshift(current);
+  if(urls.length<2)return;
+  let index=urls.findIndex(url=>normalizeImageUrl(url)===normalizeImageUrl(current));
+  if(index<0)index=0;
+  const next=(index+(dx<0?1:-1)+urls.length)%urls.length;
+  sirevyaBlockDetailImageClickUntil=Date.now()+300;
+  if(event.cancelable)event.preventDefault();
+  event.stopPropagation();
+  selectDetailImage(urls[next]);
+ }else{
+  if(!$('galleryModal')?.classList.contains('open')||galleryImages.length<2)return;
+  if(event.cancelable)event.preventDefault();
+  event.stopPropagation();
+  galleryMove(dx<0?1:-1);
+ }
+},{passive:false});
 function openDetailGallery(event){
+ if(Date.now()<sirevyaBlockDetailImageClickUntil){if(event){event.preventDefault();event.stopPropagation()}return}
  if(event){event.preventDefault();event.stopPropagation()}
  if(!detailProduct)return;
  const current=String($('detailImage')?.currentSrc||$('detailImage')?.src||'');
@@ -3425,6 +3630,7 @@ function sendCart(){
  $('checkoutModal').classList.add('open');
  document.body.style.overflow='hidden';
  refreshOnlinePaymentSetting({silent:true});
+ refreshCODPaymentSettings({silent:true});
 }
 
 function openContact(event){
@@ -3491,44 +3697,61 @@ function canonicalLocalDeliveryCity(value){
  if(['cali','santiago de cali','cali valle del cauca'].includes(normalized))return 'Cali';
  return '';
 }
-function isLocalCODCity(value){return canonicalLocalDeliveryCity(value)==='Cali';}
-// Con pagos online apagados solo se ofrece contraentrega en Cali.
-// Conservamos las opciones originales del selector para restaurarlas al activar pagos online.
-let originalCustomerCityOptionsHTML=null;
-let citySelectorPaymentMode=null;
-let cityBeforeCODOnlyMode='';
-function syncCustomerCityOptionsForPaymentMode(){
- const select=$('customerCity');
- if(!select)return;
- if(originalCustomerCityOptionsHTML===null)originalCustomerCityOptionsHTML=select.innerHTML;
- const nextMode=onlinePaymentsEnabled?'online':'cod-only';
- if(citySelectorPaymentMode===nextMode){
-  if(nextMode==='cod-only'&&select.value!=='Cali'){
-   select.innerHTML='<option value="Cali">Cali</option>';
-   select.value='Cali';
+const COD_KNOWN_CITY_KEYS=['cali','bogota','medellin','barranquilla','cartagena','bucaramanga','pereira','armenia','manizales','cucuta','pasto'];
+function isLocalCODCity(value){
+ const normalized=normalizeDeliveryCity(value);
+ if(!codPaymentEnabled||!normalized)return false;
+ if(codAllowedCities.includes('*'))return true;
+ if(codAllowedCities.map(normalizeDeliveryCity).includes(normalized))return true;
+ if(codAllowedCities.includes('__other__')&&!COD_KNOWN_CITY_KEYS.includes(normalized))return true;
+ return false;
+}
+async function refreshCODPaymentSettings({silent=true}={}){
+ if(codPaymentSettingsPromise)return codPaymentSettingsPromise;
+ const task=(async()=>{
+  try{
+   const {data,error}=await sb.rpc('get_public_storefront_cod_settings');if(error)throw error;
+   const row=Array.isArray(data)?data[0]:data;
+   if(!row||typeof row.enabled!=='boolean'||!Array.isArray(row.allowed_cities))throw new Error('Respuesta de configuración de contraentrega no válida.');
+   codPaymentEnabled=row.enabled;codAllowedCities=row.allowed_cities.map(x=>String(x||'').trim().toLowerCase()).filter(Boolean);codPaymentSettingsLoaded=true;
+  }catch(error){
+   // Compatibility: until the additive migration is installed, retain the previous Cali-only rule.
+   codPaymentEnabled=true;codAllowedCities=['cali'];codPaymentSettingsLoaded=false;
+   if(!silent)console.warn('No se pudo leer la configuración de contraentrega; se mantiene Cali como única ciudad.',error);
   }
+  syncPaymentOptions();if($('checkoutModal')?.classList.contains('open'))updateShipping();
+  return codPaymentSettingsLoaded;
+ })();
+ codPaymentSettingsPromise=task;try{return await task}finally{if(codPaymentSettingsPromise===task)codPaymentSettingsPromise=null;}
+}
+// Mantiene el selector de ciudades normal al pagar en línea; si solo existe contraentrega,
+// limita las ciudades al conjunto que el administrador habilitó.
+let originalCustomerCityOptionsHTML=null;
+function syncCustomerCityOptionsForPaymentMode(){
+ const select=$('customerCity');if(!select)return;
+ if(originalCustomerCityOptionsHTML===null)originalCustomerCityOptionsHTML=select.innerHTML;
+ const current=select.value;const nextMode=onlinePaymentsEnabled?'online':'cod-only';
+ if(nextMode==='online'){
+  if(select.innerHTML!==originalCustomerCityOptionsHTML)select.innerHTML=originalCustomerCityOptionsHTML;
+  if([...select.options].some(option=>option.value===current))select.value=current;
   return;
  }
- if(nextMode==='cod-only'){
-  cityBeforeCODOnlyMode=select.value||'';
-  select.innerHTML='<option value="Cali">Cali</option>';
-  select.value='Cali';
-  const otherWrap=$('customerCityOtherWrap');
-  const otherInput=$('customerCityOther');
-  if(otherWrap)otherWrap.hidden=true;
-  if(otherInput){otherInput.value='';otherInput.required=false;otherInput.removeAttribute('aria-invalid');}
- }else{
-  const preferred=cityBeforeCODOnlyMode;
-  select.innerHTML=originalCustomerCityOptionsHTML;
-  const validValue=[...select.options].some(option=>option.value===preferred);
-  select.value=validValue?preferred:'';
-  cityBeforeCODOnlyMode='';
-  const otherWrap=$('customerCityOtherWrap');
-  const otherInput=$('customerCityOther');
-  if(otherWrap)otherWrap.hidden=select.value!=='Otra';
-  if(otherInput)otherInput.required=select.value==='Otra';
- }
- citySelectorPaymentMode=nextMode;
+ const allAllowed=codAllowedCities.includes('*');
+ const allowedKeys=codAllowedCities.map(normalizeDeliveryCity);
+ select.innerHTML=originalCustomerCityOptionsHTML;
+ const options=[...select.options];
+ options.forEach(option=>{
+  if(!option.value)return;
+  const key=normalizeDeliveryCity(option.value);
+  const isOther=option.value==='Otra';
+  option.hidden=!(codPaymentEnabled&&(allAllowed||allowedKeys.includes(key)||(isOther&&codAllowedCities.includes('__other__'))));
+  option.disabled=option.hidden;
+ });
+ if(current&&[...select.options].some(option=>option.value===current&&!option.hidden))select.value=current;
+ else select.value='';
+ const otherWrap=$('customerCityOtherWrap'),otherInput=$('customerCityOther');
+ if(otherWrap)otherWrap.hidden=select.value!=='Otra';
+ if(otherInput){otherInput.required=select.value==='Otra';if(select.value!=='Otra')otherInput.value='';}
 }
 function syncPaymentOptions(){
  syncCustomerCityOptionsForPaymentMode();
@@ -3544,14 +3767,12 @@ function syncPaymentOptions(){
  const codAllowed=isLocalCODCity(city);
  if(cod){cod.disabled=!codAllowed;if(codLabel)codLabel.classList.toggle('paymentUnavailable',!codAllowed);}
  const note=$('contraEntregaNote');
- if(note)note.textContent=codAllowed
-  ?'Disponible para pedidos con destino en Cali.'
-  :(city?'Solo disponible en Cali. Para otras ciudades, selecciona un pago en línea.':'Solo disponible al seleccionar Cali como ciudad de destino.');
+ if(note)note.textContent=codAllowed?'Disponible para esta ciudad.' :(city?'La tienda no habilitó contraentrega para esta ciudad. Selecciona un pago en línea.':'Selecciona una ciudad habilitada por la tienda.');
  const checkoutNote=$('checkoutPaymentNote');
  if(checkoutNote){
   checkoutNote.textContent=onlinePaymentsEnabled
-   ?'Cali tiene envío gratis. En otras ciudades el envío es de $15.000, pero es gratis desde $130.000 de compra. Los pagos en línea se procesan de forma segura con Wompi. Puedes elegir PSE, tarjeta, Nequi o Bancolombia.'
-   :'Los pagos en línea están desactivados. Solo puedes pagar contraentrega en Cali, con envío gratis.';
+   ?'Envío gratis en Cali y desde $130.000 en otras ciudades. Los pagos en línea se procesan de forma segura mediante Wompi; allí confirmarás el medio disponible.'
+   :'Los pagos en línea están desactivados. Puedes pagar contraentrega en las ciudades habilitadas por la tienda.';
  }
  const radios=[...document.querySelectorAll('input[name="paymentMethod"]')];
  if(!onlinePaymentsEnabled){
@@ -3706,7 +3927,7 @@ window.addEventListener('pageshow',event=>{
 async function payWithWompi(payload){
  await refreshOnlinePaymentSetting({silent:true});
  syncPaymentOptions();
- if(!onlinePaymentsEnabled){showToast('Los pagos en línea están desactivados. Selecciona pago contraentrega en Cali.');resetWompiButton();return;}
+ if(!onlinePaymentsEnabled){showToast('Los pagos en línea están desactivados. Selecciona pago contraentrega en una ciudad habilitada.');resetWompiButton();return;}
  // Web Checkout debe iniciarse desde la página segura publicada, no desde una
  // copia abierta como content:// o file:// en el administrador de descargas.
  if(location.protocol!=='https:' || !location.hostname){
@@ -4092,26 +4313,27 @@ async function confirmCheckout(){
  const paymentBeforeRefresh=selectedPayment();
  const onlinePaymentsWereEnabled=onlinePaymentsEnabled;
  await refreshOnlinePaymentSetting({silent:true});
+ await refreshCODPaymentSettings({silent:true});
  updateShipping();
  syncPaymentOptions();
  if(onlinePaymentsWereEnabled&&!onlinePaymentsEnabled&&paymentBeforeRefresh&&paymentBeforeRefresh!=='Contra entrega'){
-   showToast('Los pagos en línea acaban de desactivarse o no se pudieron verificar. Revisa que ahora esté seleccionada contraentrega en Cali y confirma de nuevo.');
+   showToast('Los pagos en línea acaban de desactivarse o no se pudieron verificar. Revisa la forma de pago que aparece habilitada y confirma de nuevo.');
    return;
  }
  const payment=selectedPayment();
  if(!payment){
-   showToast(onlinePaymentsEnabled?'Selecciona una forma de pago para continuar.':'Los pagos en línea están desactivados. Elige Cali para pagar contraentrega.');
+   showToast(onlinePaymentsEnabled?'Selecciona una forma de pago para continuar.':'Los pagos en línea están desactivados. Elige una ciudad habilitada para contraentrega.');
    return;
  }
  if(!onlinePaymentsEnabled&&payment!=='Contra entrega'){
-   showToast('Los pagos en línea están desactivados. Selecciona pago contraentrega en Cali.');
+   showToast('Los pagos en línea están desactivados. Selecciona pago contraentrega en una ciudad habilitada.');
    syncPaymentOptions();
    return;
  }
  if(payment==='Contra entrega'&&!isLocalCODCity(checkoutCityValue())){
    if(onlinePaymentsEnabled){const online=document.querySelector('input[name="paymentMethod"][value="PSE"]');if(online)online.checked=true;}
    else {const cod=document.querySelector('input[name="paymentMethod"][value="Contra entrega"]');if(cod)cod.checked=false;}
-   showToast(onlinePaymentsEnabled?'El pago contraentrega solo está disponible en Cali. Para otras ciudades, selecciona un pago en línea.':'Los pagos en línea están desactivados. El pago contraentrega solo está disponible en Cali.');
+   showToast(onlinePaymentsEnabled?'La tienda no habilitó contraentrega para esa ciudad. Selecciona un pago en línea.':'Los pagos en línea están desactivados. La ciudad elegida no está habilitada para contraentrega.');
    updateContraEntregaAvailability(checkoutCityValue());
    updateShipping();
    return;
