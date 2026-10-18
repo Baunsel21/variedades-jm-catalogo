@@ -3205,7 +3205,12 @@ function detailBuyNow(event){
  updateShipping();
  $('checkoutModal').classList.add('open');
  document.body.style.overflow='hidden';
- refreshOnlinePaymentSetting({silent:true});
+ // Cualquier ruta de compra directa debe refrescar también la lista de ciudades COD.
+ // Antes solo se consultaban los pagos en línea y podía quedar la lista provisional [Cali].
+ void Promise.all([
+  refreshOnlinePaymentSetting({silent:true}),
+  refreshCODPaymentSettings({silent:true})
+ ]).then(()=>{if($('checkoutModal')?.classList.contains('open'))updateShipping();});
 }
 function closeProductDetail(event,options={}){
  if(event&&event.target!==$('productDetailModal'))return;
@@ -3920,6 +3925,11 @@ window.addEventListener('pageshow',event=>{
      updateShipping();
      $('checkoutModal')?.classList.add('open');
      document.body.style.overflow='hidden';
+     // Al restaurar desde BFCache, vuelve a consultar las ciudades permitidas.
+     void Promise.all([
+       refreshOnlinePaymentSetting({silent:true}),
+       refreshCODPaymentSettings({silent:true})
+     ]).then(()=>{if($('checkoutModal')?.classList.contains('open'))updateShipping();});
    },80);
  }
 });
@@ -4734,9 +4744,11 @@ window.addEventListener('storage',event=>{
 syncPaymentOptions();
 load();
 refreshOnlinePaymentSetting({silent:true});
+// Carga al iniciar las ciudades COD reales; la configuración provisional solo permite Cali.
+refreshCODPaymentSettings({silent:true});
 setInterval(()=>{if(document.visibilityState==='visible')refreshInventoryStatus()},15000); // 15 s: reduce consultas respecto al refresco anterior de 8 s
 setInterval(()=>{if(document.visibilityState==='visible')refreshOnlinePaymentSetting({silent:true})},30000);
-document.addEventListener('visibilitychange',()=>{if(!document.hidden){refreshOnlinePaymentSetting({silent:true});if(catalogInitialLoadComplete)void refreshInventoryStatus(true)}});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden){refreshOnlinePaymentSetting({silent:true});refreshCODPaymentSettings({silent:true});if(catalogInitialLoadComplete)void refreshInventoryStatus(true)}});
 window.addEventListener('pageshow',()=>{if(catalogInitialLoadComplete&&document.visibilityState==='visible')void refreshInventoryStatus(true)});
 
 
