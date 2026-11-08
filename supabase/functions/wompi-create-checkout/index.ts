@@ -160,11 +160,21 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
     const items = normalizeItems(body?.items);
     const city = String(body?.city ?? "").trim();
+    const expectedTotalRaw = body?.expected_total;
+    const expectedDiscountRaw = body?.expected_discount_total;
+    const expectedAmountsAreNumeric = (typeof expectedTotalRaw === "number" || typeof expectedTotalRaw === "string") &&
+      (typeof expectedDiscountRaw === "number" || typeof expectedDiscountRaw === "string");
+    if (!expectedAmountsAreNumeric || expectedTotalRaw == null || expectedDiscountRaw == null || String(expectedTotalRaw).trim() === "" || String(expectedDiscountRaw).trim() === "") {
+      return json({ code: "WOMPI_EXPECTED_TOTAL_REQUIRED", error: "Actualiza el catálogo y confirma nuevamente el total antes de iniciar el pago." }, 400);
+    }
+    const expectedTotal = Number(expectedTotalRaw);
+    const expectedDiscountTotal = Number(expectedDiscountRaw);
     const name = String(body?.name ?? "").trim();
     const phone = String(body?.phone ?? "").trim();
     const address = String(body?.address ?? "").trim();
     const neighborhood = String(body?.neighborhood ?? "").trim();
-    if (!items || !city || city.length > 120 || !name || name.length > 200 || !phone || phone.length > 60 || !address || address.length > 300 || neighborhood.length > 200) {
+    if (!items || !city || city.length > 120 || !Number.isSafeInteger(expectedTotal) || expectedTotal < 0 ||
+        !Number.isSafeInteger(expectedDiscountTotal) || expectedDiscountTotal < 0 || !name || name.length > 200 || !phone || phone.length > 60 || !address || address.length > 300 || neighborhood.length > 200) {
       return json({ error: "Faltan datos obligatorios o hay productos/cantidades no válidas." }, 400);
     }
 
@@ -236,6 +246,18 @@ Deno.serve(async (req: Request): Promise<Response> => {
       String(quote.currency ?? "COP").toUpperCase() !== "COP"
     ) {
       return json({ error: "La cotización devolvió importes no válidos o inconsistentes." }, 422);
+    }
+    // Rechazar una tarifa/promoción cambiada antes de crear la reserva o el pedido PENDING.
+    // Así el cliente puede revisar el importe nuevo sin dejar filas ni liberar una reserva previa.
+    if (expectedTotal !== totalCop || expectedDiscountTotal !== discountTotal) {
+      return json({
+        code: "WOMPI_QUOTE_CHANGED",
+        canRetryWithNewReference: false,
+        shipping,
+        total: totalCop,
+        discount_total: discountTotal,
+        error: "El envío o el descuento cambió antes de iniciar el pago. Revisa el total actualizado y confirma de nuevo; no se creó pedido ni se generó una reserva.",
+      }, 409);
     }
 
     let reference = String(body?.reference ?? "").trim();
