@@ -34,10 +34,13 @@ try{
  assert.ok(cell,'Serializador CSV común');
  const context=vm.createContext({});vm.runInContext(cell,context);
  for(const text of ['=1+1','+SUM(A1:A2)','-cmd','@calc','  =HYPERLINK("https://example.test")','\t=1+1'])assert.ok(context.safeCSVCell(text).startsWith('"\''),`Fórmula neutralizada: ${text}`);
- assert.equal(context.safeCSVCell(-25),'"-25"');
- assert.equal(context.safeCSVCell('Camisa "M"'),'"Camisa ""M"""');
- assert.equal(context.safeCSVCell('Cali'),'"Cali"');
- assert.ok(admin.includes("${esc(({home:'Pantalla de inicio'"),'Etiqueta de promoción escapada');
+	 assert.equal(context.safeCSVCell(-25),'"-25"');
+	 assert.equal(context.safeCSVCell('Camisa "M"'),'"Camisa ""M"""');
+	 assert.equal(context.safeCSVCell('Cali'),'"Cali"');
+	 const reportExportTest=read('tests/admin_reports_export_regression.mjs');
+	 const reportExporter=admin.match(/function exportSalesReportCSV\(\)\{[\s\S]*?\n\}/)?.[0];
+	 assert.ok(reportExporter?.includes('salesReportExportBlockReason()')&&reportExporter.includes('no incluye pedidos COD/Wompi')&&reportExportTest.includes('context.exportSalesReportCSV()'),'El CSV solo se exporta desde snapshot actual y conserva su alcance de ventas internas');
+	 assert.ok(admin.includes("${esc(({home:'Pantalla de inicio'"),'Etiqueta de promoción escapada');
  const promoPresets=catalog.match(/const SIREVYA_PROMO_PRESETS=\{([\s\S]*?)\n\};/);
  assert.ok(promoPresets,'Presets fallback de campañas configurables');
  assert.ok(!/message:'[^']*(?:env[ií]o gratis|descuento garantizado|rebaja garantizada)/i.test(promoPresets[1]),'El copy fallback no promete beneficios no ligados a una regla vigente');

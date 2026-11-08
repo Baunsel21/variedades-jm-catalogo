@@ -510,14 +510,15 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
         <div class="box" style="margin-top:15px"><h3>Últimos movimientos</h3><div id="listaMovimientos"></div></div>
       </section>
 
-      <section id="reportes" class="view">
-        <div class="rowBetween" style="align-items:flex-start;flex-wrap:wrap;gap:12px"><div><h2 style="margin:0">📊 Reportes</h2><p class="muted">Resumen estimado de registros de ventas y gastos; no incluye ni concilia automáticamente todos los pedidos COD/Wompi.</p></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="softbtn" type="button" onclick="exportSalesReportCSV()">📄 Exportar ventas CSV</button><button class="softbtn" type="button" onclick="refreshStorefrontMarketingMetrics()">↻ Actualizar métricas</button></div></div>
-        <div class="cards">
-          <div class="card stat"><small>Ventas registradas</small><div class="num" id="rVentas">0</div><div class="sub">Filas de la tabla de ventas</div></div>
-          <div class="card stat"><small>Ingresos registrados</small><div class="num" id="rIngresos">$0</div><div class="sub">No es total conciliado de pedidos web</div></div>
-          <div class="card stat"><small>Costo estimado</small><div class="num" id="rCostos">$0</div><div class="sub">Costo de ventas registradas</div></div>
-          <div class="card stat"><small>Ganancia bruta estimada</small><div class="num" id="rGanancia">$0</div><div class="sub">Ingresos registrados − costo estimado</div></div><div class="card stat"><small>Gastos registrados</small><div class="num" id="rGastos">$0</div><div class="sub">Filas activas de gastos</div></div><div class="card stat"><small>Resultado estimado</small><div class="num" id="rNeta">$0</div><div class="sub">Ganancia bruta − gastos registrados</div></div>
-        </div>
+	      <section id="reportes" class="view">
+	        <div class="rowBetween" style="align-items:flex-start;flex-wrap:wrap;gap:12px"><div><h2 style="margin:0">📊 Reportes</h2><p class="muted">Resumen estimado de registros de ventas y gastos; no incluye ni concilia automáticamente todos los pedidos COD/Wompi.</p></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="softbtn" type="button" onclick="exportSalesReportCSV()">📄 Exportar ventas CSV</button><button class="softbtn" type="button" onclick="refreshStorefrontMarketingMetrics()">↻ Actualizar métricas</button></div></div>
+	        <p id="salesReportSnapshotStatus" class="muted" role="status" aria-live="polite">Ventas pendientes de consulta; los ceros iniciales no son un resultado confirmado.</p>
+	        <div class="cards">
+	          <div class="card stat"><small>Ventas registradas</small><div class="num" id="rVentas">0</div><div class="sub">Filas de la tabla de ventas</div></div>
+	          <div class="card stat"><small>Ingresos registrados</small><div class="num" id="rIngresos">$0</div><div class="sub">No es total conciliado de pedidos web</div></div>
+	          <div class="card stat"><small>Costo estimado</small><div class="num" id="rCostos">$0</div><div class="sub">Costo de ventas registradas</div></div>
+	          <div class="card stat"><small>Ganancia bruta estimada</small><div class="num" id="rGanancia">$0</div><div class="sub">Ingresos registrados − costo estimado</div></div><div class="card stat"><small>Gastos registrados</small><div class="num" id="rGastos">$0</div><div class="sub">Filas activas de gastos</div></div><div class="card stat"><small>Resultado estimado</small><div class="num" id="rNeta">$0</div><div class="sub">Ganancia bruta − gastos registrados</div></div>
+	        </div>
         <div class="box" style="margin-top:16px"><h3>🏆 Productos más vendidos</h3><p class="muted">Basado en los registros de ventas disponibles en el administrador.</p><div id="bestSellingProducts"></div></div>
         <div class="box" style="margin-top:16px"><div class="rowBetween" style="align-items:center;gap:12px;flex-wrap:wrap"><div><h3 style="margin-bottom:4px">📣 Rendimiento de promociones</h3><p class="muted" style="margin:0">Impresiones y clics únicos aproximados por sesión/día, durante los últimos 30 días.</p></div><button class="softbtn" type="button" onclick="refreshStorefrontMarketingMetrics()">↻ Consultar</button></div><div id="storefrontMarketingMetricsStatus" class="promoAdminStatus" role="status" aria-live="polite">Las métricas se consultan al abrir Reportes.</div><div id="storefrontMarketingMetricsReport"></div></div>
         <div class="sectionGrid">
@@ -1880,13 +1881,13 @@ function setOrdersUpdatedAt(date=new Date()){
 }
 let cargarTodoBusy=false;
 async function cargarTodo(){
- if(cargarTodoBusy||!adminSessionAuthorized)return;
- const authEpoch=adminAuthEpoch;
- cargarTodoBusy=true;
- dashboardCoreSnapshot.busy=true;renderDashboardPeriod();
- const previousErrors={...moduleLoadErrors};
- try{
-  const skipped={deferred:true,data:null,error:null};
+	 if(cargarTodoBusy||!adminSessionAuthorized)return;
+	 const authEpoch=adminAuthEpoch;
+	 cargarTodoBusy=true;
+	 dashboardCoreSnapshot.busy=true;renderDashboardPeriod();renderSalesReportSnapshotStatus();
+	 const previousErrors={...moduleLoadErrors};
+	 try{
+	  const skipped={deferred:true,data:null,error:null};
   const [p,v,c,pr,g,m,o,avail]=await Promise.all([
    fetchAllTableRows("products","created_at",false),
    fetchAllTableRows("sales","created_at",false),
@@ -1945,7 +1946,7 @@ async function cargarTodo(){
   if(errors.length){console.error('Detalle de errores en módulos de Supabase:',errors.map(key=>({modulo:key,error:moduleLoadErrors[key]})));toast('No se cargaron algunos módulos. Ábrelos para consultar el detalle.');}
   if((ordersServerPageMode||ordersLegacyFallbackMode)&&adminDeferredModuleLoaded.orders&&!cargarPedidosBusy)void cargarPedidos();
  }catch(error){if(authEpoch!==adminAuthEpoch||!adminSessionAuthorized)return;dashboardCoreSnapshot.error='Falló la actualización de datos del panel.';console.error('Error de carga del panel:',error);toast('No se pudo actualizar el panel. Se conserva el snapshot anterior.');}
- finally{cargarTodoBusy=false;if(authEpoch===adminAuthEpoch){dashboardCoreSnapshot.busy=false;renderDashboardPeriod();}}
+ finally{cargarTodoBusy=false;if(authEpoch===adminAuthEpoch){dashboardCoreSnapshot.busy=false;renderDashboardPeriod();renderSalesReportSnapshotStatus();}}
 }
 
 function adminViewNeedsLiveAvailability(){
@@ -3567,6 +3568,7 @@ function reciboVenta(id){
  w.document.write(`<html><head><title>Recibo ${esc(v.product_code)}</title><style>body{font-family:Arial;padding:25px;color:#222}h1{text-align:center}hr{border:0;border-top:1px dashed #aaa;margin:20px 0}.r{display:flex;justify-content:space-between;margin:10px 0}.total{font-size:24px;font-weight:bold}</style></head><body><h1>Variedades JM</h1><p style="text-align:center">Comprobante de venta</p><hr><div class="r"><b>Producto</b><span>${esc(v.product_code)}</span></div><div class="r"><span>${esc(v.product_name)}</span><span>${v.quantity} × ${money(v.sale_price)}</span></div><div class="r"><b>Fecha</b><span>${v.sale_date}</span></div><hr><div class="r total"><span>TOTAL</span><span>${money(total)}</span></div><p>Ganancia estimada: ${money(gain)}</p><hr><p style="text-align:center">Gracias por tu compra ❤️</p><script>window.print()<\/script></body></html>`);w.document.close();
 }
 function renderReportes(){
+ renderSalesReportSnapshotStatus();
  const ing=ventas.reduce((s,v)=>s+Number(v.quantity)*Number(v.sale_price),0),cost=ventas.reduce((s,v)=>s+Number(v.quantity)*Number(v.cost_price),0),inv=productos.reduce((s,p)=>s+Number(p.quantity)*Number(p.cost_price),0),gt=gastos.reduce((s,g)=>s+Number(g.amount),0);
  $("rVentas").textContent=ventas.length;$("rIngresos").textContent=money(ing);$("rCostos").textContent=money(cost);$("rGanancia").textContent=money(ing-cost);$("rGastos").textContent=money(gt);$("rNeta").textContent=money(ing-cost-gt);$("inventoryValue").textContent=money(inv);
  // No presentar $0 en gastos/ganancia neta hasta consultar esa tabla.
@@ -4059,11 +4061,33 @@ function safeCSVCell(value){
  if(!numeric&&/^[\s\uFEFF]*[=+\-@]/.test(text))text="'"+text;
  return '"'+text.replace(/"/g,'""')+'"';
 }
+function salesReportSnapshotStatus(){
+ if(!adminSessionAuthorized)return 'La sesión administrativa no está activa. Los datos no están disponibles.';
+ const snapshot=dashboardCoreSnapshot;
+ if(snapshot?.busy)return 'Actualizando ventas. Las cifras visibles pueden pertenecer al snapshot anterior.';
+ if(snapshot?.error){
+  if(snapshot.loaded===true&&snapshot.updatedAt){const previous=new Date(snapshot.updatedAt),cut=Number.isFinite(previous.getTime())?previous.toLocaleString('es-CO',{timeZone:'America/Bogota'}):'hora no disponible';return `Falló la última actualización. Se conserva el snapshot anterior de sales (corte ${cut}, hora de Colombia); no representa el estado vigente.`}
+  return 'No se pudieron consultar ventas. Los ceros visibles no significan que no haya registros.';
+ }
+ if(snapshot?.loaded!==true||!snapshot?.updatedAt)return 'Ventas pendientes de consulta. Los ceros iniciales no son un resultado confirmado.';
+ const updated=new Date(snapshot.updatedAt),cut=Number.isFinite(updated.getTime())?updated.toLocaleString('es-CO',{timeZone:'America/Bogota'}):'hora no disponible';
+ return `Registros activos de sales consultados ${cut} (hora de Colombia). No incluye ni concilia automáticamente pedidos COD/Wompi.`;
+}
+function renderSalesReportSnapshotStatus(){const host=$('salesReportSnapshotStatus');if(host)host.textContent=salesReportSnapshotStatus()}
+function salesReportExportBlockReason(){
+ if(!adminSessionAuthorized)return 'La sesión administrativa no está activa. No se descargó el CSV.';
+ const snapshot=dashboardCoreSnapshot;
+ if(snapshot?.busy)return 'El panel está actualizando ventas. Espera a que termine antes de exportar.';
+ if(snapshot?.error)return 'No se descargó el CSV porque falló la última actualización. Intenta actualizar y vuelve a exportar.';
+ if(snapshot?.loaded!==true||!snapshot?.updatedAt)return 'Las ventas todavía no se han confirmado desde Supabase. No se descargó un CSV vacío.';
+ return '';
+}
 function exportSalesReportCSV(){
+ const blocked=salesReportExportBlockReason();if(blocked){toast(blocked);return false}
  const head=['Fecha','Código','Producto','Cantidad','Costo unidad','Venta unidad','Ingreso','Ganancia bruta estimada'];
  const rows=(ventas||[]).map(v=>{const qty=Number(v.quantity)||0,sale=Number(v.sale_price)||0,cost=Number(v.cost_price)||0;return [v.sale_date||v.created_at||'',v.product_code||'',v.product_name||'',qty,cost,sale,qty*sale,qty*(sale-cost)]});
  const content=[head,...rows].map(row=>row.map(safeCSVCell).join(';')).join('\n');
- downloadFile('sirevya_reporte_ventas.csv','\uFEFF'+content,'text/csv;charset=utf-8');toast('Reporte de ventas descargado');
+ downloadFile('sirevya_reporte_ventas.csv','\uFEFF'+content,'text/csv;charset=utf-8');toast(`CSV de ${rows.length} registros de ventas descargado; no incluye pedidos COD/Wompi.`);return true;
 }
 function requireBackupAcknowledgement(actionLabel){
  const ok=confirm('Antes de '+actionLabel+', descarga primero “Copia de respaldo → Descargar respaldo JSON” desde Configuración. El JSON incluye las referencias de fotos, pero no los archivos binarios de R2.\n\n¿Ya descargaste y verificaste un respaldo reciente?');if(!ok)return false;
