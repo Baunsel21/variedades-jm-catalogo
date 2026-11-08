@@ -54,6 +54,91 @@ async function responseJson(response: Response): Promise<any> {
   try { return JSON.parse(text); } catch { return null; }
 }
 
+function rpcObject(payload: any): any {
+  return Array.isArray(payload) ? payload[0] : payload;
+}
+
+function copAmount(value: unknown): number | null {
+  if (typeof value === "string" && value.trim() === "") return null;
+  const amount = typeof value === "number" || typeof value === "string" ? Number(value) : NaN;
+  return Number.isSafeInteger(amount) ? amount : null;
+}
+
+const COUPON_UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const COUPON_CODE_PATTERN = /^[A-Z0-9][A-Z0-9_-]{0,63}$/;
+
+async function confirmCouponRedemption(args: {
+  supabaseUrl: string;
+  serviceRoleKey: string;
+  reference: string;
+}): Promise<{ success: boolean; reconciliationRequired: boolean; httpStatus: number | null }> {
+  try {
+    const response = await fetch(`${args.supabaseUrl}/rest/v1/rpc/confirm_storefront_coupon_redemption`, {
+      method: "POST",
+      headers: supabaseHeaders(args.serviceRoleKey),
+      body: JSON.stringify({ p_reference: args.reference }),
+    });
+    const result = rpcObject(await responseJson(response));
+    return {
+      success: response.ok && result?.success === true,
+      reconciliationRequired: result?.reconciliation_required === true || result?.reconciliationRequired === true || result?.late === true || result?.expired_reservation === true,
+      httpStatus: response.status,
+    };
+  } catch {
+    return { success: false, reconciliationRequired: false, httpStatus: null };
+  }
+}
+
+async function releaseCouponRedemption(args: {
+  supabaseUrl: string;
+  serviceRoleKey: string;
+  reference: string;
+}): Promise<{ success: boolean; code?: string; httpStatus: number | null }> {
+  try {
+    const response = await fetch(`${args.supabaseUrl}/rest/v1/rpc/release_storefront_coupon_redemption`, {
+      method: "POST",
+      headers: supabaseHeaders(args.serviceRoleKey),
+      body: JSON.stringify({ p_reference: args.reference }),
+    });
+    const result = rpcObject(await responseJson(response));
+    return {
+      success: response.ok && result?.success === true,
+      code: typeof result?.code === "string" ? result.code : undefined,
+      httpStatus: response.status,
+    };
+  } catch {
+    return { success: false, httpStatus: null };
+  }
+}
+
+async function setCheckoutLockState(args: {
+  supabaseUrl: string;
+  serviceRoleKey: string;
+  reference: string;
+  state: "pending" | "terminal_grace" | "completed" | "released";
+  transactionId: string;
+}): Promise<{ success: boolean; lateApprovalConflict: boolean; otherReference: string | null }> {
+  try {
+    const response = await fetch(`${args.supabaseUrl}/rest/v1/rpc/set_storefront_wompi_checkout_state`, {
+      method: "POST",
+      headers: supabaseHeaders(args.serviceRoleKey),
+      body: JSON.stringify({
+        p_reference: args.reference,
+        p_state: args.state,
+        p_transaction_id: args.transactionId,
+      }),
+    });
+    const result = rpcObject(await responseJson(response));
+    return {
+      success: response.ok && result?.success === true,
+      lateApprovalConflict: response.ok && result?.late_approval_conflict === true,
+      otherReference: typeof result?.other_reference === "string" ? result.other_reference : null,
+    };
+  } catch {
+    return { success: false, lateApprovalConflict: false, otherReference: null };
+  }
+}
+
 // Link a verified Wompi transaction to its existing order BEFORE performing the
 // inventory operation. This does not change payment_status; it prevents checkout
 // retries from starting another payment while an APPROVED event awaits reconciliation.
@@ -115,6 +200,39 @@ async function ensureOrderTransactionLinked(args: {
   return { linked: false, conflict: false, httpStatus: lastStatus };
 }
 
+async function listPendingWompiOrdersForPhone(args: {
+  supabaseUrl: string;
+  serviceRoleKey: string;
+  phone: string;
+}): Promise<{ success: boolean; orders: Array<{ reference: string; transactionId: string; createdAt: string }> }> {
+  try {
+    const response = await fetch(`${args.supabaseUrl}/rest/v1/rpc/list_pending_wompi_orders_for_phone`, {
+      method: "POST",
+      headers: supabaseHeaders(args.serviceRoleKey),
+      body: JSON.stringify({ p_customer_phone: args.phone }),
+    });
+    const result = rpcObject(await responseJson(response));
+    if (!response.ok || result?.success !== true || !Array.isArray(result.orders)) {
+      return { success: false, orders: [] };
+    }
+    const orders = result.orders.map((row: any) => {
+      if (!row || typeof row.reference !== "string" || typeof row.created_at !== "string" ||
+          (row.transaction_id !== null && typeof row.transaction_id !== "string") || !Number.isFinite(Date.parse(row.created_at))) {
+        return null;
+      }
+      return {
+        reference: row.reference,
+        transactionId: String(row.transaction_id ?? "").trim(),
+        createdAt: row.created_at,
+      };
+    });
+    if (orders.some((row: any) => row === null)) return { success: false, orders: [] };
+    return { success: true, orders: orders as Array<{ reference: string; transactionId: string; createdAt: string }> };
+  } catch {
+    return { success: false, orders: [] };
+  }
+}
+
 // Keep a durable record when Wompi has confirmed the charge but inventory cannot
 // be finalized safely. This table is created by the accompanying SQL migration.
 async function recordInventoryReconciliation(args: {
@@ -126,7 +244,27 @@ async function recordInventoryReconciliation(args: {
   reason: string;
   details?: Record<string, unknown>;
 }): Promise<boolean> {
+  let orderAndLockMarked = false;
   try {
+    try {
+      const markerResponse = await fetch(`${args.supabaseUrl}/rest/v1/rpc/mark_storefront_wompi_reconciliation`, {
+        method: "POST",
+        headers: supabaseHeaders(args.serviceRoleKey),
+        body: JSON.stringify({ p_reference: args.reference, p_transaction_id: args.transactionId }),
+      });
+      const marker = rpcObject(await responseJson(markerResponse));
+      orderAndLockMarked = markerResponse.ok && marker?.success === true && marker?.order_flag_updated === true;
+      if (!orderAndLockMarked) {
+        console.error("No se pudo persistir el flag de conciliación en el pedido/lock Wompi.", {
+          reference: args.reference, httpStatus: markerResponse.status,
+        });
+      }
+    } catch (error) {
+      console.error("No se pudo persistir el flag de conciliación en el pedido/lock Wompi.", {
+        reference: args.reference, error: error instanceof Error ? error.message : "unknown",
+      });
+    }
+
     const url = new URL(`${args.supabaseUrl}/rest/v1/sirevya_wompi_inventory_reconciliation`);
     url.searchParams.set("on_conflict", "transaction_id");
     const response = await fetch(url.toString(), {
@@ -151,7 +289,7 @@ async function recordInventoryReconciliation(args: {
       console.error("No se pudo guardar el registro de conciliación de Wompi.", { httpStatus: response.status, reference: args.reference });
       return false;
     }
-    return true;
+    return orderAndLockMarked;
   } catch (error) {
     console.error("Error guardando el registro de conciliación de Wompi.", { reference: args.reference, error: error instanceof Error ? error.message : "unknown" });
     return false;
@@ -181,22 +319,6 @@ async function markInventoryReconciliationResolved(args: {
     // because marking a prior review row failed; the durable row remains reviewable.
     console.error("No se pudo marcar la conciliación como resuelta.", { transactionId: args.transactionId, error: error instanceof Error ? error.message : "unknown" });
   }
-}
-
-function reservationItemsFromOrder(items: unknown): Array<{ id: string; qty: number; color: string; size: string }> | null {
-  if (!Array.isArray(items) || items.length < 1 || items.length > 100) return null;
-  const normalized: Array<{ id: string; qty: number; color: string; size: string }> = [];
-  for (const raw of items) {
-    if (!raw || typeof raw !== "object") return null;
-    const item = raw as Record<string, unknown>;
-    const id = String(item.id ?? item.product_id ?? "").trim();
-    const qty = Number(item.qty ?? item.quantity ?? 0);
-    const color = String(item.color ?? "").trim();
-    const size = String(item.size ?? "").trim();
-    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id) || !Number.isSafeInteger(qty) || qty < 1 || qty > 1000 || color.length > 100 || size.length > 100) return null;
-    normalized.push({ id, qty, color, size });
-  }
-  return normalized;
 }
 
 Deno.serve(async (req: Request): Promise<Response> => {
@@ -303,7 +425,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
     const orderUrl = new URL(`${supabaseUrl}/rest/v1/orders`);
     orderUrl.searchParams.set("reference", `eq.${confirmedReference}`);
-    orderUrl.searchParams.set("select", "reference,total,items,payment_method,payment_status,transaction_id");
+    orderUrl.searchParams.set("select", "reference,total,items,payment_method,payment_status,transaction_id,phone,coupon_id,coupon_code,coupon_discount_total,coupon_reconciliation_required,wompi_reconciliation_required");
     orderUrl.searchParams.set("limit", "2");
     const orderResponse = await fetch(orderUrl.toString(), { headers: supabaseHeaders(serviceRoleKey) });
     if (!orderResponse.ok) {
@@ -339,13 +461,15 @@ Deno.serve(async (req: Request): Promise<Response> => {
       });
       return json({ error: reason, reconciliationRequired: status === "APPROVED", reconciliationStored }, status === "APPROVED" ? 500 : 409);
     }
-    const expectedCents = Number(order.total) * 100;
+    const expectedCop = copAmount(order.total);
+    const expectedCents = expectedCop === null ? Number.NaN : expectedCop * 100;
     if (!Number.isSafeInteger(expectedCents) || expectedCents <= 0 || expectedCents !== confirmedAmount) {
       const reason = "El monto de Wompi no coincide con el total del pedido almacenado.";
       console.error(reason, { reference: confirmedReference, expectedCents, receivedCents: confirmedAmount });
       let reconciliationStored = false;
       let transactionLinked = Boolean(String(order.transaction_id ?? "").trim() === confirmedId);
       let linkConflict = false;
+      let checkoutLockMarkedPending = false;
       // It is still important to bind this verified approved transaction to a Wompi
       // order, without approving it, so the customer cannot accidentally pay again
       // while the amount discrepancy is reviewed.
@@ -356,6 +480,11 @@ Deno.serve(async (req: Request): Promise<Response> => {
         transactionLinked = link.linked;
         linkConflict = link.conflict;
       }
+      if (status === "APPROVED" && transactionLinked) {
+        checkoutLockMarkedPending = await setCheckoutLockState({
+          supabaseUrl, serviceRoleKey, reference: confirmedReference, state: "pending", transactionId: confirmedId,
+        });
+      }
       if (status === "APPROVED") reconciliationStored = await recordInventoryReconciliation({
         supabaseUrl, serviceRoleKey, transactionId: confirmedId, reference: confirmedReference,
         amountInCents: confirmedAmount, reason,
@@ -363,9 +492,10 @@ Deno.serve(async (req: Request): Promise<Response> => {
           expected_amount_in_cents: Number.isSafeInteger(expectedCents) ? expectedCents : null,
           transaction_linked: transactionLinked,
           link_conflict: linkConflict,
+          checkout_lock_pending: checkoutLockMarkedPending,
         },
       });
-      return json({ error: reason, transactionLinked, reconciliationRequired: status === "APPROVED", reconciliationStored }, status === "APPROVED" ? 500 : 409);
+      return json({ error: reason, transactionLinked, checkoutLockMarkedPending, reconciliationRequired: status === "APPROVED", reconciliationStored }, status === "APPROVED" ? 500 : 409);
     }
 
     const storedTransactionId = String(order.transaction_id ?? "").trim();
@@ -374,6 +504,24 @@ Deno.serve(async (req: Request): Promise<Response> => {
       // Never downgrade a payment already confirmed by a previous verified event.
       return json({ received: true, reference: confirmedReference, status: storedStatus, ignored: true, reason: "No se reduce un pago ya aprobado." });
     }
+    if (["DECLINED", "VOIDED", "ERROR"].includes(storedStatus) && status !== "APPROVED") {
+      return json({ received: true, reference: confirmedReference, status: storedStatus, ignored: true, reason: "No se reabre ni cambia un estado terminal no aprobado." });
+    }
+
+    // Coupon metadata is read from the server-owned order, never from the
+    // webhook payload. A malformed coupon row cannot be approved silently, but
+    // terminal states can still release the ledger by reference alone.
+    const couponCode = String(order.coupon_code ?? "").trim().toUpperCase();
+    const couponId = String(order.coupon_id ?? "").trim();
+    const couponDiscountTotal = copAmount(order.coupon_discount_total ?? 0);
+    const hasCoupon = couponCode.length > 0;
+    let inventoryProcessed = false;
+    let couponReconciliationRequired = false;
+    const couponMetadataValid = !hasCoupon || (
+      COUPON_CODE_PATTERN.test(couponCode) &&
+      COUPON_UUID_PATTERN.test(couponId) &&
+      couponDiscountTotal !== null && couponDiscountTotal > 0
+    );
 
     if (storedTransactionId && storedTransactionId !== confirmedId) {
       const reason = "La referencia del pedido ya está vinculada a otro identificador de transacción.";
@@ -388,6 +536,63 @@ Deno.serve(async (req: Request): Promise<Response> => {
       }
       console.error("La referencia ya tiene otro identificador de transacción.", { reference: confirmedReference });
       return json({ error: "La referencia ya está vinculada a otra transacción." }, 409);
+    }
+
+    const reconciliationAlreadyRequired = order.wompi_reconciliation_required === true ||
+      order.coupon_reconciliation_required === true;
+    if (reconciliationAlreadyRequired) {
+      const pendingLock = await setCheckoutLockState({
+        supabaseUrl, serviceRoleKey, reference: confirmedReference,
+        state: "pending", transactionId: confirmedId,
+      });
+      if (!pendingLock.success) {
+        return json({ error: "El pago requiere conciliación manual y no se pudo conservar el lock preventivo." }, 502);
+      }
+      return json({ received: true, reference: confirmedReference, transactionId: confirmedId,
+        status: storedStatus, ignored: true, reconciliationRequired: true,
+        couponReconciliationRequired: order.coupon_reconciliation_required === true,
+        wompiReconciliationRequired: order.wompi_reconciliation_required === true,
+        reason: "El pedido ya está marcado para conciliación manual; no se repite la operación de inventario." }, 200);
+    }
+
+    if (storedStatus === "APPROVED" && status === "APPROVED") {
+      if (storedTransactionId === confirmedId) {
+        const couponReconciliationStored = order.coupon_reconciliation_required === true;
+        const wompiReconciliationStored = order.wompi_reconciliation_required === true;
+        const completedLock = await setCheckoutLockState({
+          supabaseUrl, serviceRoleKey, reference: confirmedReference,
+          state: couponReconciliationStored || wompiReconciliationStored ? "pending" : "completed", transactionId: confirmedId,
+        });
+        if (!completedLock.success) {
+          return json({ error: "El pedido ya está aprobado, pero no se pudo finalizar el lock. El evento se reintentará." }, 502);
+        }
+        if (completedLock.lateApprovalConflict) {
+          const reason = "La aprobación duplicada encontró una referencia de checkout concurrente y requiere conciliación.";
+          const reconciliationStored = await recordInventoryReconciliation({
+            supabaseUrl, serviceRoleKey, transactionId: confirmedId,
+            reference: confirmedReference, amountInCents: confirmedAmount, reason,
+            details: { duplicate_approved_event: true, late_approval_lock_conflict: true },
+          });
+          return json({ error: reason, reference: confirmedReference, transactionId: confirmedId,
+            reconciliationRequired: true, reconciliationStored }, 500);
+        }
+        return json({ received: true, reference: confirmedReference, transactionId: confirmedId,
+          status: "APPROVED", idempotent: true, lockFinalized: !couponReconciliationStored,
+          reconciliationRequired: couponReconciliationStored || wompiReconciliationStored,
+          couponReconciliationRequired: couponReconciliationStored,
+          wompiReconciliationRequired: wompiReconciliationStored,
+          reason: couponReconciliationStored || wompiReconciliationStored
+            ? "Esta aprobación ya se procesó, pero el pedido sigue en conciliación y el lock permanece pendiente."
+            : "Esta aprobación ya se procesó para la misma transacción." });
+      }
+      const reason = "El pedido ya aparece aprobado, pero no conserva el identificador verificado de esta transacción.";
+      const reconciliationStored = await recordInventoryReconciliation({
+        supabaseUrl, serviceRoleKey, transactionId: confirmedId,
+        reference: confirmedReference, amountInCents: confirmedAmount, reason,
+        details: { approved_order_transaction_id_missing: true },
+      });
+      return json({ error: reason, reference: confirmedReference, transactionId: confirmedId,
+        reconciliationRequired: true, reconciliationStored }, 409);
     }
 
     // Persist the verified transaction id before inventory operations, but do NOT
@@ -414,11 +619,129 @@ Deno.serve(async (req: Request): Promise<Response> => {
       }
     }
 
+    const checkoutLockPending = await setCheckoutLockState({
+      supabaseUrl,
+      serviceRoleKey,
+      reference: confirmedReference,
+      state: ["DECLINED", "VOIDED", "ERROR"].includes(status) ? "terminal_grace" : "pending",
+      transactionId: confirmedId,
+    });
+    if (!checkoutLockPending.success) {
+      console.error("No se pudo extender el lock de checkout para la transacción verificada.", { reference: confirmedReference });
+      return json({ error: "La transacción quedó vinculada, pero no se pudo asegurar el lock del checkout. El evento se reintentará." }, 502);
+    }
+
+    if (status === "APPROVED" && !couponMetadataValid) {
+      const reason = "El pedido aprobado contiene metadata de cupón inválida y requiere conciliación.";
+      const reconciliationStored = await recordInventoryReconciliation({
+        supabaseUrl,
+        serviceRoleKey,
+        transactionId: confirmedId,
+        reference: confirmedReference,
+        amountInCents: confirmedAmount,
+        reason,
+        details: { coupon_metadata_valid: false },
+      });
+      console.error("Wompi confirmó un pago cuya metadata de cupón no pudo validarse; se requiere conciliación.", { reference: confirmedReference, reconciliationStored });
+      return json({ error: reason, reference: confirmedReference, transactionId: confirmedId, reconciliationRequired: true, reconciliationStored }, 500);
+    }
+
+    let otherPendingReference: string | null = null;
+    if (status === "APPROVED") {
+      const pendingOrders = await listPendingWompiOrdersForPhone({
+        supabaseUrl,
+        serviceRoleKey,
+        phone: String(order.phone ?? ""),
+      });
+      if (!pendingOrders.success) {
+        const reason = "No se pudo comprobar si había otra sesión Wompi pendiente del comprador; el pago requiere conciliación antes de despacho.";
+        const reconciliationStored = await recordInventoryReconciliation({
+          supabaseUrl, serviceRoleKey, transactionId: confirmedId,
+          reference: confirmedReference, amountInCents: confirmedAmount, reason,
+          details: { pending_phone_lookup_failed: true },
+        });
+        return json({ error: reason, reference: confirmedReference, transactionId: confirmedId,
+          reconciliationRequired: true, reconciliationStored }, 502);
+      }
+      const unlinkedGraceCutoff = Date.now() - 15 * 60 * 1000;
+      otherPendingReference = pendingOrders.orders.find((pending) =>
+        pending.reference !== confirmedReference &&
+        (Boolean(pending.transactionId) || Date.parse(pending.createdAt) >= unlinkedGraceCutoff)
+      )?.reference ?? null;
+    }
+
+    if (status === "APPROVED" && (checkoutLockPending.lateApprovalConflict || otherPendingReference)) {
+      const reason = checkoutLockPending.lateApprovalConflict
+        ? "Wompi aprobó una transacción tardía mientras el mismo teléfono ya tenía otro checkout activo; requiere conciliación antes de despacho."
+        : "Wompi aprobó una transacción mientras el mismo teléfono tenía otra orden pendiente; requiere conciliación antes de despacho.";
+      if (hasCoupon) {
+        const couponConfirmation = await confirmCouponRedemption({
+          supabaseUrl,
+          serviceRoleKey,
+          reference: confirmedReference,
+        });
+        if (!couponConfirmation.success) {
+          const reconciliationStored = await recordInventoryReconciliation({
+            supabaseUrl, serviceRoleKey, transactionId: confirmedId,
+            reference: confirmedReference, amountInCents: confirmedAmount,
+            reason: `${reason} El ledger de cupón también requiere revisión.`,
+            details: {
+              late_approval_lock_conflict: checkoutLockPending.lateApprovalConflict,
+              other_pending_reference: otherPendingReference ?? checkoutLockPending.otherReference,
+              coupon_confirmation_failed: true,
+            },
+          });
+          return json({ error: reason, reference: confirmedReference, transactionId: confirmedId,
+            reconciliationRequired: true, reconciliationStored }, 500);
+        }
+      }
+      const reconciliationStored = await recordInventoryReconciliation({
+        supabaseUrl, serviceRoleKey, transactionId: confirmedId,
+        reference: confirmedReference, amountInCents: confirmedAmount, reason,
+        details: {
+          late_approval_lock_conflict: checkoutLockPending.lateApprovalConflict,
+          other_pending_reference: otherPendingReference ?? checkoutLockPending.otherReference,
+        },
+      });
+      if (!reconciliationStored) {
+        return json({ error: reason, reference: confirmedReference, transactionId: confirmedId,
+          reconciliationRequired: true, reconciliationStored: false }, 502);
+      }
+      console.error("Aprobación Wompi tardía guardada para conciliación por otro checkout activo.", {
+        reference: confirmedReference,
+        otherReference: otherPendingReference ?? checkoutLockPending.otherReference,
+        reconciliationStored,
+      });
+      return json({ received: true, reference: confirmedReference, transactionId: confirmedId,
+        status, reconciliationRequired: true, reconciliationStored, lateApprovalConflict: true }, 200);
+    }
+
+    // Wompi has independently verified the APPROVED status and the transaction
+    // is bound to this order. Honor the coupon now, even if inventory recovery
+    // below must remain in manual reconciliation.
+    if (status === "APPROVED" && hasCoupon) {
+      const couponConfirmation = await confirmCouponRedemption({
+        supabaseUrl,
+        serviceRoleKey,
+        reference: confirmedReference,
+      });
+      if (!couponConfirmation.success) {
+        const reason = "Wompi confirmó el pago, pero no se pudo confirmar el ledger del cupón.";
+        const reconciliationStored = await recordInventoryReconciliation({
+          supabaseUrl, serviceRoleKey, transactionId: confirmedId, reference: confirmedReference,
+          amountInCents: confirmedAmount, reason,
+          details: { coupon_redemption_confirmed: false },
+        });
+        console.error(reason, { reference: confirmedReference, reconciliationStored });
+        return json({ error: "Wompi confirmó el pago, pero la redención del cupón necesita conciliación. El pedido no se marca aprobado hasta reintentar.",
+          reference: confirmedReference, transactionId: confirmedId, reconciliationRequired: true, reconciliationStored }, 500);
+      }
+      couponReconciliationRequired = couponConfirmation.reconciliationRequired;
+    }
+
     // Finalize/release inventory first, then persist the terminal payment status.
     // The transaction id is already linked, while payment_status remains unchanged
     // until its corresponding inventory operation succeeds.
-    let inventoryProcessed = false;
-    let lateReservationRecovered = false;
     if (status === "APPROVED") {
       let inventoryResponse: Response | null = null;
       let inventoryResult: any = null;
@@ -433,54 +756,6 @@ Deno.serve(async (req: Request): Promise<Response> => {
         inventoryResult = { success: false, message: `No se pudo contactar la función de confirmación de inventario: ${error instanceof Error ? error.message : "error desconocido"}` };
       }
 
-      // If the RPC explicitly says the hold expired/released, safely try to reserve
-      // the exact order lines again. This is NOT a stock override: reserve_order_inventory
-      // must validate current availability under PostgreSQL locks. If stock was sold,
-      // it returns failure and the payment is sent to durable manual reconciliation.
-      const holdUnavailable = inventoryResponse?.ok === true && inventoryResult?.success === false &&
-        /no hay una reserva vigente para finalizar/i.test(String(inventoryResult?.message ?? ""));
-      if (holdUnavailable) {
-        const reservationItems = reservationItemsFromOrder(order.items);
-        if (reservationItems) {
-          let lateReserveResponse: Response | null = null;
-          let lateReserveResult: any = null;
-          try {
-            lateReserveResponse = await fetch(`${supabaseUrl}/rest/v1/rpc/reserve_order_inventory`, {
-              method: "POST",
-              headers: supabaseHeaders(serviceRoleKey),
-              body: JSON.stringify({ p_reference: confirmedReference, p_items: reservationItems, p_minutes: 10 }),
-            });
-            lateReserveResult = await responseJson(lateReserveResponse);
-          } catch (error) {
-            console.error("Error intentando recuperar inventario tras aprobación tardía.", { reference: confirmedReference, error: error instanceof Error ? error.message : "unknown" });
-          }
-
-          if (lateReserveResponse?.ok && lateReserveResult?.success === true) {
-            try {
-              inventoryResponse = await fetch(`${supabaseUrl}/rest/v1/rpc/confirm_inventory_reservation`, {
-                method: "POST",
-                headers: supabaseHeaders(serviceRoleKey),
-                body: JSON.stringify({ p_reference: confirmedReference }),
-              });
-              inventoryResult = await responseJson(inventoryResponse);
-            } catch (error) {
-              inventoryResponse = null;
-              inventoryResult = { success: false, message: `Se reservó de nuevo el stock, pero no se pudo confirmar la reserva: ${error instanceof Error ? error.message : "error desconocido"}` };
-            }
-            if (inventoryResponse?.ok && inventoryResult?.success === true) {
-              lateReservationRecovered = true;
-            }
-          } else {
-            inventoryResult = {
-              success: false,
-              message: `La reserva original venció y no fue posible reservar nuevamente el stock: ${String(lateReserveResult?.message ?? `HTTP ${lateReserveResponse?.status ?? "sin respuesta"}`).slice(0, 500)}`,
-            };
-          }
-        } else {
-          inventoryResult = { success: false, message: "La reserva venció y no se pudieron reconstruir líneas válidas desde orders.items." };
-        }
-      }
-
       if (!inventoryResponse?.ok || !inventoryResult || inventoryResult.success !== true) {
         const reason = String(inventoryResult?.message ?? `La RPC de inventario respondió HTTP ${inventoryResponse?.status ?? "sin respuesta"}.`);
         const reconciliationStored = await recordInventoryReconciliation({
@@ -492,8 +767,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
           reason,
           details: {
             inventory_http_status: inventoryResponse?.status ?? null,
-            late_reservation_recovered_attempted: holdUnavailable,
             order_items_available: Array.isArray(order.items),
+            coupon_reconciliation_required: couponReconciliationRequired,
           },
         });
         console.error("Wompi confirmó el cobro, pero el inventario no pudo finalizarse; el pedido no se marca aprobado y queda registrado para conciliación.", { reference: confirmedReference, httpStatus: inventoryResponse?.status ?? null, reconciliationStored });
@@ -516,6 +791,15 @@ Deno.serve(async (req: Request): Promise<Response> => {
         console.error("No se pudo liberar la reserva de un pago no aprobado; el pedido conservará su estado previo.", { reference: confirmedReference, status, httpStatus: releaseResponse.status });
         return json({ error: "No se pudo liberar la reserva de inventario; el pedido conservará su estado previo para permitir el reintento del evento." }, 500);
       }
+      if (hasCoupon) {
+        const couponRelease = await releaseCouponRedemption({ supabaseUrl, serviceRoleKey, reference: confirmedReference });
+        if (!couponRelease.success && couponRelease.code === "COUPON_REDEMPTION_NOT_FOUND") {
+          console.warn("Evento terminal legacy sin ledger de cupón; no hay una reserva de uso que liberar.", { reference: confirmedReference });
+        } else if (!couponRelease.success) {
+          console.error("No se pudo liberar el cupón de un pago no aprobado; el pedido conservará su estado previo.", { reference: confirmedReference, status, httpStatus: couponRelease.httpStatus });
+          return json({ error: "No se pudo liberar la reserva del cupón; el pedido conservará su estado previo para permitir el reintento del evento." }, 500);
+        }
+      }
       inventoryProcessed = true;
     }
 
@@ -524,13 +808,21 @@ Deno.serve(async (req: Request): Promise<Response> => {
     updateUrl.searchParams.set("reference", `eq.${confirmedReference}`);
     updateUrl.searchParams.set("payment_method", "eq.wompi");
     updateUrl.searchParams.set("transaction_id", `eq.${confirmedId}`);
+    if (status !== "APPROVED") updateUrl.searchParams.set("payment_status", "eq.PENDING");
     let updateResponse: Response | null = null;
     let updatedRows: any = null;
     try {
       updateResponse = await fetch(updateUrl.toString(), {
         method: "PATCH",
         headers: { ...supabaseHeaders(serviceRoleKey), Prefer: "return=representation" },
-        body: JSON.stringify({ payment_status: status, transaction_id: confirmedId, updated_at: new Date().toISOString() }),
+        body: JSON.stringify({
+          payment_status: status,
+          transaction_id: confirmedId,
+          coupon_reconciliation_required: status === "APPROVED"
+            ? couponReconciliationRequired
+            : order.coupon_reconciliation_required === true,
+          updated_at: new Date().toISOString(),
+        }),
       });
       updatedRows = await responseJson(updateResponse);
     } catch (error) {
@@ -545,20 +837,33 @@ Deno.serve(async (req: Request): Promise<Response> => {
           supabaseUrl, serviceRoleKey, transactionId: confirmedId,
           reference: confirmedReference, amountInCents: confirmedAmount,
           reason,
-          details: { inventory_processed: inventoryProcessed, order_status_write_failed: true, order_patch_http_status: updateResponse?.status ?? null },
+          details: { inventory_processed: inventoryProcessed, order_status_write_failed: true, order_patch_http_status: updateResponse?.status ?? null, coupon_reconciliation_required: couponReconciliationRequired },
         });
       }
       return json({ error: `${reason} El identificador de transacción ya está vinculado; el evento debe reintentarse/conciliarse.`,
         reference: confirmedReference, transactionId: confirmedId,
-        reconciliationRequired: status === "APPROVED", reconciliationStored }, 502);
+        reconciliationRequired: status === "APPROVED" || couponReconciliationRequired, couponReconciliationRequired, reconciliationStored }, 502);
     }
 
-    if (status === "APPROVED" && inventoryProcessed) {
+    const finalLockState: "pending" | "terminal_grace" | "completed" | "released" =
+      status === "APPROVED"
+        ? (inventoryProcessed && !couponReconciliationRequired ? "completed" : "pending")
+        : status === "PENDING" ? "pending" : "terminal_grace";
+    const checkoutLockFinalized = await setCheckoutLockState({
+      supabaseUrl, serviceRoleKey, reference: confirmedReference,
+      state: finalLockState, transactionId: confirmedId,
+    });
+    if (!checkoutLockFinalized.success) {
+      console.error("No se pudo actualizar el estado final del lock Wompi.", { reference: confirmedReference, finalLockState });
+      return json({ error: "El estado del pedido se guardó, pero su lock necesita reconciliación. El evento se reintentará." }, 502);
+    }
+
+    if (status === "APPROVED" && inventoryProcessed && !couponReconciliationRequired) {
       await markInventoryReconciliationResolved({ supabaseUrl, serviceRoleKey, transactionId: confirmedId });
     }
 
-    console.log("Evento Wompi procesado.", { reference: confirmedReference, transactionId: confirmedId, status, inventoryProcessed, lateReservationRecovered, environment: expectedEnvironment });
-    return json({ received: true, reference: confirmedReference, transactionId: confirmedId, status, inventoryProcessed, lateReservationRecovered });
+    console.log("Evento Wompi procesado.", { reference: confirmedReference, transactionId: confirmedId, status, inventoryProcessed, couponReconciliationRequired, environment: expectedEnvironment });
+    return json({ received: true, reference: confirmedReference, transactionId: confirmedId, status, inventoryProcessed, reconciliationRequired: couponReconciliationRequired, couponReconciliationRequired });
   } catch (error) {
     console.error("Error procesando evento Wompi:", error instanceof Error ? error.message : "error desconocido");
     return json({ error: "No se pudo procesar el evento." }, 500);
