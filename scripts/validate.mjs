@@ -40,8 +40,11 @@ try{
 	 const reportExportTest=read('tests/admin_reports_export_regression.mjs');
 	 const reportExporter=admin.match(/function exportSalesReportCSV\(\)\{[\s\S]*?\n\}/)?.[0];
 	 assert.ok(reportExporter?.includes('salesReportExportBlockReason()')&&reportExporter.includes('no incluye pedidos COD/Wompi')&&reportExportTest.includes('context.exportSalesReportCSV()'),'El CSV solo se exporta desde snapshot actual y conserva su alcance de ventas internas');
+	 const imageLoadingTest=read('tests/catalog_image_loading_regression.mjs');
+	 const lazyImageLoader=catalog.match(/function activateCatalogLazyImages\(\)[\s\S]*?\n\}/)?.[0];
+	 assert.ok(lazyImageLoader?.includes("rootMargin:'160px 0px'")&&lazyImageLoader.includes('IntersectionObserver')&&imageLoadingTest.includes('fallbackContext.activateCatalogLazyImages()'),'La carga diferida tiene rootMargin y fallback probado');
 	 assert.ok(admin.includes("${esc(({home:'Pantalla de inicio'"),'Etiqueta de promoción escapada');
- const promoPresets=catalog.match(/const SIREVYA_PROMO_PRESETS=\{([\s\S]*?)\n\};/);
+	 const promoPresets=catalog.match(/const SIREVYA_PROMO_PRESETS=\{([\s\S]*?)\n\};/);
  assert.ok(promoPresets,'Presets fallback de campañas configurables');
  assert.ok(!/message:'[^']*(?:env[ií]o gratis|descuento garantizado|rebaja garantizada)/i.test(promoPresets[1]),'El copy fallback no promete beneficios no ligados a una regla vigente');
 

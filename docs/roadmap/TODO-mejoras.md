@@ -89,6 +89,7 @@ Cada criterio se conserva hasta que exista evidencia en código, Supabase y prue
 - [ ] Cada producto tiene URL indexable con title, description, canonical, OG/Twitter e información estructurada coherente de precio/disponibilidad; el contenido de la ruta puede leerlo el crawler sin depender solo de abrir un modal.
 - [ ] PWA permite instalación, icono y carga del shell; no presenta stock/precios cacheados como actuales y no altera el checkout.
 - [ ] Optimizar fotos con miniaturas y carga bajo demanda, medir LCP/solicitudes/bytes y usar paginación/virtualización si el catálogo lo exige; el refresco de stock sigue activo y sin concurrencia solapada.
+  > Avance de código verificado: las tarjetas de `#grid` ya usan `data-src`, `IntersectionObserver` con margen de 160px, `loading="lazy"`/`decoding="async"` y fallback sin soporte; la galería visible usa `eager`/`fetchpriority=high`. `tests/catalog_image_loading_regression.mjs` fija el comportamiento. No se añadieron miniaturas ni se midió LCP/bytes en dispositivo real, por lo que el criterio sigue abierto.
 
 ## Reglas de regresión aplicables a cada fase
 
