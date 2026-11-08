@@ -1886,7 +1886,7 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
     </header>
     <button class="detailClose" type="button" onclick="closeProductDetail()" aria-label="Cerrar detalle del producto">×</button>
     <div class="productDetailMain">
-      <div class="detailGalleryColumn"><div id="detailImageWrap" class="detailImageWrap"><img id="detailImage" class="detailImage" alt="Producto" onclick="openDetailGallery(event)" decoding="async"></div><div id="detailGalleryThumbs" class="detailGalleryThumbs"></div></div>
+      <div class="detailGalleryColumn"><div id="detailImageWrap" class="detailImageWrap"><img id="detailImage" class="detailImage" alt="Producto" role="button" tabindex="0" aria-haspopup="dialog" aria-label="Ampliar galería del producto" onclick="openDetailGallery(event)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openDetailGallery(event)}" decoding="async"></div><div id="detailGalleryThumbs" class="detailGalleryThumbs"></div></div>
       <div class="detailInfo">
         <div id="detailName" class="detailName"></div>
         <div id="detailPrice" class="detailPrice"></div>
@@ -1915,7 +1915,7 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
       </a>
     </section>
   </div>
-</div><div id="galleryModal" class="galleryModal" onclick="closeGallery(event)"><div class="galleryBox"><button class="galleryClose" type="button" onclick="closeGallery()">×</button><button id="galleryPrev" class="galleryNav galleryPrev" type="button" onclick="galleryMove(-1,event)">‹</button><img id="galleryMain" class="galleryMain" alt="Imagen del producto" decoding="async"><button id="galleryNext" class="galleryNav galleryNext" type="button" onclick="galleryMove(1,event)">›</button><div id="galleryInfo" class="galleryInfo"></div></div></div><a class="waHelpFloat" href="https://wa.me/573025469983?text=Hola%2C%20necesito%20asesor%C3%ADa%20sobre%20un%20producto." target="_blank" rel="noopener noreferrer" aria-label="Contactar asesoramiento por WhatsApp">
+</div><div id="galleryModal" class="galleryModal" role="dialog" aria-modal="true" aria-label="Galería ampliada" aria-describedby="galleryInfo" aria-hidden="true" tabindex="-1" onclick="closeGallery(event)"><div class="galleryBox"><button id="galleryClose" class="galleryClose" type="button" aria-label="Cerrar galería" title="Cerrar galería" onclick="closeGallery()">×</button><button id="galleryPrev" class="galleryNav galleryPrev" type="button" aria-label="Imagen anterior" onclick="galleryMove(-1,event)">‹</button><img id="galleryMain" class="galleryMain" alt="Imagen del producto" decoding="async"><button id="galleryNext" class="galleryNav galleryNext" type="button" aria-label="Imagen siguiente" onclick="galleryMove(1,event)">›</button><div id="galleryInfo" class="galleryInfo" role="status" aria-live="polite" aria-atomic="true"></div></div></div><a class="waHelpFloat" href="https://wa.me/573025469983?text=Hola%2C%20necesito%20asesor%C3%ADa%20sobre%20un%20producto." target="_blank" rel="noopener noreferrer" aria-label="Contactar asesoramiento por WhatsApp">
   <span class="waHelpLabel"><b>Asesoramiento</b></span><span class="waHelpIcon" aria-hidden="true">●</span>
 </a>
 <div id="toast" class="toast"></div>
@@ -2350,12 +2350,29 @@ function photoHoverLeave(event){
 }
 
 function changePhoto(i,d,event){if(event){event.preventDefault();event.stopPropagation()}const p=productos.find(x=>String(x.id)===String(i));if(!p)return;const imgs=productImages(p);if(imgs.length<2)return;const key='photo_'+i;let n=Number(document.querySelector('[data-photo="'+CSS.escape(key)+'"]')?.dataset.index||0);n=(n+d+imgs.length)%imgs.length;const el=document.querySelector('[data-photo="'+CSS.escape(key)+'"]');if(!el)return;el.dataset.index=n;setPhotoImage(el,imgs[n]);el.querySelectorAll('.photoDot').forEach((x,j)=>x.classList.toggle('active',j===n))}
-function openGallery(id,event){if(event){event.preventDefault();event.stopPropagation()}const p=productos.find(x=>String(x.id)===String(id));if(!p)return;const imgs=productImages(p);if(!imgs.length)return;galleryProduct=p;galleryIndex=0;galleryImages=imgs;renderGallery();$('galleryModal').classList.add('open');document.body.style.overflow='hidden'}
-function openSizeGuideZoom(image,event){if(event){event.preventDefault();event.stopPropagation()}const src=String(image?.currentSrc||image?.src||'').trim();if(!src)return;galleryProduct={name:image?.alt||'Guía de tallas'};galleryIndex=0;galleryImages=[src];renderGallery();$('galleryModal').classList.add('open');document.body.style.overflow='hidden'}
-let galleryProduct=null,galleryImages=[],galleryIndex=0;
+function openGallery(id,event){if(event){event.preventDefault();event.stopPropagation()}const p=productos.find(x=>String(x.id)===String(id));if(!p)return;const imgs=productImages(p);if(!imgs.length)return;galleryProduct=p;galleryIndex=0;galleryImages=imgs;renderGallery();openGalleryModal(event?.currentTarget||document.activeElement)}
+function openSizeGuideZoom(image,event){if(event){event.preventDefault();event.stopPropagation()}const src=String(image?.currentSrc||image?.src||'').trim();if(!src)return;galleryProduct={name:image?.alt||'Guía de tallas'};galleryIndex=0;galleryImages=[src];renderGallery();openGalleryModal(event?.currentTarget||image||document.activeElement)}
+let galleryProduct=null,galleryImages=[],galleryIndex=0,galleryReturnFocus=null;
+function openGalleryModal(trigger){const modal=$('galleryModal');if(!modal)return;const candidate=trigger||document.activeElement;galleryReturnFocus=candidate&&candidate!==document.body&&typeof candidate.focus==='function'?candidate:null;modal.classList.add('open');modal.setAttribute('aria-hidden','false');document.body.style.overflow='hidden';$('galleryClose')?.focus({preventScroll:true})}
 function renderGallery(){if(!galleryImages.length)return;const main=$('galleryMain');main.loading='eager';main.fetchPriority='high';main.decoding='async';main.src=galleryImages[galleryIndex];main.alt=galleryProduct?.name||'Producto';animateGalleryImage(main);$('galleryInfo').textContent=(galleryIndex+1)+' / '+galleryImages.length;const multi=galleryImages.length>1;$('galleryPrev').style.display=multi?'block':'none';$('galleryNext').style.display=multi?'block':'none'}
 function galleryMove(d,event){if(event){event.preventDefault();event.stopPropagation()}if(galleryImages.length<2)return;galleryIndex=(galleryIndex+d+galleryImages.length)%galleryImages.length;renderGallery()}
-function closeGallery(event){if(event&&event.target!==$('galleryModal'))return;$('galleryModal').classList.remove('open');document.body.style.overflow=$('productDetailModal')?.classList.contains('open')?'hidden':''}
+function galleryFocusables(){return ['galleryClose','galleryPrev','galleryNext'].map($).filter(el=>el&&!el.disabled&&!el.hidden&&el.style?.display!=='none')}
+function handleGalleryKeydown(event){
+ const modal=$('galleryModal');
+ if(!modal?.classList.contains('open'))return;
+ if(event.key==='Escape'){event.preventDefault();event.stopPropagation();closeGallery();return}
+ if(event.key==='ArrowLeft'&&galleryImages.length>1){event.preventDefault();event.stopPropagation();galleryMove(-1);return}
+ if(event.key==='ArrowRight'&&galleryImages.length>1){event.preventDefault();event.stopPropagation();galleryMove(1);return}
+ if(event.key!=='Tab')return;
+ const controls=galleryFocusables();
+ if(!controls.length){event.preventDefault();modal.focus({preventScroll:true});return}
+ const first=controls[0],last=controls[controls.length-1],active=document.activeElement;
+ const isInside=typeof modal.contains==='function'?modal.contains(active):controls.includes(active);
+ if(event.shiftKey&&(active===first||!isInside)){event.preventDefault();last.focus({preventScroll:true})}
+ else if(!event.shiftKey&&(active===last||!isInside)){event.preventDefault();first.focus({preventScroll:true})}
+}
+document.addEventListener('keydown',handleGalleryKeydown);
+function closeGallery(event){const modal=$('galleryModal');if(event&&event.target!==modal)return;if(!modal)return;modal.classList.remove('open');modal.setAttribute('aria-hidden','true');document.body.style.overflow=$('productDetailModal')?.classList.contains('open')?'hidden':'';const returnFocus=galleryReturnFocus;galleryReturnFocus=null;const fallback=$('productDetailModal')?.classList.contains('open')?$('detailImage'):null;const target=returnFocus?.isConnected?returnFocus:fallback;if(typeof target?.focus==='function')target.focus({preventScroll:true})}
 
 function activateCatalogLazyImages(){
  const imgs=document.querySelectorAll('#grid img[data-src]');
@@ -3287,7 +3304,7 @@ function openDetailGallery(event){
  const currentIndex=images.findIndex(url=>normalizeImageUrl(url)===normalizeImageUrl(current));
  if(!images.length)return;
  galleryProduct=detailProduct;galleryImages=images;galleryIndex=Math.max(0,currentIndex);
- renderGallery();$('galleryModal').classList.add('open');document.body.style.overflow='hidden';
+ renderGallery();openGalleryModal(event?.currentTarget||document.activeElement);
 }
 function renderDetailVariants(p,activeColor,activeSize){
  const colors=parseVariantList(p.colors),sizes=parseVariantList(p.sizes),vs=variantList(p);
