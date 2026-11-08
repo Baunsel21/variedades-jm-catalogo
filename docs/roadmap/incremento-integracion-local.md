@@ -40,6 +40,8 @@ Inicio incorpora Hoy y últimos siete días incluidos hoy, en Colombia. Ingresos
 
 Los loaders de panel, COD y conciliación descartan respuestas de una época de sesión anterior. Cerrar sesión borra snapshots/marcas y la previsualización CSV; un fallo no se interpreta como cero.
 
+Seguimiento Fase 6 para Clientes: la consulta diferida del listado selecciona solo `id,name`. Teléfono/nota se consultan con una acción explícita, tras revalidar el mismo usuario y `is_store_admin`; los resultados solo viven en memoria mientras se muestran. Ocultar, salir de la sección, actualizar la lista o cerrar sesión descarta la caché volátil y limpia la búsqueda. No se escribe PII en URL, localStorage, sessionStorage ni logs. La historia de pedidos/recurrencia del cliente permanece pendiente.
+
 La previsualización CSV es un dry-run puro y UI local: hasta 1 MiB/500 filas en el panel, esquema `code,name,category,cost,sale_price,quantity`, enteros COP/stock no negativos, cabeceras exactas y duplicados comparados con snapshot. No acepta variantes/PII, no evalúa fórmulas, no sube archivos ni habilita escritura. Se corrigió el cierre de la última celda entrecomillada que duplicaba una columna. El contenido se escapa y una lectura cancelada no revive la vista.
 
 El documento de contratos de pedidos ya preparado en PR #16 se integra sin inventar relaciones entre `orders` y `web_orders`.
@@ -52,7 +54,7 @@ SQL local: `supabase/migrations/20261108080000_public_catalog_sort_metadata.sql`
 
 Rollout manual pendiente: `docs/deployment/restrict_legacy_admin_order_status_after_frontend.sql` (no es migración automática ni se ejecutó).
 
-Regresiones independientes: `tests/admin_account_security_regression.mjs`, `tests/dashboard_availability_regression.mjs`, `tests/dashboard_period_regression.mjs`, `tests/phase1_quote_parity_regression.mjs`, `tests/catalog_discovery_regression.mjs`, `tests/fase7_csv_preview.mjs`, `tests/admin_csv_preview_regression.mjs`.
+Regresiones independientes: `tests/admin_account_security_regression.mjs`, `tests/admin_clients_privacy_regression.mjs`, `tests/dashboard_availability_regression.mjs`, `tests/dashboard_period_regression.mjs`, `tests/phase1_quote_parity_regression.mjs`, `tests/catalog_discovery_regression.mjs`, `tests/fase7_csv_preview.mjs`, `tests/admin_csv_preview_regression.mjs`.
 
 Documentación: este informe, `TODO-mejoras.md`, `fase-3-descubrimiento-catalogo.md`, `fase-5-modelo-pedidos.md`, `fase-7-trazabilidad-importacion-backup.md`.
 
@@ -62,6 +64,7 @@ Las pruebas se mantienen separadas. Comandos de cierre:
 
 ```bash
 node tests/admin_account_security_regression.mjs
+node tests/admin_clients_privacy_regression.mjs
 node tests/dashboard_availability_regression.mjs
 node tests/dashboard_period_regression.mjs
 node tests/phase1_quote_parity_regression.mjs
@@ -72,7 +75,9 @@ node scripts/validate.mjs
 git diff --check
 ```
 
-Resultado del cierre: las siete regresiones independientes y `node scripts/validate.mjs` pasaron. También pasó `git diff --check` y no se detectaron marcadores de conflicto en el diff. El test de catálogo compiló JavaScript inline y el validador comprobó sintaxis del panel.
+Resultado del incremento anterior: sus siete regresiones independientes y `node scripts/validate.mjs` pasaron. En la continuación de privacidad también pasó `node tests/admin_clients_privacy_regression.mjs` (selección real `id,name`, reveal-on-demand `phone,note`, revalidación admin, escape HTML, limpieza y loaders stale), además de `admin_account_security_regression.mjs`, `dashboard_period_regression.mjs`, `node scripts/validate.mjs` y `git diff --check`. El test de catálogo compila JavaScript inline y el validador comprueba sintaxis del panel.
+
+Una revisión independiente read-only de `fetchTablePage`, `renderClientes`, `toggleClientContact`, `clearClientContactDetails` y el loader diferido confirmó que no queda un problema crítico de privacidad en este slice.
 
 `pglast` analizó sin ejecutar: metadata de novedad (4 sentencias SQL), guard de estados COD (12 sentencias/5 unidades PLpgSQL), regresión metadata (1/1), regresión COD (2/1) y corte manual legacy (6/2). La revisión independiente detectó la carrera MFA, ya corregida y probada, y el límite de expected-status de las firmas legacy, documentado con corte manual pendiente. Estos controles no ejecutan SQL ni verifican comportamiento publicado.
 
@@ -82,7 +87,7 @@ Resultado del cierre: las siete regresiones independientes y `node scripts/valid
 2. Supabase Auth: configurar redirect URLs de recuperación hacia `admin.html`, correo/SMTP, política de contraseña y disponibilidad/configuración MFA. Probar recovery, AAL2 y cancelación en cuentas sintéticas, no en una cuenta real durante esta tarea.
 3. Wompi: confirmar que `prepare_storefront_wompi_checkout` y demás contratos estén instalados donde se sirve la Edge Function, probar retorno/PSE en sandbox sin cobro real, y definir procedimiento autorizado de conciliación. La comparación COD legacy con `round` requiere revisión de política COP fraccionaria y regresión específica en otra migración, no cambio silencioso de historial.
 4. Fase 3: etiquetas/ofertas con contrato autoritativo y recuperación avanzada de carrito sin duplicar/renovar reservas. Los ETA no se inventan.
-5. Fase 5/6: contrato canónico de canales, paginación server-side, historial cliente bajo demanda, logística separada con bitácora y notificaciones configurables. No unir pedidos por PII/monto/fecha.
+5. Fase 5/6: contrato canónico de canales, paginación server-side, historial/recurrencia de clientes, logística separada con bitácora y notificaciones configurables. No unir pedidos por PII/monto/fecha.
 6. Fase 7: importación real con RPC transaccional y rollback, bitácora append-only, allowlist/retención PII, manifest R2 y restauración verificada. El JSON de backup actual es parcial, no un restaurador ni un backup completo de fotos.
 7. Fase 8: políticas comerciales/identidad legal aprobadas, SEO crawler-visible por producto, PWA sin datos de precio/stock persistentes y medición de rendimiento. No se inventan políticas ni se activa un service worker sin comprobar los riesgos de disponibilidad.
 

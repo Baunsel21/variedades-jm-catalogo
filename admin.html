@@ -472,7 +472,7 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
     <label>Teléfono<input id="cTelefono" type="tel" maxlength="40" placeholder="Número de contacto"></label>
     <label class="full">Nota<input id="cNota" maxlength="500" placeholder="Referencia o nota opcional"></label>
   </div><div style="margin-top:14px"><button class="primary" onclick="agregarCliente()">＋ Guardar cliente</button></div></div>
-  <div class="box" style="margin-top:15px"><h3>Clientes registrados</h3><div id="listaClientes"></div></div>
+  <div class="box" style="margin-top:15px"><div class="rowBetween" style="gap:12px;flex-wrap:wrap"><h3>Clientes registrados</h3><span class="muted" id="clientsVisibleCount" role="status" aria-live="polite">0 clientes</span></div><label class="field">Buscar por nombre<input id="buscarCliente" type="search" maxlength="120" autocomplete="off" placeholder="Nombre del cliente" oninput="renderClientes()"></label><p id="clientsPrivacyNotice" class="muted">Teléfono y nota no se descargan al listar. Se consultan solo al abrir los datos de contacto y se descartan al ocultarlos, salir de esta sección o cerrar sesión.</p><div id="listaClientes"></div></div>
 </section>
 
 <section id="proveedores" class="view">
@@ -765,6 +765,7 @@ let moduleLoadErrors={};
 let publicAvailabilityWarning='';
 let adminDeferredModuleLoaded={clients:false,suppliers:false,expenses:false,movements:false,orders:false};
 let adminDeferredModuleInFlight={};
+let clientContactCache=new Map(),clientContactLoads=new Map(),clientContactErrors=new Map(),clientContactGeneration=0;
 let pedidos=[];
 let dashboardCoreSnapshot={loaded:false,busy:false,error:'',updatedAt:null};
 let dashboardOrdersUpdatedAt=null;
@@ -1403,10 +1404,11 @@ function lockAdminPanel(message='Tu sesión terminó. Vuelve a entrar.'){
  $('adminLoginFields')?.classList.remove('hidden');$('adminMfaLoginStep')?.classList.add('hidden');
  if(adminCatalogRealtimeChannel&&sb){const channel=adminCatalogRealtimeChannel;adminCatalogRealtimeChannel=null;void sb.removeChannel(channel).catch(error=>console.debug('No se pudo cerrar el canal administrativo.',error));}
  adminCatalogRealtimeReady=false;adminCatalogRealtimePending=[];
+ clearClientContactDetails({clearSearch:true,render:false});
  productos=[];ventas=[];clientes=[];proveedores=[];gastos=[];movimientos=[];pedidos=[];
  dashboardCoreSnapshot={loaded:false,busy:false,error:'',updatedAt:null};dashboardOrdersUpdatedAt=null;
  dashboardWompiSnapshot={loaded:false,busy:false,error:'',count:0,updatedAt:null};
- moduleLoadErrors={};pedidosLoadError='';publicAvailabilityWarning='';
+ moduleLoadErrors={};pedidosLoadError='';publicAvailabilityWarning='';adminDeferredModuleInFlight={};
  clearProductCsvPreview();
  Object.keys(adminDeferredModuleLoaded).forEach(key=>adminDeferredModuleLoaded[key]=false);
  ['listaPedidos','listaProductos','listaVentas','listaClientes','listaProveedores','listaGastos','listaMovimientos','wompiReconciliationList'].forEach(id=>{const el=$(id);if(el)el.textContent='';});
@@ -1732,6 +1734,7 @@ async function startApp(){
 function setDateText(){const d=new Date();$("todayText").textContent=d.toLocaleDateString("es-CO",{weekday:"long",day:"numeric",month:"long",year:"numeric"})}
 function show(id,btn){
  if(id!=='config')clearProductCsvPreview();
+ if(id!=='clientes'&&$('clientes')?.classList.contains('active'))clearClientContactDetails({clearSearch:true,render:true});
  if(id!=='config'&&adminMfaEnrollment)void cancelAdminMfaEnrollment();
  if(id!=='config'&&$('adminMfaDisablePanel')){$('adminMfaDisablePanel').classList.add('hidden');$('adminMfaDisableCode').value=''}
  document.querySelectorAll(".view").forEach(x=>x.classList.remove("active"));$(id).classList.add("active");
@@ -1796,6 +1799,7 @@ async function fetchTablePage(table,from,pageSize,orderColumn,ascending){
    const plan=attempts[i];
    const selectColumns=table==='web_orders'
     ? 'id,customer_name,customer_phone,customer_email,customer_city,customer_address,customer_neighborhood,note,payment_method,subtotal,shipping,total,items,status,created_at,client_reference,inventory_reference,inventory_state,discount_total'
+    : table==='clients'?'id,name'
     : '*';
    let query=sb.from(table).select(selectColumns);
    if(table==='sales')query=query.is('archived_at',null);
@@ -1896,7 +1900,7 @@ async function cargarTodo(){
    const table=({clients:'clients',suppliers:'suppliers',expenses:'expenses',movements:'inventory_movements',orders:'web_orders'})[key];
    if(result?.error){moduleLoadErrors[key]=describeAdminTableError(table,result.error);if(key==='orders')pedidosLoadError=moduleLoadErrors[key];continue}
    const data=result?.data||[];
-   if(key==='clients'){clientes=data;adminDeferredModuleLoaded.clients=true}
+   if(key==='clients'){clearClientContactDetails({clearSearch:false,render:false});clientes=data;adminDeferredModuleLoaded.clients=true}
    if(key==='suppliers'){proveedores=data;adminDeferredModuleLoaded.suppliers=true}
    if(key==='expenses'){gastos=data;adminDeferredModuleLoaded.expenses=true}
    if(key==='movements'){movimientos=data;adminDeferredModuleLoaded.movements=true}
@@ -3215,10 +3219,64 @@ async function agregarCliente(){
  const {error}=await sb.from("clients").insert({name:n,phone:$("cTelefono").value.trim(),note:$("cNota").value.trim()});
  if(error)alert(error.message);else{$("cNombre").value="";$("cTelefono").value="";$("cNota").value="";toast("Cliente guardado");await cargarTodo()}
 }
+function clearClientContactDetails({clearSearch=true,render=true}={}){
+ clientContactGeneration++;
+ clientContactCache.clear();clientContactLoads.clear();clientContactErrors.clear();
+ if(clearSearch&&$('buscarCliente'))$('buscarCliente').value='';
+ if(render&&$('listaClientes'))renderClientes();
+}
+function normalizeClientSearch(value){return String(value??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim()}
 function renderClientes(){
  const host=$("listaClientes");if(!host)return;
- if(moduleLoadErrors.clients){host.innerHTML=`<div class="alert"><b>No se pudieron cargar los clientes.</b><br>${esc(moduleLoadErrors.clients)}</div>`;return;}
- host.innerHTML=clientes.map(c=>`<div class="card listItem" style="padding:15px;margin-bottom:9px"><div class="rowBetween"><div><b>${esc(c.name)}</b><div class="muted">📞 ${esc(c.phone||"Sin teléfono")}</div>${c.note?`<div class="muted">📝 ${esc(c.note)}</div>`:""}</div><span class="badge ok">Cliente</span></div></div>`).join("")||'<div class="empty card">No hay clientes registrados.</div>';
+ if(moduleLoadErrors.clients){const count=$('clientsVisibleCount');if(count)count.textContent='No disponible';host.innerHTML=`<div class="alert"><b>No se pudieron cargar los clientes.</b><br>${esc(moduleLoadErrors.clients)}</div>`;return;}
+ const query=normalizeClientSearch($('buscarCliente')?.value||''),filtered=clientes.filter(client=>normalizeClientSearch(client.name).includes(query));
+ const count=$('clientsVisibleCount');if(count)count.textContent=`${filtered.length} de ${clientes.length} cliente${clientes.length===1?'':'s'}`;
+ if(!host.dataset.clientContactBound){host.addEventListener('click',event=>{const button=event.target.closest('[data-client-contact-id]');if(!button)return;let id='';try{id=decodeURIComponent(button.getAttribute('data-client-contact-id')||'')}catch{return}void toggleClientContact(id)});host.dataset.clientContactBound='true'}
+ host.innerHTML=filtered.map(client=>{
+  const id=String(client.id??''),key=id,encoded=encodeURIComponent(id),detail=clientContactCache.get(key),loading=clientContactLoads.has(key),error=clientContactErrors.get(key);
+  const contact=detail?`<div class="clientContactDetails" aria-live="polite"><div class="muted">📞 ${esc(detail.phone||'Sin teléfono registrado')}</div>${detail.note?`<div class="muted">📝 ${esc(detail.note)}</div>`:''}</div>`:'';
+  const errorText=error?`<div class="status err" role="status">${esc(error)}</div>`:'';
+  const button=detail?`<button type="button" class="action" data-client-contact-id="${esc(encoded)}" aria-expanded="true">Ocultar teléfono y nota</button>`:id?`<button type="button" class="action" data-client-contact-id="${esc(encoded)}" aria-expanded="false" ${loading?'disabled':''}>${loading?'Consultando…':'Ver datos de contacto'}</button>`:'<span class="muted">No disponible</span>';
+  return `<article class="card listItem" style="padding:15px;margin-bottom:9px"><div class="rowBetween" style="gap:12px;align-items:flex-start"><div><b>${esc(client.name||'Cliente sin nombre')}</b>${contact}${errorText}</div><span class="badge ok">Cliente</span></div><div style="margin-top:10px">${button}</div></article>`;
+ }).join('')||'<div class="empty card">'+(query?'No hay clientes con ese nombre.':'No hay clientes registrados.')+'</div>';
+}
+async function toggleClientContact(id){
+ const clientId=String(id??'').trim();
+ if(!adminSessionAuthorized||!adminSessionUserId||!clientId)return;
+ if(clientContactCache.has(clientId)){clientContactCache.delete(clientId);clientContactErrors.delete(clientId);renderClientes();return}
+ if(clientContactLoads.has(clientId))return clientContactLoads.get(clientId);
+ const authEpoch=adminAuthEpoch,generation=clientContactGeneration,userId=adminSessionUserId;
+ const stale=()=>authEpoch!==adminAuthEpoch||generation!==clientContactGeneration||!adminSessionAuthorized||userId!==adminSessionUserId;
+ clientContactErrors.delete(clientId);renderClientes();
+ let request;
+ request=(async()=>{
+  try{
+   const auth=await sb.auth.getUser();
+   if(stale())return;
+   if(auth.error||auth.data?.user?.id!==userId){lockAdminPanel('La sesión cambió. Inicia sesión nuevamente.');void sb.auth.signOut({scope:'local'}).catch(()=>{});return}
+   const permission=await sb.rpc('is_store_admin');
+   if(stale())return;
+   if(permission.error||permission.data!==true){lockAdminPanel('La cuenta ya no tiene autorización administrativa.');void sb.auth.signOut({scope:'local'}).catch(()=>{});return}
+   const beforeQuery=await sb.auth.getUser();
+   if(stale())return;
+   if(beforeQuery.error||beforeQuery.data?.user?.id!==userId){lockAdminPanel('La sesión cambió. Inicia sesión nuevamente.');void sb.auth.signOut({scope:'local'}).catch(()=>{});return}
+   const {data,error}=await sb.from('clients').select('phone,note').eq('id',clientId).maybeSingle();
+   if(stale())return;
+   const afterQuery=await sb.auth.getUser();
+   if(stale())return;
+   if(afterQuery.error||afterQuery.data?.user?.id!==userId){lockAdminPanel('La sesión cambió. Inicia sesión nuevamente.');void sb.auth.signOut({scope:'local'}).catch(()=>{});return}
+   if(error||!data){clientContactErrors.set(clientId,'No se pudo consultar el contacto. Comprueba la conexión e inténtalo de nuevo.');return}
+   clientContactCache.set(clientId,{phone:String(data.phone??''),note:String(data.note??'')});
+  }catch{
+   if(!stale())clientContactErrors.set(clientId,'No se pudo consultar el contacto. Comprueba la conexión e inténtalo de nuevo.');
+  }finally{
+   if(clientContactLoads.get(clientId)===request)clientContactLoads.delete(clientId);
+   if(!stale())renderClientes();
+  }
+ })();
+ clientContactLoads.set(clientId,request);
+ renderClientes();
+ return request;
 }
 
 async function agregarProveedor(){
@@ -3495,21 +3553,25 @@ async function loadAdminDeferredModule(key,force=false){
   movements:{table:'inventory_movements',order:'created_at',ascending:false,assign:data=>{movimientos=data},render:renderMovimientos,host:'listaMovimientos'}
  };
  if(!cfg[key])return false;
+ if(!adminSessionAuthorized||!sb)return false;
  if(adminDeferredModuleLoaded[key]&&!force)return true;
  if(adminDeferredModuleInFlight[key])return adminDeferredModuleInFlight[key];
- const spec=cfg[key],host=$(spec.host);if(host)host.innerHTML='<div class="empty">Consultando Supabase…</div>';
+ const spec=cfg[key],authEpoch=adminAuthEpoch,sessionUserId=adminSessionUserId,host=$(spec.host);if(host)host.innerHTML='<div class="empty">Consultando Supabase…</div>';
  delete moduleLoadErrors[key];
- adminDeferredModuleInFlight[key]=(async()=>{
+ const request=(async()=>{
   try{
    const result=await fetchAllTableRows(spec.table,spec.order,spec.ascending);
+   if(authEpoch!==adminAuthEpoch||!adminSessionAuthorized||sessionUserId!==adminSessionUserId)return false;
    if(result.error){moduleLoadErrors[key]=describeAdminTableError(spec.table,result.error);spec.render();return false;}
+   if(key==='clients')clearClientContactDetails({clearSearch:false,render:false});
    spec.assign(result.data||[]);adminDeferredModuleLoaded[key]=true;delete moduleLoadErrors[key];
    if(result.orderMode&&result.orderMode!=='stable')console.warn('Módulo '+key+' cargado con orden alternativo:',result.orderMode);
    spec.render();return true;
-  }catch(error){moduleLoadErrors[key]=describeAdminTableError(spec.table,error);spec.render();return false;}
-  finally{delete adminDeferredModuleInFlight[key];}
+  }catch(error){if(authEpoch!==adminAuthEpoch||!adminSessionAuthorized||sessionUserId!==adminSessionUserId)return false;moduleLoadErrors[key]=describeAdminTableError(spec.table,error);spec.render();return false;}
+  finally{if(adminDeferredModuleInFlight[key]===request)delete adminDeferredModuleInFlight[key];}
  })();
- return adminDeferredModuleInFlight[key];
+ adminDeferredModuleInFlight[key]=request;
+ return request;
 }
 
 // Configuración de contraentrega por ciudad: se guarda mediante RPC protegida en Supabase.
