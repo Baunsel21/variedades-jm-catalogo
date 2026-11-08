@@ -33,9 +33,10 @@ assert.match(adminHtml, /<link id="appFavicon" rel="icon" href="\/__preview_asse
 assert.match(adminHtml, /let brandName="Variedades JM";/);
 assert.match(adminHtml, /let brandIcon="";/);
 assert.match(adminHtml, /let brandIconPath="";/);
+assert.match(adminHtml, /<script type="module" src="\.\/scripts\/admin_csv_preview\.mjs"><\/script>/);
+assert.deepEqual([...adminHtml.matchAll(/<script\b[^>]*\bsrc\s*=[^>]*>/gi)].map(match => match[0]), ['<script type="module" src="./scripts/admin_csv_preview.mjs">']);
 assert.doesNotMatch(adminHtml, /\b[a-z0-9-]+\.supabase\.co\b/i);
 assert.doesNotMatch(adminHtml, /\b(?:sb_(?:publishable|secret)_[A-Za-z0-9_-]{8,}|pub_(?:test|prod)_[A-Za-z0-9_-]{8,})\b/i);
-assert.doesNotMatch(adminHtml, /<script\b[^>]*\bsrc\s*=/i);
 assert.equal((adminHtml.match(/<head\b/gi)||[]).length, 1, 'El recibo emergente del admin se deshabilita en preview.');
 assert.equal((adminHtml.match(/<body\b/gi)||[]).length, 1);
 assert.match(adminHtml, /data-sirevya-preview="safe-client"/);
@@ -258,10 +259,33 @@ try {
   assert.match(hubHtml, /href="\/admin-preview"/);
   const storefrontResponse = await fetch(actualBase + '/storefront');
   assert.equal(storefrontResponse.status, 200);
-  assert.match(await storefrontResponse.text(), /PREVIEW DE DESARROLLO/);
+  const storefrontHtml = await storefrontResponse.text();
+  assert.match(storefrontHtml, /PREVIEW DE DESARROLLO/);
+  assert.doesNotMatch(storefrontHtml, /admin_csv_preview\.mjs/);
   const adminResponse = await fetch(actualBase + '/admin-preview');
   assert.equal(adminResponse.status, 200);
   assert.match(await adminResponse.text(), /ADMIN DE PREVIEW/);
+  const adminModuleResponse = await fetch(actualBase + '/scripts/admin_csv_preview.mjs');
+  assert.equal(adminModuleResponse.status, 200);
+  assert.match(adminModuleResponse.headers.get('content-type'), /text\/javascript/);
+  assert.match(await adminModuleResponse.text(), /previewProductsCsv/);
+  const adminModuleHead = await fetch(actualBase + '/scripts/admin_csv_preview.mjs', { method: 'HEAD' });
+  assert.equal(adminModuleHead.status, 200);
+  assert.equal(await adminModuleHead.text(), '');
+  const parserModuleResponse = await fetch(actualBase + '/scripts/fase7_csv_preview.mjs');
+  assert.equal(parserModuleResponse.status, 200);
+  assert.match(await parserModuleResponse.text(), /export function previewProductsCsv/);
+  const parserModuleHead = await fetch(actualBase + '/scripts/fase7_csv_preview.mjs', { method: 'HEAD' });
+  assert.equal(parserModuleHead.status, 200);
+  assert.equal(await parserModuleHead.text(), '');
+  assert.equal((await fetch(actualBase + '/scripts/unknown.mjs')).status, 404);
+  for (const method of ['POST', 'PUT', 'DELETE', 'OPTIONS']) {
+    const response = await fetch(actualBase + '/scripts/admin_csv_preview.mjs', {
+      method,
+      ...(method === 'OPTIONS' ? {} : { body: 'blocked' }),
+    });
+    assert.equal(response.status, 403, `${method} must remain blocked for the CSV module route.`);
+  }
   const routesResponse = await fetch(actualBase + '/manus-routes.json');
   assert.equal(routesResponse.status, 200);
   const routes = await routesResponse.json();

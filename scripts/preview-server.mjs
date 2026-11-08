@@ -262,9 +262,12 @@ function rewriteUrlAttribute(tag, name, replacement) {
   });
 }
 
-function scrubExternalMarkup(html) {
-  html = html.replace(/<script\b(?=[^>]*\bsrc\s*=)[^>]*>[\s\S]*?<\/script\s*>/gi, '');
-  html = html.replace(/<script\b(?=[^>]*\bsrc\s*=)[^>]*\/?>/gi, '');
+function scrubExternalMarkup(html, mode = 'storefront') {
+  const allowedAdminModule = '<script type="module" src="./scripts/admin_csv_preview.mjs"></script>';
+  const allowedAdminModuleOpenTag = '<script type="module" src="./scripts/admin_csv_preview.mjs">';
+  const retainAllowedAdminModule = tag => mode === 'admin' && tag.trim() === allowedAdminModule;
+  html = html.replace(/<script\b(?=[^>]*\bsrc\s*=)[^>]*>[\s\S]*?<\/script\s*>/gi, tag => retainAllowedAdminModule(tag) ? tag : '');
+  html = html.replace(/<script\b(?=[^>]*\bsrc\s*=)[^>]*\/?>/gi, tag => mode === 'admin' && tag.trim() === allowedAdminModuleOpenTag ? tag : '');
   html = html.replace(/<link\b[^>]*>/gi, tag => {
     if (/\bid\s*=\s*(?:"appFavicon"|'appFavicon'|appFavicon)(?:\s|\/?>)/i.test(tag)) {
       return '<link id="appFavicon" rel="icon" href="/__preview_assets/blocked.svg">';
@@ -315,7 +318,7 @@ export async function renderPreviewHtml({ root = ROOT, version = getVersion(root
     const safeImageFunction = 'function publicWorkerImage(value){const key=imageObjectKey(value);if(!key||/^(?:https?:\\/\\/|\\/\\/|data:|blob:)/i.test(key))return "";return IMAGE_WORKER_URL+"/"+key.split("/").map(part=>encodeURIComponent(part)).join("/");}';
     html = html.replace(imageFunctionPattern, safeImageFunction);
   }
-  html = scrubExternalMarkup(html);
+  html = scrubExternalMarkup(html, mode);
   html = replaceAssignment(html, 'SUPABASE_URL', 'window.location.origin+"/__preview_api"');
   if (mode === 'admin') {
     html = replaceAssignmentIfPresent(html, 'SUPABASE_ANON_KEY', '"preview-no-secret"');
@@ -381,11 +384,14 @@ export async function renderPreviewHtml({ root = ROOT, version = getVersion(root
   const unsafe = [
     [/\b[a-z0-9-]+\.supabase\.co\b/i, 'host Supabase'],
     [/\b(?:sb_(?:publishable|secret)_[A-Za-z0-9_-]{8,}|pub_(?:test|prod)_[A-Za-z0-9_-]{8,})\b/i, 'clave de proveedor'],
-    [/<script\b[^>]*\bsrc\s*=/i, 'script con src'],
     [/<(?:a|area)\b[^>]*\b(?:href|xlink:href)\s*=\s*(["'])(?:[a-z][a-z0-9+.-]*:|\/\/)/i, 'enlace externo'],
     [/<form\b[^>]*\baction\s*=\s*(["'])(?:[a-z][a-z0-9+.-]*:|\/\/)/i, 'action externa'],
     [/<(?:button|input)\b[^>]*\bformaction\s*=\s*(["'])(?:[a-z][a-z0-9+.-]*:|\/\/)/i, 'formaction externo'],
   ];
+  const allowedAdminModuleOpenTag = '<script type="module" src="./scripts/admin_csv_preview.mjs">';
+  const unapprovedScriptSrc = [...html.matchAll(/<script\b[^>]*\bsrc\s*=[^>]*>/gi)]
+    .some(match => mode !== 'admin' || match[0].trim() !== allowedAdminModuleOpenTag);
+  if (unapprovedScriptSrc) throw new Error('Quedó un script con src no autorizado; transformación rechazada.');
   for (const [pattern, label] of unsafe) if (pattern.test(html)) throw new Error(`Quedó ${label}; transformación rechazada.`);
   const links = [...html.matchAll(/<link\b[^>]*>/gi)].map(match => match[0]);
   if (links.some(tag => !/^<link id="appFavicon" rel="icon" href="\/__preview_assets\/blocked\.svg">$/i.test(tag))) {
@@ -425,6 +431,11 @@ export function createPreviewServer({ root = ROOT, versionProvider = () => getVe
     if (url.pathname === '/__preview_api' || url.pathname.startsWith('/__preview_api/')) {
       console.warn(`[preview] blocked backend route ${url.pathname}`);
       return send(res, 403, 'application/json; charset=utf-8', JSON.stringify({ error: 'Backend Supabase/Wompi real bloqueado en preview.' }), headOnly);
+    }
+    if (url.pathname === '/scripts/fase7_csv_preview.mjs' || url.pathname === '/scripts/admin_csv_preview.mjs') {
+      const fileName = url.pathname === '/scripts/fase7_csv_preview.mjs' ? 'fase7_csv_preview.mjs' : 'admin_csv_preview.mjs';
+      try { return send(res, 200, 'text/javascript; charset=utf-8', await readFile(path.join(root, 'scripts', fileName), 'utf8'), headOnly); }
+      catch { return send(res, 404, 'text/plain; charset=utf-8', 'Preview module unavailable', headOnly); }
     }
     if (url.pathname === '/__preview_assets' || url.pathname.startsWith('/__preview_assets/')) {
       return send(res, 200, 'image/svg+xml; charset=utf-8', placeholderSvg, headOnly);

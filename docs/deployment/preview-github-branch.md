@@ -39,3 +39,10 @@ Los órdenes «Precio menor → mayor» y «Precio mayor → menor» clasifican 
 ## Orden en enlaces públicos
 
 El enlace limpio también conserva los órdenes permitidos del catálogo (`recent`, ventas, nombre, precio y stock), restaura el selector antes del render y omite el orden predeterminado. Sigue excluyendo búsqueda, favoritos, carrito, tracking y otros parámetros no permitidos; no contacta backend. Regresión: `node tests/catalog_price_share_url_regression.mjs`.
+
+
+## Fase 7: previsualización local de CSV
+
+El admin de preview ahora tiene una vista «Importación CSV · vista previa». `scripts/fase7_csv_preview.mjs` valida CSV UTF-8 (BOM, comillas, comas y saltos multilínea), las columnas exactas `code,name,category,cost,sale_price,quantity`, códigos duplicados contra productos ya cargados y dentro del archivo, fórmulas, COP/cantidades enteras no negativas, variantes no admitidas y límites de 5 MB/10.000 filas. `scripts/admin_csv_preview.mjs` lee el archivo exclusivamente en el navegador y presenta filas válidas y errores mediante `textContent`; renderiza como máximo 50 filas y 100 errores. La ruta de preview solo sirve estos dos módulos concretos con GET/HEAD; no abre una ruta de archivos general.
+
+Esta vista es un dry-run: no sube archivos, no contacta Supabase, no modifica productos ni ofrece botón de aplicar; `canCommit` permanece siempre `false`. La importación transaccional, backup verificable, staging, autorización y bitácora siguen pendientes. Regresiones: `node tests/fase7_csv_preview.mjs`, `node tests/admin_csv_preview_ui_regression.mjs` y `node tests/preview_server_regression.mjs`.
