@@ -165,5 +165,124 @@ try{
   "const WOMPI_RESERVATIONS_KEY='jm_wompi_reservations_v3';",
   "const COD_ORDER_DRAFT_KEY='jm_cod_order_draft_v1';"
  ])assert.ok(catalog.includes(key),`Clave de carrito/reserva conservada: ${key}`);
- console.log('PASS: sintaxis, SDK/SRI, seguridad admin, CSV, tarifas, COD, rollback y claves Wompi intactas.');
+ assert.ok(catalog.includes("const SIREVYA_CATALOG_FAVORITES_KEY='sirevya_catalog_favorites_v1';")&&catalog.includes('localStorage.setItem(SIREVYA_CATALOG_FAVORITES_KEY'),'Favoritos usan una clave local independiente');
+ const favoriteStorageCode=[...catalog.matchAll(/function (?:loadCatalogFavorites|saveCatalogFavorites)\(\)\{[\s\S]*?\n\}/g)].map(match=>match[0]).join('\n');
+ assert.ok(favoriteStorageCode&& !/WOMPI_(?:CART|RESERVATION|PENDING)/.test(favoriteStorageCode),'Guardar favoritos no lee ni modifica claves de carrito/reserva');
+ assert.ok(catalog.includes('aria-pressed="false" onclick="toggleFavoriteFilter()"')&&catalog.includes('onclick="toggleProductFavorite('),'Favoritos accesibles desde filtro y tarjeta');
+ assert.ok(catalog.includes('id="filterPriceMin"')&&catalog.includes('id="filterPriceMax"')&&catalog.includes('id="filterSizeOptions"')&&catalog.includes('id="filterAvailability"'),'El panel expone precio, talla y disponibilidad');
+ assert.ok(catalog.includes('params.delete(\'favoritos\')')&&catalog.includes('function isSafeCatalogSearchForUrl(value)'),'La vista de favoritos no se comparte y búsqueda protege PII en URL');
+ const favoriteMatcher=catalog.match(/function catalogProductMatchesFilters\(p,filters,colorIndex,sizeIndex\)\{[\s\S]*?\n\}/)?.[0];
+ assert.ok(favoriteMatcher,'Predicado aislado de filtros del catálogo');
+ const favoriteIds=new Set(['p1']);
+ const favoriteContext=vm.createContext({normalizeText:value=>String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase(),productStockTotal:product=>Number(product.quantity)||0,isCatalogFavorite:id=>favoriteIds.has(String(id))});
+ vm.runInContext(favoriteMatcher,favoriteContext);
+ const inStockProduct={id:'p1',code:'C1',name:'Camiseta azul',category:'Ropa',sale_price:50000,quantity:2};
+ const outOfStockProduct={id:'p2',code:'C2',name:'Camiseta roja',category:'Ropa',sale_price:90000,quantity:0};
+ const colorIndex={byProduct:new Map([[inStockProduct,new Set(['azul'])],[outOfStockProduct,new Set(['rojo'])]])};
+ const sizeIndex={byProduct:new Map([[inStockProduct,new Set(['m'])],[outOfStockProduct,new Set(['s'])]])};
+ const baseFilters={query:'camiseta',category:'Ropa',minPrice:40000,maxPrice:60000,priceInvalid:false,availability:'available',colors:new Set(['azul']),sizes:new Set(['m']),favoritesOnly:true};
+ assert.equal(favoriteContext.catalogProductMatchesFilters(inStockProduct,baseFilters,colorIndex,sizeIndex),true,'Filtros por búsqueda, categoría, precio, color, talla y favorito se combinan');
+ assert.equal(favoriteContext.catalogProductMatchesFilters(outOfStockProduct,{...baseFilters,minPrice:null,maxPrice:null,colors:new Set(),sizes:new Set(),availability:'available',favoritesOnly:false},colorIndex,sizeIndex),false,'Disponibles excluye agotados por variante');
+ assert.equal(favoriteContext.catalogProductMatchesFilters(outOfStockProduct,{...baseFilters,query:'',category:'',minPrice:null,maxPrice:null,colors:new Set(),sizes:new Set(),availability:'out',favoritesOnly:false},colorIndex,sizeIndex),true,'Filtro de agotados puede mostrarlos sin habilitar compra');
+ const sizesMatch=catalog.match(/function availableSizesForProduct\(p,availability='available'\)\{[\s\S]*?\n\}/)?.[0];
+ assert.ok(sizesMatch,'Faceta de tallas aislable');
+ const sizesContext=vm.createContext({productStockTotal:product=>Number(product.variants?.reduce((sum,v)=>sum+v.stock,0))||0,variantList:product=>product.variants||[],parseVariantList:value=>Array.isArray(value)?value:[],normalizeText:value=>String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase()});
+ vm.runInContext(sizesMatch,sizesContext);
+ const sizeProduct={sizes:['M','L'],variants:[{size:'M',stock:2},{size:'L',stock:0}]};
+ assert.deepEqual(Array.from(sizesContext.availableSizesForProduct(sizeProduct,'available')),['M'],'Faceta de talla solo ofrece opciones con stock');
+ assert.deepEqual(Array.from(sizesContext.availableSizesForProduct(sizeProduct,'all')),['M','L'],'Modo catálogo completo incluye tallas agotadas');
+ assert.deepEqual(Array.from(sizesContext.availableSizesForProduct(sizeProduct,'out')),[],'Filtro Agotados no incluye tallas sueltas de un producto disponible');
+ const unavailableSizeProduct={sizes:['M','L'],variants:[{size:'M',stock:0},{size:'L',stock:0}]};
+ assert.deepEqual(Array.from(sizesContext.availableSizesForProduct(unavailableSizeProduct,'out')),['M','L'],'Faceta de talla de productos agotados refleja sus variantes');
+ const safeSearchMatch=catalog.match(/function isSafeCatalogSearchForUrl\(value\)\{[\s\S]*?\n\}/)?.[0];
+ const urlSyncMatch=catalog.match(/function syncCatalogFiltersToUrl\(categoryOverride\)\{[\s\S]*?\n\}/)?.[0];
+ const restoreFiltersMatch=catalog.match(/function restoreCatalogFiltersFromUrl\(preserveCurrentSearch=false\)\{[\s\S]*?\n\}/)?.[0];
+ const colorsMatch=catalog.match(/function availableColorsForProduct\(p,availability='available'\)\{[\s\S]*?\n\}/)?.[0];
+ const safeFacetValuesMatch=catalog.match(/function safeCatalogFilterValues\(params,key\)\{[\s\S]*?\n\}/)?.[0];
+ assert.ok(safeSearchMatch&&urlSyncMatch&&restoreFiltersMatch&&colorsMatch&&sizesMatch&&safeFacetValuesMatch,'Reglas de URL compartible aislables');
+ const restoreFields={search:{value:''},filterPriceMin:{value:''},filterPriceMax:{value:''},filterAvailability:{value:'available'},sort:{value:'recent'}};
+ const restoreContext=vm.createContext({URLSearchParams,window:{location:{search:'?q=Camiseta+azul&color=Maria+Gomez&color=azul&talla=Datos+personales&talla=M&min=50000'}},
+  productos:[{id:'p1',code:'C1',name:'Camiseta azul',category:'Ropa',quantity:2,colors:['Azul'],sizes:['M'],variants:[]}],
+  normalizeText:value=>String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase(),productStockTotal:product=>Number(product.quantity)||0,
+  parseVariantList:value=>Array.isArray(value)?value:String(value||'').split(',').map(part=>part.trim()).filter(Boolean),variantList:product=>product.variants||[],updateFavoriteControls:()=>{},
+  catalogCreatedAtResolved:false,catalogCreatedAtAvailable:false,$:id=>restoreFields[id]||null});
+ vm.runInContext(colorsMatch+'\n'+sizesMatch+'\n'+safeFacetValuesMatch+'\n'+safeSearchMatch+'\n'+restoreFiltersMatch,restoreContext);
+ restoreContext.restoreCatalogFiltersFromUrl();
+ assert.equal(restoreContext.selectedCatalogColors.size,1);assert.equal(restoreContext.selectedCatalogColors.has('azul'),true,'URL solo restaura colores del catálogo');
+ assert.equal(restoreContext.selectedCatalogColorNames.get('azul'),'Azul');assert.equal(restoreContext.selectedCatalogSizes.size,1);assert.equal(restoreContext.selectedCatalogSizes.has('m'),true,'URL solo restaura tallas del catálogo');
+ const urlFields={category:{value:'Ropa'},search:{value:'Camiseta azul'},filterPriceMin:{value:'50000'},filterPriceMax:{value:''},filterAvailability:{value:'all'},sort:{value:'price_asc'}};
+ const historyMock={state:{sirevyaProductDetailOpen:true},replaceState(state,_title,url){this.state=state;this.url=url}};
+ const urlContext=vm.createContext({URL,URLSearchParams,window:{location:{href:'https://shop.example/?producto=abc&favoritos=1&email=ana%40example.com&phone=3021234567#catalogo'}},history:historyMock,$:id=>urlFields[id]||null,
+  productos:[{id:'abc',code:'C1',name:'Camiseta azul',category:'Ropa'}],normalizeText:value=>String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase(),
+  selectedCatalogColors:new Set(['azul']),selectedCatalogColorNames:new Map([['azul','Azul']]),selectedCatalogSizes:new Set(['m']),selectedCatalogSizeNames:new Map([['m','M']]),
+  readCatalogPriceLimit:id=>urlFields[id]?.value?Number(urlFields[id].value):null,console:{warn:()=>{}}});
+ vm.runInContext(safeSearchMatch+'\n'+urlSyncMatch,urlContext);urlContext.syncCatalogFiltersToUrl();
+ let sharedUrl=new URL(historyMock.url,'https://shop.example');
+ assert.equal(sharedUrl.searchParams.get('producto'),'abc','Sincronizar filtros conserva el enlace directo al producto');
+ assert.equal(sharedUrl.searchParams.get('categoria'),'Ropa');assert.equal(sharedUrl.searchParams.get('q'),'Camiseta azul');assert.equal(sharedUrl.searchParams.get('min'),'50000');
+ assert.equal(sharedUrl.searchParams.get('color'),'Azul');assert.equal(sharedUrl.searchParams.get('talla'),'M');assert.equal(sharedUrl.searchParams.get('disp'),'all');assert.equal(sharedUrl.searchParams.get('orden'),'price_asc');
+ assert.equal(sharedUrl.searchParams.has('favoritos'),false,'La lista local nunca se codifica en el URL');assert.equal(historyMock.state.sirevyaProductDetailOpen,true,'Los filtros conservan el estado del historial');
+ assert.equal(sharedUrl.searchParams.has('email'),false);assert.equal(sharedUrl.searchParams.has('phone'),false,'No se conservan parámetros arbitrarios con PII');assert.equal(sharedUrl.hash,'#catalogo');
+ urlContext.window.location.href='https://shop.example'+historyMock.url;urlFields.search.value='302 123 4567';urlContext.syncCatalogFiltersToUrl();sharedUrl=new URL(historyMock.url,'https://shop.example');
+ assert.equal(sharedUrl.searchParams.has('q'),false,'Un número telefónico no se copia a la URL');
+ urlContext.window.location.href='https://shop.example/?email=ana%40example.com#ana%40example.com';urlFields.search.value='correo@ejemplo.com';urlContext.syncCatalogFiltersToUrl();sharedUrl=new URL(historyMock.url,'https://shop.example');
+ assert.equal(sharedUrl.searchParams.has('q'),false,'Un correo no se copia a la URL');assert.equal(sharedUrl.searchParams.has('email'),false);assert.equal(sharedUrl.hash,'','Un fragmento desconocido no se vuelve a compartir');
+ const catalogDatesMigration=read('supabase/migrations/20261108080000_public_catalog_sort_metadata.sql');
+ const catalogDatesRegression=read('tests/catalog_discovery_metadata.sql');
+ assert.ok(catalogDatesMigration.includes('RETURNS TABLE(id uuid, created_at timestamptz)')&&catalogDatesMigration.includes('SELECT p.id, p.created_at'),'La RPC expone solo ID y fecha de creación');
+ assert.ok(!/sale_price|cost_price|phone|email|quantity|variants/i.test(catalogDatesMigration),'La RPC no revela precio, clientes, stock ni variantes');
+ assert.ok(catalogDatesMigration.includes('FROM PUBLIC, anon, authenticated, service_role')&&catalogDatesMigration.includes('TO anon, authenticated, service_role'),'La RPC tiene grants públicos explícitos y revoca el default');
+ assert.ok(catalogDatesRegression.includes("has_function_privilege('public'")&&catalogDatesRegression.includes("has_function_privilege('anon'")&&catalogDatesRegression.includes("has_function_privilege('authenticated'")&&catalogDatesRegression.includes("has_function_privilege('service_role'"),'La regresión prueba las ACL por rol');
+ assert.doesNotMatch(catalogDatesRegression,/^\s*(?:INSERT|UPDATE|DELETE)\b/im,'La regresión de metadata es de solo lectura');
+ assert.ok(catalog.includes("fetchAllRpcRows('get_public_catalog_created_at')")&&catalog.includes('setCatalogRecentSortAvailable(false)'),'El catálogo tolera que la migración pública de fechas aún no esté instalada');
+ const metadataApplyMatch=catalog.match(/function applyCatalogCreatedAtMetadata\(result\)\{[\s\S]*?\n\}/)?.[0];
+ const metadataRefreshMatch=catalog.match(/async function refreshCatalogCreatedAtForCurrentProducts\(\)\{[\s\S]*?\n\}/)?.[0];
+ const idsSignatureMatch=catalog.match(/function catalogProductIdsSignature\(\)\{[\s\S]*?\n\}/)?.[0];
+ const recentSortAvailableMatch=catalog.match(/function setCatalogRecentSortAvailable\(available\)\{[\s\S]*?\n\}/)?.[0];
+ const recentSortPendingMatch=catalog.match(/function setCatalogRecentSortPending\(\)\{[\s\S]*?\n\}/)?.[0];
+ assert.ok(metadataApplyMatch&&metadataRefreshMatch&&idsSignatureMatch&&recentSortAvailableMatch&&recentSortPendingMatch,'Refresh de metadata por conjunto de IDs aislable');
+ const recentOption={disabled:false,textContent:'Más recientes'};
+ const sortSelect={value:'recent',querySelector:()=>recentOption};
+ let dateResponse=[{id:'p1',created_at:'2026-02-01T00:00:00Z'},{id:'p2',created_at:'2026-02-02T00:00:00Z'}],metadataRenders=0,metadataUrlSyncs=0,metadataRequests=0;
+ const metadataContext=vm.createContext({productos:[{id:'p1',created_at:'2026-02-01T00:00:00Z'}],normalizeDetailId:id=>String(id||'').trim().toLowerCase(),
+  fetchAllRpcRows:async()=>{metadataRequests++;return {data:dateResponse,error:null}},$ :id=>id==='sort'?sortSelect:null,render:()=>{metadataRenders++},syncCatalogFiltersToUrl:()=>{metadataUrlSyncs++},
+  catalogCreatedAtAvailable:true,catalogCreatedAtResolved:true,catalogCreatedAtProductIdsSignature:'p1',catalogCreatedAtRefreshSequence:0,catalogInitialLoadComplete:true,console:{warn:()=>{}}});
+ vm.runInContext([idsSignatureMatch,recentSortAvailableMatch,recentSortPendingMatch,metadataApplyMatch,metadataRefreshMatch].join('\n'),metadataContext);
+ metadataContext.productos.push({id:'p2'});metadataContext.setCatalogRecentSortPending();
+ await metadataContext.refreshCatalogCreatedAtForCurrentProducts();
+ assert.equal(metadataContext.catalogCreatedAtAvailable,true,'Un producto nuevo solicita nuevamente todas las fechas');
+ assert.equal(metadataContext.productos.find(product=>product.id==='p2').created_at,'2026-02-02T00:00:00Z','El producto nuevo recibe su fecha antes de ordenar');
+ assert.equal(metadataContext.catalogCreatedAtProductIdsSignature,'p1|p2');assert.equal(recentOption.disabled,false);assert.equal(sortSelect.value,'recent');
+ await metadataContext.refreshCatalogCreatedAtForCurrentProducts();assert.equal(metadataRequests,1,'Un refresco sin cambio de IDs reutiliza la metadata existente');
+ metadataContext.productos.push({id:'p3'});dateResponse=[{id:'p1',created_at:'2026-02-01T00:00:00Z'},{id:'p2',created_at:'2026-02-02T00:00:00Z'}];metadataContext.setCatalogRecentSortPending();
+ await metadataContext.refreshCatalogCreatedAtForCurrentProducts();
+ assert.equal(metadataContext.catalogCreatedAtAvailable,false,'Fechas incompletas no dejan novedad activa');assert.equal(sortSelect.value,'name_asc');assert.equal(recentOption.disabled,true);
+ const inventoryRefreshMatch=catalog.match(/async function refreshInventoryStatus\(priority=false\)\{[\s\S]*?\n\}/)?.[0];
+ assert.ok(inventoryRefreshMatch,'Refresh de inventario aislable');
+ const metadataRefreshCall=inventoryRefreshMatch.indexOf('void refreshCatalogCreatedAtForCurrentProducts()');
+ assert.ok(inventoryRefreshMatch.includes('if(productSetChanged){')&&metadataRefreshCall>inventoryRefreshMatch.indexOf('if(productSetChanged){')&&inventoryRefreshMatch.indexOf('setCatalogRecentSortPending()')<metadataRefreshCall,'El cableado invalida y recarga fechas solo al cambiar el conjunto de IDs');
+ assert.equal((inventoryRefreshMatch.match(/void refreshCatalogCreatedAtForCurrentProducts\(\)/g)||[]).length,1,'Un cambio de stock con los mismos IDs no agrega una consulta de fechas');
+ const raceResolvers=[];
+ const raceOption={disabled:false,textContent:'Más recientes'},raceSelect={value:'recent',querySelector:()=>raceOption};
+ const raceContext=vm.createContext({productos:[{id:'p1',created_at:'2026-02-01T00:00:00Z'}],normalizeDetailId:id=>String(id||'').trim().toLowerCase(),
+  fetchAllRpcRows:()=>new Promise(resolve=>raceResolvers.push(resolve)),$:id=>id==='sort'?raceSelect:null,render:()=>{},syncCatalogFiltersToUrl:()=>{},
+  catalogCreatedAtAvailable:true,catalogCreatedAtResolved:true,catalogCreatedAtProductIdsSignature:'p1',catalogCreatedAtRefreshSequence:0,catalogInitialLoadComplete:true,console:{warn:()=>{}}});
+ vm.runInContext([idsSignatureMatch,recentSortAvailableMatch,recentSortPendingMatch,metadataApplyMatch,metadataRefreshMatch].join('\n'),raceContext);
+ raceContext.productos.push({id:'p2'});raceContext.setCatalogRecentSortPending();const staleMetadataRequest=raceContext.refreshCatalogCreatedAtForCurrentProducts();
+ raceContext.productos.push({id:'p3'});raceContext.setCatalogRecentSortPending();const currentMetadataRequest=raceContext.refreshCatalogCreatedAtForCurrentProducts();
+ raceResolvers[1]({data:[{id:'p1',created_at:'2026-02-01T00:00:00Z'},{id:'p2',created_at:'2026-02-02T00:00:00Z'},{id:'p3',created_at:'2026-02-03T00:00:00Z'}],error:null});await currentMetadataRequest;
+ raceResolvers[0]({data:[{id:'p1',created_at:'2026-02-01T00:00:00Z'},{id:'p2',created_at:'2026-02-02T00:00:00Z'}],error:null});await staleMetadataRequest;
+ assert.equal(raceContext.productos.find(product=>product.id==='p3').created_at,'2026-02-03T00:00:00Z','La respuesta nueva gana aunque la lectura anterior resuelva después');
+ const whatsappMatch=catalog.match(/function updateDetailWhatsAppLink\(\)\{[\s\S]*?\n\}/)?.[0];
+ assert.ok(whatsappMatch&&catalog.includes('id="detailWhatsAppLink"'),'CTA de WhatsApp contextual aislable');
+ const whatsappLink={href:'',attrs:{},setAttribute(key,value){this.attrs[key]=value}};
+ const detailVariants={querySelector:selector=>selector==='.colorDot.active'?{dataset:{value:'Negro'}}:selector==='.sizeOption.active'?{dataset:{value:'M'}}:null};
+ const whatsappContext=vm.createContext({$ :id=>id==='detailWhatsAppLink'?whatsappLink:null,document:{querySelector:()=>detailVariants},detailProduct:{id:'p1',name:'Camiseta básica',code:'C1',sale_price:50000},productDetailUrl:id=>'https://shop.example/?producto='+id,money:value=>'COP '+value});
+ vm.runInContext(whatsappMatch,whatsappContext);whatsappContext.updateDetailWhatsAppLink();
+ const whatsappMessage=new URL(whatsappLink.href).searchParams.get('text');
+ assert.ok(whatsappMessage.includes('Camiseta básica')&&whatsappMessage.includes('Código: C1')&&whatsappMessage.includes('Color elegido: Negro')&&whatsappMessage.includes('Talla elegida: M')&&whatsappMessage.includes('producto=p1'),'WhatsApp incluye producto, variante y enlace directo');
+ assert.ok(!whatsappMatch.includes('addToCart')&&!whatsappMatch.includes('reserve_order_inventory'),'Consulta contextual no añade ni reserva el producto');
+ assert.ok(catalog.includes('function showCatalogCardImageFallback')&&catalog.includes('function showDetailImageFallback')&&catalog.includes('catalogImageFallback'),'Las imágenes fallidas tienen fallback accesible');
+ assert.ok(catalog.includes("if(sort==='recent'&&catalogCreatedAtAvailable)arr.sort((a,b)=>(Date.parse(b.created_at||'')||0)-(Date.parse(a.created_at||'')||0))"),'Orden Más recientes usa created_at real solo si hay datos válidos');
+ console.log('PASS: sintaxis, seguridad, envíos/COD, filtros, favoritos, URLs privadas, WhatsApp contextual e imágenes fallback.');
 }finally{fs.rmSync(temp,{recursive:true,force:true});}
