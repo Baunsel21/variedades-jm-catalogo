@@ -765,7 +765,7 @@ let moduleLoadErrors={};
 let publicAvailabilityWarning='';
 let adminDeferredModuleLoaded={clients:false,suppliers:false,expenses:false,movements:false,orders:false};
 let adminDeferredModuleInFlight={};
-let clientContactCache=new Map(),clientContactLoads=new Map(),clientContactErrors=new Map(),clientContactGeneration=0;
+let clientContactCache=new Map(),clientContactLoads=new Map(),clientContactErrors=new Map(),clientSalesCache=new Map(),clientSalesLoads=new Map(),clientSalesErrors=new Map(),clientContactGeneration=0;
 let pedidos=[];
 let dashboardCoreSnapshot={loaded:false,busy:false,error:'',updatedAt:null};
 let dashboardOrdersUpdatedAt=null;
@@ -3221,23 +3221,73 @@ async function agregarCliente(){
 }
 function clearClientContactDetails({clearSearch=true,render=true}={}){
  clientContactGeneration++;
- clientContactCache.clear();clientContactLoads.clear();clientContactErrors.clear();
+ clientContactCache.clear();clientContactLoads.clear();clientContactErrors.clear();clientSalesCache.clear();clientSalesLoads.clear();clientSalesErrors.clear();
  if(clearSearch&&$('buscarCliente'))$('buscarCliente').value='';
  if(render&&$('listaClientes'))renderClientes();
 }
 function normalizeClientSearch(value){return String(value??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim()}
+function renderClientSalesHistory(result,available,error=''){
+ if(!adminSessionAuthorized)return '';
+ if(!available)return '<div class="status err" role="status">Ventas vinculadas no disponibles hasta confirmar una carga completa y vigente del módulo.</div>';
+ if(error)return `<div class="status err" role="status">${esc(error)}</div>`;
+ const rows=Array.isArray(result?.rows)?result.rows:[],total=Number.isSafeInteger(result?.count)&&result.count>=0?result.count:null;
+ if(total===0)return '<div class="status" role="status">No hay registros de ventas activas vinculados por client_id.</div>';
+ if(!rows.length)return '<div class="status err" role="status">No se pudieron confirmar registros de ventas para este cliente.</div>';
+ const visible=rows.slice(0,10).map(row=>{
+  const quantity=Number(row.quantity),price=Number(row.sale_price),amount=quantity*price;
+  const amountText=Number.isSafeInteger(quantity)&&quantity>0&&Number.isSafeInteger(price)&&price>=0&&Number.isSafeInteger(amount)?money(amount):'Monto no disponible';
+  return `<li>${esc(row.sale_date||'Fecha no disponible')} · ${esc(row.product_code||'Sin código')} — ${esc(row.product_name||'Producto')} · ${Number.isSafeInteger(quantity)&&quantity>0?quantity:'cantidad no disponible'} ud. · ${amountText}</li>`;
+ }).join('');
+ return `<section class="clientSalesHistory" aria-live="polite"><p class="muted">${total===null?'Registros recientes de ventas activas (conteo total no disponible).':total+' registro(s) de venta activa; se muestran hasta diez.'} Un registro no equivale a un pedido ni a una medida de recurrencia. No se une con COD ni Wompi.</p><ul>${visible}</ul>${total!==null&&total>rows.length?`<p class="muted">${total-rows.length} registro(s) adicional(es) no se listan.</p>`:''}</section>`;
+}
+async function toggleClientSalesHistory(id){
+ const clientId=String(id??'').trim();
+ if(!adminSessionAuthorized||!adminSessionUserId||!clientId)return;
+ if(clientSalesCache.has(clientId)){clientSalesCache.delete(clientId);clientSalesErrors.delete(clientId);renderClientes();return}
+ if(clientSalesLoads.has(clientId))return clientSalesLoads.get(clientId);
+ const authEpoch=adminAuthEpoch,generation=clientContactGeneration,userId=adminSessionUserId;
+ const stale=()=>authEpoch!==adminAuthEpoch||generation!==clientContactGeneration||!adminSessionAuthorized||userId!==adminSessionUserId;
+ clientSalesErrors.delete(clientId);renderClientes();
+ let request;
+ request=(async()=>{
+  try{
+   const auth=await sb.auth.getUser();
+   if(stale())return;
+   if(auth.error||auth.data?.user?.id!==userId){lockAdminPanel('La sesión cambió. Inicia sesión nuevamente.');void sb.auth.signOut({scope:'local'}).catch(()=>{});return}
+   const permission=await sb.rpc('is_store_admin');
+   if(stale())return;
+   if(permission.error||permission.data!==true){lockAdminPanel('La cuenta ya no tiene autorización administrativa.');void sb.auth.signOut({scope:'local'}).catch(()=>{});return}
+   const beforeQuery=await sb.auth.getUser();
+   if(stale())return;
+   if(beforeQuery.error||beforeQuery.data?.user?.id!==userId){lockAdminPanel('La sesión cambió. Inicia sesión nuevamente.');void sb.auth.signOut({scope:'local'}).catch(()=>{});return}
+   const result=await sb.from('sales').select('sale_date,product_code,product_name,quantity,sale_price',{count:'exact'}).eq('client_id',clientId).is('archived_at',null).order('sale_date',{ascending:false}).range(0,9);
+   if(stale())return;
+   const afterQuery=await sb.auth.getUser();
+   if(stale())return;
+   if(afterQuery.error||afterQuery.data?.user?.id!==userId){lockAdminPanel('La sesión cambió. Inicia sesión nuevamente.');void sb.auth.signOut({scope:'local'}).catch(()=>{});return}
+   if(result.error){clientSalesErrors.set(clientId,'No se pudo consultar el historial de ventas. Comprueba la conexión e inténtalo de nuevo.');return}
+   clientSalesCache.set(clientId,{rows:Array.isArray(result.data)?result.data:[],count:Number.isSafeInteger(result.count)?result.count:null});
+  }catch{if(!stale())clientSalesErrors.set(clientId,'No se pudo consultar el historial de ventas. Comprueba la conexión e inténtalo de nuevo.')}
+  finally{if(clientSalesLoads.get(clientId)===request)clientSalesLoads.delete(clientId);if(!stale())renderClientes()}
+ })();
+ clientSalesLoads.set(clientId,request);
+ renderClientes();
+ return request;
+}
 function renderClientes(){
  const host=$("listaClientes");if(!host)return;
  if(moduleLoadErrors.clients){const count=$('clientsVisibleCount');if(count)count.textContent='No disponible';host.innerHTML=`<div class="alert"><b>No se pudieron cargar los clientes.</b><br>${esc(moduleLoadErrors.clients)}</div>`;return;}
  const query=normalizeClientSearch($('buscarCliente')?.value||''),filtered=clientes.filter(client=>normalizeClientSearch(client.name).includes(query));
  const count=$('clientsVisibleCount');if(count)count.textContent=`${filtered.length} de ${clientes.length} cliente${clientes.length===1?'':'s'}`;
- if(!host.dataset.clientContactBound){host.addEventListener('click',event=>{const button=event.target.closest('[data-client-contact-id]');if(!button)return;let id='';try{id=decodeURIComponent(button.getAttribute('data-client-contact-id')||'')}catch{return}void toggleClientContact(id)});host.dataset.clientContactBound='true'}
+ if(!host.dataset.clientActionsBound){host.addEventListener('click',event=>{const history=event.target.closest('[data-client-sales-id]');if(history){let id='';try{id=decodeURIComponent(history.getAttribute('data-client-sales-id')||'')}catch{return}void toggleClientSalesHistory(id);return}const button=event.target.closest('[data-client-contact-id]');if(!button)return;let id='';try{id=decodeURIComponent(button.getAttribute('data-client-contact-id')||'')}catch{return}void toggleClientContact(id)});host.dataset.clientActionsBound='true'}
  host.innerHTML=filtered.map(client=>{
-  const id=String(client.id??''),key=id,encoded=encodeURIComponent(id),detail=clientContactCache.get(key),loading=clientContactLoads.has(key),error=clientContactErrors.get(key);
+  const id=String(client.id??''),key=id,encoded=encodeURIComponent(id),detail=clientContactCache.get(key),loading=clientContactLoads.has(key),error=clientContactErrors.get(key),salesResult=clientSalesCache.get(key),salesLoading=clientSalesLoads.has(key),salesError=clientSalesErrors.get(key),historyOpen=!!salesResult||!!salesError||salesLoading;
   const contact=detail?`<div class="clientContactDetails" aria-live="polite"><div class="muted">📞 ${esc(detail.phone||'Sin teléfono registrado')}</div>${detail.note?`<div class="muted">📝 ${esc(detail.note)}</div>`:''}</div>`:'';
   const errorText=error?`<div class="status err" role="status">${esc(error)}</div>`:'';
   const button=detail?`<button type="button" class="action" data-client-contact-id="${esc(encoded)}" aria-expanded="true">Ocultar teléfono y nota</button>`:id?`<button type="button" class="action" data-client-contact-id="${esc(encoded)}" aria-expanded="false" ${loading?'disabled':''}>${loading?'Consultando…':'Ver datos de contacto'}</button>`:'<span class="muted">No disponible</span>';
-  return `<article class="card listItem" style="padding:15px;margin-bottom:9px"><div class="rowBetween" style="gap:12px;align-items:flex-start"><div><b>${esc(client.name||'Cliente sin nombre')}</b>${contact}${errorText}</div><span class="badge ok">Cliente</span></div><div style="margin-top:10px">${button}</div></article>`;
+  const salesButton=id?`<button type="button" class="softbtn" data-client-sales-id="${esc(encoded)}" aria-expanded="${historyOpen?'true':'false'}" ${salesLoading?'disabled':''}>${salesLoading?'Consultando ventas…':salesResult?'Ocultar ventas vinculadas':salesError?'Reintentar ventas vinculadas':'Ver ventas vinculadas'}</button>`:'';
+  const salesHistory=historyOpen?(salesLoading?'<div class="status" role="status">Consultando registros de venta…</div>':renderClientSalesHistory(salesResult,true,salesError)):'';
+  return `<article class="card listItem" style="padding:15px;margin-bottom:9px"><div class="rowBetween" style="gap:12px;align-items:flex-start"><div><b>${esc(client.name||'Cliente sin nombre')}</b>${contact}${errorText}</div><span class="badge ok">Cliente</span></div><div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">${button}${salesButton}</div>${salesHistory}</article>`;
  }).join('')||'<div class="empty card">'+(query?'No hay clientes con ese nombre.':'No hay clientes registrados.')+'</div>';
 }
 async function toggleClientContact(id){

@@ -52,11 +52,11 @@ Cada criterio se conserva hasta que exista evidencia en código, Supabase y prue
 
 ## Fase 6: Dashboard, clientes y logística
 
-> Avance parcial: filtros/paginación visual de pedidos `web_orders` en [PR #15](https://github.com/Baunsel21/variedades-jm-catalogo/pull/15), borrador apilado sobre PR #14. No integra Wompi/`orders` ni toca estados logísticos; dashboard completo, clientes, logística/notificaciones, paginación server-side y smoke visual siguen abiertos.
+> Avance parcial: filtros/paginación visual de pedidos `web_orders` en [PR #15](https://github.com/Baunsel21/variedades-jm-catalogo/pull/15), borrador apilado sobre PR #14. El dashboard incluye métricas con fuentes separadas y Clientes tiene PII bajo demanda más ventas activas por `sales.client_id`; no se presentan filas como pedidos ni se infiere recurrencia. Sigue pendiente historial canónico de pedidos, logística/notificaciones, paginación server-side y smoke visual. No integra Wompi/`orders`.
 
 > El incremento local añade Hoy/últimos siete días en Colombia, ingresos y promedio por registro no archivado de `sales`, stock bajo/agotado verificado, y consulta explícita de pendientes COD/revisión Wompi. Muestra fecha/fuente, carga/error/no consultado y límites de consulta. No suma canales ni muestra pagos como conciliados.
 >
-> Seguimiento de privacidad de Clientes: la lista administrativa consulta solo `id,name`; teléfono y nota se obtienen al solicitar su revelado tras revalidar identidad y `is_store_admin`. Se descartan al ocultarlos, abandonar Clientes, refrescar la lista o cerrar sesión; no se guardan en URL/storage ni logs. Sigue abierta la historia de pedidos/recurrencia y notas con contrato/alcance completo.
+> Seguimiento de Clientes: el listado consulta solo `id,name`; teléfono/nota requieren revelado y revalidación de usuario/admin, y la caché se descarta al ocultar, salir, refrescar o cerrar sesión. Una acción independiente muestra hasta diez registros activos de `sales` asociados estrictamente por `client_id`; los etiqueta como registros, nunca como pedidos/recurrencia, y no une COD/Wompi. Siguen abiertas la historia canónica de pedidos y una métrica de recurrencia con identificadores de transacción.
 
 - [ ] Dashboard muestra ventas por día/semana, pedidos pendientes, ventas/valor promedio, alertas de inventario bajo, agotados y pagos con revisión pendiente, indicando fecha/fuente y estados de carga/error.
 - [ ] Los filtros de pedido incluyen periodo, estado, ciudad y pago; listas usan paginación, conservan conteos correctos y nunca presentan error de consulta como “sin pedidos”.

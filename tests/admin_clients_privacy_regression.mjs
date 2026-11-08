@@ -24,7 +24,7 @@ const context=vm.createContext({
   $:id=>nodes[id]||null,
   esc:value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c])),
   clientes:[{id:'client-1',name:'María Gómez'}],moduleLoadErrors:{clients:''},
-  clientContactCache:new Map(),clientContactLoads:new Map(),clientContactErrors:new Map(),clientContactGeneration:0,
+  clientContactCache:new Map(),clientContactLoads:new Map(),clientContactErrors:new Map(),clientSalesCache:new Map(),clientSalesLoads:new Map(),clientSalesErrors:new Map(),clientContactGeneration:0,
   adminSessionAuthorized:true,adminSessionUserId:'admin-1',adminAuthEpoch:7,
   sb:{
    auth:{getUser:async()=>({data:{user:{id:currentUser}},error:null}),signOut:async()=>({error:null})},
