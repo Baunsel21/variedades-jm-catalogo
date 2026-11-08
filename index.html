@@ -17,14 +17,18 @@
 <meta property="og:title" content="Sirevya — Tu estilo, nuestra pasión">
 <meta property="og:description" content="Moda y accesorios con envío gratis en Cali y envío nacional gratis desde $130.000.">
 <meta property="og:url" content="https://sirevya.com.co/">
+<meta property="og:locale" content="es_CO">
 <meta property="og:image" content="https://sirevya.com.co/share-sirevya.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="Sirevya, moda y accesorios">
 <meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Sirevya — Tu estilo, nuestra pasión">
+<meta name="twitter:description" content="Moda y accesorios con envío gratis en Cali y desde $130.000 en otras ciudades.">
 <meta name="twitter:image" content="https://sirevya.com.co/share-sirevya.png">
 <link id="favicon" rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect x='4' y='4' width='92' height='92' rx='22' fill='%23101827'/%3E%3Ctext x='50' y='64' text-anchor='middle' font-family='Arial,sans-serif' font-size='42' font-weight='900' fill='white'%3EJM%3C/text%3E%3C/svg%3E">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"Organization","name":"Sirevya","url":"https://sirevya.com.co/","telephone":"+573025469983","email":"sirevya99@gmail.com","sameAs":["https://wa.me/573025469983"]}</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0" integrity="sha384-gnyZit14c5lnGcarmA166QQjjJXpucw25ogZXuwH3HxxY904zHkBqmxVpelsPorb" crossorigin="anonymous"></script>
 <style>
 :root{--bg:#050505;--surface:#0d0d0f;--text:#fff;--muted:#aaa;--red:#e7193f;--gold:#f2d18b;--border:#2c2c31;--success:#43d17a;--radius:18px}
 *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial;background:radial-gradient(circle at 50% -10%,#240711 0,#080808 32%,#050505 72%);color:var(--text)}button,input,select,a{font:inherit}button{cursor:pointer;border:0}a{text-decoration:none;color:inherit}.wrap{max-width:1240px;margin:auto;padding:0 22px}
@@ -4466,7 +4470,7 @@ async function load(){
   // y categorías se enriquecen en segundo plano para no bloquear la primera pantalla.
   const baseTask=fetchAllRpcRows('get_public_catalog');
   const multiTask=fetchAllRpcRows('get_public_catalog_multifotos');
-  const categoriesTask=sb.from('categories').select('name,sort_order').order('sort_order',{ascending:true}).order('name',{ascending:true});
+  const categoriesTask=sb.rpc('get_public_category_order');
   const detailsTask=fetchAllRpcRows('get_public_product_details');
   optionalTasks=Promise.allSettled([detailsTask,multiTask,categoriesTask]);
   const base=await baseTask;
