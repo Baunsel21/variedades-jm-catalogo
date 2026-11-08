@@ -1329,7 +1329,7 @@ async function cambiarEstadoPedido(id,status){
   const select=[...document.querySelectorAll('.orderStatusSelect')].find(el=>String(el.dataset.orderId||'')===String(id));
   if(select)select.disabled=true;
   try{
-    const {data,error}=await sb.rpc('admin_update_web_order_status',{p_order_id:id,p_status:status});
+    const {data,error}=await sb.rpc('admin_update_web_order_status_secure',{p_order_id:id,p_status:status});
     if(error){
       const message=String(error.message||'');
       const missingRpc=error.code==='PGRST202'||/could not find the function|function .* does not exist|schema cache/i.test(message);
@@ -2127,7 +2127,7 @@ async function borrarProducto(id){
  const p=productos.find(x=>String(x.id)===String(id));if(!p)return;
  if(!confirm(`¿Eliminar ${p.code} — ${p.name}?`))return;
  let result;
- try{result=await sb.rpc('admin_delete_product',{p_product_id:id})}catch(error){result={error}}
+ try{result=await sb.rpc('admin_delete_product_secure',{p_product_id:id})}catch(error){result={error}}
  if(result?.error){
    const msg=String(result.error.message||'');
    const missingRpc=result.error.code==='PGRST202'||/could not find the function|function .* does not exist|schema cache/i.test(msg);
@@ -2322,7 +2322,7 @@ async function registrarVenta(){
  }else if(availableQuantity(p)<q){
    return alert("La cantidad no está disponible o está reservada temporalmente.");
  }
- const {data,error}=await sb.rpc("admin_register_inventory_sale",{
+ const {data,error}=await sb.rpc("admin_register_inventory_sale_secure",{
    p_product_id:p.id,p_quantity:q,p_sale_date:$("vFecha").value||new Date().toISOString().slice(0,10),p_color:color,p_size:size
  });
  if(error)return alert("No se pudo registrar la venta: "+error.message);
@@ -2423,7 +2423,7 @@ async function registrarMovimiento(){
  // function does not exist yet; permission or validation errors must not be bypassed.
  let rpcResult;
  try{
-   rpcResult=await sb.rpc('admin_adjust_inventory_movement',{
+   rpcResult=await sb.rpc('admin_adjust_inventory_movement_secure',{
      p_product_id:p.id,p_type:t,p_quantity:q,p_motive:$("mMotivo").value.trim(),
      p_color:chosenVariant?.color||'',p_size:chosenVariant?.size||''
    });
