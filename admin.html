@@ -348,7 +348,7 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
           <div class="card stat"><small>Ganancia bruta estimada</small><div class="num" id="nGanancia">$0</div><div class="sub">Solo ventas registradas; no es conciliación contable</div><div class="bubble">💰</div></div>
         </div>
         <div class="box" style="margin-bottom:18px">
-          <div class="rowBetween" style="gap:12px;flex-wrap:wrap"><h3>Resumen por periodo</h3><label class="field" style="min-width:180px">Periodo (Colombia)<select id="dashboardPeriod" onchange="renderDashboardPeriod()"><option value="day">Hoy</option><option value="week">Últimos 7 días, incluido hoy</option></select></label></div>
+          <div class="rowBetween" style="gap:12px;flex-wrap:wrap"><h3>Resumen por periodo</h3><label class="field" style="min-width:180px">Periodo (Colombia)<select id="dashboardPeriod" onchange="renderDashboardPeriod()"><option value="day">Hoy</option><option value="week">Últimos 7 días, incluido hoy</option><option value="month">Este mes, hasta hoy</option></select></label></div>
           <p class="muted">Ventas no archivadas de <code>sales</code>; promedio por registro de venta, no por pedido. No se suman COD y Wompi ni se consideran pagos conciliados.</p>
           <p id="dashboardSalesStatus" class="status" role="status" aria-live="polite">Datos todavía no consultados.</p>
           <div class="kpis"><div class="kpi">Ingresos registrados<b id="dashboardRevenue">—</b></div><div class="kpi">Promedio por registro<b id="dashboardAverage">—</b></div><div class="kpi">Registros en el periodo<b id="dashboardSaleCount">—</b></div><div class="kpi">Stock bajo / agotado verificado<b id="dashboardStockCounts">—</b></div></div>
@@ -3130,6 +3130,7 @@ function summarizeDashboardPeriod(sales,products,period='day',now=new Date()){
  const toDate=orderDateKeyColombia(now);
  const start=new Date(toDate+'T12:00:00Z');
  if(period==='week')start.setUTCDate(start.getUTCDate()-6);
+ if(period==='month')start.setUTCDate(1);
  const fromDate=Number.isFinite(start.getTime())?start.toISOString().slice(0,10):'';
  let revenue=0,count=0,invalidSales=0;
  for(const sale of Array.isArray(sales)?sales:[]){

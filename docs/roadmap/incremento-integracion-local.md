@@ -36,7 +36,7 @@ Las claves Wompi/COD/carrito y el TTL de 10 minutos permanecen intactos. Se incl
 
 ### Dashboard y datos
 
-Inicio incorpora Hoy y últimos siete días incluidos hoy, en Colombia. Ingresos/promedio se calculan sobre registros no archivados de `sales`, no pedidos ni una contabilidad conciliada. Se excluyen fechas/importes inválidos indicando resumen parcial. Stock bajo y agotado incluyen solo disponibilidad verificada. Pendientes COD y casos Wompi se consultan explícitamente, separados, con fecha/fuente/estado y límite de hasta 50 casos Wompi (50 se expresa como “50 o más”).
+Inicio incorpora Hoy, últimos siete días incluidos hoy y mes calendario hasta hoy, en Colombia. El mes comienza el día 1 local, no es un rango móvil de 30 días. Ingresos/promedio se calculan sobre registros no archivados de `sales`, no pedidos ni una contabilidad conciliada. Se excluyen fechas/importes inválidos indicando resumen parcial. Stock bajo y agotado incluyen solo disponibilidad verificada. Pendientes COD y casos Wompi se consultan explícitamente, separados, con fecha/fuente/estado y límite de hasta 50 casos Wompi (50 se expresa como “50 o más”).
 
 Los loaders de panel, COD y conciliación descartan respuestas de una época de sesión anterior. Cerrar sesión borra snapshots/marcas y la previsualización CSV; un fallo no se interpreta como cero.
 
@@ -83,6 +83,7 @@ node tests/admin_client_history_regression.mjs
 node tests/admin_orders_server_pagination_regression.mjs
 node tests/dashboard_availability_regression.mjs
 node tests/dashboard_period_regression.mjs
+node tests/admin_dashboard_month_regression.mjs
 node tests/phase1_quote_parity_regression.mjs
 node tests/catalog_discovery_regression.mjs
 node tests/fase7_csv_preview.mjs
@@ -103,6 +104,8 @@ Una revisión independiente read-only de `fetchTablePage`, `renderClientes`, `to
 **F6-S2 — pruebas ejecutadas en esta continuación:** PASÓ `node tests/admin_orders_server_pagination_regression.mjs`, `node tests/dashboard_period_regression.mjs`, `node tests/admin_account_security_regression.mjs`, `node scripts/validate.mjs`, `node --check` para las pruebas editadas, parseo local de la nueva migración (7 sentencias/3 cuerpos PL/pgSQL) y su prueba (3/1), `node --check` de ambos scripts inline de `admin.html` y `git diff --check`. No se ejecutó la prueba SQL en Supabase. La única consulta remota fue metadata read-only (`relrowsecurity`, grants y policies de `web_orders`), sin filas de negocio.
 
 **Mensaje COD — cierre local:** PASARON `cod_notice_regression.mjs`, `admin_cod_notice_regression.mjs`, `admin_account_security_regression.mjs`, `admin_orders_server_pagination_regression.mjs`, `dashboard_period_regression.mjs`, `phase1_quote_parity_regression.mjs`, `scripts/validate.mjs` y whitespace. El helper y tests pasaron `node --check`; JavaScript inline se comprobó como JavaScript y JSON-LD como JSON. `pglast` aceptó migración 16/4 y test 3/1. La revisión independiente encontró trim Unicode diferente en SQL y una carrera de frescura del aviso: ambos quedaron corregidos con fixtures específicos. ACL PUBLIC en la nueva regresión se verifica como grantee=0, no nombre de rol. No hubo autenticación real, lecturas de negocio, escritura remota ni ejecución del test SQL en esta continuación.
+
+**Resumen mensual — incremento separado:** añade solo la opción del selector y el inicio del mes en `summarizeDashboardPeriod`, sin consultas ni escrituras nuevas. Archivos: `admin.html`, `tests/admin_dashboard_month_regression.mjs`, backlog y este informe. PASARON el test mensual (medianoche Colombia, cambio de año, febrero bisiesto, futuro/mes anterior excluidos, importes inválidos y paridad día/semana), `dashboard_period_regression.mjs`, `scripts/validate.mjs` y whitespace. La cifra conserva la etiqueta de registros de `sales` y no equivale a ventas cobradas/conciliadas por medio de pago. No implementa aún exportación XLSX ni reportes canónicos entre canales.
 
 ## Pendientes de lanzamiento y fases abiertas
 
