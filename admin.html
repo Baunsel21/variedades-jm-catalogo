@@ -281,12 +281,15 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
 <div id="loginScreen" class="loginScreen">
   <div class="loginCard">
     <div class="loginBrand"><div class="logo">✦</div><h2>Variedades JM</h2><p class="muted">Tu negocio, organizado en un solo lugar.</p></div>
-    <div class="field"><label>Correo<input id="email" type="email" placeholder="correo@ejemplo.com"></label></div>
-    <div class="field"><label>Contraseña<input id="password" type="password" placeholder="Tu contraseña"></label></div>
-    <div style="display:flex;gap:8px;margin-top:14px"><button class="primary" style="flex:1" onclick="login()">Entrar</button></div>
-    <p class="muted" style="font-size:12px;margin:10px 0 0">Solo pueden entrar usuarios autorizados por el administrador de la tienda.</p>
-    <div id="loginMsg"></div>
-    <button id="retryLogout" class="softbtn hidden" type="button" onclick="logout()">Reintentar cierre de sesión</button>
+    <div id="adminLoginFields">
+      <div class="field"><label>Correo<input id="email" type="email" autocomplete="username" placeholder="correo@ejemplo.com"></label></div>
+      <div class="field"><label>Contraseña<input id="password" type="password" autocomplete="current-password" placeholder="Tu contraseña"></label></div>
+      <div style="display:flex;gap:8px;margin-top:14px"><button class="primary" style="flex:1" onclick="login()">Entrar</button></div>
+      <button class="softbtn" type="button" style="margin-top:10px;width:100%" onclick="requestAdminPasswordRecovery()">¿Olvidaste tu contraseña?</button>
+      <p class="muted" style="font-size:12px;margin:10px 0 0">Solo pueden entrar usuarios autorizados por el administrador de la tienda.</p>
+      <div id="loginMsg"></div>
+      <button id="retryLogout" class="softbtn hidden" type="button" onclick="logout()">Reintentar cierre de sesión</button>
+    </div>
   </div>
 </div>
 
@@ -490,6 +493,19 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
         <div><h2 style="margin:0">⚙️ Configuración y herramientas</h2><p class="muted">Opciones para cuidar y llevar tus datos.</p></div>
         <div class="sectionGrid">
           <div class="box"><h3>☁️ Conexión</h3><p class="muted">Los datos principales se guardan en Supabase y pueden consultarse desde tus dispositivos con la misma cuenta.</p><div class="status ok">✓ Conexión preparada</div></div>
+          <div class="box" style="grid-column:1/-1" id="adminAccountSecurityBox">
+            <h3>🔐 Seguridad de la cuenta</h3>
+            <p class="muted">La contraseña se gestiona exclusivamente con Supabase Auth; nunca se guarda en tablas propias ni en el navegador. Cuenta activa: <strong id="securityAccountEmail">—</strong></p>
+            <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(210px,1fr))">
+              <label id="adminCurrentPasswordField">Contraseña actual<input id="currentAdminPassword" type="password" autocomplete="current-password" maxlength="128"></label>
+              <label>Nueva contraseña<input id="newAdminPassword" type="password" autocomplete="new-password" minlength="12" maxlength="128"></label>
+              <label>Confirmar nueva contraseña<input id="confirmAdminPassword" type="password" autocomplete="new-password" minlength="12" maxlength="128"></label>
+            </div>
+            <p class="muted" style="margin:8px 0">Usa al menos 12 caracteres. El cambio normal solicita la contraseña actual; el enlace de recuperación se valida con el token de Supabase Auth.</p>
+            <div style="display:flex;gap:8px;flex-wrap:wrap"><button id="changeAdminPasswordBtn" class="primary" type="button" onclick="changeAdminPassword()">Cambiar contraseña</button><button id="sendAdminRecoveryBtn" class="softbtn" type="button" onclick="requestAdminPasswordRecovery(true)">Enviar enlace de recuperación</button><button class="softbtn" type="button" onclick="closeAllAdminSessions()">Cerrar todas mis sesiones</button></div>
+            <p class="muted" style="margin:8px 0 0">Supabase revoca las sesiones de renovación; un token de acceso ya emitido puede seguir válido hasta su vencimiento.</p>
+            <div id="adminSecurityStatus" class="status" role="status" aria-live="polite" style="margin-top:10px"></div>
+          </div>
           <div class="box" style="grid-column:1/-1" id="onlinePaymentsSettingsBox">
             <div class="rowBetween" style="align-items:flex-start;gap:16px;flex-wrap:wrap">
               <div style="flex:1;min-width:220px"><h3 style="margin-bottom:7px">💳 Pagos en línea del catálogo</h3><p class="muted" style="margin-top:0">Controla si los clientes pueden pagar mediante Wompi. Al desactivarlo, el catálogo ocultará las dos opciones de pago en línea. La contraentrega solo estará disponible en las ciudades que habilites abajo.</p></div>
@@ -655,9 +671,9 @@ let moduleLoadErrors={};
 let adminDeferredModuleLoaded={clients:false,suppliers:false,expenses:false,movements:false,orders:false};
 let adminDeferredModuleInFlight={};
 let pedidos=[];
-let brandName=localStorage.getItem("jm_brand_name")||"Variedades JM";
-let brandIcon=localStorage.getItem("jm_brand_icon")||"";
-let brandIconPath=localStorage.getItem("jm_brand_icon_path")||"";
+let brandName="Variedades JM";
+let brandIcon="";
+let brandIconPath="";
 const defaultCategories=["Cadenas","Accesorios","Zapatos","Otros","CADENAS BODY","CAMISONES","CORSET","MONEDAS COLECCIONABLES","111"];
 const pref={Corsets:"COR",Corset:"COR",CORSET:"COR",Cadenas:"CAD",CADENAS:"CAD",Accesorios:"ACC",ACCESORIOS:"ACC",Zapatos:"ZAP",ZAPATOS:"ZAP",Otros:"OTR",OTROS:"OTR",CAMISONES:"CAM",Camisones:"CAM","CADENAS BODY":"CBD","Cadenas Body":"CBD","MONEDAS COLECCIONABLES":"MCO","Monedas coleccionables":"MCO"};
 function categoryPrefix(cat){
@@ -799,10 +815,26 @@ async function prepareImageForUpload(file){
  }finally{try{decoded.close?.()}catch{}}
 }
 const waitForUploadRetry=ms=>new Promise(resolve=>setTimeout(resolve,ms));
-async function uploadImageToR2(path,file){
+function ensureAdminOperationCurrent(isCurrent){if(typeof isCurrent==='function'&&!isCurrent()){const error=new Error('La sesión del administrador cambió durante la operación. Vuelve a revisar el producto antes de continuar.');error.name='StaleAdminOperationError';throw error}}
+function captureAdminOperationContext(isCurrent){
+ const userId=String(adminSessionUserId||''),authEpoch=adminAuthEpoch;
+ const callerIsCurrent=typeof isCurrent==='function'?isCurrent:()=>true;
+ return {userId,authEpoch,isCurrent:()=>callerIsCurrent()&&adminAuthOperationStillCurrent(userId,authEpoch)};
+}
+function assertAdminSessionUserMatches(session,operation){
+ ensureAdminOperationCurrent(operation.isCurrent);
+ if(!operation.userId||!session?.access_token||String(session.user?.id||'')!==operation.userId){
+  const error=new Error('La sesión cambió o no pudo confirmarse. Vuelve a iniciar sesión antes de continuar.');
+  error.name='StaleAdminOperationError';throw error;
+ }
+}
+async function uploadImageToR2(path,file,isCurrent=()=>true){
+ const operation=captureAdminOperationContext(isCurrent);isCurrent=operation.isCurrent;
+ ensureAdminOperationCurrent(isCurrent);
  const {data:{session}}=await sb.auth.getSession();
- if(!session?.access_token)throw new Error("Tu sesión caducó. Cierra sesión y vuelve a entrar.");
+ assertAdminSessionUserMatches(session,operation);
  const uploadFile=await prepareImageForUpload(file);
+ ensureAdminOperationCurrent(isCurrent);
  const ext=uploadExtension(uploadFile)||R2_MIME_EXTENSION[uploadFile.type]||"jpg";
  const uploadPath=String(path).replace(/\.[^/.]+$/, "."+ext);
  const contentType=R2_ALLOWED_IMAGE_TYPES.has(uploadFile.type)?uploadFile.type:(R2_EXTENSION_MIME[ext]||"image/jpeg");
@@ -811,6 +843,7 @@ async function uploadImageToR2(path,file){
  // clave es seguro: R2 reemplaza el mismo objeto en lugar de crear duplicados.
  const maxAttempts=3;
  for(let attempt=0;attempt<maxAttempts;attempt++){
+   ensureAdminOperationCurrent(isCurrent);
    const controller=new AbortController();
    const timeout=setTimeout(()=>controller.abort(),60000);
    let res;
@@ -821,8 +854,9 @@ async function uploadImageToR2(path,file){
        body:uploadFile,
        signal:controller.signal,
        cache:"no-store"
-     });
+      });
    }catch(error){
+     if(!isCurrent()){clearTimeout(timeout);throw error}
      lastError=error;
      if(attempt<maxAttempts-1){
        clearTimeout(timeout);
@@ -835,11 +869,13 @@ async function uploadImageToR2(path,file){
    let body="";
    try{body=await res.text()}catch(error){
      clearTimeout(timeout);
+     if(!isCurrent())throw error;
      lastError=error;
      if(attempt<maxAttempts-1){await waitForUploadRetry(Math.min(1000*Math.pow(2,attempt),3000));continue;}
      throw new Error("La conexión se interrumpió al confirmar la foto. No crees el producto otra vez: entra a “Completar/Editar producto” y vuelve a subirla.");
    }
    clearTimeout(timeout);
+   ensureAdminOperationCurrent(isCurrent);
    if(!res.ok){
      let message=body;
      try{const parsed=JSON.parse(body);message=parsed.message||parsed.error||body}catch{}
@@ -854,6 +890,7 @@ async function uploadImageToR2(path,file){
    }
    try{
      const result=JSON.parse(body);
+     ensureAdminOperationCurrent(isCurrent);
      if(result.ok===false)throw new Error(result.message||result.error||"Cloudflare no confirmó la foto.");
      return {...result,key:result.key||uploadPath};
    }catch(error){
@@ -863,12 +900,16 @@ async function uploadImageToR2(path,file){
  }
  throw new Error("No se pudo subir la foto a Cloudflare R2. "+(lastError?.message||"Comprueba tu conexión e inténtalo de nuevo."));
 }
-async function deleteProductImagesFromR2(productId){
+async function deleteProductImagesFromR2(productId,isCurrent=()=>true){
+ const operation=captureAdminOperationContext(isCurrent);isCurrent=operation.isCurrent;
+ ensureAdminOperationCurrent(isCurrent);
  const {data:{session}}=await sb.auth.getSession();
- if(!session?.access_token)throw new Error("Tu sesión caducó. Vuelve a iniciar sesión.");
+ assertAdminSessionUserMatches(session,operation);
  const url=IMAGE_WORKER_URL+"/_admin/products/"+encodeURIComponent(String(productId));
  const res=await fetch(url,{method:"DELETE",headers:{Authorization:"Bearer "+session.access_token}});
+ ensureAdminOperationCurrent(isCurrent);
  const body=await res.text();
+ ensureAdminOperationCurrent(isCurrent);
  if(!res.ok)throw new Error(body||`No se pudieron limpiar las fotos de R2 (${res.status}).`);
  try{return JSON.parse(body)}catch{return {ok:true,deleted:0}}
 }
@@ -888,12 +929,15 @@ function updateOnlinePaymentAdminLabel(){
  if(save)save.disabled=!onlinePaymentSettingLoaded||enabled===onlinePaymentSettingOriginal;
 }
 async function loadOnlinePaymentSettingsAdmin(){
+ const userId=adminSessionUserId,authEpoch=adminAuthEpoch,isCurrent=()=>adminAuthOperationStillCurrent(userId,authEpoch);
+ if(!sb||!isCurrent())return false;
  const input=$("onlinePaymentsToggle"),save=$("saveOnlinePaymentsBtn");
  if(input)input.disabled=true;if(save)save.disabled=true;
  onlinePaymentSettingLoaded=false;
  setOnlinePaymentAdminStatus('Cargando la configuración guardada…');
  try{
   const {data,error}=await sb.rpc('get_online_payment_status');
+  if(!isCurrent())return false;
   if(error)throw error;
   const row=Array.isArray(data)?data[0]:data;
   if(!row||typeof row.online_payments_enabled!=='boolean')throw new Error('Supabase no devolvió la configuración de pagos esperada.');
@@ -904,6 +948,7 @@ async function loadOnlinePaymentSettingsAdmin(){
   updateOnlinePaymentAdminLabel();
   return true;
  }catch(error){
+  if(!isCurrent())return false;
   console.error('No se pudo cargar la configuración de pagos:',error);
   if(input)input.disabled=true;
   if(save)save.disabled=true;
@@ -914,6 +959,8 @@ async function loadOnlinePaymentSettingsAdmin(){
  }
 }
 async function saveOnlinePaymentSettings(){
+ const userId=adminSessionUserId,authEpoch=adminAuthEpoch,isCurrent=()=>adminAuthOperationStillCurrent(userId,authEpoch);
+ if(!sb||!isCurrent())return false;
  const input=$("onlinePaymentsToggle"),button=$("saveOnlinePaymentsBtn");
  if(!onlinePaymentSettingLoaded||!input)return alert('Primero carga correctamente la configuración de pagos desde Supabase.');
  const desired=!!input.checked;
@@ -922,6 +969,7 @@ async function saveOnlinePaymentSettings(){
  if(input)input.disabled=true;
  try{
   const {data,error}=await sb.rpc('set_online_payment_status',{p_enabled:desired});
+  if(!isCurrent())return false;
   if(error)throw error;
   const row=Array.isArray(data)?data[0]:data;
   if(!row||typeof row.online_payments_enabled!=='boolean')throw new Error('Supabase no confirmó el cambio.');
@@ -931,13 +979,16 @@ async function saveOnlinePaymentSettings(){
   updateOnlinePaymentAdminLabel();
   toast(onlinePaymentSettingOriginal?'Pagos en línea activados':'Pagos en línea desactivados');
  }catch(error){
+  if(!isCurrent())return false;
   console.error('No se pudo guardar la configuración de pagos:',error);
   input.checked=onlinePaymentSettingOriginal;
   setOnlinePaymentAdminStatus('No se guardó ningún cambio. Comprueba que este usuario sea el administrador autorizado y que el SQL esté instalado. Detalle: '+(error?.message||error),'err');
   updateOnlinePaymentAdminLabel();
  }finally{
-  if(input)input.disabled=!onlinePaymentSettingLoaded;
-  if(button){button.textContent='💾 Guardar cambios';updateOnlinePaymentAdminLabel();}
+  if(isCurrent()){
+   if(input)input.disabled=!onlinePaymentSettingLoaded;
+   if(button){button.textContent='💾 Guardar cambios';updateOnlinePaymentAdminLabel();}
+  }
  }
 }
 
@@ -971,6 +1022,8 @@ function updateStorefrontShippingAdminForm(){
  if(button)button.disabled=!storefrontShippingAdminLoaded||storefrontShippingAdminSaving||!valid||!!unchanged;
 }
 async function loadStorefrontShippingSettingsAdmin(showStatus=true){
+ const userId=adminSessionUserId,authEpoch=adminAuthEpoch,isCurrent=()=>adminAuthOperationStillCurrent(userId,authEpoch);
+ if(!sb||!isCurrent())return false;
  const button=$('refreshStorefrontShippingSettingsBtn');
  if(button)button.disabled=true;
  storefrontShippingAdminLoaded=false;
@@ -978,6 +1031,7 @@ async function loadStorefrontShippingSettingsAdmin(showStatus=true){
  if(showStatus)setStorefrontShippingAdminStatus('Cargando la configuración guardada…');
  try{
   const {data,error}=await sb.rpc('get_public_storefront_shipping_settings');
+  if(!isCurrent())return false;
   if(error)throw error;
   const row=Array.isArray(data)?data[0]:data;
   const fee=Number(row?.national_shipping_cost);
@@ -994,15 +1048,20 @@ async function loadStorefrontShippingSettingsAdmin(showStatus=true){
   setStorefrontShippingAdminStatus(`Configuración cargada. Cali continúa gratis; tarifa nacional ${money(fee)}${threshold===null?'':` · envío gratis desde ${money(threshold)} después de descuentos`}.`,'ok');
   return true;
  }catch(error){
+  if(!isCurrent())return false;
   console.error('No se pudieron cargar las tarifas de envío:',error);
   setStorefrontShippingAdminStatus('No se pudo cargar la configuración. No guardes cambios hasta instalar la migración de tarifas. Detalle: '+String(error?.message||error),'err');
   return false;
  }finally{
-  updateStorefrontShippingAdminForm();
-  if(button)button.disabled=false;
+  if(isCurrent()){
+   updateStorefrontShippingAdminForm();
+   if(button)button.disabled=false;
+  }
  }
 }
 async function saveStorefrontShippingSettings(){
+ const userId=adminSessionUserId,authEpoch=adminAuthEpoch,isCurrent=()=>adminAuthOperationStillCurrent(userId,authEpoch);
+ if(!sb||!isCurrent())return false;
  if(!storefrontShippingAdminLoaded)return setStorefrontShippingAdminStatus('Primero carga correctamente la configuración desde Supabase.','err');
  const value=readStorefrontShippingAdminForm();
  if(!Number.isSafeInteger(value.fee)||value.fee<0||value.fee>5000000||
@@ -1017,6 +1076,7 @@ async function saveStorefrontShippingSettings(){
    p_national_shipping_cost:value.fee,
    p_free_shipping_threshold:value.threshold
   });
+  if(!isCurrent())return false;
   if(error)throw error;
   const row=Array.isArray(data)?data[0]:data;
   if(row?.success!==true)throw new Error(row?.message||'Supabase no confirmó el cambio.');
@@ -1034,12 +1094,15 @@ async function saveStorefrontShippingSettings(){
   notifyPublicCatalogChanged('shipping-settings-changed');
   toast('Tarifas de envío guardadas');
  }catch(error){
+  if(!isCurrent())return false;
   console.error('No se pudieron guardar las tarifas de envío:',error);
   setStorefrontShippingAdminStatus('No se guardó el cambio. Verifica que tu cuenta sea la administradora autorizada. Detalle: '+String(error?.message||error),'err');
  }finally{
-  storefrontShippingAdminSaving=false;
-  if(button)button.textContent='💾 Guardar tarifas';
-  updateStorefrontShippingAdminForm();
+  if(isCurrent()){
+   storefrontShippingAdminSaving=false;
+   if(button)button.textContent='💾 Guardar tarifas';
+   updateStorefrontShippingAdminForm();
+  }
  }
 }
 document.addEventListener('input',event=>{
@@ -1050,6 +1113,8 @@ document.addEventListener('change',event=>{
 });
 
 async function loadWompiReconciliation(showStatus=true){
+ const userId=adminSessionUserId,authEpoch=adminAuthEpoch,isCurrent=()=>adminAuthOperationStillCurrent(userId,authEpoch);
+ if(!sb||!isCurrent())return false;
  const status=$('wompiReconciliationStatus'),list=$('wompiReconciliationList'),button=$('refreshWompiReconciliationBtn');
  if(button)button.disabled=true;
  if(showStatus&&status){status.className='status';status.textContent='Consultando conciliaciones pendientes…';}
@@ -1058,15 +1123,17 @@ async function loadWompiReconciliation(showStatus=true){
    .select('transaction_id,reference,amount_in_cents,reconciliation_status,reason,first_seen_at,last_seen_at')
    .eq('reconciliation_status','NEEDS_REVIEW')
    .order('last_seen_at',{ascending:false}).limit(50);
+  if(!isCurrent())return false;
   if(error)throw error;
   const rows=Array.isArray(data)?data:[];
   if(list)list.innerHTML=rows.length?rows.map(row=>`<article class="box" style="margin-top:9px;border-color:#f0c2ca"><div class="rowBetween" style="gap:12px;flex-wrap:wrap"><strong>${esc(row.reference||'Sin referencia')}</strong><span class="status err">NEEDS_REVIEW</span></div><div class="muted" style="font-size:12px;margin-top:6px">Transacción: ${esc(row.transaction_id||'—')} · Monto: ${money(Number(row.amount_in_cents||0)/100)} · Último registro: ${esc(row.last_seen_at||'—')}</div><p style="margin:8px 0 0;white-space:pre-wrap">${esc(row.reason||'Revisión manual requerida.')}</p></article>`).join(''):'<div class="empty">No hay conciliaciones pendientes.</div>';
   if(status){status.className='status ok';status.textContent=rows.length?`Hay ${rows.length} conciliación(es) para revisar.`:'No hay conciliaciones pendientes.';}
  }catch(error){
+  if(!isCurrent())return false;
   console.error('No se pudieron cargar las conciliaciones Wompi:',error);
   if(list)list.innerHTML='<div class="empty">No se pudieron consultar las conciliaciones.</div>';
   if(status){status.className='status err';status.textContent='No se pudo consultar la conciliación. Comprueba que tu usuario sea el administrador autorizado.';}
- }finally{if(button)button.disabled=false;}
+ }finally{if(isCurrent()&&button)button.disabled=false;}
 }
 
 
@@ -1084,47 +1151,146 @@ function applyBrand(){
   });
   if(brandIcon){$("appFavicon").href=brandIcon}else $("appFavicon").removeAttribute("href");
 }
+function adminBrandCacheKey(userId,field){return `jm_admin_brand:${encodeURIComponent(String(userId||''))}:${field}`}
+function clearLegacyAdminBrandCache(){
+ if(typeof localStorage==='undefined')return;
+ for(const key of ['jm_brand_name','jm_brand_icon','jm_brand_icon_path'])localStorage.removeItem(key);
+}
+function clearAdminBrandCache(userId){
+ if(typeof localStorage==='undefined'||!userId)return;
+ for(const field of ['name','icon','icon_path'])localStorage.removeItem(adminBrandCacheKey(userId,field));
+}
+function storeAdminBrandCache(userId,name=brandName,icon=brandIcon,iconPath=brandIconPath){
+ if(typeof localStorage==='undefined'||!userId)return;
+ localStorage.setItem(adminBrandCacheKey(userId,'name'),String(name||''));
+ localStorage.setItem(adminBrandCacheKey(userId,'icon'),String(icon||''));
+ localStorage.setItem(adminBrandCacheKey(userId,'icon_path'),String(iconPath||''));
+}
+function loadAdminBrandForUser(user){
+ const userId=String(user?.id||'');if(!userId)throw new Error('No se puede cargar la marca sin una cuenta verificada.');
+ clearLegacyAdminBrandCache();
+ const metadata=user?.user_metadata&&typeof user.user_metadata==='object'?user.user_metadata:{};
+ const owns=(key)=>Object.prototype.hasOwnProperty.call(metadata,key);
+ const cachedName=localStorage.getItem(adminBrandCacheKey(userId,'name'))||'';
+ const cachedIcon=localStorage.getItem(adminBrandCacheKey(userId,'icon'))||'';
+ const cachedIconPath=localStorage.getItem(adminBrandCacheKey(userId,'icon_path'))||'';
+ brandName=owns('jm_brand_name')?(String(metadata.jm_brand_name||'').trim()||'Variedades JM'):(String(cachedName).trim()||'Variedades JM');
+ if(owns('jm_brand_icon_path')){
+  brandIconPath=String(metadata.jm_brand_icon_path||'').trim();
+  brandIcon=brandIconPath?publicWorkerImage(brandIconPath):'';
+ }else if(owns('jm_brand_icon')){
+  const legacyIcon=String(metadata.jm_brand_icon||'').trim();
+  brandIconPath='';brandIcon=legacyIcon?publicWorkerImage(legacyIcon):'';
+ }else{
+  brandIconPath=String(cachedIconPath||'').trim();
+  brandIcon=brandIconPath?publicWorkerImage(brandIconPath):(cachedIcon?publicWorkerImage(cachedIcon):'');
+ }
+ storeAdminBrandCache(userId,brandName,brandIcon,brandIconPath);
+ applyBrand();
+ return {name:brandName,icon:brandIcon,iconPath:brandIconPath};
+}
 async function saveBrand(){
+  const userId=adminSessionUserId,authEpoch=adminAuthEpoch,isCurrent=()=>adminAuthOperationStillCurrent(userId,authEpoch);
+  if(!sb||!isCurrent())return false;
   const name=$("businessName").value.trim()||"Variedades JM";
-  const file=$("businessIcon").files[0];brandName=name;
+  const file=$("businessIcon").files[0];let nextBrandIcon=brandIcon,nextBrandIconPath=brandIconPath;
   const finish=async()=>{
-    localStorage.setItem("jm_brand_name",brandName);localStorage.setItem("jm_brand_icon",brandIcon);localStorage.setItem("jm_brand_icon_path",brandIconPath);applyBrand();
-    const {error}=await sb.auth.updateUser({data:{jm_brand_name:brandName,jm_brand_icon_path:brandIconPath}});
-    if(error)toast("Nombre/icono guardados en este dispositivo; revisa la sincronización");
+    if(!isCurrent())return false;
+    let updateError=null;
+    try{
+      const {error}=await sb.auth.updateUser({data:{jm_brand_name:name,jm_brand_icon_path:nextBrandIconPath}});
+      if(!isCurrent())return false;
+      updateError=error||null;
+    }catch(error){if(!isCurrent())return false;updateError=error}
+    if(!isCurrent())return false;
+    brandName=name;brandIcon=nextBrandIcon;brandIconPath=nextBrandIconPath;
+    storeAdminBrandCache(userId,brandName,brandIcon,brandIconPath);applyBrand();
+    if(updateError)toast("Nombre/icono guardados en este dispositivo; revisa la sincronización");
     else toast("Personalización guardada y sincronizada");
+    return !updateError;
   };
   if(file){
     if(file.size>2*1024*1024)return alert("El icono debe pesar menos de 2 MB.");
     const ext=(file.name.split(".").pop()||"png").toLowerCase();
-    const {data:{user}}=await sb.auth.getUser();
+    let authResult;
+    try{authResult=await sb.auth.getUser()}catch(error){if(!isCurrent())return false;return alert("No se pudo verificar la cuenta antes de subir el icono.")}
+    if(!isCurrent())return false;
+    const user=authResult?.data?.user;
+    if(authResult?.error||!user||String(user.id)!==userId)return alert("No se pudo confirmar la cuenta iniciadora. Vuelve a validar la sesión.");
     const path=`branding/${user.id}.${ext}`;
     try{
-      const uploaded=await uploadImageToR2(path,file);
-      brandIconPath=uploaded.key||path;
-      brandIcon=publicWorkerImage(brandIconPath);
-      finish();
-    }catch(error){return alert("No se pudo subir el icono a Cloudflare R2: "+(error.message||error))}
-  }else finish();
+      const uploaded=await uploadImageToR2(path,file,isCurrent);
+      if(!isCurrent())return false;
+      nextBrandIconPath=uploaded.key||path;
+      nextBrandIcon=publicWorkerImage(nextBrandIconPath);
+      return await finish();
+    }catch(error){if(!isCurrent())return false;return alert("No se pudo subir el icono a Cloudflare R2: "+(error.message||error))}
+  }
+  return await finish();
 }
 async function resetBrand(){
-  if(!confirm("¿Restaurar el nombre e icono originales?"))return;
+  const userId=adminSessionUserId,authEpoch=adminAuthEpoch,isCurrent=()=>adminAuthOperationStillCurrent(userId,authEpoch);
+  if(!sb||!isCurrent()||!confirm("¿Restaurar el nombre e icono originales?"))return false;
+  if(!isCurrent())return false;
+  let updateError=null;
+  try{const {error}=await sb.auth.updateUser({data:{jm_brand_name:"Variedades JM",jm_brand_icon_path:""}});if(!isCurrent())return false;updateError=error||null}
+  catch(error){if(!isCurrent())return false;updateError=error}
+  if(!isCurrent())return false;
   brandName="Variedades JM";brandIcon="";brandIconPath="";
-  localStorage.removeItem("jm_brand_name");localStorage.removeItem("jm_brand_icon");localStorage.removeItem("jm_brand_icon_path");
+  clearAdminBrandCache(userId);
   $("businessIcon").value="";applyBrand();
-  const {error}=await sb.auth.updateUser({data:{jm_brand_name:brandName,jm_brand_icon_path:""}});
-  toast(error?"Restaurado solo en este dispositivo":"Personalización restaurada en todos tus dispositivos");
+  toast(updateError?"Restaurado solo en este dispositivo":"Personalización restaurada en todos tus dispositivos");
+  return !updateError;
 }
-let adminAuthSubscription=null,adminSessionAuthorized=false,adminSessionUserId='',adminAuthorizationBusy=false,adminStartBusy=false,adminAuthEpoch=0;
+let adminAuthSubscription=null,adminSessionAuthorized=false,adminSessionUserId='',adminAuthorizationBusy=false,adminAuthorizationPending=false,adminStartBusy=false,adminStartPending=false,adminAuthEpoch=0;
+let adminPasswordRecoveryMode=false;
+let availabilityRefreshBusy=false,availabilityRefreshToken=0,storefrontMarketingMetricsBusy=false,storefrontMarketingMetricsToken=0;
 function lockAdminPanel(message='Tu sesión terminó. Vuelve a entrar.'){
  adminAuthEpoch++;
- adminSessionAuthorized=false;adminSessionUserId='';
+ availabilityRefreshToken++;availabilityRefreshBusy=false;storefrontMarketingMetricsToken++;storefrontMarketingMetricsBusy=false;editingProductImageLoadToken++;
+ adminSessionAuthorized=false;adminSessionUserId='';adminPasswordRecoveryMode=false;
+ brandName='Variedades JM';brandIcon='';brandIconPath='';
+ if(typeof clearLegacyAdminBrandCache==='function')clearLegacyAdminBrandCache();
+ if(typeof applyBrand==='function')applyBrand();
  $("app").classList.add("hidden");$("loginScreen").classList.remove("hidden");
  if(adminCatalogRealtimeChannel&&sb){const channel=adminCatalogRealtimeChannel;adminCatalogRealtimeChannel=null;void sb.removeChannel(channel).catch(error=>console.debug('No se pudo cerrar el canal administrativo.',error));}
  adminCatalogRealtimeReady=false;adminCatalogRealtimePending=[];
- productos=[];ventas=[];clientes=[];proveedores=[];gastos=[];movimientos=[];pedidos=[];
+ productos=[];ventas=[];clientes=[];proveedores=[];gastos=[];movimientos=[];pedidos=[];categorias=[];categoryRecords=[];
+ moduleLoadErrors={};
  Object.keys(adminDeferredModuleLoaded).forEach(key=>adminDeferredModuleLoaded[key]=false);
+ onlinePaymentSettingLoaded=false;onlinePaymentSettingOriginal=null;
+ codCitiesSettingsLoaded=false;codCitiesSettingsOriginal={enabled:false,allowed_cities:[]};
+ if(typeof categoryOrderSaving!=='undefined')categoryOrderSaving=false;
+ storefrontShippingAdminLoaded=false;storefrontShippingAdminOriginal=null;storefrontShippingAdminSaving=false;
+ storefrontCombosAdminLoaded=false;storefrontProductCombosAdmin=[];storefrontComboSaving=false;storefrontComboEditingId='';
+ seasonalPromoSettingsLoaded=false;seasonalPromoSettingsOriginal=null;seasonalPromoSaving=false;
+ if(seasonalPromoAutoCloseTimer){clearTimeout(seasonalPromoAutoCloseTimer);seasonalPromoAutoCloseTimer=null;}
  ['listaPedidos','listaProductos','listaVentas','listaClientes','listaProveedores','listaGastos','listaMovimientos','wompiReconciliationList'].forEach(id=>{const el=$(id);if(el)el.textContent='';});
+ const orderRefreshButton=$('refreshOrdersBtn');if(orderRefreshButton){orderRefreshButton.disabled=false;orderRefreshButton.textContent='↻ Actualizar pedidos';}
+ const businessIconInput=$('businessIcon');if(businessIconInput)businessIconInput.value='';
+ const wompiRefreshButton=$('refreshWompiReconciliationBtn');if(wompiRefreshButton)wompiRefreshButton.disabled=false;
+ ['accountEmail','securityAccountEmail'].forEach(id=>{const el=$(id);if(el)el.textContent='—';});
  const password=$("password");if(password)password.value='';
+ ['currentAdminPassword','newAdminPassword','confirmAdminPassword'].forEach(id=>{const field=$(id);if(field)field.value=''});
+ const changePasswordButton=$('changeAdminPasswordBtn');if(changePasswordButton)changePasswordButton.disabled=false;
+ if(typeof limpiarProducto==='function')limpiarProducto();
+ const categorySelect=$('pCategoria');if(categorySelect)categorySelect.disabled=false;
+ if(typeof renderCategoryManager==='function')renderCategoryManager();
+ const paymentToggle=$('onlinePaymentsToggle');if(paymentToggle){paymentToggle.checked=false;paymentToggle.disabled=true;}
+ const paymentSave=$('saveOnlinePaymentsBtn');if(paymentSave)paymentSave.disabled=true;
+ if($('onlinePaymentsStateText'))$('onlinePaymentsStateText').textContent='La configuración se volverá a cargar al abrir este módulo.';
+ const shippingFee=$('shippingNationalCost'),shippingThreshold=$('shippingFreeThreshold'),shippingEnabled=$('shippingFreeThresholdEnabled');
+ if(shippingFee){shippingFee.value='';shippingFee.disabled=true;}if(shippingThreshold){shippingThreshold.value='';shippingThreshold.disabled=true;}if(shippingEnabled){shippingEnabled.checked=false;shippingEnabled.disabled=true;}
+ const shippingSave=$('saveStorefrontShippingSettingsBtn');if(shippingSave)shippingSave.disabled=true;
+ const shippingReload=$('refreshStorefrontShippingSettingsBtn');if(shippingReload)shippingReload.disabled=false;
+ const codToggle=$('codPaymentsToggle'),codSave=$('saveCODCitiesBtn');if(codToggle){codToggle.checked=false;codToggle.disabled=true;}if(codSave)codSave.disabled=true;
+ document.querySelectorAll('#codCitiesOptions input[type="checkbox"]').forEach(input=>{input.checked=false;input.disabled=true;});
+ if(typeof updateStorefrontShippingAdminForm==='function')updateStorefrontShippingAdminForm();
+ if(typeof setStorefrontComboFormDisabled==='function')setStorefrontComboFormDisabled(true);
+ if(typeof renderStorefrontCombosAdminList==='function')renderStorefrontCombosAdminList();
+ if(typeof setSeasonalPromoFormDisabled==='function')setSeasonalPromoFormDisabled(true);
+ const seasonalReload=[...document.querySelectorAll('#seasonalPromoSettingsBox button')].find(button=>button.textContent.includes('Recargar'));if(seasonalReload)seasonalReload.disabled=false;
+ const currentField=$('adminCurrentPasswordField');if(currentField)currentField.classList.remove('hidden');
  loginMsg(message);
 }
 function ensureAdminAuthClient(){
@@ -1133,8 +1299,9 @@ function ensureAdminAuthClient(){
   const {data}=sb.auth.onAuthStateChange((event,session)=>{
    if(!session){lockAdminPanel(event==='SIGNED_OUT'?'Sesión cerrada. Vuelve a entrar.':'Inicia sesión para continuar.');return}
    if(adminSessionUserId&&session.user?.id!==adminSessionUserId)lockAdminPanel('La cuenta cambió. Validando autorización…');
-   // No esperar llamadas Supabase dentro del callback: evita bloquear la renovación del token.
-   if(event==='SIGNED_IN'&&!adminSessionAuthorized)setTimeout(()=>{void startApp();},0);
+   // Deferir trabajo Auth evita bloquear la renovación de tokens dentro del callback.
+   if(event==='PASSWORD_RECOVERY'){adminPasswordRecoveryMode=true;setTimeout(()=>{void startApp();},0)}
+   else if(event==='SIGNED_IN'&&!adminSessionAuthorized)setTimeout(()=>{void startApp();},0);
    else if(adminSessionAuthorized&&event!=='INITIAL_SESSION')setTimeout(()=>{void revalidateAdminAuthorization();},0);
   });
   adminAuthSubscription=data.subscription;
@@ -1142,14 +1309,20 @@ function ensureAdminAuthClient(){
  return sb;
 }
 async function revalidateAdminAuthorization(){
- if(!sb||!adminSessionAuthorized||adminAuthorizationBusy||document.hidden)return;
+ if(!sb||!adminSessionAuthorized||document.hidden)return;
+ if(adminAuthorizationBusy){adminAuthorizationPending=true;return}
  adminAuthorizationBusy=true;
+ const userId=adminSessionUserId,authEpoch=adminAuthEpoch;
  try{
   const {data:isAdmin,error}=await sb.rpc('is_store_admin');
+  if(!adminAuthOperationStillCurrent(userId,authEpoch))return;
   if(error){console.debug('Autorización no revalidada por un error temporal; las políticas del servidor siguen protegiendo los datos.');return}
   if(isAdmin!==true)lockAdminPanel('Esta cuenta ya no está autorizada para administrar la tienda.');
  }catch(error){console.debug('La revalidación administrativa se reintentará al recuperar la conexión.');
- }finally{adminAuthorizationBusy=false;}
+ }finally{
+  adminAuthorizationBusy=false;
+  if(adminAuthorizationPending){adminAuthorizationPending=false;setTimeout(()=>{void revalidateAdminAuthorization();},0);}
+ }
 }
 async function init(){
  if(!configured()){loginMsg("Falta configurar la URL y la clave de Supabase.");return}
@@ -1171,8 +1344,166 @@ async function logout(){
   location.reload();
  }catch(error){$('retryLogout').classList.remove('hidden');loginMsg('No se pudo confirmar el cierre de sesión. Comprueba la conexión y reintenta.');}
 }
+function setAdminSecurityStatus(message,kind=''){
+ const el=$('adminSecurityStatus');if(!el)return;el.textContent=message||'';el.className='status'+(kind?' '+kind:'');
+}
+function validateAdminPasswordInputs(current,next,confirmation,requireCurrent=true){
+ const oldValue=String(current||''),newValue=String(next||''),confirmValue=String(confirmation||'');
+ if(requireCurrent&&!oldValue)return 'Escribe la contraseña actual.';
+ if(newValue.length<12)return 'La nueva contraseña debe tener al menos 12 caracteres.';
+ if(newValue.length>128)return 'La nueva contraseña supera el límite permitido.';
+ if(newValue!==confirmValue)return 'La confirmación no coincide.';
+ if(requireCurrent&&newValue===oldValue)return 'Elige una contraseña diferente a la actual.';
+ return '';
+}
+function getAdminRecoveryRedirectUrl(origin=window.location.origin){
+ try{if(new URL(origin).origin!=='https://sirevya.com.co')return '';return 'https://sirevya.com.co/admin.html'}catch{return ''}
+}
+async function requestAdminPasswordRecovery(inPanel=false){
+ if(!configured())return inPanel?setAdminSecurityStatus('Supabase no está configurado.','err'):loginMsg('Supabase no está configurado.');
+ const operationUserId=inPanel?adminSessionUserId:'',operationEpoch=inPanel?adminAuthEpoch:0;
+ if(inPanel&&(!adminSessionAuthorized||!operationUserId))return setAdminSecurityStatus('Vuelve a validar la sesión administrativa.','err');
+ ensureAdminAuthClient();
+ let email='';
+ if(inPanel){
+  try{
+   const user=await assertCurrentAdminAuthorization(operationUserId,operationEpoch);
+   if(!adminAuthOperationStillCurrent(operationUserId,operationEpoch))return;
+   email=String(user.email||'').trim();
+  }catch(error){
+   if(!adminAuthOperationStillCurrent(operationUserId,operationEpoch))return;
+   setAdminSecurityStatus('No se pudo verificar la cuenta administrativa.','err');
+   if(error?.code==='ADMIN_AUTH_INVALID'){lockAdminPanel('La cuenta no está autorizada para administrar la tienda.');void sb.auth.signOut({scope:'local'}).catch(()=>{})}
+   return;
+  }
+ }else email=String($('email')?.value||'').trim();
+ if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))return inPanel?setAdminSecurityStatus('No hay un correo válido asociado a esta sesión.','err'):loginMsg('Escribe un correo válido para solicitar recuperación.');
+ try{
+  const redirectTo=getAdminRecoveryRedirectUrl();
+  if(!redirectTo){const message='La recuperación solo puede solicitarse desde el dominio oficial de Sirevya.';if(inPanel)setAdminSecurityStatus(message,'err');else loginMsg(message);return;}
+  const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo});
+  if(inPanel&&!adminAuthOperationStillCurrent(operationUserId,operationEpoch))return;
+  if(error)throw error;
+  const message='Si el correo está asociado a una cuenta compatible, Supabase enviará un enlace de recuperación. Revisa también la carpeta de correo no deseado.';
+  if(inPanel)setAdminSecurityStatus(message,'ok');else loginMsg(message,true);
+ }catch(error){
+  if(inPanel&&!adminAuthOperationStillCurrent(operationUserId,operationEpoch))return;
+  const message='No se pudo solicitar el enlace. Comprueba la URL permitida de redirección en Supabase Auth e inténtalo más tarde.';
+  if(inPanel)setAdminSecurityStatus(message,'err');else loginMsg(message);
+ }
+}
+function adminAuthOperationStillCurrent(userId,authEpoch){
+ return authEpoch===adminAuthEpoch&&adminSessionAuthorized&&adminSessionUserId===userId;
+}
+function adminAuthOperationError(message,code='ADMIN_AUTH_STALE'){
+ const error=new Error(message);error.code=code;return error;
+}
+async function assertCurrentAdminAuthorization(userId,authEpoch){
+ if(!adminAuthOperationStillCurrent(userId,authEpoch))throw adminAuthOperationError('La sesión administrativa cambió. No se completó la operación.');
+ const userResult=await sb.auth.getUser();
+ if(!adminAuthOperationStillCurrent(userId,authEpoch))throw adminAuthOperationError('La sesión administrativa cambió. No se completó la operación.');
+ const user=userResult?.data?.user,userError=userResult?.error;
+ if(userError)throw adminAuthOperationError('No se pudo confirmar la sesión administrativa. Inténtalo de nuevo.','ADMIN_AUTH_UNAVAILABLE');
+ if(!user||user.id!==userId)throw adminAuthOperationError('La cuenta administrativa cambió o ya no tiene sesión válida.','ADMIN_AUTH_INVALID');
+ const {data:isAdmin,error:adminError}=await sb.rpc('is_store_admin');
+ if(!adminAuthOperationStillCurrent(userId,authEpoch))throw adminAuthOperationError('La sesión administrativa cambió. No se completó la operación.');
+ if(adminError)throw adminAuthOperationError('No se pudo confirmar la autorización administrativa. Inténtalo de nuevo.','ADMIN_AUTH_UNAVAILABLE');
+ if(isAdmin!==true)throw adminAuthOperationError('La cuenta ya no tiene autorización administrativa.','ADMIN_AUTH_INVALID');
+ return user;
+}
+async function verifyAdminCurrentPassword(user,password){
+ if(!user?.email||!supabase?.createClient)throw new Error('No se pudo validar la cuenta administrativa.');
+ const verifier=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}});
+ try{
+  const {data,error}=await verifier.auth.signInWithPassword({email:user.email,password});
+  if(error||data?.user?.id!==user.id)throw new Error('No se pudo verificar la contraseña actual.');
+ }finally{
+  try{await verifier.auth.signOut({scope:'local'})}catch(error){}
+ }
+}
+async function applyAdminPasswordUpdate(next,userId,authEpoch){
+ await assertCurrentAdminAuthorization(userId,authEpoch);
+ if(!adminAuthOperationStillCurrent(userId,authEpoch))throw adminAuthOperationError('La sesión cambió antes del cambio de contraseña.');
+ const update=await sb.auth.updateUser({password:next});
+ if(!adminAuthOperationStillCurrent(userId,authEpoch))throw adminAuthOperationError('La sesión cambió durante el cambio. No se cerraron sesiones de otra cuenta.');
+ if(update.error)throw new Error('Supabase Auth rechazó el cambio. Revisa la política de contraseña del proyecto e inténtalo de nuevo.');
+ await assertCurrentAdminAuthorization(userId,authEpoch);
+ if(!adminAuthOperationStillCurrent(userId,authEpoch))return;
+ let sessionNote='';
+ try{
+  if(!adminAuthOperationStillCurrent(userId,authEpoch))return;
+  const closed=await sb.auth.signOut({scope:'others'});
+  if(!adminAuthOperationStillCurrent(userId,authEpoch))return;
+  if(closed.error)sessionNote=' No se pudo confirmar el cierre de otras sesiones; revísalo desde Supabase Auth.';
+ }catch(error){
+  if(!adminAuthOperationStillCurrent(userId,authEpoch))return;
+  sessionNote=' No se pudo confirmar el cierre de otras sesiones; revísalo desde Supabase Auth.';
+ }
+ if(!adminAuthOperationStillCurrent(userId,authEpoch))return;
+ adminPasswordRecoveryMode=false;
+ const currentField=$('adminCurrentPasswordField');if(currentField)currentField.classList.remove('hidden');
+ setAdminSecurityStatus('Contraseña actualizada con Supabase Auth.'+sessionNote,sessionNote?'':'ok');
+}
+async function changeAdminPassword(){
+ if(!adminSessionAuthorized||!adminSessionUserId)return setAdminSecurityStatus('No hay una sesión administrativa autorizada.','err');
+ const current=$('currentAdminPassword')?.value||'',next=$('newAdminPassword')?.value||'',confirmation=$('confirmAdminPassword')?.value||'';
+ const recoveryMode=adminPasswordRecoveryMode,userId=adminSessionUserId,authEpoch=adminAuthEpoch;
+ const validation=validateAdminPasswordInputs(current,next,confirmation,!recoveryMode);
+ if(validation)return setAdminSecurityStatus(validation,'err');
+ const button=$('changeAdminPasswordBtn');if(button)button.disabled=true;
+ setAdminSecurityStatus('Verificando la cuenta y actualizando la contraseña…');
+ try{
+  const user=await assertCurrentAdminAuthorization(userId,authEpoch);
+  if(!adminAuthOperationStillCurrent(userId,authEpoch))return;
+  if(!recoveryMode){
+   await verifyAdminCurrentPassword(user,current);
+   if(!adminAuthOperationStillCurrent(userId,authEpoch))return;
+  }
+  const mfa=sb.auth.mfa;
+  if(typeof mfa?.getAuthenticatorAssuranceLevel!=='function')throw new Error('No se pudo comprobar el nivel de seguridad de Auth. La contraseña no se cambió.');
+  const assurance=await mfa.getAuthenticatorAssuranceLevel();
+  if(!adminAuthOperationStillCurrent(userId,authEpoch))return;
+  const currentLevel=assurance?.data?.currentLevel,nextLevel=assurance?.data?.nextLevel;
+  if(assurance?.error||!['aal1','aal2'].includes(currentLevel)||!['aal1','aal2'].includes(nextLevel))throw new Error('No se pudo comprobar el nivel de seguridad de Auth. La contraseña no se cambió.');
+  if(nextLevel==='aal2'&&currentLevel!=='aal2')throw new Error('Completa la verificación MFA requerida antes de cambiar la contraseña.');
+  await assertCurrentAdminAuthorization(userId,authEpoch);
+  if(!adminAuthOperationStillCurrent(userId,authEpoch))return;
+  await applyAdminPasswordUpdate(next,userId,authEpoch);
+ }catch(error){
+  if(!adminAuthOperationStillCurrent(userId,authEpoch))return;
+  setAdminSecurityStatus(error?.message||'No se pudo actualizar la contraseña.','err');
+  if(error?.code==='ADMIN_AUTH_INVALID'){
+   lockAdminPanel('La cuenta no está autorizada para administrar la tienda.');
+   void sb.auth.signOut({scope:'local'}).catch(()=>{});
+  }
+ }finally{
+  if(adminAuthOperationStillCurrent(userId,authEpoch)){
+   for(const id of ['currentAdminPassword','newAdminPassword','confirmAdminPassword']){const field=$(id);if(field)field.value=''}
+   if(button)button.disabled=false;
+  }
+ }
+}
+async function closeAllAdminSessions(){
+ if(!adminSessionAuthorized||!adminSessionUserId)return setAdminSecurityStatus('No hay una sesión administrativa autorizada.','err');
+ const userId=adminSessionUserId,authEpoch=adminAuthEpoch;
+ if(!confirm('Se revocarán las sesiones de renovación en este dispositivo y los demás. Los tokens de acceso ya emitidos pueden seguir válidos hasta su vencimiento. ¿Continuar?'))return;
+ try{
+  await assertCurrentAdminAuthorization(userId,authEpoch);
+  if(!adminAuthOperationStillCurrent(userId,authEpoch))return;
+  const {error}=await sb.auth.signOut({scope:'global'});
+  if(error)throw error;
+  location.reload();
+ }catch(error){
+  if(!adminAuthOperationStillCurrent(userId,authEpoch))return;
+  setAdminSecurityStatus(error?.message||'No se pudo confirmar el cierre de todas las sesiones. Inténtalo de nuevo.','err');
+  if(error?.code==='ADMIN_AUTH_INVALID'){
+   lockAdminPanel('La cuenta no está autorizada para administrar la tienda.');
+   void sb.auth.signOut({scope:'local'}).catch(()=>{});
+  }
+ }
+}
 async function startApp(){
- if(adminStartBusy)return;adminStartBusy=true;const authEpoch=adminAuthEpoch;
+ if(adminStartBusy){adminStartPending=true;return}adminStartBusy=true;const authEpoch=adminAuthEpoch;
  try{
   const {data:{user},error:userError}=await sb.auth.getUser();
   if(userError||!user)throw userError||new Error('No se pudo confirmar la sesión.');
@@ -1180,30 +1511,32 @@ async function startApp(){
   if(adminError)throw adminError;
   if(authEpoch!==adminAuthEpoch)return;
   if(isAdmin!==true){lockAdminPanel('Esta cuenta no está autorizada para entrar al panel administrativo.');await sb.auth.signOut({scope:'local'});return}
+  const {data:{user:confirmedUser},error:confirmedUserError}=await sb.auth.getUser();
+  if(authEpoch!==adminAuthEpoch)return;
+  if(confirmedUserError||!confirmedUser||confirmedUser.id!==user.id){lockAdminPanel('La cuenta cambió durante la validación. Inicia sesión nuevamente.');await sb.auth.signOut({scope:'local'});return}
   $('retryLogout').classList.add('hidden');
   adminSessionAuthorized=true;adminSessionUserId=user.id;
   $("loginScreen").classList.add("hidden");$("app").classList.remove("hidden");
   startAdminCatalogRealtime();
   $("accountEmail").textContent=user.email||"Cuenta de negocio";
- const meta=user?.user_metadata||{};
- if(meta.jm_brand_name)brandName=meta.jm_brand_name;
- if(meta.jm_brand_icon_path){
-   brandIconPath=meta.jm_brand_icon_path;
-   brandIcon=publicWorkerImage(brandIconPath);
- }else if(meta.jm_brand_icon){
-   // Compatibilidad con versiones anteriores: convierte rutas de Supabase a la URL de R2.
-   brandIcon=publicWorkerImage(meta.jm_brand_icon);
- }else if(brandIconPath){
-   brandIcon=publicWorkerImage(brandIconPath);
- }else if(brandIcon){
-   brandIcon=publicWorkerImage(brandIcon);
- }
- localStorage.setItem("jm_brand_name",brandName);localStorage.setItem("jm_brand_icon",brandIcon);localStorage.setItem("jm_brand_icon_path",brandIconPath);applyBrand();
-  $("vFecha").value=new Date().toISOString().slice(0,10);$("gFecha").value=new Date().toISOString().slice(0,10);setDateText();await cargarTodo();setInventoryMode(inventoryMode,false);
+  const securityEmail=$('securityAccountEmail');if(securityEmail)securityEmail.textContent=user.email||"Cuenta de negocio";
+ loadAdminBrandForUser(user);
+  $("vFecha").value=new Date().toISOString().slice(0,10);$("gFecha").value=new Date().toISOString().slice(0,10);setDateText();
+  void cargarTodo(user.id,authEpoch).then(()=>{if(adminAuthOperationStillCurrent(user.id,authEpoch))setInventoryMode(inventoryMode,false)}).catch(loadError=>{
+   if(!adminAuthOperationStillCurrent(user.id,authEpoch))return;
+   console.error('No se pudo cargar el dashboard administrativo:',loadError);
+   lockAdminPanel('No se pudieron cargar los datos. Comprueba la conexión y vuelve a entrar.');
+  });
+  if(authEpoch!==adminAuthEpoch||!adminSessionAuthorized)return;
+  if(adminPasswordRecoveryMode){const currentField=$('adminCurrentPasswordField');if(currentField)currentField.classList.add('hidden');setAdminSecurityStatus('El enlace de recuperación fue validado. Define y confirma tu nueva contraseña para finalizar.','ok');show('config',document.querySelector('.navbtn[data-view="config"]'))}
  }catch(error){
+  if(authEpoch!==adminAuthEpoch)return;
   console.error('No se pudo iniciar el panel administrativo:',error);
   lockAdminPanel('No se pudo validar tu autorización. Comprueba la conexión y vuelve a intentarlo.');
- }finally{adminStartBusy=false;}
+ }finally{
+  adminStartBusy=false;
+  if(adminStartPending){adminStartPending=false;setTimeout(()=>{void startApp();},0);}
+ }
 }
 function setDateText(){const d=new Date();$("todayText").textContent=d.toLocaleDateString("es-CO",{weekday:"long",day:"numeric",month:"long",year:"numeric"})}
 function show(id,btn){
@@ -1315,66 +1648,90 @@ function setOrdersUpdatedAt(date=new Date()){
  const status=$("ordersLastUpdated");
  if(status)status.textContent='Última actualización: '+date.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'});
 }
-let cargarTodoBusy=false;
-async function cargarTodo(){
- if(cargarTodoBusy)return;
- cargarTodoBusy=true;
+const adminDashboardLoadPromises=new Map();
+function adminDashboardLoadIsBusy(userId=adminSessionUserId,authEpoch=adminAuthEpoch){return adminDashboardLoadPromises.has(JSON.stringify([String(userId||''),authEpoch]))}
+async function cargarTodo(userId=adminSessionUserId,authEpoch=adminAuthEpoch){
+ userId=String(userId||'');
+ if(!userId||!adminAuthOperationStillCurrent(userId,authEpoch))return false;
+ const loadKey=JSON.stringify([userId,authEpoch]),existing=adminDashboardLoadPromises.get(loadKey);
+ if(existing)return existing;
+ const deferredSnapshot={...adminDeferredModuleLoaded};
  const previousErrors={...moduleLoadErrors};
- try{
+ const isCurrent=()=>adminAuthOperationStillCurrent(userId,authEpoch);
+ const loadPromise=Promise.resolve().then(async()=>{
   const skipped={deferred:true,data:null,error:null};
-  const [p,v,c,pr,g,m,o,avail]=await Promise.all([
-   fetchAllTableRows("products","created_at",false),
-   fetchAllTableRows("sales","created_at",false),
-   adminDeferredModuleLoaded.clients?fetchAllTableRows("clients","name",true):Promise.resolve(skipped),
-   adminDeferredModuleLoaded.suppliers?fetchAllTableRows("suppliers","name",true):Promise.resolve(skipped),
-   adminDeferredModuleLoaded.expenses?fetchAllTableRows("expenses","expense_date",false):Promise.resolve(skipped),
-   adminDeferredModuleLoaded.movements?fetchAllTableRows("inventory_movements","created_at",false):Promise.resolve(skipped),
-   adminDeferredModuleLoaded.orders?fetchAllTableRows("web_orders","created_at",false):Promise.resolve(skipped),
-   sb.rpc("get_public_catalog")
-  ]);
-  if(p.error||v.error){alert("No se pudieron cargar inventario o ventas. Revisa la conexión y los permisos SQL/RLS en Supabase.");return}
-  const availabilityMap=new Map((!avail?.error?(avail?.data||[]):[]).map(x=>[String(x.id),x]));
-  productos=(p.data||[]).map(raw=>{
+  try{
+   const [p,v,c,pr,g,m,o,avail]=await Promise.all([
+    fetchAllTableRows("products","created_at",false),
+    fetchAllTableRows("sales","created_at",false),
+    deferredSnapshot.clients?fetchAllTableRows("clients","name",true):Promise.resolve(skipped),
+    deferredSnapshot.suppliers?fetchAllTableRows("suppliers","name",true):Promise.resolve(skipped),
+    deferredSnapshot.expenses?fetchAllTableRows("expenses","expense_date",false):Promise.resolve(skipped),
+    deferredSnapshot.movements?fetchAllTableRows("inventory_movements","created_at",false):Promise.resolve(skipped),
+    deferredSnapshot.orders?fetchAllTableRows("web_orders","created_at",false):Promise.resolve(skipped),
+    sb.rpc("get_public_catalog")
+   ]);
+   if(!isCurrent())return false;
+   if(p.error||v.error){alert("No se pudieron cargar inventario o ventas. Revisa la conexión y los permisos SQL/RLS en Supabase.");return false}
+   try{await assertCurrentAdminAuthorization(userId,authEpoch)}catch(authError){
+    if(!isCurrent())return false;
+    lockAdminPanel('No se pudo volver a confirmar la autorización administrativa. Vuelve a entrar.');
+    if(authError?.code==='ADMIN_AUTH_INVALID')void sb.auth.signOut({scope:'local'}).catch(()=>{});
+    return false;
+   }
+   if(!isCurrent())return false;
+   const availabilityMap=new Map((!avail?.error?(avail?.data||[]):[]).map(x=>[String(x.id),x]));
+   const nextProducts=(p.data||[]).map(raw=>{
     const current=availabilityMap.get(String(raw.id));
     return {...raw,availableQuantity:current?Math.max(0,Number(current.quantity)||0):Math.max(0,Number(raw.quantity)||0),availableVariants:current?parseVariants(current.variants):parseVariants(raw.variants)};
-  });
-  ventas=v.data||[];
-  moduleLoadErrors={};
-  for(const key of ['clients','suppliers','expenses','movements','orders']){
-   const result=({clients:c,suppliers:pr,expenses:g,movements:m,orders:o})[key];
-   if(result?.deferred){if(previousErrors[key])moduleLoadErrors[key]=previousErrors[key];continue}
-   const table=({clients:'clients',suppliers:'suppliers',expenses:'expenses',movements:'inventory_movements',orders:'web_orders'})[key];
-   if(result?.error){moduleLoadErrors[key]=describeAdminTableError(table,result.error);continue}
-   const data=result?.data||[];
-   if(key==='clients'){clientes=data;adminDeferredModuleLoaded.clients=true}
-   if(key==='suppliers'){proveedores=data;adminDeferredModuleLoaded.suppliers=true}
-   if(key==='expenses'){gastos=data;adminDeferredModuleLoaded.expenses=true}
-   if(key==='movements'){movimientos=data;adminDeferredModuleLoaded.movements=true}
-   if(key==='orders'){pedidos=data;adminDeferredModuleLoaded.orders=true;setOrdersUpdatedAt()}
-   if(result?.orderMode&&result.orderMode!=='stable')console.warn('Módulo '+key+' se cargó usando orden alternativo:',result.orderMode);
+   });
+   const nextSales=v.data||[],nextModuleLoadErrors={},loadedData={};
+   for(const key of ['clients','suppliers','expenses','movements','orders']){
+    const result=({clients:c,suppliers:pr,expenses:g,movements:m,orders:o})[key];
+    if(result?.deferred){const currentError=moduleLoadErrors[key]||previousErrors[key];if(currentError)nextModuleLoadErrors[key]=currentError;continue}
+    const table=({clients:'clients',suppliers:'suppliers',expenses:'expenses',movements:'inventory_movements',orders:'web_orders'})[key];
+    if(result?.error){nextModuleLoadErrors[key]=describeAdminTableError(table,result.error);continue}
+    loadedData[key]=result?.data||[];
+    if(result?.orderMode&&result.orderMode!=='stable')console.warn('Módulo '+key+' se cargó usando orden alternativo:',result.orderMode);
+   }
+   if(!isCurrent())return false;
+   productos=nextProducts;ventas=nextSales;moduleLoadErrors=nextModuleLoadErrors;
+   if(Object.hasOwn(loadedData,'clients')){clientes=loadedData.clients;adminDeferredModuleLoaded.clients=true}
+   if(Object.hasOwn(loadedData,'suppliers')){proveedores=loadedData.suppliers;adminDeferredModuleLoaded.suppliers=true}
+   if(Object.hasOwn(loadedData,'expenses')){gastos=loadedData.expenses;adminDeferredModuleLoaded.expenses=true}
+   if(Object.hasOwn(loadedData,'movements')){movimientos=loadedData.movements;adminDeferredModuleLoaded.movements=true}
+   if(Object.hasOwn(loadedData,'orders')){pedidos=loadedData.orders;adminDeferredModuleLoaded.orders=true;setOrdersUpdatedAt()}
+   if(avail?.error)console.warn("No se pudo calcular disponibilidad reservada; se mostrará el stock físico.",avail.error);
+   populateFilters();renderInicio();renderProductos();renderVentas();renderReportes();refrescarSelects();renderVentaCatalogo();
+   if(adminDeferredModuleLoaded.clients)renderClientes();
+   if(adminDeferredModuleLoaded.suppliers)renderProveedores();
+   if(adminDeferredModuleLoaded.expenses)renderGastos();
+   if(adminDeferredModuleLoaded.movements)renderMovimientos();
+   if(adminDeferredModuleLoaded.orders)renderPedidos();
+   const errors=Object.keys(moduleLoadErrors).filter(key=>['clients','suppliers','expenses','movements','orders'].includes(key));
+   if(errors.length){console.error('Detalle de errores en módulos de Supabase:',errors.map(key=>({modulo:key,error:moduleLoadErrors[key]})));toast('No se cargaron algunos módulos. Ábrelos para consultar el detalle.');}
+   return true;
+  }catch(error){
+   if(isCurrent())throw error;
+   return false;
   }
-  if(avail?.error)console.warn("No se pudo calcular disponibilidad reservada; se mostrará el stock físico.",avail.error);
-  populateFilters();renderInicio();renderProductos();renderVentas();renderReportes();refrescarSelects();renderVentaCatalogo();
-  if(adminDeferredModuleLoaded.clients)renderClientes();
-  if(adminDeferredModuleLoaded.suppliers)renderProveedores();
-  if(adminDeferredModuleLoaded.expenses)renderGastos();
-  if(adminDeferredModuleLoaded.movements)renderMovimientos();
-  if(adminDeferredModuleLoaded.orders)renderPedidos();
-  const errors=Object.keys(moduleLoadErrors).filter(key=>['clients','suppliers','expenses','movements','orders'].includes(key));
-  if(errors.length){console.error('Detalle de errores en módulos de Supabase:',errors.map(key=>({modulo:key,error:moduleLoadErrors[key]})));toast('No se cargaron algunos módulos. Ábrelos para consultar el detalle.');}
- }finally{cargarTodoBusy=false}
+ });
+ adminDashboardLoadPromises.set(loadKey,loadPromise);
+ try{return await loadPromise}finally{if(adminDashboardLoadPromises.get(loadKey)===loadPromise)adminDashboardLoadPromises.delete(loadKey)}
 }
 
 function adminViewNeedsLiveAvailability(){
  const active=document.querySelector('.view.active');
  return !!active&&['inicio','inventario','ventas','producto'].includes(active.id);
 }
-let availabilityRefreshBusy=false;
 async function refreshPublicAvailability(){
- if(!sb||availabilityRefreshBusy||document.hidden||document.getElementById("app")?.classList.contains("hidden")||!adminViewNeedsLiveAvailability())return;
+ const userId=adminSessionUserId,authEpoch=adminAuthEpoch;
+ if(!sb||availabilityRefreshBusy||document.hidden||document.getElementById("app")?.classList.contains("hidden")||!adminViewNeedsLiveAvailability()||!adminAuthOperationStillCurrent(userId,authEpoch))return;
+ const token=++availabilityRefreshToken,isCurrent=()=>token===availabilityRefreshToken&&adminAuthOperationStillCurrent(userId,authEpoch);
  availabilityRefreshBusy=true;
  try{
    const {data,error}=await sb.rpc("get_public_catalog");
+   if(!isCurrent())return;
    if(error)throw error;
    const rows=Array.isArray(data)?data:[];
    const map=new Map(rows.map(x=>[String(x.id),x]));
@@ -1384,9 +1741,10 @@ async function refreshPublicAvailability(){
    if(productSetChanged){
      // get_public_catalog solo contiene campos públicos. Si entró/salió un producto,
      // recargar la tabla completa para conservar coste, ubicación y campos del admin.
-     if(!cargarTodoBusy)await cargarTodo();
+     if(!adminDashboardLoadIsBusy())await cargarTodo(userId,authEpoch);
      return;
    }
+   if(!isCurrent())return;
    let changed=false;
    productos=productos.map(p=>{
      const x=map.get(String(p.id));
@@ -1404,37 +1762,61 @@ async function refreshPublicAvailability(){
      return merged;
    });
    if(changed){renderProductos();refrescarSelects();renderVentaCatalogo();renderInicio();renderReportes();}
- }catch(e){console.warn("No se pudo actualizar la disponibilidad de reservas.",e)}
- finally{availabilityRefreshBusy=false}
+ }catch(e){if(isCurrent())console.warn("No se pudo actualizar la disponibilidad de reservas.",e)}
+ finally{if(token===availabilityRefreshToken)availabilityRefreshBusy=false}
 }
 
-let cargarPedidosBusy=false;
+const cargarPedidosInFlight=new Map();
 async function cargarPedidos(){
-  if(!sb||cargarPedidosBusy)return;
-  cargarPedidosBusy=true;
+  const userId=adminSessionUserId,authEpoch=adminAuthEpoch;
+  if(!sb||!adminAuthOperationStillCurrent(userId,authEpoch))return false;
+  const requestKey=JSON.stringify([userId,authEpoch]),existing=cargarPedidosInFlight.get(requestKey);
+  if(existing)return existing;
   const button=$("refreshOrdersBtn");
   const originalText=button?.textContent||'↻ Actualizar pedidos';
-  if(button){button.disabled=true;button.textContent='⏳ Actualizando…'}
-  try{
-    const {data,error}=await fetchAllTableRows("web_orders","created_at",false);
-    if(error){
-      console.error("Error cargando pedidos:",error);
+  const isCurrent=()=>adminAuthOperationStillCurrent(userId,authEpoch);
+  const loadPromise=Promise.resolve().then(async()=>{
+    if(button){button.disabled=true;button.textContent='⏳ Actualizando…'}
+    try{
+      const {data,error}=await fetchAllTableRows("web_orders","created_at",false);
+      if(!isCurrent())return false;
+      try{await assertCurrentAdminAuthorization(userId,authEpoch)}catch(authError){
+        if(!isCurrent())return false;
+        lockAdminPanel('No se pudo volver a confirmar la autorización administrativa. Vuelve a entrar.');
+        if(authError?.code==='ADMIN_AUTH_INVALID')void sb.auth.signOut({scope:'local'}).catch(()=>{});
+        return false;
+      }
+      if(!isCurrent())return false;
+      if(error){
+        console.error("Error cargando pedidos:",error);
+        toast("No se pudieron actualizar los pedidos. Se conserva la lista anterior.");
+        renderPedidos();
+        return false;
+      }
+      pedidos=data||[];
+      adminDeferredModuleLoaded.orders=true;delete moduleLoadErrors.orders;
+      setOrdersUpdatedAt();
+      renderPedidos();
+      return true;
+    }catch(fetchError){
+      if(!isCurrent())return false;
+      try{await assertCurrentAdminAuthorization(userId,authEpoch)}catch(authError){
+        if(!isCurrent())return false;
+        lockAdminPanel('No se pudo volver a confirmar la autorización administrativa. Vuelve a entrar.');
+        if(authError?.code==='ADMIN_AUTH_INVALID')void sb.auth.signOut({scope:'local'}).catch(()=>{});
+        return false;
+      }
+      if(!isCurrent())return false;
+      console.error("Error inesperado actualizando pedidos:",fetchError);
       toast("No se pudieron actualizar los pedidos. Se conserva la lista anterior.");
       renderPedidos();
-      return;
+      return false;
+    }finally{
+      if(isCurrent()&&button){button.disabled=false;button.textContent=originalText}
     }
-    pedidos=data||[];
-    adminDeferredModuleLoaded.orders=true;delete moduleLoadErrors.orders;
-    setOrdersUpdatedAt();
-    renderPedidos();
-  }catch(fetchError){
-    console.error("Error inesperado actualizando pedidos:",fetchError);
-    toast("No se pudieron actualizar los pedidos. Se conserva la lista anterior.");
-    renderPedidos();
-  }finally{
-    cargarPedidosBusy=false;
-    if(button){button.disabled=false;button.textContent=originalText}
-  }
+  });
+  cargarPedidosInFlight.set(requestKey,loadPromise);
+  try{return await loadPromise}finally{if(cargarPedidosInFlight.get(requestKey)===loadPromise)cargarPedidosInFlight.delete(requestKey)}
 }
 
 function pedidoEstado(p){
@@ -1590,10 +1972,13 @@ function applyDefaultSirevyaCategoryOrder(categories,allowLegacyDefault=true){
   return clean;
 }
 async function loadCategoriesFromTable(){
+  const userId=adminSessionUserId,authEpoch=adminAuthEpoch,isCurrent=()=>adminAuthOperationStillCurrent(userId,authEpoch);
+  if(!sb||!isCurrent())return [];
   const select=$("pCategoria");
   if(select)select.disabled=true;
   try{
     const {data,error}=await sb.from("categories").select("id,name,sort_order").order("sort_order",{ascending:true}).order("id",{ascending:true});
+    if(!isCurrent())return [];
     if(error)throw error;
     categoryRecords=(data||[]).map(x=>({...x,name:String(x.name||"").trim(),sort_order:Number(x.sort_order)||0})).filter(x=>x.name);
     const cloud=categoryRecords.map(x=>x.name);
@@ -1606,6 +1991,7 @@ async function loadCategoriesFromTable(){
     const st=$("categoryLoadStatus");if(st)st.textContent=categorias.length?`${categorias.length} disponible${categorias.length===1?"":"s"}`:"No hay categorías";
     return categorias;
   }catch(error){
+    if(!isCurrent())return [];
     console.error("No se pudieron cargar las categorías:",error);
     const fromProducts=productos.map(p=>String(p.category||"").trim()).filter(Boolean);
     let fromLocal=[];try{fromLocal=JSON.parse(localStorage.getItem("jm_categories")||"[]")}catch{}
@@ -1613,11 +1999,14 @@ async function loadCategoriesFromTable(){
     refreshCategorySelects();
     const st=$("categoryLoadStatus");if(st)st.textContent=categorias.length?"Usando categorías disponibles":"No hay categorías";
     return categorias;
-  }finally{if(select)select.disabled=false;}
+  }finally{if(isCurrent()&&select)select.disabled=false;}
 }
 
 async function addCategoryFromProduct(){
+  const userId=adminSessionUserId,authEpoch=adminAuthEpoch,isCurrent=()=>adminAuthOperationStillCurrent(userId,authEpoch);
+  if(!isCurrent())return false;
   const name=(prompt("Nombre de la nueva categoría:")||"").trim();
+  if(!isCurrent())return false;
   if(!name)return;
   if(name.length>40)return alert("El nombre de la categoría no puede superar 40 caracteres.");
   if(categorias.some(c=>c.toLowerCase()===name.toLowerCase())){
@@ -1626,25 +2015,36 @@ async function addCategoryFromProduct(){
   }
   try{
     await insertCategorySafely(name);
+    if(!isCurrent())return false;
     await loadCategoriesFromTable();
-    $("pCategoria").value=name;
+    if(!isCurrent())return false;
+    const select=$("pCategoria");if(select)select.value=name;
     toast("Categoría creada y seleccionada");
-  }catch(error){alert("No se pudo guardar la categoría: "+(error.message||error))}
+    return true;
+  }catch(error){if(!isCurrent())return false;alert("No se pudo guardar la categoría: "+(error.message||error));return false}
 }
 async function saveCategoriesCloud(){
+  const userId=adminSessionUserId,authEpoch=adminAuthEpoch,isCurrent=()=>adminAuthOperationStillCurrent(userId,authEpoch);
+  if(!isCurrent())return false;
   try{
     await loadCategoriesFromTable();
-    return true;
+    return isCurrent();
   }catch(e){
+    if(!isCurrent())return false;
     console.warn(e);
     return false;
   }
 }
 async function syncCategoriesCloud(){
+  const userId=adminSessionUserId,authEpoch=adminAuthEpoch,isCurrent=()=>adminAuthOperationStillCurrent(userId,authEpoch);
+  if(!isCurrent())return false;
   try{
     await loadCategoriesFromTable();
+    return isCurrent();
   }catch(e){
+    if(!isCurrent())return false;
     toast(e.message||"No se pudieron cargar las categorías");
+    return false;
   }
 }
 function saveCategoriesLocal(){localStorage.setItem("jm_categories",JSON.stringify(categorias))}
@@ -1668,7 +2068,8 @@ function renderCategoryManager(){
     </span></div>`).join("")||'<div class="empty">Todavía no hay categorías.</div>';
 }
 async function reorderCategory(index,delta){
- if(categoryOrderSaving)return;
+ const userId=adminSessionUserId,authEpoch=adminAuthEpoch,isCurrent=()=>adminAuthOperationStillCurrent(userId,authEpoch);
+ if(!isCurrent()||categoryOrderSaving)return false;
  if(!Number.isInteger(index)||!Number.isInteger(delta))return;
  const target=index+delta;
  if(index<0||target<0||index>=categorias.length||target>=categorias.length)return;
@@ -1685,25 +2086,34 @@ async function reorderCategory(index,delta){
  try{
    // Espaciado estable para sort_order; la página pública ya consulta esta columna.
    for(let i=0;i<orderedRows.length;i++){
+     if(!isCurrent())return false;
      const row=orderedRows[i];
      const result=await sb.from('categories').update({sort_order:(i+1)*100}).eq('id',row.id).select('id').maybeSingle();
+     if(!isCurrent())return false;
      if(result.error)throw result.error;
      if(!result.data?.id)throw new Error('Supabase no confirmó el cambio de orden de la categoría "'+row.name+'". Revisa los permisos de edición de categories.');
    }
+   if(!isCurrent())return false;
    categorias=reordered;saveCategoriesLocal();
    await loadCategoriesFromTable();
+   if(!isCurrent())return false;
    toast('Orden de categorías guardado. El catálogo público lo usará al actualizar.');
+   return true;
  }catch(error){
+   if(!isCurrent())return false;
    console.error('No se pudo guardar el orden de categorías:',error);
    // Si falló a mitad del guardado, intentar restaurar los valores originales para
    // evitar dejar la categoría ordenada solo parcialmente.
    for(const row of orderedRows){
-     try{await sb.from('categories').update({sort_order:originalSortOrders.get(String(row.id))}).eq('id',row.id)}catch(rollbackError){console.warn('No se pudo restaurar sort_order de',row.name,rollbackError)}
+     if(!isCurrent())return false;
+     try{await sb.from('categories').update({sort_order:originalSortOrders.get(String(row.id))}).eq('id',row.id);if(!isCurrent())return false}catch(rollbackError){if(!isCurrent())return false;console.warn('No se pudo restaurar sort_order de',row.name,rollbackError)}
    }
    await loadCategoriesFromTable();
+   if(!isCurrent())return false;
    alert('No se pudo guardar el orden de categorías. Se intentó restaurar el orden anterior y se volvió a cargar el estado disponible. Detalle: '+(error?.message||String(error)));
+   return false;
  }finally{
-   categoryOrderSaving=false;renderCategoryManager();
+   if(isCurrent()){categoryOrderSaving=false;renderCategoryManager()}
  }
 }
 async function insertCategorySafely(name){
@@ -1720,23 +2130,32 @@ async function insertCategorySafely(name){
  throw new Error(message||'No se pudo guardar la categoría.');
 }
 async function addCategory(){
+  const userId=adminSessionUserId,authEpoch=adminAuthEpoch,isCurrent=()=>adminAuthOperationStillCurrent(userId,authEpoch);
+  if(!isCurrent())return false;
   const input=$("newCategoryName"),name=(input?.value||"").trim();
   if(!name)return alert("Escribe el nombre de la categoría.");
   if(name.length>40)return alert("El nombre de la categoría no puede superar 40 caracteres.");
   if(categorias.some(c=>c.toLowerCase()===name.toLowerCase()))return alert("Esa categoría ya existe.");
   try{
     await insertCategorySafely(name);
+    if(!isCurrent())return false;
     input.value="";
     await loadCategoriesFromTable();
+    if(!isCurrent())return false;
     toast("Categoría agregada y sincronizada");
-  }catch(error){alert("No se pudo guardar la categoría: "+(error.message||error))}
+    return true;
+  }catch(error){if(!isCurrent())return false;alert("No se pudo guardar la categoría: "+(error.message||error));return false}
 }
 async function renameCategory(oldName){
+ const userId=adminSessionUserId,authEpoch=adminAuthEpoch,isCurrent=()=>adminAuthOperationStillCurrent(userId,authEpoch);
+ if(!isCurrent())return false;
  const newName=(prompt("Nuevo nombre para la categoría:",oldName)||"").trim();
+ if(!isCurrent())return false;
  if(!newName||newName===oldName)return;
  if(categorias.some(c=>c.toLowerCase()===newName.toLowerCase()))return alert("Ya existe una categoría con ese nombre.");
  let result;
- try{result=await sb.rpc('admin_rename_category',{p_old_name:oldName,p_new_name:newName})}catch(error){result={error}}
+ try{result=await sb.rpc('admin_rename_category',{p_old_name:oldName,p_new_name:newName})}catch(error){if(!isCurrent())return false;result={error}}
+ if(!isCurrent())return false;
  if(result?.error){
    const message=String(result.error.message||'');
    const missingRpc=result.error.code==='PGRST202'||/could not find the function|function .* does not exist|schema cache/i.test(message);
@@ -1746,12 +2165,15 @@ async function renameCategory(oldName){
  }
  const data=Array.isArray(result.data)?result.data[0]:result.data;
  if(!data?.success)return alert(data?.message||'No se pudo renombrar la categoría. No se cambiaron los productos.');
- await loadCategoriesFromTable();await cargarTodo();toast('Categoría renombrada y sincronizada');
+ await loadCategoriesFromTable();if(!isCurrent())return false;await cargarTodo(userId,authEpoch);if(!isCurrent())return false;toast('Categoría renombrada y sincronizada');return true;
 }
 async function deleteCategory(name){
- if(!confirm(`¿Eliminar la categoría "${name}"?`))return;
+ const userId=adminSessionUserId,authEpoch=adminAuthEpoch,isCurrent=()=>adminAuthOperationStillCurrent(userId,authEpoch);
+ if(!isCurrent()||!confirm(`¿Eliminar la categoría "${name}"?`))return false;
+ if(!isCurrent())return false;
  let result;
- try{result=await sb.rpc('admin_delete_category',{p_name:name})}catch(error){result={error}}
+ try{result=await sb.rpc('admin_delete_category',{p_name:name})}catch(error){if(!isCurrent())return false;result={error}}
+ if(!isCurrent())return false;
  if(result?.error){
    const message=String(result.error.message||'');
    const missingRpc=result.error.code==='PGRST202'||/could not find the function|function .* does not exist|schema cache/i.test(message);
@@ -1761,7 +2183,7 @@ async function deleteCategory(name){
  }
  const data=Array.isArray(result.data)?result.data[0]:result.data;
  if(!data?.success)return alert(data?.message||'No se pudo eliminar la categoría.');
- await loadCategoriesFromTable();toast('Categoría eliminada y sincronizada');
+ await loadCategoriesFromTable();if(!isCurrent())return false;toast('Categoría eliminada y sincronizada');return true;
 }
 async function nextCode(cat){
  const pr=categoryPrefix(cat);
@@ -1775,19 +2197,22 @@ function esErrorCodigoDuplicado(error){
  const t=String(error?.message||"").toLowerCase();
  return error?.code==="23505" || t.includes("duplicate key") || t.includes("products_user_code_idx") || t.includes("unique constraint");
 }
-async function uploadProductImages(productId, files, userId){
+async function uploadProductImages(productId, files, userId,isCurrent=()=>true){
+ ensureAdminOperationCurrent(isCurrent);
  if(!files?.length)return [];
  // product_images es opcional en algunos esquemas antiguos. Verificarlo ANTES de subir
  // varias fotos evita dejar objetos R2 sin referencia. Sin esa tabla guardamos una sola
  // foto principal en products.image_url y explicamos la limitación sin perder la foto.
  const probe=await sb.from("product_images").select("image_path").limit(1);
+ ensureAdminOperationCurrent(isCurrent);
  if(probe.error&&isMissingTableError(probe.error,"product_images")){
    const file=files[0];
    const ext=(file.name.split(".").pop()||"jpg").toLowerCase();
    const path=`products/${productId}/${crypto.randomUUID()}.${ext}`;
-   const uploaded=await uploadImageToR2(path,file);
+   const uploaded=await uploadImageToR2(path,file,isCurrent);ensureAdminOperationCurrent(isCurrent);
    const key=uploaded.key||path;
    const {error}=await sb.from("products").update({image_url:key}).eq("id",productId);
+   ensureAdminOperationCurrent(isCurrent);
    if(error)throw new Error("La foto se subió a R2, pero no se pudo guardar como foto principal: "+error.message);
    toast(files.length>1?"Se guardó la foto principal. La galería múltiple requiere la tabla opcional product_images; no se subieron las otras fotos.":"Foto principal guardada.");
    return [{product_id:productId,user_id:userId,image_path:key,sort_order:0,primaryFallback:true}];
@@ -1798,10 +2223,10 @@ async function uploadProductImages(productId, files, userId){
    const file=files[i];
    const ext=(file.name.split(".").pop()||"jpg").toLowerCase();
    const path=`products/${productId}/${crypto.randomUUID()}.${ext}`;
-   const uploaded=await uploadImageToR2(path,file);
+   const uploaded=await uploadImageToR2(path,file,isCurrent);ensureAdminOperationCurrent(isCurrent);
    added.push({product_id:productId,user_id:userId,image_path:uploaded.key||path,sort_order:i});
  }
- if(added.length){const ins=await sb.from("product_images").insert(added);if(ins.error)throw new Error("No se pudieron guardar las fotos adicionales: "+ins.error.message);}
+ if(added.length){const ins=await sb.from("product_images").insert(added);ensureAdminOperationCurrent(isCurrent);if(ins.error)throw new Error("No se pudieron guardar las fotos adicionales: "+ins.error.message);}
  return added;
 }
 let productPreviewObjectUrls=[];
@@ -1825,7 +2250,9 @@ function renderPhotoPreview(){
  box.innerHTML=files.map((f,i)=>{const url=URL.createObjectURL(f);productPreviewObjectUrls.push(url);return `<div class="photoItem"><img src="${esc(url)}" alt="Foto nueva ${i+1}"><span>${editingId?'Nueva '+(i+1):(i===0?'Principal nueva':'Nueva '+(i+1))}</span></div>`}).join('');
 }
 async function loadExistingProductImages(productId,primaryImage){
+ const userId=adminSessionUserId,authEpoch=adminAuthEpoch;
  const token=++editingProductImageLoadToken;
+ if(!adminAuthOperationStillCurrent(userId,authEpoch))return;
  editingProductImages=[];editingProductImagesLoadError=null;
  const status=$("existingPhotoStatus"),box=$("existingPhotoPreview");
  if(box)box.innerHTML='';
@@ -1844,7 +2271,7 @@ async function loadExistingProductImages(productId,primaryImage){
   if(error)tableError=error;
   else (data||[]).forEach(row=>addPath(row.image_path,String(row.image_path||'')===String(primaryImage||''),true));
  }catch(error){tableError=error;}
- if(token!==editingProductImageLoadToken||String(editingId)!==String(productId))return;
+ if(!adminAuthOperationStillCurrent(userId,authEpoch)||token!==editingProductImageLoadToken||String(editingId)!==String(productId))return;
  const missingGalleryTable=!!tableError&&isMissingTableError(tableError,'product_images');
  editingProductImagesLoadError=tableError&&!missingGalleryTable?tableError:null;
  const normalized=[];const seen=new Set();
@@ -1879,24 +2306,32 @@ function removeSizeGuidePhoto(){
  editingSizeGuideImagePath="";sizeGuideImageRemoveRequested=true;
  renderSizeGuidePhotoPreview();
 }
-async function deleteSingleProductImageFromR2(productId,imagePath){
+async function deleteSingleProductImageFromR2(productId,imagePath,isCurrent=()=>true){
+ const operation=captureAdminOperationContext(isCurrent);isCurrent=operation.isCurrent;
+ ensureAdminOperationCurrent(isCurrent);
  const key=imageObjectKey(imagePath);
  // External URLs or legacy storage URLs do not belong to the R2 Worker.
  if(!key||/^https?:\/\//i.test(key)||!key.startsWith(`products/${productId}/`))return {skipped:true};
  const {data:{session}}=await sb.auth.getSession();
- if(!session?.access_token)throw new Error('Tu sesión caducó. Vuelve a iniciar sesión.');
+ assertAdminSessionUserMatches(session,operation);
  const url=IMAGE_WORKER_URL+'/_admin/image?key='+encodeURIComponent(key);
  const res=await fetch(url,{method:'DELETE',headers:{Authorization:'Bearer '+session.access_token},cache:'no-store'});
+ ensureAdminOperationCurrent(isCurrent);
  const body=await res.text();
+ ensureAdminOperationCurrent(isCurrent);
  if(!res.ok){let message=body;try{const parsed=JSON.parse(body);message=parsed.message||parsed.error||body}catch{};throw new Error(message||`No se pudo borrar la foto de Cloudflare R2 (${res.status}).`)}
  try{return JSON.parse(body)}catch{return {ok:true,deleted:1}}
 }
 async function eliminarFotoProducto(index){
+ const userId=adminSessionUserId,authEpoch=adminAuthEpoch,isCurrent=()=>adminAuthOperationStillCurrent(userId,authEpoch);
+ if(!sb||!isCurrent())return false;
  if(!editingId)return alert('Abre el producto en modo edición antes de eliminar una foto.');
  if(editingProductImagesLoadError)return alert('No se pudo leer la galería completa desde Supabase. No se ha borrado nada; vuelve a cargar el producto cuando la conexión esté estable.');
  const photo=editingProductImages[index];if(!photo)return;
  const productId=editingId;
- if(!confirm(`¿Eliminar únicamente esta foto de ${productos.find(x=>String(x.id)===String(productId))?.name||'este producto'}? Esta acción no se puede deshacer.`))return;
+ const imageToken=editingProductImageLoadToken,isEditorCurrent=()=>isCurrent()&&imageToken===editingProductImageLoadToken&&String(editingId)===String(productId);
+ if(!confirm(`¿Eliminar únicamente esta foto de ${productos.find(x=>String(x.id)===String(productId))?.name||'este producto'}? Esta acción no se puede deshacer.`))return false;
+ if(!isEditorCurrent()||editingProductImages[index]!==photo)return false;
  const product=productos.find(x=>String(x.id)===String(productId));
  const oldPrimary=product?.image_url||null;
  const removingPrimary=!!photo.isPrimary||String(oldPrimary||'')===String(photo.path);
@@ -1908,6 +2343,7 @@ async function eliminarFotoProducto(index){
   // That ensures the database never intentionally points at the deleted image.
   if(removingPrimary){
    const updated=await sb.from('products').update({image_url:nextPrimary}).eq('id',productId).select('id').maybeSingle();
+   if(!isEditorCurrent())return false;
    if(updated.error)throw new Error('No se pudo actualizar la foto principal en Supabase: '+updated.error.message);
    if(!updated.data)throw new Error('Supabase no confirmó la actualización de la foto principal. No se borró la imagen física.');
    primaryChanged=true;
@@ -1917,9 +2353,11 @@ async function eliminarFotoProducto(index){
    // con RLS puede devolver cero filas sin error; no debemos borrar R2 en ese caso.
    const removed=await sb.from('product_images').delete()
     .eq('product_id',productId).eq('image_path',photo.path).select('image_path');
+   if(!isEditorCurrent())return false;
    if(removed.error||!Array.isArray(removed.data)||removed.data.length===0){
     if(primaryChanged){
      const rollback=await sb.from('products').update({image_url:oldPrimary}).eq('id',productId);
+     if(!isEditorCurrent())return false;
      if(rollback.error)console.error('No se pudo restaurar la foto principal tras el error de galería:',rollback.error);
     }
     throw new Error(removed.error
@@ -1927,6 +2365,7 @@ async function eliminarFotoProducto(index){
      :'Supabase no confirmó que quitó la foto de la galería. No se borró el archivo de R2.');
    }
   }
+  if(!isEditorCurrent()||editingProductImages[index]!==photo)return false;
   if(primaryChanged&&product)product.image_url=nextPrimary;
   editingProductImages.splice(index,1);
   if(removingPrimary&&replacement){
@@ -1947,7 +2386,8 @@ async function eliminarFotoProducto(index){
   if(stillReferenced){
    cleanupWarning=' El archivo físico se conservó porque todavía está referenciado por una foto principal, una variante o una guía de tallas.';
   }else{
-   try{await deleteSingleProductImageFromR2(productId,photo.path)}catch(cleanupError){
+   try{await deleteSingleProductImageFromR2(productId,photo.path,isEditorCurrent);if(!isEditorCurrent())return false}catch(cleanupError){
+    if(!isEditorCurrent())return false;
     console.warn('La foto se quitó del producto, pero el archivo físico no pudo borrarse de R2:',cleanupError);
     cleanupWarning=' La referencia se quitó del producto, pero no se pudo borrar el archivo físico de R2: '+(cleanupError.message||cleanupError);
    }
@@ -1955,19 +2395,23 @@ async function eliminarFotoProducto(index){
   toast(cleanupWarning?'Foto quitada del producto; revisa la limpieza de R2.':'Foto eliminada correctamente.');
   if(cleanupWarning)alert('La foto ya no está asociada al producto, pero quedó pendiente borrar su archivo de Cloudflare R2.\n\n'+cleanupWarning.trim()+'\n\nPublica la versión actualizada de sirevya_images_worker.js en Cloudflare y vuelve a intentar la limpieza si hace falta.');
  }catch(error){
+  if(!isEditorCurrent())return false;
   console.error('No se pudo eliminar la foto del producto:',error);
   alert('No se pudo eliminar la foto. No vuelvas a subirla ni repitas cambios hasta revisar el mensaje.\n\n'+(error?.message||error));
   await loadExistingProductImages(productId,productos.find(x=>String(x.id)===String(productId))?.image_url||'');
+  if(!isEditorCurrent())return false;
  }
 }
 
-async function uploadSizeGuidePhoto(productId,file){
+async function uploadSizeGuidePhoto(productId,file,isCurrent=()=>true){
+ ensureAdminOperationCurrent(isCurrent);
  if(!productId||!file)return "";
  const ext=(file.name.split('.').pop()||'jpg').toLowerCase();
  const path=`products/${productId}/size-guide/${crypto.randomUUID()}.${ext}`;
- const uploaded=await uploadImageToR2(path,file);
+ const uploaded=await uploadImageToR2(path,file,isCurrent);ensureAdminOperationCurrent(isCurrent);
  const key=uploaded.key||path;
  const {error}=await sb.from("products").update({size_guide_image:key}).eq("id",productId);
+ ensureAdminOperationCurrent(isCurrent);
  if(error)throw new Error("La foto se subió, pero no se pudo guardar su referencia en el producto: "+error.message);
  editingSizeGuideImagePath=key;sizeGuideImageRemoveRequested=false;
  return key;
@@ -2185,12 +2629,14 @@ function selectedVariantFiles(){
  });
  return out;
 }
-async function uploadVariantPhotos(productId, variants, files){
+async function uploadVariantPhotos(productId, variants, files,isCurrent=()=>true){
+ ensureAdminOperationCurrent(isCurrent);
  const updates={};
  for(const [key,file] of Object.entries(files)){
+   ensureAdminOperationCurrent(isCurrent);
    const ext=(file.name.split('.').pop()||'jpg').toLowerCase();
    const path=`products/${productId}/variants/${crypto.randomUUID()}.${ext}`;
-   const uploaded=await uploadImageToR2(path,file);
+   const uploaded=await uploadImageToR2(path,file,isCurrent);ensureAdminOperationCurrent(isCurrent);
    updates[key]=uploaded.key||path;
  }
  return variants.map(v=>{
@@ -2228,56 +2674,66 @@ function notifyPublicCatalogChanged(type='catalog',details={}){
  }
 }
 async function guardarProducto(agregarOtro=false){
+ const userId=adminSessionUserId,authEpoch=adminAuthEpoch,editorToken=editingProductImageLoadToken;
+ const isCurrent=()=>adminAuthOperationStillCurrent(userId,authEpoch)&&editorToken===editingProductImageLoadToken;
+ if(!sb||!isCurrent())return false;
+ const originalProductId=editingId||null,isEditing=!!originalProductId;
+ let savedProductId=originalProductId;
  const nombre=$("pNombre").value.trim();if(!nombre)return alert("Escribe el nombre del producto.");
  const files=[...($('pFoto').files||[])];
  const sizeGuideFile=$("pGuiaTallasFoto")?.files?.[0]||null;
- let fotoUrl=editingId?productos.find(x=>String(x.id)===String(editingId))?.image_url||null:null;
- let existingGuideImage=editingId?(editingSizeGuideImagePath||productos.find(x=>String(x.id)===String(editingId))?.size_guide_image||""):"";
+ let fotoUrl=isEditing?productos.find(x=>String(x.id)===String(originalProductId))?.image_url||null:null;
+ let existingGuideImage=isEditing?(editingSizeGuideImagePath||productos.find(x=>String(x.id)===String(originalProductId))?.size_guide_image||""):"";
  // If a previous photo upload failed after creating the product, the new row
  // may not yet exist in the local products array. Preserve its saved main photo.
- if(editingId&&!productos.some(x=>String(x.id)===String(editingId))){
-   try{const existing=await sb.from("products").select("image_url,size_guide_image").eq("id",editingId).maybeSingle();if(!existing.error){fotoUrl=existing.data?.image_url||null;existingGuideImage=existing.data?.size_guide_image||existingGuideImage;editingSizeGuideImagePath=existingGuideImage}}catch{}
+ if(isEditing&&!productos.some(x=>String(x.id)===String(originalProductId))){
+   try{const existing=await sb.from("products").select("image_url,size_guide_image").eq("id",originalProductId).maybeSingle();if(!isCurrent())return false;if(!existing.error){fotoUrl=existing.data?.image_url||null;existingGuideImage=existing.data?.size_guide_image||existingGuideImage;editingSizeGuideImagePath=existingGuideImage}}catch(error){if(!isCurrent())return false}
  }
  const splitList=v=>[...new Set(String(v||'').split(',').map(x=>x.trim()).filter(Boolean))];
  if(!document.querySelector('#variantEditorRows .variantAdminStock') && (String($("pColores").value||'').trim()||String($("pTallas").value||'').trim())) renderVariantEditor(variantDraft);
  variantDraft=collectVariantDraft();
  const variantFiles=selectedVariantFiles();
- const variantStock=variantDraft.length?totalVariantStock(variantDraft):(+$("pCantidad").value||0);
+ const variantStock=variantDraft.length?totalVariantStock(variantDraft):(+$('pCantidad').value||0);
  const obj={name:nombre,category:$("pCategoria").value,colors:splitList($("pColores").value),sizes:splitList($("pTallas").value),variants:variantDraft,quantity:variantStock,cost_price:+$("pCompra").value||0,sale_price:+$("pVenta").value||0,location:$("pUbicacion").value.trim(),description:$("pDescripcion").value.trim(),size_guide:$("pGuiaTallas").value.trim(),size_guide_image:sizeGuideImageRemoveRequested?"":existingGuideImage,image_url:fotoUrl};
- const {data:{user}}=await sb.auth.getUser();if(!user)return alert("Sesión no encontrada. Vuelve a entrar.");
+ let user;
+ try{const {data,error}=await sb.auth.getUser();if(!isCurrent())return false;if(error)throw error;user=data?.user}
+ catch(error){if(!isCurrent())return false;return alert("No se pudo validar la sesión. Vuelve a entrar antes de guardar el producto.")}
+ if(!user||String(user.id)!==String(userId))return alert("La sesión no corresponde al usuario que abrió este formulario. Vuelve a entrar.");
  try{
-   if(editingId){
-     const {error}=await sb.from("products").update(obj).eq("id",editingId);if(error)throw error;
-     if(files.length){const added=await uploadProductImages(editingId,files,user.id);if(!fotoUrl&&added[0]){const updatePhoto=await sb.from("products").update({image_url:added[0].image_path}).eq("id",editingId);if(updatePhoto.error)throw new Error("Las fotos se subieron, pero no se pudo actualizar la foto principal: "+updatePhoto.error.message)}}
-     if(Object.keys(variantFiles).length){const updatedVariants=await uploadVariantPhotos(editingId,variantDraft,variantFiles);const updateVariants=await sb.from("products").update({variants:updatedVariants,quantity:totalVariantStock(updatedVariants)}).eq("id",editingId);if(updateVariants.error)throw new Error("Las fotos de variantes se subieron, pero no se pudo guardar su inventario: "+updateVariants.error.message)}
-     if(sizeGuideFile)await uploadSizeGuidePhoto(editingId,sizeGuideFile);
+   if(isEditing){
+     const {error}=await sb.from("products").update(obj).eq("id",originalProductId);if(!isCurrent())return false;if(error)throw error;
+     if(files.length){const added=await uploadProductImages(originalProductId,files,user.id,isCurrent);if(!isCurrent())return false;if(!fotoUrl&&added[0]){const updatePhoto=await sb.from("products").update({image_url:added[0].image_path}).eq("id",originalProductId);if(!isCurrent())return false;if(updatePhoto.error)throw new Error("Las fotos se subieron, pero no se pudo actualizar la foto principal: "+updatePhoto.error.message)}}
+     if(Object.keys(variantFiles).length){const updatedVariants=await uploadVariantPhotos(originalProductId,variantDraft,variantFiles,isCurrent);if(!isCurrent())return false;const updateVariants=await sb.from("products").update({variants:updatedVariants,quantity:totalVariantStock(updatedVariants)}).eq("id",originalProductId);if(!isCurrent())return false;if(updateVariants.error)throw new Error("Las fotos de variantes se subieron, pero no se pudo guardar su inventario: "+updateVariants.error.message)}
+     if(sizeGuideFile){await uploadSizeGuidePhoto(originalProductId,sizeGuideFile,isCurrent);if(!isCurrent())return false}
      toast("Producto actualizado correctamente");
    }else{
-     let code=await nextCode(obj.category),error=null,data=null;
-     for(let intento=0;intento<100;intento++){obj.code=code;const r=await sb.from("products").insert(obj).select().single();data=r.data;error=r.error;if(!error)break;if(!esErrorCodigoDuplicado(error))break;const numero=(parseInt(code.split("-")[1])||0)+1;code=categoryPrefix(obj.category)+"-"+String(numero).padStart(3,"0")}
+     let code=await nextCode(obj.category),error=null,data=null;if(!isCurrent())return false;
+     for(let intento=0;intento<100;intento++){if(!isCurrent())return false;obj.code=code;const r=await sb.from("products").insert(obj).select().single();if(!isCurrent())return false;data=r.data;error=r.error;if(!error)break;if(!esErrorCodigoDuplicado(error))break;const numero=(parseInt(code.split("-")[1])||0)+1;code=categoryPrefix(obj.category)+"-"+String(numero).padStart(3,"0")}
      if(error)throw error;
-     editingId=data.id;
+     savedProductId=data.id;editingId=savedProductId;
      $("formTitle").textContent="Completar producto "+(obj.code||"");
-     if(files.length){const added=await uploadProductImages(data.id,files,user.id);if(added[0]){const updatePhoto=await sb.from("products").update({image_url:added[0].image_path}).eq("id",data.id);if(updatePhoto.error)throw new Error("El producto quedó creado, pero no se pudo guardar la foto principal: "+updatePhoto.error.message)}}
-     if(Object.keys(variantFiles).length){const updatedVariants=await uploadVariantPhotos(data.id,variantDraft,variantFiles);const updateVariants=await sb.from("products").update({variants:updatedVariants,quantity:totalVariantStock(updatedVariants)}).eq("id",data.id);if(updateVariants.error)throw new Error("El producto quedó creado, pero no se pudo guardar el inventario de variantes: "+updateVariants.error.message)}
-     if(sizeGuideFile)await uploadSizeGuidePhoto(data.id,sizeGuideFile);
+     if(files.length){const added=await uploadProductImages(savedProductId,files,user.id,isCurrent);if(!isCurrent())return false;if(added[0]){const updatePhoto=await sb.from("products").update({image_url:added[0].image_path}).eq("id",savedProductId);if(!isCurrent())return false;if(updatePhoto.error)throw new Error("El producto quedó creado, pero no se pudo guardar la foto principal: "+updatePhoto.error.message)}}
+     if(Object.keys(variantFiles).length){const updatedVariants=await uploadVariantPhotos(savedProductId,variantDraft,variantFiles,isCurrent);if(!isCurrent())return false;const updateVariants=await sb.from("products").update({variants:updatedVariants,quantity:totalVariantStock(updatedVariants)}).eq("id",savedProductId);if(!isCurrent())return false;if(updateVariants.error)throw new Error("El producto quedó creado, pero no se pudo guardar el inventario de variantes: "+updateVariants.error.message)}
+     if(sizeGuideFile){await uploadSizeGuidePhoto(savedProductId,sizeGuideFile,isCurrent);if(!isCurrent())return false}
      toast("Producto guardado correctamente");
    }
  }catch(error){
+   if(!isCurrent())return false;
    const message=error?.message||String(error);
    const descriptionHint=/description|descripci[oó]n|size_guide(?:_image)?|gu[ií]a de tallas|schema cache/i.test(message)?"\n\nPara habilitar la descripción y la guía de tallas, ejecuta primero el archivo SQL incluido en el paquete desde Supabase → SQL Editor.":"";
-   const retryHint=editingId?"\n\nEl producto puede haber quedado guardado. No lo crees de nuevo: verifica que el formulario siga en modo “Completar/Editar producto” y vuelve a intentar la subida.":"";
+   const retryHint=savedProductId?"\n\nEl producto puede haber quedado guardado. No lo crees de nuevo: verifica que el formulario siga en modo “Completar/Editar producto” y vuelve a intentar la subida.":"";
    return alert(message+descriptionHint+retryHint);
  }
- notifyPublicCatalogChanged('product-saved',{productId:editingId,refreshImages:files.length>0});
-editingId=null;limpiarProducto();void cargarTodo().catch(error=>console.error('No se pudo actualizar el resumen del administrador tras guardar:',error));
-if(agregarOtro){
-  show("producto",document.querySelector('[data-view=producto]'));
-  $("pNombre").focus();
-  toast("Listo. Puedes agregar el siguiente producto.");
-}else{
-  show("inventario",document.querySelector('[data-view=inventario]'));
-}
+ if(!isCurrent())return false;
+ notifyPublicCatalogChanged('product-saved',{productId:savedProductId,refreshImages:files.length>0});
+ editingId=null;limpiarProducto();void cargarTodo(userId,authEpoch).catch(error=>console.error('No se pudo actualizar el resumen del administrador tras guardar:',error));
+ if(agregarOtro){
+   show("producto",document.querySelector('[data-view=producto]'));
+   $("pNombre").focus();
+   toast("Listo. Puedes agregar el siguiente producto.");
+ }else{
+   show("inventario",document.querySelector('[data-view=inventario]'));
+ }
 }
 function limpiarProducto(){variantDraft=[];variantMemory=[];editingId=null;editingProductImageLoadToken++;editingProductImages=[];editingProductImagesLoadError=null;editingSizeGuideImagePath="";sizeGuideImageRemoveRequested=false;const guideInput=$("pGuiaTallasFoto");if(guideInput)guideInput.value="";renderSizeGuidePhotoPreview();$("formTitle").textContent="➕ Nuevo producto";$("pNombre").value="";$("pColores").value="";$("pTallas").value="";$("pCantidad").value=1;$("pCompra").value=0;$("pVenta").value=0;$("pUbicacion").value="";$("pDescripcion").value="";$("pGuiaTallas").value="";$("pFoto").value="";if($("existingPhotoStatus"))$("existingPhotoStatus").textContent="Las fotos actuales aparecerán al editar un producto.";if($("existingPhotoPreview"))$("existingPhotoPreview").innerHTML="";renderPhotoPreview();renderAdminColorPalette();renderVariantEditor([]);refreshCategorySelects()}
 async function editarProducto(id){
@@ -2289,10 +2745,14 @@ async function editarProducto(id){
  await loadExistingProductImages(id,p.image_url||'');
 }
 async function borrarProducto(id){
- const p=productos.find(x=>String(x.id)===String(id));if(!p)return;
- if(!confirm(`¿Eliminar ${p.code} — ${p.name}?`))return;
+ const userId=adminSessionUserId,authEpoch=adminAuthEpoch,isCurrent=()=>adminAuthOperationStillCurrent(userId,authEpoch);
+ if(!isCurrent())return false;
+ const productId=String(id),p=productos.find(x=>String(x.id)===productId);if(!p)return false;
+ if(!confirm(`¿Eliminar ${p.code} — ${p.name}?`))return false;
+ if(!isCurrent())return false;
  let result;
  try{result=await sb.rpc('admin_delete_product_secure',{p_product_id:id})}catch(error){result={error}}
+ if(!isCurrent())return false;
  if(result?.error){
    const msg=String(result.error.message||'');
    const missingRpc=result.error.code==='PGRST202'||/could not find the function|function .* does not exist|schema cache/i.test(msg);
@@ -2300,21 +2760,25 @@ async function borrarProducto(id){
    return;
  }
  const response=Array.isArray(result.data)?result.data[0]:result.data;
+ if(!isCurrent())return false;
  if(!response?.success){alert(response?.message||'No se pudo eliminar el producto.');return}
  // Reflejar la eliminación en la interfaz y notificar las otras pestañas antes
  // de limpiar fotos: la limpieza de R2 no debe retrasar la desaparición del artículo.
- productos=productos.filter(item=>String(item.id)!==String(id));
+ productos=productos.filter(item=>String(item.id)!==productId);
  populateFilters();renderProductos();refrescarSelects();renderVentaCatalogo();renderInicio();renderReportes();
  notifyPublicCatalogChanged('product-deleted',{productId:id});
  toast("Producto eliminado. Actualizando resumen e imágenes en segundo plano.");
- void cargarTodo().catch(error=>console.error('No se pudo actualizar el resumen del administrador tras eliminar:',error));
- void deleteProductImagesFromR2(id).then(deleted=>{
+ void cargarTodo(userId,authEpoch).catch(error=>{if(isCurrent())console.error('No se pudo actualizar el resumen del administrador tras eliminar:',error)});
+ void deleteProductImagesFromR2(id,isCurrent).then(deleted=>{
+   if(!isCurrent())return;
    const count=Number(deleted?.deleted)||0;
    if(count)console.info('Fotos físicas de R2 eliminadas:',count);
  }).catch(cleanupError=>{
+   if(!isCurrent())return;
    console.warn("El producto se borró de la base, pero no se pudieron limpiar sus fotos de R2:",cleanupError);
    toast("El producto se eliminó, pero algunas fotos antiguas pueden seguir en R2.");
  });
+ return true;
 }
 function getImageUrl(value){return publicWorkerImage(value)}
 function stockBadge(q){q=Number(q)||0;return q<=0?'<span class="badge out">Agotado</span>':q<=2?'<span class="badge low">Stock bajo</span>':'<span class="badge ok">Disponible</span>'}
@@ -2755,21 +3219,35 @@ async function loadAdminDeferredModule(key,force=false){
   movements:{table:'inventory_movements',order:'created_at',ascending:false,assign:data=>{movimientos=data},render:renderMovimientos,host:'listaMovimientos'}
  };
  if(!cfg[key])return false;
+ const userId=adminSessionUserId,authEpoch=adminAuthEpoch;
+ if(!adminAuthOperationStillCurrent(userId,authEpoch))return false;
  if(adminDeferredModuleLoaded[key]&&!force)return true;
- if(adminDeferredModuleInFlight[key])return adminDeferredModuleInFlight[key];
+ const requestKey=JSON.stringify([key,userId,authEpoch]);
+ if(adminDeferredModuleInFlight[requestKey])return adminDeferredModuleInFlight[requestKey];
  const spec=cfg[key],host=$(spec.host);if(host)host.innerHTML='<div class="empty">Consultando Supabase…</div>';
  delete moduleLoadErrors[key];
- adminDeferredModuleInFlight[key]=(async()=>{
+ const loadPromise=Promise.resolve().then(async()=>{
   try{
    const result=await fetchAllTableRows(spec.table,spec.order,spec.ascending);
+   if(!adminAuthOperationStillCurrent(userId,authEpoch))return false;
+   try{await assertCurrentAdminAuthorization(userId,authEpoch)}catch(authError){
+    if(!adminAuthOperationStillCurrent(userId,authEpoch))return false;
+    lockAdminPanel('No se pudo volver a confirmar la autorización administrativa. Vuelve a entrar.');
+    if(authError?.code==='ADMIN_AUTH_INVALID')void sb.auth.signOut({scope:'local'}).catch(()=>{});
+    return false;
+   }
+   if(!adminAuthOperationStillCurrent(userId,authEpoch))return false;
    if(result.error){moduleLoadErrors[key]=describeAdminTableError(spec.table,result.error);spec.render();return false;}
    spec.assign(result.data||[]);adminDeferredModuleLoaded[key]=true;delete moduleLoadErrors[key];
    if(result.orderMode&&result.orderMode!=='stable')console.warn('Módulo '+key+' cargado con orden alternativo:',result.orderMode);
    spec.render();return true;
-  }catch(error){moduleLoadErrors[key]=describeAdminTableError(spec.table,error);spec.render();return false;}
-  finally{delete adminDeferredModuleInFlight[key];}
- })();
- return adminDeferredModuleInFlight[key];
+  }catch(error){
+   if(!adminAuthOperationStillCurrent(userId,authEpoch))return false;
+   moduleLoadErrors[key]=describeAdminTableError(spec.table,error);spec.render();return false;
+  }
+ });
+ adminDeferredModuleInFlight[requestKey]=loadPromise;
+ try{return await loadPromise}finally{if(adminDeferredModuleInFlight[requestKey]===loadPromise)delete adminDeferredModuleInFlight[requestKey];}
 }
 
 // Configuración de contraentrega por ciudad: se guarda mediante RPC protegida en Supabase.
@@ -2783,10 +3261,12 @@ function updateCODCitiesControls(){
  if(save)save.disabled=!codCitiesSettingsLoaded||(active&&codCitiesCurrentValue().length===0)||(active===!!codCitiesSettingsOriginal.enabled&&JSON.stringify(codCitiesCurrentValue().slice().sort())===JSON.stringify((codCitiesSettingsOriginal.allowed_cities||[]).slice().sort()));
 }
 async function loadCODCitiesSettingsAdmin(){
+ const userId=adminSessionUserId,authEpoch=adminAuthEpoch,isCurrent=()=>adminAuthOperationStillCurrent(userId,authEpoch);
+ if(!sb||!isCurrent())return false;
  const enabled=$("codPaymentsToggle"),save=$("saveCODCitiesBtn");codCitiesSettingsLoaded=false;if(enabled)enabled.disabled=true;if(save)save.disabled=true;
  setCODCitiesStatus('Cargando la configuración desde Supabase…');
  try{
-  const {data,error}=await sb.rpc('admin_get_storefront_cod_settings');if(error)throw error;
+  const {data,error}=await sb.rpc('admin_get_storefront_cod_settings');if(!isCurrent())return false;if(error)throw error;
   const row=Array.isArray(data)?data[0]:data;if(!row||typeof row.enabled!=='boolean'||!Array.isArray(row.allowed_cities))throw new Error('Respuesta de configuración no válida.');
   codCitiesSettingsOriginal={enabled:row.enabled,allowed_cities:row.allowed_cities.map(String)};
   if(enabled){enabled.checked=row.enabled;enabled.disabled=false;}
@@ -2794,12 +3274,15 @@ async function loadCODCitiesSettingsAdmin(){
   document.querySelectorAll('#codCitiesOptions input[type="checkbox"]').forEach(input=>input.checked=current.includes(input.value));
   codCitiesSettingsLoaded=true;setCODCitiesStatus('Configuración cargada desde Supabase.','ok');updateCODCitiesControls();return true;
  }catch(error){
+  if(!isCurrent())return false;
   console.error('No se pudo cargar la configuración de contraentrega:',error);
   if(enabled)enabled.disabled=true;if(save)save.disabled=true;
   setCODCitiesStatus('No se pudo cargar. Ejecuta SIREVYA_MIGRACION_COMBOS_UBICACION_Y_CONTRAENTREGA.sql después de la migración de combos. Detalle: '+String(error?.message||error),'error');return false;
  }
 }
 async function saveCODCitiesSettings(){
+ const userId=adminSessionUserId,authEpoch=adminAuthEpoch,isCurrent=()=>adminAuthOperationStillCurrent(userId,authEpoch);
+ if(!sb||!isCurrent())return false;
  if(!codCitiesSettingsLoaded)return alert('Primero carga la configuración de contraentrega desde Supabase.');
  const enabled=$("codPaymentsToggle"),save=$("saveCODCitiesBtn");const desired=!!enabled?.checked;
  const selected=codCitiesCurrentValue();if(desired&&!selected.length)return alert('Selecciona al menos una ciudad o “Todas las ciudades”, o desactiva la contraentrega.');
@@ -2807,18 +3290,21 @@ async function saveCODCitiesSettings(){
  if(save){save.disabled=true;save.textContent='⏳ Guardando…'}if(enabled)enabled.disabled=true;
  document.querySelectorAll('#codCitiesOptions input[type="checkbox"]').forEach(x=>x.disabled=true);
  try{
-  const {data,error}=await sb.rpc('admin_save_storefront_cod_settings',{p_enabled:desired,p_allowed_cities:cities});if(error)throw error;
+  const {data,error}=await sb.rpc('admin_save_storefront_cod_settings',{p_enabled:desired,p_allowed_cities:cities});if(!isCurrent())return false;if(error)throw error;
   const row=Array.isArray(data)?data[0]:data;if(!row||typeof row.enabled!=='boolean'||!Array.isArray(row.allowed_cities))throw new Error('Supabase no confirmó el cambio.');
   codCitiesSettingsOriginal={enabled:row.enabled,allowed_cities:row.allowed_cities.map(String)};
   if(enabled)enabled.checked=row.enabled;
   document.querySelectorAll('#codCitiesOptions input[type="checkbox"]').forEach(input=>input.checked=codCitiesSettingsOriginal.allowed_cities.includes(input.value));
   setCODCitiesStatus('Configuración guardada. El catálogo y la validación del servidor consultarán estas ciudades.','ok');toast('Ciudades de contraentrega guardadas');
  }catch(error){
+  if(!isCurrent())return false;
   console.error('No se pudo guardar configuración COD:',error);if(enabled)enabled.checked=codCitiesSettingsOriginal.enabled;
   document.querySelectorAll('#codCitiesOptions input[type="checkbox"]').forEach(input=>input.checked=(codCitiesSettingsOriginal.allowed_cities||[]).includes(input.value));
   setCODCitiesStatus('No se guardaron los cambios. Comprueba permisos de administrador y la migración SQL. Detalle: '+String(error?.message||error),'error');
  }finally{
-  if(enabled)enabled.disabled=!codCitiesSettingsLoaded;if(save){save.textContent='💾 Guardar ciudades';updateCODCitiesControls();}
+  if(isCurrent()){
+   if(enabled)enabled.disabled=!codCitiesSettingsLoaded;if(save){save.textContent='💾 Guardar ciudades';updateCODCitiesControls();}
+  }
  }
 }
 document.addEventListener('change',event=>{
@@ -2881,11 +3367,25 @@ function renderStorefrontCombosAdminList(){
  host.innerHTML=storefrontProductCombosAdmin.map(row=>{const isCat=String(row.rule_type||'product_pair')==='category_pair';const left=isCat?`Categoría: ${row.category_a||'—'}`:(row.product_a_name||'Producto A');const right=isCat?`Categoría: ${row.category_b||'—'}`:(row.product_b_name||'Producto B');return `<article class="listItem"><div class="rowBetween" style="align-items:flex-start;gap:10px;flex-wrap:wrap"><div style="flex:1;min-width:180px"><b>${esc(left)} → ${esc(right)}</b><div class="muted">${esc(row.title||'Combinación')}: ${esc(row.message||'')}</div><div class="comboDiscountPill">${esc(comboDiscountAdminLabel(row))}</div><small class="muted" style="display:block;margin-top:5px">${row.enabled?'Activa':'Inactiva'} · ${isCat?'Categorías':'Productos'} · ${esc(({home:'Pantalla de inicio',category:'Categoría: '+(row.display_category||'—'),both:'Inicio y categoría: '+(row.display_category||'—')})[String(row.display_location||'home')]||'Pantalla de inicio')}${row.start_at?' · Desde '+new Date(row.start_at).toLocaleDateString('es-CO'):''}${row.end_at?' · Hasta '+new Date(row.end_at).toLocaleDateString('es-CO'):''}</small></div><div style="display:flex;gap:6px;flex-wrap:wrap"><button class="action" type="button" data-combo-admin-edit="${esc(row.id)}">✏️ Editar</button><button class="action" type="button" data-combo-admin-delete="${esc(row.id)}">🗑️ Eliminar</button></div></div></article>`}).join('');
 }
 async function loadStorefrontProductCombosAdmin(force=false){
- if(!sb)return false;if(storefrontCombosAdminLoaded&&!force)return true;setStorefrontCombosAdminStatus('Cargando promociones…');setStorefrontComboFormDisabled(true);
- try{const {data,error}=await sb.rpc('admin_list_storefront_product_combos');if(error)throw error;storefrontProductCombosAdmin=Array.isArray(data)?data:[];storefrontCombosAdminLoaded=true;renderStorefrontComboProductSelects();renderStorefrontCombosAdminList();setStorefrontComboFormDisabled(false);updateStorefrontComboRuleFields();setStorefrontCombosAdminStatus('Promociones cargadas. Los descuentos se calculan a partir de los precios guardados en Supabase.','ok');return true;}
- catch(error){const msg=String(error?.message||error||'Error desconocido');setStorefrontCombosAdminStatus('No se pudieron cargar las promociones. Ejecuta la migración de combos y descuentos incluida en este paquete. Detalle: '+msg,'error');setStorefrontComboFormDisabled(true);const host=$('storefrontCombosAdminList');if(host)host.innerHTML='<div class="alert">No se modifica ningún precio hasta que la migración de descuentos esté instalada.</div>';return false;}
+ const userId=adminSessionUserId,authEpoch=adminAuthEpoch,isCurrent=()=>adminAuthOperationStillCurrent(userId,authEpoch);
+ if(!sb||!isCurrent())return false;
+ if(storefrontCombosAdminLoaded&&!force)return true;
+ setStorefrontCombosAdminStatus('Cargando promociones…');setStorefrontComboFormDisabled(true);
+ try{
+  const {data,error}=await sb.rpc('admin_list_storefront_product_combos');
+  if(!isCurrent())return false;
+  if(error)throw error;
+  storefrontProductCombosAdmin=Array.isArray(data)?data:[];storefrontCombosAdminLoaded=true;
+  renderStorefrontComboProductSelects();renderStorefrontCombosAdminList();setStorefrontComboFormDisabled(false);updateStorefrontComboRuleFields();
+  setStorefrontCombosAdminStatus('Promociones cargadas. Los descuentos se calculan a partir de los precios guardados en Supabase.','ok');return true;
+ }catch(error){
+  if(!isCurrent())return false;
+  const msg=String(error?.message||error||'Error desconocido');setStorefrontCombosAdminStatus('No se pudieron cargar las promociones. Ejecuta la migración de combos y descuentos incluida en este paquete. Detalle: '+msg,'error');setStorefrontComboFormDisabled(true);const host=$('storefrontCombosAdminList');if(host)host.innerHTML='<div class="alert">No se modifica ningún precio hasta que la migración de descuentos esté instalada.</div>';return false;
+ }
 }
 async function saveStorefrontProductCombo(){
+ const userId=adminSessionUserId,authEpoch=adminAuthEpoch,isCurrent=()=>adminAuthOperationStillCurrent(userId,authEpoch);
+ if(!sb||!isCurrent())return false;
  if(!storefrontCombosAdminLoaded||storefrontComboSaving)return alert('Primero carga las promociones de Supabase.');
  const ruleType=String($('storefrontComboRuleType').value||'product_pair');const categoryMode=ruleType==='category_pair';
  const a=String($('storefrontComboProductA').value||''),b=String($('storefrontComboProductB').value||''),categoryA=String($('storefrontComboCategoryA').value||'').trim(),categoryB=String($('storefrontComboCategoryB').value||'').trim();
@@ -2902,21 +3402,28 @@ async function saveStorefrontProductCombo(){
  storefrontComboSaving=true;const button=$('saveStorefrontComboBtn');if(button){button.disabled=true;button.textContent='⏳ Guardando…'}
  try{
   const {data,error}=await sb.rpc('admin_save_storefront_product_combo',{p_combo_id:storefrontComboEditingId||null,p_rule_type:ruleType,p_product_a_id:categoryMode?null:a||null,p_product_b_id:categoryMode?null:b||null,p_category_a:categoryMode?categoryA:null,p_category_b:categoryMode?categoryB:null,p_title:title,p_message:message,p_button_label:buttonLabel,p_enabled:$('storefrontComboEnabled').checked,p_start_at:start,p_end_at:end,p_discount_type:discountType,p_discount_value:discountType==='percent'||discountType==='fixed_amount'?entered:0,p_combo_price:discountType==='combo_price'?entered:null,p_display_location:displayLocation,p_display_category:['category','both'].includes(displayLocation)?displayCategory:null});
+  if(!isCurrent())return false;
   if(error)throw error;const row=Array.isArray(data)?data[0]:data;if(!row)throw new Error('Supabase no devolvió la promoción guardada.');
-  toast(row.enabled?'Promoción guardada y activa':'Promoción guardada como inactiva');resetStorefrontComboForm();storefrontCombosAdminLoaded=false;await loadStorefrontProductCombosAdmin(true);setStorefrontCombosAdminStatus(row.enabled?'Promoción guardada y activa. El beneficio se aplica automáticamente cuando el carrito tenga una pareja válida.':'Promoción guardada como inactiva; no afectará al carrito hasta activarla.','ok');notifyPublicCatalogChanged('combo-changed');
- }catch(error){setStorefrontCombosAdminStatus('No se guardó la promoción. Comprueba que ejecutaste la migración de descuentos y que eres la cuenta administradora. Detalle: '+String(error?.message||error),'error')}
- finally{storefrontComboSaving=false;if(button){button.textContent=storefrontComboEditingId?'💾 Guardar cambios':'💾 Guardar promoción';button.disabled=!storefrontCombosAdminLoaded}}
+  toast(row.enabled?'Promoción guardada y activa':'Promoción guardada como inactiva');resetStorefrontComboForm();storefrontCombosAdminLoaded=false;await loadStorefrontProductCombosAdmin(true);if(!isCurrent())return false;setStorefrontCombosAdminStatus(row.enabled?'Promoción guardada y activa. El beneficio se aplica automáticamente cuando el carrito tenga una pareja válida.':'Promoción guardada como inactiva; no afectará al carrito hasta activarla.','ok');notifyPublicCatalogChanged('combo-changed');
+ }catch(error){if(!isCurrent())return false;setStorefrontCombosAdminStatus('No se guardó la promoción. Comprueba que ejecutaste la migración de descuentos y que eres la cuenta administradora. Detalle: '+String(error?.message||error),'error')}
+ finally{if(isCurrent()){storefrontComboSaving=false;if(button){button.textContent=storefrontComboEditingId?'💾 Guardar cambios':'💾 Guardar promoción';button.disabled=!storefrontCombosAdminLoaded}}}
 }
-async function deleteStorefrontProductCombo(id){if(!confirm('¿Eliminar esta promoción? No se modifican los precios de los productos.'))return;try{const {data,error}=await sb.rpc('admin_delete_storefront_product_combo',{p_combo_id:id});if(error)throw error;if(data!==true&&!(Array.isArray(data)&&data[0]===true))throw new Error('Supabase no confirmó la eliminación.');storefrontProductCombosAdmin=storefrontProductCombosAdmin.filter(row=>String(row.id)!==String(id));renderStorefrontCombosAdminList();notifyPublicCatalogChanged('combo-changed');toast('Promoción eliminada')}catch(error){setStorefrontCombosAdminStatus('No se eliminó la promoción. '+String(error?.message||error),'error')}}
-let storefrontMarketingMetricsBusy=false;
+async function deleteStorefrontProductCombo(id){
+ const userId=adminSessionUserId,authEpoch=adminAuthEpoch,isCurrent=()=>adminAuthOperationStillCurrent(userId,authEpoch);
+ if(!sb||!isCurrent()||!confirm('¿Eliminar esta promoción? No se modifican los precios de los productos.'))return false;
+ if(!isCurrent())return false;
+ try{const {data,error}=await sb.rpc('admin_delete_storefront_product_combo',{p_combo_id:id});if(!isCurrent())return false;if(error)throw error;if(data!==true&&!(Array.isArray(data)&&data[0]===true))throw new Error('Supabase no confirmó la eliminación.');storefrontProductCombosAdmin=storefrontProductCombosAdmin.filter(row=>String(row.id)!==String(id));renderStorefrontCombosAdminList();notifyPublicCatalogChanged('combo-changed');toast('Promoción eliminada')}
+ catch(error){if(!isCurrent())return false;setStorefrontCombosAdminStatus('No se eliminó la promoción. '+String(error?.message||error),'error')}
+}
 async function refreshStorefrontMarketingMetrics(){
- if(storefrontMarketingMetricsBusy||!sb)return;storefrontMarketingMetricsBusy=true;const status=$('storefrontMarketingMetricsStatus'),host=$('storefrontMarketingMetricsReport');if(status)status.textContent='Consultando métricas…';
- try{const {data,error}=await sb.rpc('admin_get_storefront_marketing_metrics',{p_days:30});if(error)throw error;const rows=Array.isArray(data)?data:[];if(!host)return;if(!rows.length){host.innerHTML='<div class="empty">Todavía no hay impresiones o clics registrados, o la promoción no se ha mostrado tras instalar la migración.</div>';if(status)status.textContent='Consulta completada.';return;}
+ const userId=adminSessionUserId,authEpoch=adminAuthEpoch,isCurrent=()=>adminAuthOperationStillCurrent(userId,authEpoch);
+ if(storefrontMarketingMetricsBusy||!sb||!isCurrent())return;const token=++storefrontMarketingMetricsToken;storefrontMarketingMetricsBusy=true;const status=$('storefrontMarketingMetricsStatus'),host=$('storefrontMarketingMetricsReport');if(status)status.textContent='Consultando métricas…';
+ try{const {data,error}=await sb.rpc('admin_get_storefront_marketing_metrics',{p_days:30});if(!isCurrent()||token!==storefrontMarketingMetricsToken)return;if(error)throw error;const rows=Array.isArray(data)?data:[];if(!host)return;if(!rows.length){host.innerHTML='<div class="empty">Todavía no hay impresiones o clics registrados, o la promoción no se ha mostrado tras instalar la migración.</div>';if(status)status.textContent='Consulta completada.';return;}
   const group=new Map();rows.forEach(row=>{const key=String(row.campaign_type)+'|'+String(row.campaign_id);const item=group.get(key)||{type:row.campaign_type,id:row.campaign_id,impression:0,click:0};item[row.event_type]=Number(row.event_count)||0;group.set(key,item)});
   host.innerHTML='<div class="tableWrap" style="margin-top:10px"><table style="min-width:480px"><thead><tr><th>Campaña</th><th>Vistas únicas aprox.</th><th>Clics únicos aprox.</th><th>CTR</th></tr></thead><tbody>'+[...group.values()].map(item=>{const views=item.impression,clicks=item.click,ctr=views?((clicks/views)*100).toFixed(1)+'%':'—';return `<tr><td>${item.type==='popup'?'Popup de temporada':'Combinación de productos'}<br><small>${esc(item.id==='seasonal'?'Temporada':item.id)}</small></td><td>${views}</td><td>${clicks}</td><td>${ctr}</td></tr>`}).join('')+'</tbody></table></div>';
   if(status)status.textContent='Métricas de los últimos 30 días. Son impresiones/clics deduplicados por sesión/día; las ventas atribuidas todavía no se vinculan automáticamente.';
- }catch(error){if(host)host.innerHTML='';if(status)status.textContent='No se pudieron leer las métricas. Instala sirevya_mejoras_catalogo_admin.sql y vuelve a consultar. Detalle: '+String(error?.message||error)}
- finally{storefrontMarketingMetricsBusy=false}
+ }catch(error){if(!isCurrent()||token!==storefrontMarketingMetricsToken)return;if(host)host.innerHTML='';if(status)status.textContent='No se pudieron leer las métricas. Instala sirevya_mejoras_catalogo_admin.sql y vuelve a consultar. Detalle: '+String(error?.message||error)}
+ finally{if(token===storefrontMarketingMetricsToken)storefrontMarketingMetricsBusy=false}
 }
 
 function safeCSVCell(value){
@@ -3064,21 +3571,25 @@ function applySeasonalPromoRow(row){
  renderSeasonalPromoAdminPreview();
 }
 async function loadSeasonalPromoSettingsAdmin(showStatus=true){
+ const userId=adminSessionUserId,authEpoch=adminAuthEpoch,isCurrent=()=>adminAuthOperationStillCurrent(userId,authEpoch);
+ if(!sb||!isCurrent())return false;
  const reloadButton=[...document.querySelectorAll('#seasonalPromoSettingsBox button')].find(button=>button.textContent.includes('Recargar'));
  if(reloadButton)reloadButton.disabled=true;
  setSeasonalPromoFormDisabled(true);seasonalPromoSettingsLoaded=false;
  if(showStatus)setSeasonalPromoStatus('Consultando la configuración compartida…');
  try{
   const {data,error}=await sb.rpc('get_public_storefront_promotion');if(error)throw error;
+  if(!isCurrent())return false;
   const row=Array.isArray(data)?data[0]:data;if(!row)throw new Error('Supabase no devolvió la fila de promoción.');
   seasonalPromoSettingsOriginal=row;applySeasonalPromoRow(row);seasonalPromoSettingsLoaded=true;setSeasonalPromoFormDisabled(false);
   setSeasonalPromoStatus('Configuración cargada desde Supabase. Los cambios guardados aparecerán en el catálogo.','ok');
   return true;
  }catch(error){
+  if(!isCurrent())return false;
   console.error('No se pudo cargar la configuración de promoción:',error);
   setSeasonalPromoStatus('Todavía no está instalada la configuración de promociones. En Supabase abre SQL Editor, ejecuta sirevya_promocion_temporada.sql y pulsa Recargar ajustes. Detalle: '+(error?.message||error),'error');
   setSeasonalPromoFormDisabled(true);return false;
- }finally{if(reloadButton)reloadButton.disabled=false}
+ }finally{if(isCurrent()&&reloadButton)reloadButton.disabled=false}
 }
 function onSeasonalPromoStyleChange(){
  const style=$('seasonalPromoStyle')?.value||'halloween',preset=SIREVYA_PROMO_PRESETS[style]||SIREVYA_PROMO_PRESETS.halloween;
@@ -3146,6 +3657,8 @@ function handleSeasonalPromoBackdrop(event){if(event?.target===$('seasonalPromoO
 function handleSeasonalPromoAction(event){if(window.__sirevyaAdminPromoPreview){event?.preventDefault?.();closeSeasonalPromo();return false}closeSeasonalPromo();return true}
 function seasonalPromoUrlIsSafe(value){const v=String(value||'').trim();if(['#catalogo','#inicio','#contactanos'].includes(v))return true;try{const u=new URL(v,location.href);return /^https?:\/\//i.test(v)&&(u.protocol==='https:'||u.protocol==='http:')}catch{return false}}
 async function saveSeasonalPromoSettings(){
+ const userId=adminSessionUserId,authEpoch=adminAuthEpoch,isCurrent=()=>adminAuthOperationStillCurrent(userId,authEpoch);
+ if(!sb||!isCurrent())return false;
  if(!seasonalPromoSettingsLoaded||seasonalPromoSaving)return alert('Primero carga correctamente la configuración compartida desde Supabase.');
  const config=seasonalPromoFieldValue();
  if(!config.title||!config.message||!config.button_label)return alert('El título, el mensaje y el texto del botón son obligatorios.');
@@ -3161,13 +3674,14 @@ async function saveSeasonalPromoSettings(){
    p_accent_color:config.accent_color,p_text_color:config.text_color,p_popup_size:config.popup_size,p_popup_shape:config.popup_shape,p_popup_position:config.popup_position,
    p_animation_style:config.animation_style,p_animate:config.animate,p_delay_ms:config.delay_ms,p_visible_duration_ms:config.visible_duration_ms,p_start_at:start,p_end_at:end,p_display_frequency:config.display_frequency
   });
+  if(!isCurrent())return false;
   if(error)throw error;const row=Array.isArray(data)?data[0]:data;if(!row)throw new Error('Supabase no devolvió la configuración guardada.');
   seasonalPromoSettingsOriginal=row;applySeasonalPromoRow(row);setSeasonalPromoStatus('Promoción guardada en Supabase. Para verla en el mismo navegador se actualizará el catálogo; los demás dispositivos la consultarán al entrar o volver a la página.','ok');
   try{localStorage.setItem('sirevya_seasonal_promo_changed',JSON.stringify({at:Date.now(),nonce:Math.random().toString(36).slice(2)}))}catch{}
   notifyPublicCatalogChanged('promotion-changed');
   toast('Promoción guardada');
- }catch(error){console.error('No se pudo guardar la promoción:',error);setSeasonalPromoStatus('No se guardaron los cambios. Revisa que el SQL esté instalado y que esta sea la cuenta administradora. Detalle: '+(error?.message||error),'error')}
- finally{seasonalPromoSaving=false;if(button){button.textContent='💾 Guardar promoción';button.disabled=!seasonalPromoSettingsLoaded}}
+ }catch(error){if(!isCurrent())return false;console.error('No se pudo guardar la promoción:',error);setSeasonalPromoStatus('No se guardaron los cambios. Revisa que el SQL esté instalado y que esta sea la cuenta administradora. Detalle: '+(error?.message||error),'error')}
+ finally{if(isCurrent()){seasonalPromoSaving=false;if(button){button.textContent='💾 Guardar promoción';button.disabled=!seasonalPromoSettingsLoaded}}}
 }
 window.addEventListener('input',event=>{if(event.target?.closest?.('#seasonalPromoSettingsBox'))renderSeasonalPromoAdminPreview()});
 window.addEventListener('change',event=>{if(event.target?.closest?.('#seasonalPromoSettingsBox')&&event.target.id!=='seasonalPromoStyle')renderSeasonalPromoAdminPreview()});
