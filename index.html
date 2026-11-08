@@ -1894,15 +1894,15 @@ let checkoutShipping=0;
 
 // Referencia de Wompi pendiente: permite reintentar el pago
 // sin volver a descontar las mismas unidades del inventario.
-const WOMPI_PENDING_REFERENCE_KEY='jm_wompi_pending_reference_v4';
-const WOMPI_PENDING_TIME_KEY='jm_wompi_pending_time_v4';
-const WOMPI_CART_KEY='jm_wompi_cart_v4';
-const WOMPI_RESERVATION_TIME_KEY='jm_wompi_reservation_time_v4';
-const WOMPI_RESERVATION_REFERENCE_KEY='jm_wompi_reservation_reference_v5';
-const WOMPI_RESERVATION_ITEMS_KEY='jm_wompi_reservation_items_v1';
+const WOMPI_PENDING_REFERENCE_KEY='jm_wompi_pending_reference_v5';
+const WOMPI_PENDING_TIME_KEY='jm_wompi_pending_time_v5';
+const WOMPI_CART_KEY='jm_wompi_cart_v5';
+const WOMPI_RESERVATION_TIME_KEY='jm_wompi_reservation_time_v5';
+const WOMPI_RESERVATION_REFERENCE_KEY='jm_wompi_reservation_reference_v6';
+const WOMPI_RESERVATION_ITEMS_KEY='jm_wompi_reservation_items_v2';
 // Registro local de todas las reservas activas creadas en este navegador.
 // Cada reserva conserva su propio reloj de 10 minutos y no reemplaza las demás.
-const WOMPI_RESERVATIONS_KEY='jm_wompi_reservations_v2';
+const WOMPI_RESERVATIONS_KEY='jm_wompi_reservations_v3';
 const WOMPI_RESERVATION_TTL=10*60*1000;
 
 function normalizeReservationItems(items){
