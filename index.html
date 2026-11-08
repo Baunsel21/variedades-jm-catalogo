@@ -17,14 +17,18 @@
 <meta property="og:title" content="Sirevya — Tu estilo, nuestra pasión">
 <meta property="og:description" content="Moda y accesorios con envío gratis en Cali y envío nacional gratis desde $130.000.">
 <meta property="og:url" content="https://sirevya.com.co/">
+<meta property="og:locale" content="es_CO">
 <meta property="og:image" content="https://sirevya.com.co/share-sirevya.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="Sirevya, moda y accesorios">
 <meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Sirevya — Tu estilo, nuestra pasión">
+<meta name="twitter:description" content="Moda y accesorios con envío gratis en Cali y desde $130.000 en otras ciudades.">
 <meta name="twitter:image" content="https://sirevya.com.co/share-sirevya.png">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"Organization","name":"Sirevya","url":"https://sirevya.com.co/","logo":"https://sirevya.com.co/logo-sirevya.webp","telephone":"+573128561773","email":"alex21991021@gmail.com","sameAs":["https://wa.me/573128561773"]}</script>
 <link id="favicon" rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect x='4' y='4' width='92' height='92' rx='22' fill='%23101827'/%3E%3Ctext x='50' y='64' text-anchor='middle' font-family='Arial,sans-serif' font-size='42' font-weight='900' fill='white'%3EJM%3C/text%3E%3C/svg%3E">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0"></script>
 <style>
 :root{--bg:#050505;--surface:#0d0d0f;--text:#fff;--muted:#aaa;--red:#e7193f;--gold:#f2d18b;--border:#2c2c31;--success:#43d17a;--radius:18px}
 *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial;background:radial-gradient(circle at 50% -10%,#240711 0,#080808 32%,#050505 72%);color:var(--text)}button,input,select,a{font:inherit}button{cursor:pointer;border:0}a{text-decoration:none;color:inherit}.wrap{max-width:1240px;margin:auto;padding:0 22px}
@@ -53,6 +57,12 @@
 @media(max-width:390px){.grid{grid-template-columns:1fr}.brandSub{display:none}.footerFeatures{grid-template-columns:1fr}}
 
 /* ===== HERO SUPERIOR ESTILO REFERENCIA ===== */
+.referenceHero{position:relative;overflow:hidden;margin:20px 0 0;border:1px solid rgba(231,25,63,.5);border-radius:24px 24px 0 0;background:#120306;box-shadow:0 0 35px rgba(231,25,63,.08)}
+.storefrontHeroImage{display:block;width:100%;height:auto;min-height:260px;max-height:460px;object-fit:cover}
+.storefrontHeroCaption{position:absolute;left:clamp(18px,5vw,64px);bottom:clamp(18px,4vw,42px);display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:12px 15px;border:1px solid rgba(255,255,255,.24);border-radius:14px;background:rgba(15,4,7,.74);backdrop-filter:blur(8px);box-shadow:0 10px 28px rgba(0,0,0,.25)}
+.storefrontHeroCaption h1{margin:0;color:#fff;font-size:clamp(18px,2.5vw,30px);line-height:1.1;max-width:440px}
+.storefrontHeroCta{display:inline-flex;align-items:center;gap:6px;padding:10px 14px;border-radius:10px;background:#e7193f;color:#fff;font-weight:900;white-space:nowrap}
+.storefrontHeroCta:focus-visible,.categoryBtn:focus-visible,.buy:focus-visible,.addOrder:focus-visible,.iconBtn:focus-visible{outline:3px solid #f2d18b;outline-offset:3px}
 .referenceHero{
   margin:0 -22px;
   width:calc(100% + 44px);
@@ -455,6 +465,7 @@ body{background:linear-gradient(180deg,#fffaf0 0%,#fff6e6 55%,#f8ecd7 100%);colo
 
 /* ===== AJUSTES FINALES: CATEGORIAS + COMPRA DIRECTA ===== */
 @media(max-width:760px){
+ .storefrontHeroCaption{left:12px;right:12px;bottom:12px;justify-content:center;text-align:center;padding:10px}.storefrontHeroCaption h1{max-width:none;font-size:18px}.storefrontHeroCta{padding:9px 12px}
   .categoryPanel{top:64px;padding:8px 0 11px!important;min-height:58px;}
   .categoryButtons{gap:12px!important;padding:5px 14px 9px!important;}
   .categoryBtn{height:42px!important;min-height:42px!important;padding:8px 17px!important;}
@@ -1689,6 +1700,13 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
   </div>
 </div>
 <main id="inicio" class="wrap">
+<section class="referenceHero" aria-labelledby="storefrontHeroTitle">
+  <img class="storefrontHeroImage" src="hero-sirevya-real.webp" width="2103" height="748" alt="Sirevya: moda y accesorios, envío gratis en Cali y desde 130.000 pesos en otras ciudades" decoding="async" fetchpriority="high">
+  <div class="storefrontHeroCaption">
+    <h1 id="storefrontHeroTitle">Moda y accesorios para expresar tu estilo</h1>
+    <a class="storefrontHeroCta" href="#catalogo">Explorar catálogo <span aria-hidden="true">↗</span></a>
+  </div>
+</section>
 <section class="benefits"><div class="benefit"><div class="benefitIcon">📍</div><div><b>Cali</b><small>$0 de envío</small></div></div><div class="benefit"><div class="benefitIcon">🎁</div><div><b>Otras ciudades</b><small>Envío gratis desde $130.000</small></div></div><div class="benefit"><div class="benefitIcon">🛡️</div><div><b>Compra segura</b><small>Contra entrega o pago online</small></div></div></section>
 <div id="error" class="error"></div>
 
@@ -3731,10 +3749,10 @@ async function refreshCODPaymentSettings({silent=true}={}){
    const row=Array.isArray(data)?data[0]:data;
    if(!row||typeof row.enabled!=='boolean'||!Array.isArray(row.allowed_cities))throw new Error('Respuesta de configuración de contraentrega no válida.');
    codPaymentEnabled=row.enabled;codAllowedCities=row.allowed_cities.map(x=>String(x||'').trim().toLowerCase()).filter(Boolean);codPaymentSettingsLoaded=true;
-  }catch(error){
-   // Compatibility: until the additive migration is installed, retain the previous Cali-only rule.
-   codPaymentEnabled=true;codAllowedCities=['cali'];codPaymentSettingsLoaded=false;
-   if(!silent)console.warn('No se pudo leer la configuración de contraentrega; se mantiene Cali como única ciudad.',error);
+	  }catch(error){
+	   // Fail closed: no mostrar contraentrega mientras la configuración real no esté confirmada.
+	   codPaymentEnabled=false;codAllowedCities=[];codPaymentSettingsLoaded=false;
+	   if(!silent)console.warn('No se pudo confirmar la configuración de contraentrega; se oculta hasta recuperar la conexión.',error);
   }
   syncPaymentOptions();if($('checkoutModal')?.classList.contains('open'))updateShipping();
   return codPaymentSettingsLoaded;
@@ -4817,7 +4835,7 @@ let sirevyaPromoConfig=null,sirevyaPromoTimer=null,sirevyaPromoStartTimer=null,s
 function safeSeasonalPromoUrl(value){
  const v=String(value||'').trim();
  if(['#catalogo','#inicio','#contactanos'].includes(v))return v;
- try{const u=new URL(v,location.href);if((u.protocol==='https:'||u.protocol==='http:')&&/^https?:\/\//i.test(v))return u.href}catch{}
+ try{const u=new URL(v,location.href);if(u.protocol==='https:'&&/^https:\/\//i.test(v))return u.href}catch{}
  return '#catalogo';
 }
 function normalizeSeasonalPromoRow(row){
