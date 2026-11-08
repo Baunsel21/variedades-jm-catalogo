@@ -14,6 +14,8 @@
 
 La función instalada `get_public_catalog()` no devuelve `created_at`, aunque la tabla `products` sí lo tiene. La implementación espera la RPC independiente `get_public_catalog_created_at()` para ordenar por novedad; esta tarea no aplica migraciones ni cambia datos compartidos.
 
+Revisión de contrato read-only: `get_public_catalog()` es `SECURITY DEFINER` y actualmente no filtra por `user_id`, estado ni visibilidad; devuelve todas las filas actuales de `products` con los demás campos públicos del catálogo. `get_public_catalog_created_at()` usa el mismo conjunto base, pero expone solo `id` y `created_at`, por lo que no amplía el conjunto de filas ni los campos del catálogo existente. Se mantiene esa paridad para no cambiar silenciosamente el comportamiento actual. Si la aplicación pasa a multi-tienda/multi-tenant, ambas RPC deben restringirse juntas al administrador/tienda autorizada antes de cargar productos de otros propietarios; el despliegue actual es de una sola tienda.
+
 ## Pendiente para completar la fase
 
 Siguen pendientes las etiquetas administrables de destacado/nuevo/oferta/últimas unidades, el filtro de ofertas y su relación con datos y stock del servidor. No se infieren ofertas desde precios o costos. La recuperación del carrito permanece pendiente para no alterar reservas vigentes ni crear referencias duplicadas. La galería, guía y contenido relacionado existentes se conservan, pero no se considera una nueva verificación de despliegue.
