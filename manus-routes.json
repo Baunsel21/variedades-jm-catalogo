@@ -1,0 +1,7 @@
+{
+  "routes": [
+    { "path": "/", "title": "Preview de desarrollo" },
+    { "path": "/storefront", "title": "Tienda · Preview" },
+    { "path": "/admin-preview", "title": "Administración · Preview" }
+  ]
+}

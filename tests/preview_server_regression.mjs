@@ -4,7 +4,7 @@ import { once } from 'node:events';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { createPreviewServer, DEMO_PRODUCTS, PREVIEW_CLIENT_SCRIPT, renderPreviewHtml } from '../scripts/preview-server.mjs';
+import { createPreviewServer, DEMO_ADMIN_ROWS, DEMO_PRODUCTS, PREVIEW_ADMIN_CLIENT_SCRIPT, PREVIEW_ADMIN_USER, PREVIEW_CLIENT_SCRIPT, renderPreviewHtml } from '../scripts/preview-server.mjs';
 
 const html = await renderPreviewHtml();
 assert.match(html, /PREVIEW DE DESARROLLO/);
@@ -22,6 +22,22 @@ assert.doesNotMatch(html, /\beyJ[A-Za-z0-9_-]{16,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-
 assert.doesNotMatch(html, /<script\b[^>]*\bsrc\s*=\s*(["'])(?:https?:)?\/\//i);
 assert.doesNotMatch(html, /<link\b[^>]*\bhref\s*=\s*(["'])(?:https?:)?\/\//i);
 assert.doesNotMatch(html, /<a\b[^>]*\bhref\s*=\s*(["'])(?:https?:\/\/|\/\/|tel:|mailto:|javascript:)/i);
+
+const adminHtml = await renderPreviewHtml({ mode: 'admin' });
+assert.match(adminHtml, /ADMIN DE PREVIEW/);
+assert.match(adminHtml, /identidad, productos, ventas, stock y pedidos son sintéticos/);
+assert.match(adminHtml, /supabase\.createClient\(/);
+assert.match(adminHtml, /admin-preview@example\.invalid/);
+assert.match(adminHtml, /PREVIEW_DISABLED/);
+assert.doesNotMatch(adminHtml, /\b[a-z0-9-]+\.supabase\.co\b/i);
+assert.doesNotMatch(adminHtml, /\b(?:sb_(?:publishable|secret)_[A-Za-z0-9_-]{8,}|pub_(?:test|prod)_[A-Za-z0-9_-]{8,})\b/i);
+assert.doesNotMatch(adminHtml, /<script\b[^>]*\bsrc\s*=/i);
+assert.equal((adminHtml.match(/<head\b/gi)||[]).length, 1, 'El recibo emergente del admin se deshabilita en preview.');
+assert.equal((adminHtml.match(/<body\b/gi)||[]).length, 1);
+assert.match(adminHtml, /data-sirevya-preview="safe-client"/);
+assert.equal(adminHtml.indexOf('<script data-sirevya-preview="safe-client">'), adminHtml.search(/<script\b/i), 'El shim admin se carga antes de cualquier script del panel.');
+assert.equal(DEMO_ADMIN_ROWS.products.length, DEMO_PRODUCTS.length);
+assert.equal(PREVIEW_ADMIN_USER.id, 'preview-admin-user');
 
 const alternateSource = `<!doctype html><html><head><meta http-equiv="refresh" content="0; url=https://outside.example"><link rel="stylesheet" href="https://cdn.example/style.css"><script src="https://cdn.example/sdk.js"></script></head><body><a href="https://checkout.wompi.co/p/demo">pay</a><form action="https://example.com/submit"></form><script>
 let SUPABASE_URL = 'https://another-project.supabase.co';
@@ -133,6 +149,45 @@ assert.equal(write.error.code, 'PREVIEW_BLOCKED');
 assert.equal((await client.functions.invoke('wompi-create-checkout', { body: {} })).error.code, 'PREVIEW_BLOCKED');
 assert.equal(await client.auth.getSession().then(result => result.data.session), null);
 
+let adminNativeFetchCalls = 0;
+const adminHandlers = {};
+const adminLocation = { origin: 'http://preview.test', href: 'http://preview.test/admin-preview' };
+const adminWindow = {
+  location: adminLocation,
+  document: { addEventListener: (name, handler) => { adminHandlers[name] = handler; } },
+  HTMLFormElement: function MockAdminForm() {},
+  navigator: { sendBeacon: () => true },
+  fetch: async () => { adminNativeFetchCalls++; return new Response('synthetic asset'); },
+  open: () => { throw new Error('window.open no debe navegar desde admin-preview'); },
+};
+vm.runInNewContext(PREVIEW_ADMIN_CLIENT_SCRIPT, { window: adminWindow, URL, Response, console });
+const adminClient = adminWindow.supabase.createClient('unused', 'unused');
+const adminSession = await adminClient.auth.getSession();
+assert.equal(adminSession.data.session.user.id, PREVIEW_ADMIN_USER.id);
+assert.equal(adminSession.data.session.access_token, 'PREVIEW_DISABLED');
+assert.equal((await adminClient.auth.getUser()).data.user.email, 'admin-preview@example.invalid');
+assert.equal((await adminClient.rpc('is_store_admin')).data, true);
+assert.equal((await adminClient.rpc('get_public_catalog')).data.length, DEMO_PRODUCTS.length);
+const adminSales = await adminClient.from('sales').select('*').range(0, 10);
+assert.equal(adminSales.data.length, 1);
+const adminOrders = await adminClient.from('web_orders').select('*').range(0, 10);
+assert.equal(adminOrders.data.length, 1);
+assert.equal(adminOrders.data[0].customer_email, 'cliente@example.invalid');
+assert.equal((await adminClient.rpc('admin_update_web_order_status_secure', { p_order_id: 'preview-order-001', p_status: 'confirmado' })).error.code, 'PREVIEW_BLOCKED');
+assert.equal((await adminClient.from('products').update({ quantity: 999 }).eq('id', 'preview-corset-001')).error.code, 'PREVIEW_BLOCKED');
+assert.equal((await adminClient.auth.updateUser({ password: 'not-a-real-password' })).error.code, 'PREVIEW_BLOCKED');
+assert.equal((await adminClient.functions.invoke('wompi-create-checkout', { body: {} })).error.code, 'PREVIEW_BLOCKED');
+assert.equal((await adminWindow.fetch('https://example.com/external')).status, 403);
+assert.equal((await adminWindow.fetch('/__preview_assets/demo.svg', { method: 'GET' })).status, 200);
+assert.equal((await adminWindow.fetch('/__preview_assets/demo.svg', { method: 'PUT' })).status, 403);
+assert.equal(adminNativeFetchCalls, 1, 'Solo GET local a assets sintéticos delega al servidor.');
+assert.equal(adminWindow.navigator.sendBeacon('https://example.com/track', '{}'), false);
+assert.throws(() => new adminWindow.XMLHttpRequest(), /deshabilitada/);
+assert.throws(() => new adminWindow.WebSocket(), /deshabilitada/);
+assert.throws(() => new adminWindow.EventSource(), /deshabilitada/);
+assert.equal(adminWindow.open('https://checkout.wompi.co/demo'), null);
+assert.throws(() => new adminWindow.HTMLFormElement().submit(), /Formulario deshabilitado/);
+
 const external = await window.fetch('https://example.com/should-not-leave-preview');
 assert.equal(external.status, 403);
 const localBackend = await window.fetch('/__preview_api/functions/v1/wompi-create-checkout');
@@ -182,7 +237,21 @@ try {
   assert.match(csp, /connect-src 'self'/);
   assert.match(csp, /navigate-to 'self'/);
   assert.match(response.headers.get('cache-control'), /no-store/);
-  assert.match(await response.text(), /PREVIEW DE DESARROLLO/);
+  const hubHtml = await response.text();
+  assert.match(hubHtml, /Variedades JM \/ Sirevya/);
+  assert.match(hubHtml, /href="\/storefront"/);
+  assert.match(hubHtml, /href="\/admin-preview"/);
+  const storefrontResponse = await fetch(actualBase + '/storefront');
+  assert.equal(storefrontResponse.status, 200);
+  assert.match(await storefrontResponse.text(), /PREVIEW DE DESARROLLO/);
+  const adminResponse = await fetch(actualBase + '/admin-preview');
+  assert.equal(adminResponse.status, 200);
+  assert.match(await adminResponse.text(), /ADMIN DE PREVIEW/);
+  const routesResponse = await fetch(actualBase + '/manus-routes.json');
+  assert.equal(routesResponse.status, 200);
+  const routes = await routesResponse.json();
+  assert.deepEqual(routes.routes.map(route => route.path), ['/', '/storefront', '/admin-preview']);
+  assert.ok(routes.routes.every(route => typeof route.title === 'string'));
   const versionResponse = await fetch(actualBase + '/__version');
   const version = await versionResponse.json();
   assert.equal(version.status, 'ready');
@@ -208,10 +277,10 @@ const tempServer = createPreviewServer({
 try {
   await writeFile(path.join(tempRoot, 'index.html'), alternateSource.replace('first-version', 'refresh-version-one'));
   const tempBase = await checkServer(tempServer);
-  const first = await (await fetch(tempBase + '/')).text();
+  const first = await (await fetch(tempBase + '/storefront')).text();
   assert.match(first, /refresh-version-one/);
   await writeFile(path.join(tempRoot, 'index.html'), alternateSource.replace('first-version', 'refresh-version-two'));
-  const second = await (await fetch(tempBase + '/')).text();
+  const second = await (await fetch(tempBase + '/storefront')).text();
   assert.match(second, /refresh-version-two/);
   assert.doesNotMatch(second, /refresh-version-one/);
 } finally {
