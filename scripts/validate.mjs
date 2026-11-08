@@ -117,6 +117,8 @@ try{
  const shippingTest=read('tests/shipping_config_regression.sql');
  const codTest=read('tests/cod_regression.sql');
  const codLegacyAclTest=read('tests/cod_legacy_acl.sql');
+ const shippingMigrationOrder=fs.readdirSync(path.join(root,'supabase/migrations')).filter(name=>/^2026110806(0000|0050|0100)_/.test(name)).sort();
+ assert.deepEqual(shippingMigrationOrder,['20261108060000_configurable_storefront_shipping.sql','20261108060050_restrict_admin_shipping_rpc.sql','20261108060100_cod_checkout_quote_guard.sql'],'Orden obligatorio de configuración, hotfix ACL y guard COD');
  assert.ok(shippingMigration.includes('VALUES (1,15000,130000) ON CONFLICT (id) DO NOTHING'),'Valores actuales como defaults sin sobrescribir datos');
  assert.ok(shippingMigration.includes('public.is_store_admin()'),'Guardia de administrador en el guardado');
  assert.ok(shippingAclMigration.includes('FROM PUBLIC,anon,service_role')&&shippingAclMigration.includes('TO authenticated'),'Hotfix ACL deja el RPC admin solo para authenticated');
