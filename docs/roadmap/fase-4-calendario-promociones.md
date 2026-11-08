@@ -2,6 +2,8 @@
 
 **Estado:** incremento parcial en la rama `feature/promotion-calendar-priority`; no fusionado ni desplegado. El alcance no completa Fase 4: los cupones y sus límites atómicos siguen pendientes.
 
+**Revisión:** [PR #13](https://github.com/Baunsel21/variedades-jm-catalogo/pull/13) está en borrador; la revisión independiente lo considera apto para revisión, no para merge/deploy mientras no exista un staging aislado.
+
 ## Alcance implementado
 
 Se extiende el módulo existente de combos —sin crear un segundo editor— para que cada regla con productos/categorías elegibles pueda tener prioridad entre 0 y 1000 y una zona de calendario explícita `America/Bogota`. Las filas anteriores reciben prioridad 0, por lo que mantienen el desempate histórico `created_at ASC, id ASC`. Las fechas existentes siguen siendo instantes `timestamptz` y no se reescriben; el panel ahora las muestra/edita como hora de Colombia y convierte la hora local explícitamente, independiente de la zona del navegador.

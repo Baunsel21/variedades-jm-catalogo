@@ -28,6 +28,8 @@ Cada criterio se conserva hasta que exista evidencia en código, Supabase y prue
 
 ## Fase 4: Descuentos y campañas
 
+> Avance parcial: prioridad y calendario Colombia del módulo de combos en el [PR #13](https://github.com/Baunsel21/variedades-jm-catalogo/pull/13), en borrador. No está desplegado ni aplicado en Supabase; cupones, redención atómica, staging y paridad completa siguen pendientes. Las tres casillas de esta fase permanecen abiertas.
+
 - [ ] Cupones pueden activarse por código, porcentaje o valor fijo, vigencia, compra mínima, límite global y límite de uso; el servidor valida/redime atómicamente y el panel muestra uso/expiración.
 - [ ] Calendario de promociones incluye fechas, zona horaria, prioridad, productos/categorías elegibles y copy veraz; popup, combos, cupones y envío no aplican beneficios duplicados a la misma unidad.
 - [ ] El subtotal con combo/cupón, descuento, envío y total coinciden entre navegador, quote SQL, pedido COD y amount-in-cents de Wompi; falla cerrada ante diferencias.
