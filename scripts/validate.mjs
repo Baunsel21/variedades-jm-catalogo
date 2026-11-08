@@ -45,6 +45,11 @@ try{
   DEFAULT_STOREFRONT_SHIPPING_SETTINGS:{national_shipping_cost:15000,free_shipping_threshold:130000,free_shipping_in_cali:true},
   storefrontShippingSettings:{national_shipping_cost:15000,free_shipping_threshold:130000,free_shipping_in_cali:true}
  });
+ shippingContext.normalizeDeliveryCity=value=>String(value||'').trim().normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[,.]+/g,' ').replace(/\s+/g,' ').trim();
+ shippingContext.canonicalLocalDeliveryCity=value=>['cali','santiago de cali','cali valle del cauca'].includes(shippingContext.normalizeDeliveryCity(value))?'Cali':'';
+ const resolverMatch=catalog.match(/function resolveStorefrontShippingRule\([\s\S]*?\n\}/);
+ assert.ok(resolverMatch,'Resolutor local de tarifa por destino');
+ vm.runInContext(resolverMatch[0],shippingContext);
  vm.runInContext(shippingMatch[0],shippingContext);
  const calcShipping=shippingContext.calculateStorefrontShipping;
  assert.equal(calcShipping('Cali',129999),0,'Cali sigue gratis');
@@ -54,6 +59,44 @@ try{
  assert.equal(calcShipping('Bogotá',149999,{national_shipping_cost:17500,free_shipping_threshold:150000}),17500,'Tarifa administrativa actualizada');
  assert.equal(calcShipping('Bogotá',150000,{national_shipping_cost:17500,free_shipping_threshold:150000}),0,'Umbral administrativo actualizado');
  assert.equal(calcShipping('Bogotá',999999,{national_shipping_cost:17500,free_shipping_threshold:null}),17500,'El umbral puede desactivarse');
+ const cityZoneSettings={national_shipping_cost:15000,free_shipping_threshold:130000,destination_rules:[
+  {id:'zone-1',scope:'zone',name:'Zona prioritaria',priority:100,shipping_cost:15000,free_shipping_threshold:50000,destinations:['Bogotá','Chía']},
+  {id:'city-1',scope:'city',name:'Bogotá',priority:0,shipping_cost:25000,free_shipping_threshold:null,destinations:['Bogotá']},
+  {id:'city-2',scope:'city',name:'São Paulo',priority:0,shipping_cost:11000,free_shipping_threshold:null,destinations:['São Paulo']}
+ ]};
+ assert.equal(shippingContext.resolveStorefrontShippingRule('BOGOTA',cityZoneSettings).kind,'city','La regla city prevalece sobre zona');
+ assert.equal(calcShipping('Bogotá',100000,cityZoneSettings),25000,'Tarifa de ciudad específica');
+ assert.equal(calcShipping('Bogotá,',100000,cityZoneSettings),25000,'La puntuación final se recorta en la clave del destino');
+ assert.equal(calcShipping('Chía',49999,cityZoneSettings),15000,'Tarifa de zona bajo el mínimo');
+ assert.equal(calcShipping('Chía',50000,cityZoneSettings),0,'Umbral exacto de zona');
+ assert.equal(calcShipping('Destino sin regla',129999,cityZoneSettings),15000,'Fallback bajo su umbral general');
+ assert.equal(calcShipping('Destino sin regla',130000,cityZoneSettings),0,'Fallback con umbral general exacto');
+ assert.equal(calcShipping('Sao Paulo',100000,cityZoneSettings),11000,'Normalización Unicode amplia en la regla local');
+ assert.equal(calcShipping('Santiago de Cali',999999,cityZoneSettings),0,'Alias de Cali no admite tarifa específica');
+ const destinationNormalizer=admin.match(/function normalizeStorefrontShippingDestinationAdmin\([\s\S]*?\n\}/);
+ assert.ok(destinationNormalizer,'Normalizador de destinos del panel');
+ const destinationContext=vm.createContext({});vm.runInContext(destinationNormalizer[0],destinationContext);
+ assert.equal(destinationContext.normalizeStorefrontShippingDestinationAdmin('  São Paulo  '),'sao paulo','El panel normaliza virgulilla/unicode');
+ assert.equal(destinationContext.normalizeStorefrontShippingDestinationAdmin('Càceres, España'),'caceres espana','El panel normaliza acentos y puntuación');
+ assert.equal(destinationContext.normalizeStorefrontShippingDestinationAdmin('Bogotá, '),'bogota','El panel recorta el espacio generado por la coma');
+ const loadStart=catalog.indexOf('async function loadStorefrontShippingSettings(force=false){');
+ const loadEnd=catalog.indexOf('\n\n// Referencia de Wompi',loadStart);
+ assert.ok(loadStart>=0&&loadEnd>loadStart,'Carga de configuración aislable');
+ let resolveInitialRpc;const initialRpc=new Promise(resolve=>{resolveInitialRpc=resolve});let shippingRpcCalls=0;const refreshTimers=[];
+ const refreshContext=vm.createContext({storefrontShippingSettings:{national_shipping_cost:15000,free_shipping_threshold:130000,free_shipping_in_cali:true,destination_rules:[]},
+  storefrontShippingSettingsLoaded:false,storefrontShippingSettingsPromise:null,storefrontShippingSettingsRefreshPending:false,
+  sb:{rpc:()=>{shippingRpcCalls++;return shippingRpcCalls===1?initialRpc:Promise.resolve({data:{success:true,national_shipping_cost:20000,free_shipping_threshold:150000,free_shipping_in_cali:true,destination_rules:[]}})}},
+  normalizeDeliveryCity:shippingContext.normalizeDeliveryCity,canonicalLocalDeliveryCity:shippingContext.canonicalLocalDeliveryCity,
+  updateStorefrontShippingCopy:()=>{},renderCart:()=>{},$:()=>null,console:{warn:()=>{}},setTimeout:callback=>{refreshTimers.push(callback);return 1;}});
+ vm.runInContext(catalog.slice(loadStart,loadEnd),refreshContext);
+ const initialLoad=refreshContext.loadStorefrontShippingSettings(false);const forcedLoad=refreshContext.loadStorefrontShippingSettings(true);
+ resolveInitialRpc({data:{success:true,national_shipping_cost:15000,free_shipping_threshold:130000,free_shipping_in_cali:true,destination_rules:[]}});
+ await Promise.all([initialLoad,forcedLoad]);
+ assert.equal(shippingRpcCalls,1,'El refresh simultáneo se coalesce mientras el primer read sigue activo');
+ assert.equal(refreshTimers.length,1,'El refresh forzado pendiente se agenda al terminar la carga');
+ refreshTimers.shift()();assert.equal(shippingRpcCalls,2,'El evento en vuelo provoca una segunda consulta');
+ await refreshContext.storefrontShippingSettingsPromise;await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(refreshContext.storefrontShippingSettings.national_shipping_cost,20000,'La lectura posterior reemplaza el snapshot anterior');
  assert.ok(!catalog.includes('$15.000')&&!catalog.includes('$130.000'),'HTML inicial no muestra tarifas antiguas mientras carga Supabase');
  assert.ok(catalog.includes('cartQuote.discount_total==null')&&catalog.includes('authoritativeComboQuote.discount_total==null'),'Checkout y Wompi rechazan cotizaciones parciales');
  assert.ok(catalog.includes('row?.national_shipping_cost==null')&&admin.includes('row?.national_shipping_cost==null'),'RPCs rechazan fee NULL en vez de tratarlo como $0');
@@ -71,12 +114,15 @@ try{
    querySelectorAll:s=>s==='.detailShippingBenefits .detailShippingRule'?detailRules:[]}});
  vm.runInContext(copyMatch[0],copyContext);
  copyContext.updateStorefrontShippingCopy();
- assert.equal(ticker.textContent,'✦ Envío nacional: tarifa vigente; Cali gratis','Ticker muestra estado sin umbral');
+ assert.equal(ticker.textContent,'✦ Envío gratis en Cali · tarifas según ciudad o zona','Ticker no promete una regla global cuando hay tarifas por destino');
+ assert.equal(benefit.textContent,'Tarifas y mínimos según ciudad o zona','Beneficio no atribuye el fallback a todas las ciudades');
+ assert.equal(foot.textContent,'El costo exacto se confirma al seleccionar la ciudad','Carrito aclara cuándo se conoce el importe');
  assert.equal(caliHeading.textContent,'Envío gratis en Cali','La copia dinámica no reemplaza la tarjeta de Cali');
- assert.equal(otherHeading.textContent,'Tarifa fuera de Cali','La ficha informa la tarifa si el umbral está desactivado');
+ assert.equal(otherHeading.textContent,'Tarifa por destino','La ficha indica cálculo por ciudad o zona');
+ assert.equal(otherCopy.textContent,'El costo y el mínimo dependen de la ciudad o zona.','La ficha no inventa una regla global');
  copyContext.storefrontShippingSettings.free_shipping_threshold=150000;copyContext.updateStorefrontShippingCopy();
- assert.equal(ticker.textContent,'✦ Envío gratis desde COP 150000 fuera de Cali','Ticker se actualiza al reactivar el umbral');
- assert.equal(otherHeading.textContent,'Envío gratis a otras ciudades','La ficha se actualiza al reactivar el umbral');
+ assert.equal(ticker.textContent,'✦ Envío gratis en Cali · tarifas según ciudad o zona','El ticker no cambia a un umbral general al reconfigurar fallback');
+ assert.equal(otherHeading.textContent,'Tarifa por destino','La ficha sigue siendo neutral al editar el fallback');
  const progressMatch=catalog.match(/function updateCartShippingProgress\(total\)\{[\s\S]*?\n\}/);
  assert.ok(progressMatch,'Actualizador del progreso de envío');
  const progressTrack={style:{},attrs:{},setAttribute(k,v){this.attrs[k]=v},removeAttribute(k){delete this.attrs[k]}};
@@ -89,6 +135,9 @@ try{
  progressContext.storefrontShippingSettings.free_shipping_threshold=150000;progressContext.updateCartShippingProgress(75000);
  assert.equal(progressTrack.style.display,'','El progreso aparece al activar umbral');
  assert.equal(progressNodes.cartShippingPercent.textContent,'50%','El porcentaje coincide con el umbral nuevo');
+ progressContext.storefrontShippingSettings.destination_rules=[{id:'city-rule'}];progressContext.updateCartShippingProgress(75000);
+ assert.equal(progressTrack.style.display,'none','El progreso se oculta si el umbral depende de ciudad/zona');
+ assert.match(progressNodes.cartShippingMessage.textContent,/según tu ciudad o zona/,'El carrito evita una promesa de envío gratis ambigua');
  const normalizeMatch=catalog.match(/function normalizeDeliveryCity\(value\)\{[\s\S]*?\n\}/);
  const canonicalMatch=catalog.match(/function canonicalLocalDeliveryCity\(value\)\{[\s\S]*?\n\}/);
  assert.ok(normalizeMatch&&canonicalMatch,'Normalización de ciudades de entrega');
@@ -112,13 +161,15 @@ try{
  const shippingMigration=read('supabase/migrations/20261108060000_configurable_storefront_shipping.sql');
  const shippingAclMigration=read('supabase/migrations/20261108060050_restrict_admin_shipping_rpc.sql');
  const codGuardMigration=read('supabase/migrations/20261108060100_cod_checkout_quote_guard.sql');
+ const cityShippingMigration=read('supabase/migrations/20261108070000_storefront_city_shipping_rules.sql');
  const wompiFunction=read('supabase/functions/wompi-create-checkout/index.ts');
  const codRestrictMigration=read('docs/deployment/restrict_legacy_cod_rpc_after_frontend.sql');
  const shippingTest=read('tests/shipping_config_regression.sql');
+ const cityShippingTest=read('tests/storefront_city_shipping_regression.sql');
  const codTest=read('tests/cod_regression.sql');
  const codLegacyAclTest=read('tests/cod_legacy_acl.sql');
- const shippingMigrationOrder=fs.readdirSync(path.join(root,'supabase/migrations')).filter(name=>/^2026110806(0000|0050|0100)_/.test(name)).sort();
- assert.deepEqual(shippingMigrationOrder,['20261108060000_configurable_storefront_shipping.sql','20261108060050_restrict_admin_shipping_rpc.sql','20261108060100_cod_checkout_quote_guard.sql'],'Orden obligatorio de configuración, hotfix ACL y guard COD');
+ const shippingMigrationOrder=fs.readdirSync(path.join(root,'supabase/migrations')).filter(name=>/^202611080(60000|60050|60100|70000)_/.test(name)).sort();
+ assert.deepEqual(shippingMigrationOrder,['20261108060000_configurable_storefront_shipping.sql','20261108060050_restrict_admin_shipping_rpc.sql','20261108060100_cod_checkout_quote_guard.sql','20261108070000_storefront_city_shipping_rules.sql'],'Orden obligatorio de configuración, hotfix ACL, guard COD y tarifas por ciudad');
  assert.ok(shippingMigration.includes('VALUES (1,15000,130000) ON CONFLICT (id) DO NOTHING'),'Valores actuales como defaults sin sobrescribir datos');
  assert.ok(shippingMigration.includes('public.is_store_admin()'),'Guardia de administrador en el guardado');
  assert.ok(shippingAclMigration.includes('FROM PUBLIC,anon,service_role')&&shippingAclMigration.includes('TO authenticated'),'Hotfix ACL deja el RPC admin solo para authenticated');
@@ -126,8 +177,24 @@ try{
  assert.ok(shippingMigration.includes('v_free_shipping_threshold IS NOT NULL AND v_subtotal>=v_free_shipping_threshold'),'Umbral calculado sobre subtotal con descuentos');
  assert.ok(shippingMigration.includes("v_normalized_city IN ('cali','santiago de cali','cali valle del cauca')"),'Cali conserva la excepción gratis server-side');
  assert.ok(shippingMigration.includes('TO anon,authenticated,service_role'),'Cotización pública y Wompi con grants explícitos');
+ assert.ok(cityShippingMigration.includes('CREATE TABLE public.storefront_shipping_rules')&&cityShippingMigration.includes('ENABLE ROW LEVEL SECURITY'),'Reglas en tablas protegidas por RLS');
+ assert.ok(cityShippingMigration.includes('REVOKE ALL ON TABLE public.storefront_shipping_rules FROM PUBLIC,anon,authenticated,service_role'),'Sin lectura/escritura directa de reglas');
+ assert.ok(cityShippingMigration.includes('normalize(lower(btrim(coalesce(p_value,\'\'))),NFD)')&&cityShippingMigration.includes('U&\'[\\0300-\\036f]\'')&&cityShippingMigration.includes('SELECT btrim(regexp_replace('),'La normalización SQL elimina diacríticos y espacios residuales');
+ assert.ok(cityShippingMigration.includes('admin_list_storefront_shipping_rules')&&cityShippingMigration.includes('admin_save_storefront_shipping_rule')&&cityShippingMigration.includes('public.is_store_admin()'),'RPCs admin protegidas');
+ assert.ok(cityShippingMigration.includes('FROM PUBLIC,anon,service_role'),'RPCs admin revocadas explícitamente para anon/service_role');
+ assert.ok(cityShippingMigration.includes('FOR UPDATE')&&cityShippingMigration.includes('FOR SHARE OF r'),'Cambios de regla serializados con cotizaciones');
+ assert.ok(cityShippingMigration.includes("v_normalized_city IN ('cali','santiago de cali','cali valle del cauca')")&&cityShippingMigration.includes("v_destination_status:='fallback'"),'Cali gratis y destino sin regla con fallback explícito');
+ assert.ok(cityShippingMigration.includes('shipping_rule_scope')&&cityShippingMigration.includes('destination_rules'),'Cotización y respuesta pública incluyen metadatos de regla');
+ assert.ok(cityShippingTest.includes('ROLLBACK_CITY_SHIPPING_TEST')&&cityShippingTest.includes('matched_city')&&cityShippingTest.includes('matched_zone')&&cityShippingTest.includes('cali_free')&&cityShippingTest.includes('São Paulo'),'Regresión sintética de city/zona, Unicode, Cali y rollback');
+ assert.ok(cityShippingTest.includes('public.create_contra_delivery_order_with_quote')&&cityShippingTest.includes('TEST-CITY-COD-')&&cityShippingTest.includes("v_retry->>'duplicate'")&&cityShippingTest.includes('v_retry_order_id IS DISTINCT FROM v_order_id')&&cityShippingTest.includes('v_order_count IS DISTINCT FROM 1'),'COD con regla ciudad y reintento idempotente sin pedido/reserva doble');
+ assert.ok(cityShippingTest.includes('TEST-ZONE-TIE-')&&cityShippingTest.includes('v_expected_zone_rule_id:=least'),'La prueba cubre el desempate determinista entre zonas');
  assert.ok(catalog.includes("sb.rpc('get_public_storefront_shipping_settings')"),'El catálogo consulta la tarifa actual');
  assert.ok(admin.includes("sb.rpc('admin_save_storefront_shipping_settings'"),'El admin guarda la tarifa mediante RPC');
+ assert.ok(admin.includes("sb.rpc('admin_list_storefront_shipping_rules'")&&admin.includes("sb.rpc('admin_save_storefront_shipping_rule'"),'Panel consulta/guarda reglas por RPC admin');
+ assert.ok(admin.includes('Reglas por ciudad o zona')&&admin.includes('no alteran pedidos ni reservas existentes'),'UI distingue reglas nuevas de pedidos históricos');
+ assert.ok(catalog.includes('resolveStorefrontShippingRule')&&catalog.includes('destination_rules'),'Catálogo resuelve reglas de ciudad/zona y fallback');
+ assert.ok(catalog.includes("change?.type==='shipping-rules-changed'")&&catalog.includes("payload.type))void loadStorefrontShippingSettings(true)")&&catalog.includes("type==='shipping-rules-changed'"),'Cambios de reglas refrescan el catálogo entre pestañas y por Realtime');
+ assert.ok(catalog.includes('if(force)storefrontShippingSettingsRefreshPending=true')&&catalog.includes('setTimeout(()=>{if(!storefrontShippingSettingsPromise)void loadStorefrontShippingSettings(true)},0)'),'El refresh forzado se encola si coincide con una carga en vuelo');
  assert.ok(catalog.includes("sb.rpc('create_contra_delivery_order_with_quote'"),'Contraentrega verifica el total confirmado');
  assert.ok(catalog.includes('payload.expected_total=serverTotal;')&&catalog.includes('payload.expected_total=quotedTotal;'),'Wompi y COD usan el importe COP presentado');
  assert.ok(catalog.includes('const expectedAmountInCents=Math.round(Number(authoritativeComboQuote?.total))*100;'),'Comparación Wompi respeta el redondeo COP de servidor');

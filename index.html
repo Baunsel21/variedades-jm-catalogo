@@ -1893,49 +1893,70 @@ const WOMPI_PUBLIC_KEY="pub_prod_LRVzOkCVug2eCWqW8uP923ODRoYSlx0p";
 const WOMPI_SIGNATURE_ENDPOINT=SUPABASE_URL+"/functions/v1/wompi-create-checkout";
 
 // Respaldo visual compatible con la política actual; Supabase es la fuente autoritativa.
-const DEFAULT_STOREFRONT_SHIPPING_SETTINGS={national_shipping_cost:15000,free_shipping_threshold:130000,free_shipping_in_cali:true};
+const DEFAULT_STOREFRONT_SHIPPING_SETTINGS={national_shipping_cost:15000,free_shipping_threshold:130000,free_shipping_in_cali:true,destination_rules:[]};
 let storefrontShippingSettings={...DEFAULT_STOREFRONT_SHIPPING_SETTINGS};
 let storefrontShippingSettingsLoaded=false;
 let storefrontShippingSettingsPromise=null;
+let storefrontShippingSettingsRefreshPending=false;
 let checkoutShipping=0;
 
-function calculateStorefrontShipping(city,discountedSubtotal,settings=storefrontShippingSettings){
- const normalizedCity=String(city||'').trim();
- if(normalizedCity==='Cali')return 0;
- const fee=Number(settings?.national_shipping_cost);
- const threshold=settings?.free_shipping_threshold==null?null:Number(settings.free_shipping_threshold);
- if(threshold!==null&&Number.isSafeInteger(threshold)&&threshold>0&&Number(discountedSubtotal)>=threshold)return 0;
- return Number.isSafeInteger(fee)&&fee>=0?fee:DEFAULT_STOREFRONT_SHIPPING_SETTINGS.national_shipping_cost;
+function resolveStorefrontShippingRule(city,settings=storefrontShippingSettings){
+ const raw=String(city||'').trim();
+ const normalized=normalizeDeliveryCity(raw);
+ const fallbackFee=Number(settings?.national_shipping_cost);
+ const fallbackThreshold=settings?.free_shipping_threshold==null?null:Number(settings.free_shipping_threshold);
+ if(!normalized)return {kind:'empty',name:'',fee:0,threshold:null,ruleId:null,normalizedCity:''};
+ if(canonicalLocalDeliveryCity(raw))return {kind:'cali',name:'Envío gratis en Cali',fee:0,threshold:null,ruleId:null,normalizedCity:normalized};
+ const matches=(Array.isArray(settings?.destination_rules)?settings.destination_rules:[])
+  .filter(rule=>rule&&rule.enabled!==false&&Array.isArray(rule.destinations)&&rule.destinations.some(value=>normalizeDeliveryCity(value)===normalized))
+  .sort((a,b)=>((a.scope==='city'?0:1)-(b.scope==='city'?0:1))||(Number(b.priority)||0)-(Number(a.priority)||0)||String(a.id||'').localeCompare(String(b.id||'')));
+ const rule=matches[0];
+ if(rule){
+  const threshold=rule.free_shipping_threshold==null?null:Number(rule.free_shipping_threshold);
+  return {kind:rule.scope==='city'?'city':'zone',name:String(rule.name||'Regla de envío'),fee:Number(rule.shipping_cost),threshold,ruleId:String(rule.id||''),normalizedCity:normalized};
+ }
+ return {kind:'fallback',name:'Tarifa general',fee:Number.isSafeInteger(fallbackFee)&&fallbackFee>=0?fallbackFee:DEFAULT_STOREFRONT_SHIPPING_SETTINGS.national_shipping_cost,
+  threshold:fallbackThreshold,ruleId:null,normalizedCity:normalized};
 }
-function storefrontShippingPolicyText(){
- const threshold=storefrontShippingSettings.free_shipping_threshold;
- return threshold===null
-  ?'Envío gratis en Cali. En otras ciudades se aplica la tarifa nacional vigente.'
-  :`Envío gratis en Cali y desde ${money(threshold)} en otras ciudades.`;
+function calculateStorefrontShipping(city,discountedSubtotal,settings=storefrontShippingSettings){
+ const rule=resolveStorefrontShippingRule(city,settings);
+ if(rule.kind==='empty'||rule.kind==='cali')return 0;
+ if(rule.threshold!==null&&Number.isSafeInteger(rule.threshold)&&rule.threshold>0&&Number(discountedSubtotal)>=rule.threshold)return 0;
+ return Number.isSafeInteger(rule.fee)&&rule.fee>=0?rule.fee:DEFAULT_STOREFRONT_SHIPPING_SETTINGS.national_shipping_cost;
+}
+function storefrontShippingPolicyText(city=''){
+ if(city){
+  const rule=resolveStorefrontShippingRule(city);
+  if(rule.kind==='cali')return 'Envío gratis dentro de Cali y sus alias configurados.';
+  const source=rule.kind==='fallback'?`Tarifa general para ${city}`:`Regla de ${rule.kind==='zone'?'zona':'ciudad'} “${rule.name}”`;
+  if(rule.fee===0)return `${source}: envío sin costo.`;
+  const thresholdCopy=rule.threshold===null?'sin mínimo específico de envío gratis':`gratis desde ${money(rule.threshold)} después de descuentos`;
+  return `${source}: ${money(rule.fee)}; ${thresholdCopy}.`;
+ }
+ return 'Envío gratis en Cali. En otras ciudades, la tarifa y el mínimo se determinan según la regla de ciudad/zona o la tarifa general vigente.';
 }
 function updateStorefrontShippingCopy(){
- const threshold=storefrontShippingSettings.free_shipping_threshold;
  const policy=storefrontShippingPolicyText();
  const shippingTicker=document.querySelector('.jmTickerTrack [data-shipping-policy]');
- if(shippingTicker)shippingTicker.textContent=threshold===null?'✦ Envío nacional: tarifa vigente; Cali gratis':`✦ Envío gratis desde ${money(threshold)} fuera de Cali`;
+ if(shippingTicker)shippingTicker.textContent='✦ Envío gratis en Cali · tarifas según ciudad o zona';
  const benefit=document.querySelector('.benefits .benefit:nth-child(2) small');
- if(benefit)benefit.textContent=threshold===null?`Tarifa nacional: ${money(storefrontShippingSettings.national_shipping_cost)}`:`Envío gratis desde ${money(threshold)}`;
+ if(benefit)benefit.textContent='Tarifas y mínimos según ciudad o zona';
  const foot=document.querySelector('.cartShippingFoot span:first-child');
- if(foot)foot.textContent=threshold===null?`Fuera de Cali: ${money(storefrontShippingSettings.national_shipping_cost)} de envío`:`Envío gratis desde ${money(threshold)} fuera de Cali`;
+ if(foot)foot.textContent='El costo exacto se confirma al seleccionar la ciudad';
  const otherCityShippingRule=document.querySelectorAll('.detailShippingBenefits .detailShippingRule')[1];
  if(otherCityShippingRule){
   const detailHeading=otherCityShippingRule.querySelector('b');
   const detailCopy=otherCityShippingRule.querySelector('small');
-  if(detailHeading)detailHeading.textContent=threshold===null?'Tarifa fuera de Cali':'Envío gratis a otras ciudades';
-  if(detailCopy)detailCopy.textContent=threshold===null?`Envío nacional: ${money(storefrontShippingSettings.national_shipping_cost)}.`:`En compras desde ${money(threshold)} después de descuentos.`;
+  if(detailHeading)detailHeading.textContent='Tarifa por destino';
+  if(detailCopy)detailCopy.textContent='El costo y el mínimo dependen de la ciudad o zona.';
  }
  const paymentNote=$('checkoutPaymentNote');
  if(paymentNote)paymentNote.textContent=`${policy} Los pagos en línea se procesan de forma segura con Wompi. Puedes elegir PSE, tarjeta, Nequi o Bancolombia.`;
  const track=document.querySelector('.cartShippingTrack');
- if(track)track.setAttribute('aria-valuemax',threshold===null?'1':String(threshold));
+ if(track)track.setAttribute('aria-valuemax',storefrontShippingSettings.free_shipping_threshold==null?'1':String(storefrontShippingSettings.free_shipping_threshold));
 }
 async function loadStorefrontShippingSettings(force=false){
- if(storefrontShippingSettingsPromise)return storefrontShippingSettingsPromise;
+ if(storefrontShippingSettingsPromise){if(force)storefrontShippingSettingsRefreshPending=true;return storefrontShippingSettingsPromise;}
  if(storefrontShippingSettingsLoaded&&!force)return true;
  const task=(async()=>{
   const {data,error}=await sb.rpc('get_public_storefront_shipping_settings');
@@ -1943,11 +1964,33 @@ async function loadStorefrontShippingSettings(force=false){
   const row=Array.isArray(data)?data[0]:data;
   const fee=Number(row?.national_shipping_cost);
   const threshold=row?.free_shipping_threshold==null?null:Number(row.free_shipping_threshold);
+  const rawRules=row?.destination_rules==null?[]:row.destination_rules;
   if(row?.success!==true||row?.national_shipping_cost==null||!Number.isSafeInteger(fee)||fee<0||fee>5000000||
-     (threshold!==null&&(!Number.isSafeInteger(threshold)||threshold<1||threshold>50000000))||row.free_shipping_in_cali!==true){
+     (threshold!==null&&(!Number.isSafeInteger(threshold)||threshold<1||threshold>50000000))||row.free_shipping_in_cali!==true||
+     !Array.isArray(rawRules)||rawRules.length>500){
    throw new Error('Supabase devolvió una configuración de envíos incompleta o inválida.');
   }
-  storefrontShippingSettings={national_shipping_cost:fee,free_shipping_threshold:threshold,free_shipping_in_cali:true};
+  const destinationRules=rawRules.map(rule=>{
+   const scope=String(rule?.scope||''),name=String(rule?.name||'').trim(),ruleFee=Number(rule?.shipping_cost);
+   const ruleThreshold=rule?.free_shipping_threshold==null?null:Number(rule.free_shipping_threshold);
+   const priority=Number(rule?.priority);
+   if(!rule?.id||!['city','zone'].includes(scope)||!name||!Number.isSafeInteger(ruleFee)||ruleFee<0||ruleFee>5000000||
+      (ruleThreshold!==null&&(!Number.isSafeInteger(ruleThreshold)||ruleThreshold<1||ruleThreshold>50000000))||
+      !Number.isSafeInteger(priority)||priority<0||priority>1000||!Array.isArray(rule.destinations)||rule.destinations.length<1||rule.destinations.length>50){
+    throw new Error('Supabase devolvió una regla de ciudad/zona inválida.');
+   }
+   const destinations=rule.destinations.map(value=>String(value||'').trim()).filter(Boolean);
+   if(destinations.length!==rule.destinations.length||(scope==='zone'&&destinations.length<2))throw new Error('Una regla de envío contiene destinos incompletos.');
+   if(destinations.some(value=>!!canonicalLocalDeliveryCity(value)))throw new Error('Supabase intentó asignar una tarifa a Cali, que debe permanecer gratis.');
+   return {id:String(rule.id),scope,name,priority,shipping_cost:ruleFee,free_shipping_threshold:ruleThreshold,destinations,enabled:true};
+  });
+  const activeCityKeys=new Set();
+  for(const rule of destinationRules.filter(item=>item.scope==='city'))for(const destination of rule.destinations){
+   const key=normalizeDeliveryCity(destination);
+   if(activeCityKeys.has(key))throw new Error('Supabase devolvió reglas city ambiguas para un mismo destino.');
+   activeCityKeys.add(key);
+  }
+  storefrontShippingSettings={national_shipping_cost:fee,free_shipping_threshold:threshold,free_shipping_in_cali:true,destination_rules:destinationRules};
   storefrontShippingSettingsLoaded=true;
   updateStorefrontShippingCopy();
   renderCart();
@@ -1957,7 +2000,13 @@ async function loadStorefrontShippingSettings(force=false){
  storefrontShippingSettingsPromise=task;
  try{return await task}
  catch(error){console.warn('No se pudo actualizar la configuración de envíos; el checkout verificará Supabase antes de continuar.',error);return false}
- finally{if(storefrontShippingSettingsPromise===task)storefrontShippingSettingsPromise=null}
+ finally{
+  if(storefrontShippingSettingsPromise===task)storefrontShippingSettingsPromise=null;
+  if(storefrontShippingSettingsRefreshPending){
+   storefrontShippingSettingsRefreshPending=false;
+   setTimeout(()=>{if(!storefrontShippingSettingsPromise)void loadStorefrontShippingSettings(true)},0);
+  }
+ }
 }
 
 // Referencia de Wompi pendiente: permite reintentar el pago
@@ -3664,6 +3713,7 @@ function hideCart(){
  if(!$('checkoutModal')?.classList.contains('open'))document.body.style.overflow='';
 }
 function updateCartShippingProgress(total){
+ const hasCityRules=Array.isArray(storefrontShippingSettings.destination_rules)&&storefrontShippingSettings.destination_rules.length>0;
  const threshold=storefrontShippingSettings.free_shipping_threshold;
  const hasThreshold=threshold!==null&&Number.isSafeInteger(Number(threshold))&&Number(threshold)>0;
  const target=hasThreshold?Number(threshold):0;
@@ -3672,6 +3722,14 @@ function updateCartShippingProgress(total){
  const missing=hasThreshold?Math.max(0,target-safeTotal):0;
  const message=$('cartShippingMessage'),fill=$('cartShippingFill'),truck=$('cartShippingTruck'),percent=$('cartShippingPercent');
  const track=fill?.parentElement;
+ if(hasCityRules){
+  if(message)message.textContent='Las tarifas y los mínimos de envío se determinan según tu ciudad o zona y se confirman en el checkout.';
+  if(fill)fill.style.width='0%';
+  if(truck)truck.style.left='3%';
+  if(percent)percent.textContent='—';
+  if(track){track.style.display='none';track.setAttribute('aria-hidden','true');track.setAttribute('aria-valuemax','1');track.setAttribute('aria-valuenow','0');track.setAttribute('aria-valuetext','El envío se confirma por ciudad o zona');}
+  return;
+ }
  if(message){
    message.innerHTML=!hasThreshold
      ? `En Cali el envío es gratis. Fuera de Cali: <strong>${money(storefrontShippingSettings.national_shipping_cost)}</strong>.`
@@ -3779,7 +3837,7 @@ async function refreshOnlinePaymentSetting(options={}){
  try{return await task}finally{if(onlinePaymentSettingsPromise===task)onlinePaymentSettingsPromise=null;}
 }
 function normalizeDeliveryCity(value){
- return String(value||'').trim().normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('es-CO').replace(/[,.]+/g,' ').replace(/\s+/g,' ');
+ return String(value||'').trim().normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('es-CO').replace(/[,.]+/g,' ').replace(/\s+/g,' ').trim();
 }
 function canonicalLocalDeliveryCity(value){
  const normalized=normalizeDeliveryCity(value);
@@ -3902,16 +3960,20 @@ function updateShipping(){
  updateContraEntregaAvailability(city);
  const priced=calculateStorefrontComboPricing(getCheckoutItems());
  const productsTotal=priced.subtotal;
- const threshold=storefrontShippingSettings.free_shipping_threshold;
+ const missingOtherCity=selectedCity==='Otra'&&!city;
+ const shippingRule=resolveStorefrontShippingRule(city);
+ const threshold=shippingRule.threshold;
  const reachesFreeShipping=threshold!==null&&productsTotal>=Number(threshold);
- checkoutShipping = !selectedCity ? 0 : calculateStorefrontShipping(city,productsTotal);
- if($('shippingValue'))$('shippingValue').textContent=!selectedCity?'Selecciona una ciudad':(checkoutShipping===0?'GRATIS':money(checkoutShipping));
+ checkoutShipping = !selectedCity||missingOtherCity ? 0 : calculateStorefrontShipping(city,productsTotal);
+ if($('shippingValue'))$('shippingValue').textContent=!selectedCity?'Selecciona una ciudad':missingOtherCity?'Escribe tu ciudad':(checkoutShipping===0?'GRATIS':money(checkoutShipping));
  if($('shippingNote')){
    $('shippingNote').textContent=!selectedCity
-     ?storefrontShippingPolicyText()+` Tarifa nacional: ${money(storefrontShippingSettings.national_shipping_cost)}.`
-     :city==='Cali'?'Envío gratis dentro de Cali.'
-     :selectedCity==='Otra'&&!city?`Escribe tu ciudad. Tarifa nacional: ${money(storefrontShippingSettings.national_shipping_cost)}${threshold===null?'.':` o gratis desde ${money(threshold)} después de descuentos.`}`
-     :reachesFreeShipping?`Envío gratis por compra igual o superior a ${money(threshold)} después de descuentos.`:`Envío nacional: ${money(storefrontShippingSettings.national_shipping_cost)}${threshold===null?'.':`. Envío gratis desde ${money(threshold)} después de descuentos.`}`;
+     ?storefrontShippingPolicyText()+' Selecciona tu ciudad para ver el valor exacto.'
+     :missingOtherCity?'Escribe tu ciudad para calcular la tarifa de envío.'
+     :shippingRule.kind==='cali'?'Envío gratis dentro de Cali y sus alias configurados.'
+     :shippingRule.fee===0?`El envío para ${city} no tiene costo según la regla vigente.`
+     :reachesFreeShipping?`${shippingRule.kind==='fallback'?'La tarifa general':'La regla de envío'} para ${city} ofrece envío gratis desde ${money(threshold)} después de descuentos.`
+     :`${shippingRule.kind==='fallback'?'Tarifa general de respaldo':'Tarifa de '+(shippingRule.kind==='zone'?'zona':'ciudad')+' “'+shippingRule.name+'”'} para ${city}: ${shippingRule.fee===0?'sin cobro':money(shippingRule.fee)}.${threshold===null?' No hay un mínimo específico de envío gratis.':` Envío gratis desde ${money(threshold)} después de descuentos.`}`;
  }
  updateCheckoutSummary();
 }
@@ -4915,6 +4977,7 @@ window.addEventListener('storage',event=>{
  // Keep the localStorage cross-tab fallback complete when Broadcast/Realtime is unavailable.
  if(change?.type==='combo-changed'){void loadStorefrontProductCombos({force:true});return;}
  if(change?.type==='promotion-changed'){void loadSeasonalPromoFromSupabase({force:true});return;}
+ if(change?.type==='shipping-settings-changed'||change?.type==='shipping-rules-changed'){void loadStorefrontShippingSettings(true);return;}
  void refreshInventoryStatus(true);
  if((change?.type==='product-saved'||change?.type==='product-images-changed')&&change.productId){
    const refreshImages=change.type==='product-images-changed'||!!change.refreshImages;
@@ -5055,7 +5118,7 @@ window.addEventListener('keydown',event=>{if(event.key==='Escape'&&!$('seasonalP
 window.addEventListener('storage',event=>{
  if(event.key==='sirevya_seasonal_promo_changed'&&document.visibilityState==='visible')void loadSeasonalPromoFromSupabase({force:true});
  if(event.key==='sirevya_public_catalog_changed'&&document.visibilityState==='visible'){
-  try{const payload=JSON.parse(event.newValue||'{}');if(payload.type==='shipping-settings-changed')void loadStorefrontShippingSettings(true)}catch{}
+  try{const payload=JSON.parse(event.newValue||'{}');if(['shipping-settings-changed','shipping-rules-changed'].includes(payload.type))void loadStorefrontShippingSettings(true)}catch{}
  }
 });
 void loadSeasonalPromoFromSupabase();
@@ -5070,7 +5133,7 @@ function startPublicCatalogRealtime(){
     const type=String(payload.type||'');
     if(type==='promotion-changed'){void loadSeasonalPromoFromSupabase({force:true});return}
     if(type==='combo-changed'){void loadStorefrontProductCombos({force:true});return}
-    if(type==='shipping-settings-changed'){void loadStorefrontShippingSettings(true);return}
+    if(type==='shipping-settings-changed'||type==='shipping-rules-changed'){void loadStorefrontShippingSettings(true);return}
     void refreshInventoryStatus(true);
     const pid=String(payload.productId||'');
     if(pid&&['product-saved','product-images-changed'].includes(type)){

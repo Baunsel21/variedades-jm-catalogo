@@ -13,6 +13,8 @@ Cada criterio se conserva hasta que exista evidencia en código, Supabase y prue
 
 ## Fase 2: Tarifas por ciudad y reglas de entrega
 
+> Estado al 7 de noviembre de 2026: existe un borrador de implementación en `feature/roadmap-city-shipping`, con SQL, UI y regresión sintética. No se aplicó a producción y los criterios siguientes siguen abiertos hasta validar en un proyecto aislado. Ver [`fase-2-tarifas-por-destino.md`](fase-2-tarifas-por-destino.md).
+
 - [ ] El administrador puede crear/editar/desactivar una tarifa por ciudad o zona, una tarifa general alternativa y umbral de envío gratis; se muestran ciudades sin regla con la tarifa de respaldo. Ciudad/Cali se normaliza con acentos, mayúsculas, espacios y alias documentados.
 - [ ] La disponibilidad de contraentrega sigue bajo sus controles actuales por ciudad; tarifas y medios de pago no se contradicen. Cambiar una regla de entrega no altera pedidos ya creados ni reservas activas.
 - [ ] La cotización rechaza o maneja explícitamente ciudad vacía/no reconocida y nunca confía en el importe enviado por el navegador.
