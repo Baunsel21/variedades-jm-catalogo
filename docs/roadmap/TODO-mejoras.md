@@ -46,6 +46,8 @@ Cada criterio se conserva hasta que exista evidencia en código, Supabase y prue
 
 ## Fase 6: Dashboard, clientes y logística
 
+> Avance parcial: filtros/paginación visual de pedidos `web_orders` en [PR #15](https://github.com/Baunsel21/variedades-jm-catalogo/pull/15), borrador apilado sobre PR #14. No integra Wompi/`orders` ni toca estados logísticos; dashboard completo, clientes, logística/notificaciones, paginación server-side y smoke visual siguen abiertos.
+
 - [ ] Dashboard muestra ventas por día/semana, pedidos pendientes, ventas/valor promedio, alertas de inventario bajo, agotados y pagos con revisión pendiente, indicando fecha/fuente y estados de carga/error.
 - [ ] Los filtros de pedido incluyen periodo, estado, ciudad y pago; listas usan paginación, conservan conteos correctos y nunca presentan error de consulta como “sin pedidos”.
 - [ ] El historial de clientes muestra órdenes relacionadas, recurrencia y notas bajo autorización del administrador; PII se obtiene bajo demanda, no se guarda en logs/URL/localStorage ni queda expuesta a público.

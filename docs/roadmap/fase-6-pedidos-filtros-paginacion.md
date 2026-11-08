@@ -1,6 +1,6 @@
 # Fase 6-S1 — Filtros y paginación visual de pedidos
 
-**Estado:** implementación local en `feature/admin-orders-filters-pagination`, apilada sobre `feature/checkout-coupons` (PR #14). No se ha fusionado ni desplegado. No requiere ni añade migraciones.
+**Estado:** [PR #15](https://github.com/Baunsel21/variedades-jm-catalogo/pull/15) en borrador, rama `feature/admin-orders-filters-pagination`, apilada sobre `feature/checkout-coupons` (PR #14). No se ha fusionado ni desplegado. No requiere ni añade migraciones.
 
 ## Alcance
 
@@ -14,6 +14,6 @@ La lectura actual sigue trayendo `web_orders` en páginas técnicas de 1.000 fil
 
 ## Pruebas y entrega
 
-`node scripts/validate.mjs` incluye pruebas VM puras para frontera de fecha de Bogotá, normalización de acentos, filtros combinados, fechas inválidas, resultados vacíos, tramos/clamp de páginas y tamaño permitido. El mismo validador comprueba la presencia de controles accesibles, el aviso de error y el uso de la RPC segura. `git diff --check` debe pasar antes del commit.
+`node scripts/validate.mjs` incluye pruebas VM puras para frontera de fecha de Bogotá, normalización de acentos, filtros combinados, fechas inválidas, resultados vacíos, tramos/clamp de páginas y tamaño permitido. El mismo validador comprueba la presencia de controles accesibles, el aviso de error y el uso de la RPC segura. El validador y `git diff --check` pasan en esta rama.
 
 No se consultan tablas ni filas reales durante las pruebas locales, no se ejecuta SQL, no se altera Supabase, no se hacen pagos y no se cambia un estado de pedido. El PR debe permanecer en borrador hasta revisar visualmente con datos sintéticos y completar su smoke test de error/carga en un entorno autorizado.
