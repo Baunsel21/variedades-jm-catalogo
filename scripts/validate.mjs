@@ -155,15 +155,46 @@ try{
  assert.ok(codTest.includes('La prueba dejó productos sintéticos')&&codTest.includes('La prueba dejó reservas sintéticas'),'Rollback COD falla si quedan residuos');
  assert.ok(codTest.includes('cod_changed_price_rejected')&&codTest.includes('creó un pedido duplicado'),'La regresión comprueba reintento COD con cambio de precio');
  assert.ok(codLegacyAclTest.includes('RPC COD antiguo sigue ejecutable')&&codLegacyAclTest.includes('wrapper con guard'),'Prueba del corte COD posdespliegue');
- for(const key of [
-  "const WOMPI_PENDING_REFERENCE_KEY='jm_wompi_pending_reference_v5';",
+	for(const key of [
+	  "const WOMPI_PENDING_REFERENCE_KEY='jm_wompi_pending_reference_v5';",
   "const WOMPI_PENDING_TIME_KEY='jm_wompi_pending_time_v5';",
   "const WOMPI_CART_KEY='jm_wompi_cart_v5';",
   "const WOMPI_RESERVATION_TIME_KEY='jm_wompi_reservation_time_v5';",
   "const WOMPI_RESERVATION_REFERENCE_KEY='jm_wompi_reservation_reference_v6';",
   "const WOMPI_RESERVATION_ITEMS_KEY='jm_wompi_reservation_items_v2';",
   "const WOMPI_RESERVATIONS_KEY='jm_wompi_reservations_v3';",
-  "const COD_ORDER_DRAFT_KEY='jm_cod_order_draft_v1';"
- ])assert.ok(catalog.includes(key),`Clave de carrito/reserva conservada: ${key}`);
- console.log('PASS: sintaxis, SDK/SRI, seguridad admin, CSV, tarifas, COD, rollback y claves Wompi intactas.');
+	  "const COD_ORDER_DRAFT_KEY='jm_cod_order_draft_v1';"
+	 ])assert.ok(catalog.includes(key),`Clave de carrito/reserva conservada: ${key}`);
+	 const promoCalendarMigration=read('supabase/migrations/20261108090000_storefront_combo_calendar_priority.sql');
+	 const promoCalendarTest=read('tests/promotion_priority_regression.sql');
+	 assert.ok(promoCalendarMigration.includes('ADD COLUMN IF NOT EXISTS priority integer NOT NULL DEFAULT 0')&&promoCalendarMigration.includes("time_zone text NOT NULL DEFAULT 'America/Bogota'"),'Calendario añade prioridad/timezone con defaults compatibles');
+	 assert.ok(promoCalendarMigration.includes('CHECK (priority BETWEEN 0 AND 1000)')&&promoCalendarMigration.includes("CHECK (time_zone='America/Bogota')"),'Servidor limita prioridad y zona horaria');
+	 assert.ok(promoCalendarMigration.includes('ORDER BY c.priority DESC,c.created_at ASC,c.id ASC')&&promoCalendarMigration.includes('v_remaining[i]:=v_remaining[i]-v_units'),'Cotización ordena prioridad y conserva consumo único por unidad');
+	 assert.ok(promoCalendarMigration.includes('CREATE OR REPLACE FUNCTION public.get_storefront_cart_quote(p_items jsonb, p_city text DEFAULT')&&promoCalendarMigration.includes('GRANT EXECUTE ON FUNCTION public.get_storefront_cart_quote(jsonb,text) TO anon,authenticated,service_role'),'La cotización conserva firma/grants Wompi-COD');
+	 assert.ok(promoCalendarMigration.includes('admin_save_storefront_product_combo_v2')&&promoCalendarMigration.includes('admin_save_storefront_product_combo(')&&promoCalendarMigration.includes('auth.uid() IS DISTINCT FROM v_admin_user_id'),'RPC v2 tiene guardia admin y reutiliza validación de campos legacy');
+	 assert.ok(promoCalendarMigration.includes('REVOKE ALL ON FUNCTION public.admin_save_storefront_product_combo_v2')&&promoCalendarMigration.includes('FROM PUBLIC,anon'),'RPC admin no es público/anon');
+	 assert.ok(promoCalendarMigration.includes('to_regprocedure(\'public.admin_save_storefront_product_combo(')&&promoCalendarMigration.includes('TABLE(id uuid,%enabled boolean,%)'),'Migración falla temprano si el overload/retorno legacy requerido no coincide');
+	 assert.ok(admin.includes("sb.rpc('admin_list_storefront_product_combos_v2')")&&admin.includes("sb.rpc('admin_save_storefront_product_combo_v2'")&&admin.includes('p_priority:priority')&&admin.includes('p_time_zone:STORE_CAMPAIGN_TIME_ZONE'),'Panel carga y guarda el calendario v2');
+	 assert.ok(catalog.includes("sb.rpc('get_public_storefront_product_combos_v2')")&&catalog.includes("sb.rpc('get_public_storefront_product_combos')"),'Catálogo usa RPC pública v2 y fallback solo legacy');
+	 assert.ok(admin.includes('America/Bogota')&&admin.includes('hora de Colombia')&&!admin.includes("message:'Descubre la temporada y aprovecha el envío gratis a Cali.'"),'Panel fija hora Colombia y copy sugerido neutral');
+	 assert.ok(promoCalendarTest.includes('admin_save_storefront_product_combo_v2')&&promoCalendarTest.includes("request.jwt.claim.sub")&&promoCalendarTest.includes("has_function_privilege('service_role'")&&promoCalendarTest.includes('v_quote#>>\'{discounts,0,id}\'')&&promoCalendarTest.includes('v_line_discount IS DISTINCT FROM 7000')&&promoCalendarTest.includes('ROLLBACK;'),'Regresión invoca el guardado v2 y cubre grants/prioridad/paridad con rollback');
+	 const campaignTimeBlock=admin.match(/const STORE_CAMPAIGN_TIME_ZONE='America\/Bogota';[\s\S]*?(?=function resetStorefrontComboForm\(\))/)?.[0];
+	 assert.ok(campaignTimeBlock,'Helpers de conversión horaria para campañas');
+	 const campaignTimeContext=vm.createContext({Intl});vm.runInContext(campaignTimeBlock,campaignTimeContext);
+	 assert.equal(campaignTimeContext.campaignLocalDateTimeToIso('2026-11-07T12:34'),'2026-11-07T17:34:00.000Z','Fecha de Colombia convierte a instante UTC independientemente del navegador');
+	 assert.equal(campaignTimeContext.campaignIsoToLocalDateTime('2026-11-07T17:34:00.000Z'),'2026-11-07T12:34','Instante UTC vuelve a hora de Colombia');
+	 assert.throws(()=>campaignTimeContext.campaignLocalDateTimeToIso('2026-02-30T09:00'),/fecha/i,'Fecha inválida no se normaliza silenciosamente');
+	 const comboPricingMatch=catalog.match(/function calculateStorefrontComboPricing\(items\)\{[\s\S]*?\n\}/);
+	 assert.ok(comboPricingMatch,'Estimador local de descuentos de combos');
+	 const comboProducts=[{id:'a',sale_price:100000,category:'A'},{id:'b',sale_price:100000,category:'B'}];
+	 const comboContext=vm.createContext({productos:comboProducts,storefrontProductCombos:[
+	  {id:'legacy',rule_type:'product_pair',product_a_id:'a',product_b_id:'b',discount_type:'fixed_amount',discount_value:20000,priority:0,created_at:'2026-01-01'},
+	  {id:'priority',rule_type:'product_pair',product_a_id:'a',product_b_id:'b',discount_type:'fixed_amount',discount_value:7000,priority:1000,created_at:'2026-02-01'}
+	 ],comboPriceForItem:item=>Number(comboProducts.find(product=>product.id===String(item.id))?.sale_price)||0});
+	 vm.runInContext(comboPricingMatch[0],comboContext);
+	 const priorityQuote=comboContext.calculateStorefrontComboPricing([{id:'a',qty:1},{id:'b',qty:1}]);
+	 assert.equal(priorityQuote.applied.length,1,'Una pareja solo recibe un beneficio');
+	 assert.equal(priorityQuote.applied[0].id,'priority','El estimador usa prioridad antes del orden histórico');
+	 assert.equal(priorityQuote.discountTotal,7000,'El estimador coincide con el beneficio de mayor prioridad');
+	 console.log('PASS: sintaxis, SDK/SRI, seguridad admin, CSV, tarifas, COD, campañas, timezone, prioridad y rollback.');
 }finally{fs.rmSync(temp,{recursive:true,force:true});}
