@@ -1,5 +1,16 @@
 -- Extiende el calendario actual de combos; no crea un segundo editor ni cambia los RPC legacy.
 -- Las fechas se interpretan en America/Bogota desde el panel; las reglas existentes quedan en prioridad 0.
+-- Requiere que Fase 2 haya instalado las reglas de tarifas por ciudad/zona antes de sustituir la cotización.
+DO $shipping_rules_contract$
+BEGIN
+  IF to_regclass('public.storefront_shipping_rules') IS NULL
+     OR to_regclass('public.storefront_shipping_rule_destinations') IS NULL
+     OR to_regprocedure('public.normalize_storefront_delivery_city(text)') IS NULL THEN
+    RAISE EXCEPTION 'Calendario de combos requiere primero la migración de tarifas por ciudad/zona (Fase 2).';
+  END IF;
+END
+$shipping_rules_contract$;
+
 ALTER TABLE public.storefront_product_combos
   ADD COLUMN IF NOT EXISTS priority integer NOT NULL DEFAULT 0,
   ADD COLUMN IF NOT EXISTS time_zone text NOT NULL DEFAULT 'America/Bogota';
@@ -149,7 +160,7 @@ CREATE OR REPLACE FUNCTION public.get_storefront_cart_quote(p_items jsonb, p_cit
 AS $function$
 DECLARE
  v_input jsonb; v_product public.products%ROWTYPE; v_line_count integer:=0; v_qty integer;
- v_owner_id uuid; v_city text:=lower(btrim(coalesce(p_city,''))); v_base numeric(14,2):=0;
+ v_owner_id uuid; v_city text:=btrim(coalesce(p_city,'')); v_base numeric(14,2):=0;
  v_discount numeric(14,2):=0; v_subtotal numeric(14,2):=0; v_shipping numeric(14,2):=0; v_total numeric(14,2):=0;
  v_ids uuid[]:=ARRAY[]::uuid[]; v_names text[]:=ARRAY[]::text[]; v_codes text[]:=ARRAY[]::text[];
  v_categories text[]:=ARRAY[]::text[]; v_prices numeric[]:=ARRAY[]::numeric[]; v_qtys integer[]:=ARRAY[]::integer[];
@@ -158,7 +169,10 @@ DECLARE
  v_rule record; v_n integer; i integer; j integer; v_is_a boolean; v_is_b boolean; v_units integer;
  v_pair_total numeric(14,2); v_save_per_pair numeric(14,2); v_share_a numeric(14,2); v_share_b numeric(14,2);
  v_rule_units integer; v_rule_discount numeric(14,2); v_applied jsonb:='[]'::jsonb; v_item_json jsonb:='[]'::jsonb;
- v_original_line numeric(14,2); v_net_line numeric(14,2); v_normalized_city text; v_national_shipping_cost bigint; v_free_shipping_threshold bigint;
+ v_original_line numeric(14,2); v_net_line numeric(14,2); v_normalized_city text;
+ v_national_shipping_cost bigint; v_free_shipping_threshold bigint;
+ v_shipping_rule_id uuid; v_shipping_rule_scope text; v_shipping_rule_name text;
+ v_destination_status text; v_resolved_shipping_cost bigint; v_resolved_threshold bigint;
 BEGIN
  SELECT s.admin_user_id INTO v_owner_id FROM public.store_settings AS s WHERE s.id=1;
  IF v_owner_id IS NULL THEN
@@ -234,23 +248,51 @@ BEGIN
      'original_subtotal',v_original_line,'discount_total',v_line_discounts[i],'net_subtotal',v_net_line));
  END LOOP;
  v_subtotal:=greatest(0,v_base-v_discount);
- v_normalized_city:=public.sirevya_normalize_combo_category(v_city);
+ v_normalized_city:=public.normalize_storefront_delivery_city(v_city);
  SELECT s.national_shipping_cost,s.free_shipping_threshold
    INTO v_national_shipping_cost,v_free_shipping_threshold
-   FROM public.storefront_shipping_settings AS s WHERE s.id=1;
+   FROM public.storefront_shipping_settings AS s WHERE s.id=1 FOR SHARE;
  IF NOT FOUND THEN
    RETURN jsonb_build_object('success',false,'message','La configuración de envíos no está disponible.');
  END IF;
  IF v_normalized_city IN ('cali','santiago de cali','cali valle del cauca') THEN
    v_shipping:=0;
- ELSIF v_free_shipping_threshold IS NOT NULL AND v_subtotal>=v_free_shipping_threshold THEN
-   v_shipping:=0;
+   v_destination_status:='cali_free';
+   v_shipping_rule_name:='Envío gratis en Cali';
+   v_resolved_shipping_cost:=0;
+   v_resolved_threshold:=NULL;
  ELSE
-   v_shipping:=v_national_shipping_cost;
+   SELECT r.id,r.scope,r.name,r.shipping_cost,r.free_shipping_threshold
+     INTO v_shipping_rule_id,v_shipping_rule_scope,v_shipping_rule_name,v_resolved_shipping_cost,v_resolved_threshold
+     FROM public.storefront_shipping_rule_destinations AS d
+     JOIN public.storefront_shipping_rules AS r ON r.id=d.rule_id
+    WHERE d.destination_key=v_normalized_city AND r.enabled=true
+    ORDER BY CASE WHEN r.scope='city' THEN 0 ELSE 1 END,r.priority DESC,r.id
+    LIMIT 1
+    FOR SHARE OF r;
+   IF FOUND THEN
+     v_destination_status:='matched_'||v_shipping_rule_scope;
+   ELSE
+     v_destination_status:='fallback';
+     v_shipping_rule_name:='Tarifa general';
+     v_resolved_shipping_cost:=v_national_shipping_cost;
+     v_resolved_threshold:=v_free_shipping_threshold;
+   END IF;
+   IF v_resolved_threshold IS NOT NULL AND v_subtotal>=v_resolved_threshold THEN
+     v_shipping:=0;
+   ELSE
+     v_shipping:=v_resolved_shipping_cost;
+   END IF;
  END IF;
  v_total:=v_subtotal+v_shipping;
- RETURN jsonb_build_object('success',true,'original_subtotal',v_base,'discount_total',v_discount,'discounted_subtotal',v_subtotal,
-   'shipping',v_shipping,'total',v_total,'items',v_item_json,'discounts',v_applied,'currency','COP');
+ RETURN jsonb_build_object(
+   'success',true,'original_subtotal',v_base,'discount_total',v_discount,'discounted_subtotal',v_subtotal,
+   'shipping',v_shipping,'total',v_total,'items',v_item_json,'discounts',v_applied,'currency','COP',
+   'normalized_city',v_normalized_city,'destination_status',v_destination_status,
+   'shipping_rule_id',v_shipping_rule_id,'shipping_rule_scope',v_shipping_rule_scope,
+   'shipping_rule_name',v_shipping_rule_name,'shipping_rule_cost',v_resolved_shipping_cost,
+   'shipping_rule_threshold',v_resolved_threshold
+ );
 EXCEPTION
  WHEN invalid_text_representation OR numeric_value_out_of_range THEN
    RETURN jsonb_build_object('success',false,'message','El carrito contiene un identificador o una cantidad no válida.');

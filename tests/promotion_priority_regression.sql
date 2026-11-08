@@ -1,6 +1,6 @@
--- REGRESIÓN DE PRIORIDAD DE PROMOCIONES: ejecutar tras las migraciones de combos/calendario.
--- Inserta únicamente productos y combos sintéticos dentro de una transacción revertida.
--- No crea pedidos ni reservas y no modifica tarifas, pagos o datos históricos.
+-- REGRESIÓN DE PROMOCIONES/ENVÍO: ejecutar tras migraciones city/zone y combos/calendario.
+-- Inserta productos, combos y reglas city/zone sintéticas dentro de una transacción revertida.
+-- No crea pedidos ni reservas, no modifica tarifas generales ni pagos/datos históricos.
 BEGIN;
 
 DO $promotion_priority_test$
@@ -11,6 +11,8 @@ DECLARE
   v_product_b uuid;
   v_high_priority_combo uuid;
   v_legacy_combo uuid;
+  v_city_rule_id uuid;
+  v_zone_rule_id uuid;
   v_quote jsonb;
   v_saved jsonb;
   v_line_discount numeric;
@@ -23,6 +25,7 @@ BEGIN
   IF has_function_privilege('anon','public.get_public_storefront_product_combos_v2()','EXECUTE') IS DISTINCT FROM true
      OR has_function_privilege('service_role','public.get_public_storefront_product_combos_v2()','EXECUTE') IS DISTINCT FROM true
      OR has_function_privilege('anon','public.get_storefront_cart_quote(jsonb,text)','EXECUTE') IS DISTINCT FROM true
+     OR has_function_privilege('authenticated','public.get_storefront_cart_quote(jsonb,text)','EXECUTE') IS DISTINCT FROM true
      OR has_function_privilege('service_role','public.get_storefront_cart_quote(jsonb,text)','EXECUTE') IS DISTINCT FROM true THEN
     RAISE EXCEPTION 'TEST FAILED: RPC público de combos o cotización no es ejecutable por anon';
   END IF;
@@ -67,6 +70,21 @@ BEGIN
       'fixed_amount',20000,0,'America/Bogota',now()-interval '1 day'
     ) RETURNING id INTO v_legacy_combo;
 
+    INSERT INTO public.storefront_shipping_rules(
+      scope,name,priority,shipping_cost,free_shipping_threshold,enabled
+    ) VALUES (
+      'zone','TEST-ZONE-'||substr(v_tag,1,12),100,28000,NULL,true
+    ) RETURNING id INTO v_zone_rule_id;
+    INSERT INTO public.storefront_shipping_rule_destinations(rule_id,destination,destination_key)
+    VALUES(v_zone_rule_id,'Cartagena','cartagena');
+    INSERT INTO public.storefront_shipping_rules(
+      scope,name,priority,shipping_cost,free_shipping_threshold,enabled
+    ) VALUES (
+      'city','TEST-CITY-'||substr(v_tag,1,12),0,21000,195000,true
+    ) RETURNING id INTO v_city_rule_id;
+    INSERT INTO public.storefront_shipping_rule_destinations(rule_id,destination,destination_key)
+    VALUES(v_city_rule_id,'Cartagena','cartagena');
+
     SELECT public.get_storefront_cart_quote(
       jsonb_build_array(
         jsonb_build_object('id',v_product_a::text,'qty',1,'color','','size',''),
@@ -88,6 +106,26 @@ BEGIN
        OR jsonb_array_length(coalesce(v_quote->'discounts','[]'::jsonb)) IS DISTINCT FROM 1
        OR v_quote#>>'{discounts,0,id}' IS DISTINCT FROM v_high_priority_combo::text THEN
       RAISE EXCEPTION 'TEST FAILED: prioridad, consumo único por unidades o paridad de línea: %',v_quote;
+    END IF;
+
+    -- Una regla de ciudad gana a una zona con prioridad mayor; el umbral usa $193.000 netos, no $200.000 brutos.
+    SELECT public.get_storefront_cart_quote(
+      jsonb_build_array(
+        jsonb_build_object('id',v_product_a::text,'qty',1,'color','','size',''),
+        jsonb_build_object('id',v_product_b::text,'qty',1,'color','','size','')
+      ),'Cartagena'
+    ) INTO v_quote;
+    IF v_quote->>'success' IS DISTINCT FROM 'true'
+       OR v_quote->>'normalized_city' IS DISTINCT FROM 'cartagena'
+       OR v_quote->>'destination_status' IS DISTINCT FROM 'matched_city'
+       OR v_quote->>'shipping_rule_scope' IS DISTINCT FROM 'city'
+       OR v_quote->>'shipping_rule_name' IS DISTINCT FROM 'TEST-CITY-'||substr(v_tag,1,12)
+       OR (v_quote->>'shipping_rule_cost')::numeric IS DISTINCT FROM 21000
+       OR (v_quote->>'shipping_rule_threshold')::numeric IS DISTINCT FROM 195000
+       OR (v_quote->>'discounted_subtotal')::numeric IS DISTINCT FROM 193000
+       OR (v_quote->>'shipping')::numeric IS DISTINCT FROM 21000
+       OR (v_quote->>'total')::numeric IS DISTINCT FROM 214000 THEN
+      RAISE EXCEPTION 'TEST FAILED: prioridad ciudad/zona o umbral posdescuento no se conservó: %',v_quote;
     END IF;
 
     SELECT priority,time_zone INTO v_calendar_priority,v_time_zone
