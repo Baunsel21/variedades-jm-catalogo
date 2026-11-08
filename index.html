@@ -16,6 +16,7 @@
 <meta property="og:site_name" content="Sirevya">
 <meta property="og:title" content="Sirevya — Tu estilo, nuestra pasión">
 <meta property="og:description" content="Moda y accesorios con envío gratis en Cali y envío nacional gratis desde $130.000.">
+<meta property="og:url" content="https://sirevya.com.co/">
 <meta property="og:image" content="https://sirevya.com.co/share-sirevya.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
@@ -4025,13 +4026,33 @@ async function payWithWompi(payload){
     const {data:authState}=await sb.auth.getSession();
     if(authState?.session?.access_token)functionHeaders.Authorization='Bearer '+authState.session.access_token;
   }catch(sessionError){console.warn('No se pudo recuperar una sesión opcional para preparar el pago.',sessionError)}
-  const response=await fetch(WOMPI_SIGNATURE_ENDPOINT,{
-   method:'POST',
-   headers:functionHeaders,
-   body:JSON.stringify(payload)
-  });
-
-  const data=await response.json().catch(()=>({}));
+  // Si el intento anterior terminó como DECLINED/VOIDED/ERROR, la Edge Function
+  // libera esa referencia y responde WOMPI_REFERENCE_TERMINAL. En ese caso no
+  // debemos dejar al comprador bloqueado: generar una referencia nueva y repetir
+  // una sola vez la preparación, sin reenviar ningún cobro ya aprobado.
+  let response,data;
+  for(let preparationAttempt=0;preparationAttempt<2;preparationAttempt++){
+   response=await fetch(WOMPI_SIGNATURE_ENDPOINT,{
+    method:'POST',
+    headers:functionHeaders,
+    body:JSON.stringify(payload)
+   });
+   data=await response.json().catch(()=>({}));
+   if(response.status===409&&data?.code==='WOMPI_REFERENCE_TERMINAL'&&preparationAttempt===0){
+    const expiredReference=paymentReference;
+    if(expiredReference)forgetReservationRecord(expiredReference);
+    reservationReference=generateReservationReference();
+    paymentReference=reservationReference;
+    createdReservation=true;
+    saveReservationDraft(reservationReference,checkoutItems);
+    saveActiveReservationReference(reservationReference);
+    saveActiveReservationItems(checkoutItems);
+    payload.reference=paymentReference;
+    if(btn)btn.textContent='⏳ Reintentando pago...';
+    continue;
+   }
+   break;
+  }
 
   if(!response.ok){
    const localFile=location.protocol==='file:';
