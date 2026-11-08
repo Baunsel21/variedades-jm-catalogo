@@ -1906,11 +1906,22 @@ const WOMPI_RESERVATIONS_KEY='jm_wompi_reservations_v2';
 const WOMPI_RESERVATION_TTL=10*60*1000;
 
 function normalizeReservationItems(items){
- return (Array.isArray(items)?items:[]).map(x=>({
-   id:String(x.id||''),qty:Math.max(1,Number(x.qty)||1),
-   color:String(x.color||'').trim().toLocaleLowerCase('es'),
-   size:String(x.size||'').trim().toLocaleLowerCase('es')
- })).sort((x,y)=>x.id.localeCompare(y.id)||x.color.localeCompare(y.color)||x.size.localeCompare(y.size)||x.qty-y.qty);
+ const grouped=new Map();
+ for(const x of (Array.isArray(items)?items:[])){
+   const id=String(x?.id||'').trim().toLowerCase();
+   if(!id)continue;
+   const rawColor=String(x?.color||'').trim().toLocaleLowerCase('es');
+   const rawSize=String(x?.size||'').trim().toLocaleLowerCase('es');
+   // Keep the browser comparison identical to reserve_inventory(): “Sin color”,
+   // “Única” and empty options represent the same variant.
+   const color=['','sin color'].includes(rawColor)?'':rawColor;
+   const size=['','unica','única'].includes(rawSize)?'':rawSize;
+   const qty=Math.max(1,Math.floor(Number(x?.qty)||1));
+   const key=`${id}\u0000${color}\u0000${size}`;
+   const previous=grouped.get(key);
+   grouped.set(key,{id,qty:(previous?.qty||0)+qty,color,size});
+ }
+ return [...grouped.values()].sort((x,y)=>x.id.localeCompare(y.id)||x.color.localeCompare(y.color)||x.size.localeCompare(y.size));
 }
 function reservationItemsMatch(a,b){
  const left=normalizeReservationItems(a),right=normalizeReservationItems(b);
@@ -4027,9 +4038,10 @@ async function payWithWompi(payload){
     if(authState?.session?.access_token)functionHeaders.Authorization='Bearer '+authState.session.access_token;
   }catch(sessionError){console.warn('No se pudo recuperar una sesión opcional para preparar el pago.',sessionError)}
   // Si el intento anterior terminó como DECLINED/VOIDED/ERROR, la Edge Function
-  // libera esa referencia y responde WOMPI_REFERENCE_TERMINAL. En ese caso no
-  // debemos dejar al comprador bloqueado: generar una referencia nueva y repetir
-  // una sola vez la preparación, sin reenviar ningún cobro ya aprobado.
+  // libera esa referencia y responde WOMPI_REFERENCE_TERMINAL. Si otra pestaña
+  // ya creó una reserva para el mismo teléfono y carrito, responde
+  // WOMPI_ACTIVE_RESERVATION. En ambos casos se reintenta una sola vez con una
+  // referencia segura, sin duplicar reservas ni reenviar un cobro aprobado.
   let response,data;
   for(let preparationAttempt=0;preparationAttempt<2;preparationAttempt++){
    response=await fetch(WOMPI_SIGNATURE_ENDPOINT,{
@@ -4038,13 +4050,18 @@ async function payWithWompi(payload){
     body:JSON.stringify(payload)
    });
    data=await response.json().catch(()=>({}));
-   if(response.status===409&&data?.code==='WOMPI_REFERENCE_TERMINAL'&&preparationAttempt===0){
+   if(response.status===409&&['WOMPI_REFERENCE_TERMINAL','WOMPI_ACTIVE_RESERVATION'].includes(data?.code)&&preparationAttempt===0){
     const expiredReference=paymentReference;
     if(expiredReference)forgetReservationRecord(expiredReference);
-    reservationReference=generateReservationReference();
+    const reusedReference=data?.code==='WOMPI_ACTIVE_RESERVATION'?String(data.existingReference||''):'';
+    reservationReference=reusedReference||generateReservationReference();
     paymentReference=reservationReference;
-    createdReservation=true;
-    saveReservationDraft(reservationReference,checkoutItems);
+    createdReservation=!reusedReference;
+    if(reusedReference){
+     const expiresAt=Date.parse(String(data.expiresAt||''));
+     const startedAt=Number.isFinite(expiresAt)?expiresAt-WOMPI_RESERVATION_TTL:Date.now();
+     saveReservationRecord(reservationReference,checkoutItems,startedAt);
+    }else saveReservationDraft(reservationReference,checkoutItems);
     saveActiveReservationReference(reservationReference);
     saveActiveReservationItems(checkoutItems);
     payload.reference=paymentReference;

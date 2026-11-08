@@ -498,6 +498,14 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
             <div style="margin-top:12px"><button id="saveOnlinePaymentsBtn" class="primary" onclick="saveOnlinePaymentSettings()" disabled>💾 Guardar cambios</button></div>
             <p class="paymentSettingsHelp" style="margin-bottom:0">Los cambios se guardan en Supabase y se consultan desde el catálogo al abrir el pago y durante la navegación.</p>
           </div>
+          <div class="box" style="grid-column:1/-1" id="wompiReconciliationBox">
+            <div class="rowBetween" style="align-items:flex-start;gap:16px;flex-wrap:wrap">
+              <div style="flex:1;min-width:220px"><h3 style="margin-bottom:7px">🧾 Conciliaciones Wompi pendientes</h3><p class="muted" style="margin-top:0">Muestra pagos aprobados que no pudieron finalizar el inventario automáticamente. Esta vista es solo de consulta: no cambia stock ni estados por sí sola.</p></div>
+              <button id="refreshWompiReconciliationBtn" class="softbtn" type="button" onclick="loadWompiReconciliation(true)">↻ Consultar</button>
+            </div>
+            <div id="wompiReconciliationStatus" class="status" role="status" aria-live="polite">Las conciliaciones se consultarán al abrir Configuración.</div>
+            <div id="wompiReconciliationList" style="margin-top:12px"></div>
+          </div>
           <div class="box" style="grid-column:1/-1" id="codCitiesSettingsBox">
             <div class="rowBetween" style="align-items:flex-start;gap:16px;flex-wrap:wrap">
               <div style="flex:1;min-width:220px"><h3 style="margin-bottom:7px">💵 Ciudades con pago contra entrega</h3><p class="muted" style="margin-top:0">Activa o desactiva la contraentrega y elige una o varias ciudades. “Todas las ciudades” incluye también las ciudades escritas manualmente por tus clientes. Sin esta configuración instalada, el catálogo conserva el comportamiento anterior: solo Cali.</p></div>
@@ -916,6 +924,26 @@ async function saveOnlinePaymentSettings(){
  }
 }
 
+async function loadWompiReconciliation(showStatus=true){
+ const status=$('wompiReconciliationStatus'),list=$('wompiReconciliationList'),button=$('refreshWompiReconciliationBtn');
+ if(button)button.disabled=true;
+ if(showStatus&&status){status.className='status';status.textContent='Consultando conciliaciones pendientes…';}
+ try{
+  const {data,error}=await sb.from('sirevya_wompi_inventory_reconciliation')
+   .select('transaction_id,reference,amount_in_cents,reconciliation_status,reason,first_seen_at,last_seen_at')
+   .eq('reconciliation_status','NEEDS_REVIEW')
+   .order('last_seen_at',{ascending:false}).limit(50);
+  if(error)throw error;
+  const rows=Array.isArray(data)?data:[];
+  if(list)list.innerHTML=rows.length?rows.map(row=>`<article class="box" style="margin-top:9px;border-color:#f0c2ca"><div class="rowBetween" style="gap:12px;flex-wrap:wrap"><strong>${esc(row.reference||'Sin referencia')}</strong><span class="status err">NEEDS_REVIEW</span></div><div class="muted" style="font-size:12px;margin-top:6px">Transacción: ${esc(row.transaction_id||'—')} · Monto: ${money(Number(row.amount_in_cents||0)/100)} · Último registro: ${esc(row.last_seen_at||'—')}</div><p style="margin:8px 0 0;white-space:pre-wrap">${esc(row.reason||'Revisión manual requerida.')}</p></article>`).join(''):'<div class="empty">No hay conciliaciones pendientes.</div>';
+  if(status){status.className='status ok';status.textContent=rows.length?`Hay ${rows.length} conciliación(es) para revisar.`:'No hay conciliaciones pendientes.';}
+ }catch(error){
+  console.error('No se pudieron cargar las conciliaciones Wompi:',error);
+  if(list)list.innerHTML='<div class="empty">No se pudieron consultar las conciliaciones.</div>';
+  if(status){status.className='status err';status.textContent='No se pudo consultar la conciliación. Comprueba que tu usuario sea el administrador autorizado.';}
+ }finally{if(button)button.disabled=false;}
+}
+
 
 function applyBrand(){
   document.querySelectorAll(".brand b").forEach(x=>x.textContent=brandName);
@@ -1023,6 +1051,7 @@ function show(id,btn){
  }
  if(id==="config"&&sb){
    if(!onlinePaymentSettingLoaded)void loadOnlinePaymentSettingsAdmin();
+   void loadWompiReconciliation(false);
    if(!codCitiesSettingsLoaded)void loadCODCitiesSettingsAdmin();
    if(!seasonalPromoSettingsLoaded)void loadSeasonalPromoSettingsAdmin();
    void loadStorefrontProductCombosAdmin();
