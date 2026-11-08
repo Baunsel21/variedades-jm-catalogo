@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#15131c">
 <title id="docTitle">Variedades JM • Sistema de gestión</title>
 <link id="appFavicon" rel="icon" href="">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0" integrity="sha384-gnyZit14c5lnGcarmA166QQjjJXpucw25ogZXuwH3HxxY904zHkBqmxVpelsPorb" crossorigin="anonymous"></script>
 <style>
 :root{
   --bg:#f6f7fb;--surface:#fff;--surface2:#f0f2f7;--text:#171923;--muted:#70778a;
@@ -286,6 +286,7 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
     <div style="display:flex;gap:8px;margin-top:14px"><button class="primary" style="flex:1" onclick="login()">Entrar</button></div>
     <p class="muted" style="font-size:12px;margin:10px 0 0">Solo pueden entrar usuarios autorizados por el administrador de la tienda.</p>
     <div id="loginMsg"></div>
+    <button id="retryLogout" class="softbtn hidden" type="button" onclick="logout()">Reintentar cierre de sesión</button>
   </div>
 </div>
 
@@ -991,32 +992,74 @@ async function resetBrand(){
   const {error}=await sb.auth.updateUser({data:{jm_brand_name:brandName,jm_brand_icon_path:""}});
   toast(error?"Restaurado solo en este dispositivo":"Personalización restaurada en todos tus dispositivos");
 }
+let adminAuthSubscription=null,adminSessionAuthorized=false,adminSessionUserId='',adminAuthorizationBusy=false,adminStartBusy=false,adminAuthEpoch=0;
+function lockAdminPanel(message='Tu sesión terminó. Vuelve a entrar.'){
+ adminAuthEpoch++;
+ adminSessionAuthorized=false;adminSessionUserId='';
+ $("app").classList.add("hidden");$("loginScreen").classList.remove("hidden");
+ if(adminCatalogRealtimeChannel&&sb){const channel=adminCatalogRealtimeChannel;adminCatalogRealtimeChannel=null;void sb.removeChannel(channel).catch(error=>console.debug('No se pudo cerrar el canal administrativo.',error));}
+ adminCatalogRealtimeReady=false;adminCatalogRealtimePending=[];
+ productos=[];ventas=[];clientes=[];proveedores=[];gastos=[];movimientos=[];pedidos=[];
+ Object.keys(adminDeferredModuleLoaded).forEach(key=>adminDeferredModuleLoaded[key]=false);
+ ['listaPedidos','listaProductos','listaVentas','listaClientes','listaProveedores','listaGastos','listaMovimientos','wompiReconciliationList'].forEach(id=>{const el=$(id);if(el)el.textContent='';});
+ const password=$("password");if(password)password.value='';
+ loginMsg(message);
+}
+function ensureAdminAuthClient(){
+ if(!sb)sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+ if(!adminAuthSubscription){
+  const {data}=sb.auth.onAuthStateChange((event,session)=>{
+   if(!session){lockAdminPanel(event==='SIGNED_OUT'?'Sesión cerrada. Vuelve a entrar.':'Inicia sesión para continuar.');return}
+   if(adminSessionUserId&&session.user?.id!==adminSessionUserId)lockAdminPanel('La cuenta cambió. Validando autorización…');
+   // No esperar llamadas Supabase dentro del callback: evita bloquear la renovación del token.
+   if(event==='SIGNED_IN'&&!adminSessionAuthorized)setTimeout(()=>{void startApp();},0);
+   else if(adminSessionAuthorized&&event!=='INITIAL_SESSION')setTimeout(()=>{void revalidateAdminAuthorization();},0);
+  });
+  adminAuthSubscription=data.subscription;
+ }
+ return sb;
+}
+async function revalidateAdminAuthorization(){
+ if(!sb||!adminSessionAuthorized||adminAuthorizationBusy||document.hidden)return;
+ adminAuthorizationBusy=true;
+ try{
+  const {data:isAdmin,error}=await sb.rpc('is_store_admin');
+  if(error){console.debug('Autorización no revalidada por un error temporal; las políticas del servidor siguen protegiendo los datos.');return}
+  if(isAdmin!==true)lockAdminPanel('Esta cuenta ya no está autorizada para administrar la tienda.');
+ }catch(error){console.debug('La revalidación administrativa se reintentará al recuperar la conexión.');
+ }finally{adminAuthorizationBusy=false;}
+}
 async function init(){
  if(!configured()){loginMsg("Falta configurar la URL y la clave de Supabase.");return}
- sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+ ensureAdminAuthClient();
  const {data:{session}}=await sb.auth.getSession();
  if(session) await startApp();
 }
 async function login(){
  if(!configured())return loginMsg("Falta configurar Supabase.");
- sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+ ensureAdminAuthClient();
  const {error}=await sb.auth.signInWithPassword({email:$("email").value.trim(),password:$("password").value});
  if(error)loginMsg(error.message);else await startApp();
 }
-async function signup(){
- if(!configured())return loginMsg("Falta configurar Supabase.");
- sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
- const {error}=await sb.auth.signUp({email:$("email").value.trim(),password:$("password").value});
- if(error)loginMsg(error.message);else loginMsg("Cuenta creada. Si solicita confirmación, revisa tu correo y luego entra.",true);
+async function logout(){
+ lockAdminPanel('Cerrando la sesión en este navegador…');
+ try{
+  const {error}=await sb.auth.signOut({scope:'local'});
+  if(error){$('retryLogout').classList.remove('hidden');loginMsg('No se pudo confirmar el cierre de sesión. Reintenta el cierre antes de dejar este dispositivo.');return}
+  location.reload();
+ }catch(error){$('retryLogout').classList.remove('hidden');loginMsg('No se pudo confirmar el cierre de sesión. Comprueba la conexión y reintenta.');}
 }
-async function logout(){await sb.auth.signOut();location.reload()}
 async function startApp(){
+ if(adminStartBusy)return;adminStartBusy=true;const authEpoch=adminAuthEpoch;
  try{
   const {data:{user},error:userError}=await sb.auth.getUser();
   if(userError||!user)throw userError||new Error('No se pudo confirmar la sesión.');
   const {data:isAdmin,error:adminError}=await sb.rpc('is_store_admin');
   if(adminError)throw adminError;
-  if(isAdmin!==true){await sb.auth.signOut();loginMsg('Esta cuenta no está autorizada para entrar al panel administrativo.');return}
+  if(authEpoch!==adminAuthEpoch)return;
+  if(isAdmin!==true){lockAdminPanel('Esta cuenta no está autorizada para entrar al panel administrativo.');await sb.auth.signOut({scope:'local'});return}
+  $('retryLogout').classList.add('hidden');
+  adminSessionAuthorized=true;adminSessionUserId=user.id;
   $("loginScreen").classList.add("hidden");$("app").classList.remove("hidden");
   startAdminCatalogRealtime();
   $("accountEmail").textContent=user.email||"Cuenta de negocio";
@@ -1037,9 +1080,8 @@ async function startApp(){
   $("vFecha").value=new Date().toISOString().slice(0,10);$("gFecha").value=new Date().toISOString().slice(0,10);setDateText();await cargarTodo();setInventoryMode(inventoryMode,false);
  }catch(error){
   console.error('No se pudo iniciar el panel administrativo:',error);
-  $("app").classList.add("hidden");$("loginScreen").classList.remove("hidden");
-  loginMsg('No se pudo validar tu autorización. Comprueba la conexión y vuelve a intentarlo.');
- }
+  lockAdminPanel('No se pudo validar tu autorización. Comprueba la conexión y vuelve a intentarlo.');
+ }finally{adminStartBusy=false;}
 }
 function setDateText(){const d=new Date();$("todayText").textContent=d.toLocaleDateString("es-CO",{weekday:"long",day:"numeric",month:"long",year:"numeric"})}
 function show(id,btn){
@@ -2713,7 +2755,7 @@ function editStorefrontCombo(id){
 }
 function renderStorefrontCombosAdminList(){
  const host=$('storefrontCombosAdminList');if(!host)return;if(!storefrontCombosAdminLoaded){host.innerHTML='';return}if(!storefrontProductCombosAdmin.length){host.innerHTML='<div class="empty">Todavía no has creado combinaciones.</div>';return}
- host.innerHTML=storefrontProductCombosAdmin.map(row=>{const isCat=String(row.rule_type||'product_pair')==='category_pair';const left=isCat?`Categoría: ${row.category_a||'—'}`:(row.product_a_name||'Producto A');const right=isCat?`Categoría: ${row.category_b||'—'}`:(row.product_b_name||'Producto B');return `<article class="listItem"><div class="rowBetween" style="align-items:flex-start;gap:10px;flex-wrap:wrap"><div style="flex:1;min-width:180px"><b>${esc(left)} → ${esc(right)}</b><div class="muted">${esc(row.title||'Combinación')}: ${esc(row.message||'')}</div><div class="comboDiscountPill">${esc(comboDiscountAdminLabel(row))}</div><small class="muted" style="display:block;margin-top:5px">${row.enabled?'Activa':'Inactiva'} · ${isCat?'Categorías':'Productos'} · ${({home:'Pantalla de inicio',category:'Categoría: '+(row.display_category||'—'),both:'Inicio y categoría: '+(row.display_category||'—')})[String(row.display_location||'home')]||'Pantalla de inicio'}${row.start_at?' · Desde '+new Date(row.start_at).toLocaleDateString('es-CO'):''}${row.end_at?' · Hasta '+new Date(row.end_at).toLocaleDateString('es-CO'):''}</small></div><div style="display:flex;gap:6px;flex-wrap:wrap"><button class="action" type="button" data-combo-admin-edit="${esc(row.id)}">✏️ Editar</button><button class="action" type="button" data-combo-admin-delete="${esc(row.id)}">🗑️ Eliminar</button></div></div></article>`}).join('');
+ host.innerHTML=storefrontProductCombosAdmin.map(row=>{const isCat=String(row.rule_type||'product_pair')==='category_pair';const left=isCat?`Categoría: ${row.category_a||'—'}`:(row.product_a_name||'Producto A');const right=isCat?`Categoría: ${row.category_b||'—'}`:(row.product_b_name||'Producto B');return `<article class="listItem"><div class="rowBetween" style="align-items:flex-start;gap:10px;flex-wrap:wrap"><div style="flex:1;min-width:180px"><b>${esc(left)} → ${esc(right)}</b><div class="muted">${esc(row.title||'Combinación')}: ${esc(row.message||'')}</div><div class="comboDiscountPill">${esc(comboDiscountAdminLabel(row))}</div><small class="muted" style="display:block;margin-top:5px">${row.enabled?'Activa':'Inactiva'} · ${isCat?'Categorías':'Productos'} · ${esc(({home:'Pantalla de inicio',category:'Categoría: '+(row.display_category||'—'),both:'Inicio y categoría: '+(row.display_category||'—')})[String(row.display_location||'home')]||'Pantalla de inicio')}${row.start_at?' · Desde '+new Date(row.start_at).toLocaleDateString('es-CO'):''}${row.end_at?' · Hasta '+new Date(row.end_at).toLocaleDateString('es-CO'):''}</small></div><div style="display:flex;gap:6px;flex-wrap:wrap"><button class="action" type="button" data-combo-admin-edit="${esc(row.id)}">✏️ Editar</button><button class="action" type="button" data-combo-admin-delete="${esc(row.id)}">🗑️ Eliminar</button></div></div></article>`}).join('');
 }
 async function loadStorefrontProductCombosAdmin(force=false){
  if(!sb)return false;if(storefrontCombosAdminLoaded&&!force)return true;setStorefrontCombosAdminStatus('Cargando promociones…');setStorefrontComboFormDisabled(true);
@@ -2754,10 +2796,16 @@ async function refreshStorefrontMarketingMetrics(){
  finally{storefrontMarketingMetricsBusy=false}
 }
 
+function safeCSVCell(value){
+ const numeric=typeof value==='number'&&Number.isFinite(value);
+ let text=String(value??'');
+ if(!numeric&&/^[\s\uFEFF]*[=+\-@]/.test(text))text="'"+text;
+ return '"'+text.replace(/"/g,'""')+'"';
+}
 function exportSalesReportCSV(){
  const head=['Fecha','Código','Producto','Cantidad','Costo unidad','Venta unidad','Ingreso','Ganancia bruta estimada'];
  const rows=(ventas||[]).map(v=>{const qty=Number(v.quantity)||0,sale=Number(v.sale_price)||0,cost=Number(v.cost_price)||0;return [v.sale_date||v.created_at||'',v.product_code||'',v.product_name||'',qty,cost,sale,qty*sale,qty*(sale-cost)]});
- const content=[head,...rows].map(row=>row.map(value=>'"'+String(value??'').replace(/"/g,'""')+'"').join(';')).join('\n');
+ const content=[head,...rows].map(row=>row.map(safeCSVCell).join(';')).join('\n');
  downloadFile('sirevya_reporte_ventas.csv','\uFEFF'+content,'text/csv;charset=utf-8');toast('Reporte de ventas descargado');
 }
 function requireBackupAcknowledgement(actionLabel){
@@ -2768,7 +2816,7 @@ function requireBackupAcknowledgement(actionLabel){
 function exportCSV(){
  const head=["Código","Producto","Categoría","Cantidad","Compra","Venta","Ganancia unidad","Ubicación"];
  const lines=[head,...productos.map(p=>[p.code,p.name,p.category,p.quantity,p.cost_price,p.sale_price,Number(p.sale_price)-Number(p.cost_price),p.location||""])]
-   .map(r=>r.map(x=>`"${String(x??"").replace(/"/g,'""')}"`).join(";")).join("\n");
+   .map(r=>r.map(safeCSVCell).join(";")).join("\n");
  downloadFile("variedades_jm_inventario.csv","\uFEFF"+lines,"text/csv;charset=utf-8");toast("CSV descargado");
 }
 function downloadFile(name,text,type){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
@@ -2779,7 +2827,8 @@ $("vVariant").addEventListener("change",refreshSalePreview);$("vCantidad").addEv
 window.addEventListener("click",e=>{if(e.target===$("productModal"))closeModal()});
 init();
 setInterval(()=>{if(adminViewNeedsLiveAvailability())refreshPublicAvailability()},15000); // Conserva los 15 s solo en vistas que muestran stock.
-document.addEventListener("visibilitychange",()=>{if(!document.hidden&&adminViewNeedsLiveAvailability())refreshPublicAvailability()});
+setInterval(()=>{void revalidateAdminAuthorization();},60000);
+document.addEventListener("visibilitychange",()=>{if(!document.hidden){void revalidateAdminAuthorization();if(adminViewNeedsLiveAvailability())refreshPublicAvailability();}});
 document.addEventListener("DOMContentLoaded",()=>{
   initAdminColorPalette();
   const ordersBox=$("listaPedidos");
