@@ -56,6 +56,12 @@ El parser de SQL pasó localmente, y `tests/orders_server_pagination_regression.
 
 ## Archivos afectados
 
+### Continuación — mensaje COD configurable
+
+Se añade editor y preview de título/contenido COD en Configuración y aviso accesible bajo contraentrega en checkout. El helper `scripts/cod_notice.js` comparte validación Unicode (120/3.000 caracteres), párrafos/listas y escape de HTML. La migración `20261108130000_storefront_cod_notice.sql` comienza con el mensaje desactivado, sin promesas inventadas; tabla privada con RLS y RPCs admin protegidas. La lectura pública oculta borradores desactivados. Fallos/payload inválido solo ocultan copy y no alteran pagos, cotización, ciudades o reservas. El editor descarta respuestas tardías y exige recarga si no puede confirmar un guardado. Ver [`modulo-4-mensaje-contraentrega.md`](modulo-4-mensaje-contraentrega.md).
+
+Archivos propios de la continuación: `admin.html`, `index.html`, `scripts/cod_notice.js`, `scripts/validate.mjs`, la migración anterior, `tests/cod_notice_regression.mjs`, `tests/admin_cod_notice_regression.mjs`, `tests/cod_notice_regression.sql`, este informe, el backlog y la nota del módulo 4. No implementa envío/plantillas de WhatsApp, snapshots históricos ni logística.
+
 Código: `admin.html`, `index.html`, `scripts/validate.mjs`, `scripts/fase7_csv_preview.mjs`.
 
 SQL local: `supabase/migrations/20261108080000_public_catalog_sort_metadata.sql`, `supabase/migrations/20261108110000_guard_web_order_status_transitions.sql`, `supabase/migrations/20261108120000_admin_web_orders_server_pagination.sql`, `tests/catalog_discovery_metadata.sql`, `tests/cod_regression.sql`, `tests/orders_server_pagination_regression.sql`.
@@ -81,6 +87,8 @@ node tests/phase1_quote_parity_regression.mjs
 node tests/catalog_discovery_regression.mjs
 node tests/fase7_csv_preview.mjs
 node tests/admin_csv_preview_regression.mjs
+node tests/cod_notice_regression.mjs
+node tests/admin_cod_notice_regression.mjs
 node scripts/validate.mjs
 python3 -c "from pathlib import Path; from pglast import parse_sql,parse_plpgsql; [print(p, len(parse_sql(Path(p).read_text())), len(parse_plpgsql(Path(p).read_text()))) for p in ['supabase/migrations/20261108120000_admin_web_orders_server_pagination.sql','tests/orders_server_pagination_regression.sql']]"
 git diff --check
@@ -93,6 +101,8 @@ Una revisión independiente read-only de `fetchTablePage`, `renderClientes`, `to
 `pglast` analizó sin ejecutar: metadata de novedad (4 sentencias SQL), guard de estados COD (12 sentencias/5 unidades PLpgSQL), regresión metadata (1/1), regresión COD (2/1) y corte manual legacy (6/2). La revisión independiente detectó la carrera MFA, ya corregida y probada, y el límite de expected-status de las firmas legacy, documentado con corte manual pendiente. Estos controles no ejecutan SQL ni verifican comportamiento publicado.
 
 **F6-S2 — pruebas ejecutadas en esta continuación:** PASÓ `node tests/admin_orders_server_pagination_regression.mjs`, `node tests/dashboard_period_regression.mjs`, `node tests/admin_account_security_regression.mjs`, `node scripts/validate.mjs`, `node --check` para las pruebas editadas, parseo local de la nueva migración (7 sentencias/3 cuerpos PL/pgSQL) y su prueba (3/1), `node --check` de ambos scripts inline de `admin.html` y `git diff --check`. No se ejecutó la prueba SQL en Supabase. La única consulta remota fue metadata read-only (`relrowsecurity`, grants y policies de `web_orders`), sin filas de negocio.
+
+**Mensaje COD — cierre local:** PASARON `cod_notice_regression.mjs`, `admin_cod_notice_regression.mjs`, `admin_account_security_regression.mjs`, `admin_orders_server_pagination_regression.mjs`, `dashboard_period_regression.mjs`, `phase1_quote_parity_regression.mjs`, `scripts/validate.mjs` y whitespace. El helper y tests pasaron `node --check`; JavaScript inline se comprobó como JavaScript y JSON-LD como JSON. `pglast` aceptó migración 16/4 y test 3/1. La revisión independiente encontró trim Unicode diferente en SQL y una carrera de frescura del aviso: ambos quedaron corregidos con fixtures específicos. ACL PUBLIC en la nueva regresión se verifica como grantee=0, no nombre de rol. No hubo autenticación real, lecturas de negocio, escritura remota ni ejecución del test SQL en esta continuación.
 
 ## Pendientes de lanzamiento y fases abiertas
 

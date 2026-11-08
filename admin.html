@@ -617,6 +617,22 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
             <div style="margin-top:12px"><button id="saveCODCitiesBtn" class="primary" onclick="saveCODCitiesSettings()" disabled>💾 Guardar ciudades</button></div>
             <p class="paymentSettingsHelp" style="margin-bottom:0">Esta configuración limita también la validación del servidor del pedido contraentrega; no solo cambia lo que muestra el navegador.</p>
           </div>
+          <div class="box" style="grid-column:1/-1" id="codNoticeSettingsBox">
+            <h3>Mensaje informativo de contraentrega</h3>
+            <p class="muted">El cliente lo verá debajo de contraentrega al seleccionar ese medio. Aquí puedes describir condiciones, transportadora y plazo reales. Este mensaje no modifica tarifas, ciudades habilitadas ni estados de pago. No incluyas datos privados: el texto activado es público.</p>
+            <label class="promoToggleRow"><input id="codNoticeEnabled" type="checkbox" disabled> Mostrar información adicional (no activa ni desactiva el pago)</label>
+            <div class="promoAdminGrid" style="grid-template-columns:minmax(0,1fr)">
+              <label>Título<input id="codNoticeTitle" maxlength="240" disabled><small>Hasta 120 caracteres Unicode.</small></label>
+              <label>Contenido<textarea id="codNoticeBody" rows="7" maxlength="6000" disabled></textarea><small>Hasta 3.000 caracteres Unicode. Usa líneas en blanco para separar párrafos y «- » al comenzar cada punto. Permite símbolos y emojis; HTML se muestra como texto.</small></label>
+            </div>
+            <div id="codNoticeAdminStatus" class="status" role="status" aria-live="polite">El mensaje se consultará al abrir Configuración.</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+              <button id="saveCodNoticeBtn" type="button" class="primary" onclick="saveAdminCodNotice()" disabled>Guardar mensaje</button>
+              <button id="reloadCodNoticeBtn" type="button" class="softbtn" onclick="loadAdminCodNotice()">Recargar mensaje</button>
+            </div>
+            <p class="muted">Vista previa local del borrador — no publicado hasta guardar:</p>
+            <div id="codNoticeAdminPreview" class="codNoticeContent" style="padding:14px;border:1px solid #e6eaf0;border-radius:14px;overflow-wrap:anywhere" role="region" aria-label="Vista previa de mensaje contraentrega"></div>
+          </div>
           <div class="box" style="grid-column:1/-1" id="seasonalPromoSettingsBox">
             <div class="rowBetween" style="align-items:flex-start;gap:12px;flex-wrap:wrap">
               <div style="flex:1;min-width:220px"><h3 style="margin-bottom:7px">🎃 Promoción emergente del catálogo</h3><p class="muted" style="margin-top:0">Diseña una invitación de temporada. El popup solo comunica; no modifica precios ni envíos. Menciona un descuento o envío gratis únicamente si una regla vigente lo garantiza.</p></div>
@@ -754,6 +770,7 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
 <div id="productModal" class="modalBack"><div class="modal"><div class="modalHead"><h2 id="modalTitle">Producto</h2><button class="iconbtn" onclick="closeModal()">✕</button></div><div id="modalBody"></div></div></div>
 <div id="toast" class="toast"></div>
 
+<script src="scripts/cod_notice.js"></script>
 <script>
 const SUPABASE_URL="https://hnlbbtnfmbnbkcgegufa.supabase.co";
 const SUPABASE_ANON_KEY="sb_publishable_p2XJjsFd4Hp7LZ1IgfyVAg_hpXnFSSc";
@@ -1418,6 +1435,7 @@ function lockAdminPanel(message='Tu sesión terminó. Vuelve a entrar.'){
  dashboardWompiSnapshot={loaded:false,busy:false,error:'',count:0,updatedAt:null};
  moduleLoadErrors={};pedidosLoadError='';publicAvailabilityWarning='';adminDeferredModuleInFlight={};ordersLegacyFallbackMode=false;
  clearProductCsvPreview();
+ resetAdminCodNotice();
  Object.keys(adminDeferredModuleLoaded).forEach(key=>adminDeferredModuleLoaded[key]=false);
  ['listaPedidos','listaProductos','listaVentas','listaClientes','listaProveedores','listaGastos','listaMovimientos','wompiReconciliationList'].forEach(id=>{const el=$(id);if(el)el.textContent='';});
  const password=$("password");if(password)password.value='';
@@ -1770,6 +1788,7 @@ function show(id,btn){
    if(!onlinePaymentSettingLoaded)void loadOnlinePaymentSettingsAdmin();
    void loadWompiReconciliation(false);
    if(!codCitiesSettingsLoaded)void loadCODCitiesSettingsAdmin();
+   if(!adminCodNoticeLoaded)void loadAdminCodNotice();
    if(!storefrontShippingAdminLoaded)void loadStorefrontShippingSettingsAdmin(false);
    if(!storefrontShippingRulesAdminLoaded)void loadStorefrontShippingRulesAdmin(false);
    if(!seasonalPromoSettingsLoaded)void loadSeasonalPromoSettingsAdmin();
@@ -3733,6 +3752,84 @@ async function loadAdminDeferredModule(key,force=false){
 }
 
 // Configuración de contraentrega por ciudad: se guarda mediante RPC protegida en Supabase.
+let adminCodNoticeLoaded=false,adminCodNoticeBusy=false,adminCodNoticeSequence=0;
+function setAdminCodNoticeStatus(message,kind=''){
+ const el=$('codNoticeAdminStatus');if(el){el.textContent=message;el.className='status'+(kind?' '+kind:'')}
+}
+function updateAdminCodNoticeControls(){
+ const blocked=!adminSessionAuthorized||!adminCodNoticeLoaded||adminCodNoticeBusy;
+ ['codNoticeEnabled','codNoticeTitle','codNoticeBody','saveCodNoticeBtn'].forEach(id=>{const el=$(id);if(el)el.disabled=blocked});
+ const reload=$('reloadCodNoticeBtn');if(reload)reload.disabled=!adminSessionAuthorized||adminCodNoticeBusy;
+}
+function resetAdminCodNotice(){
+ adminCodNoticeSequence++;adminCodNoticeLoaded=false;adminCodNoticeBusy=false;
+ if($('codNoticeEnabled'))$('codNoticeEnabled').checked=false;
+ ['codNoticeTitle','codNoticeBody','codNoticeAdminPreview'].forEach(id=>{const el=$(id);if(el){if(id==='codNoticeAdminPreview')el.textContent='';else el.value=''}});
+ setAdminCodNoticeStatus('El mensaje se consultará al abrir Configuración.');updateAdminCodNoticeControls();
+}
+function readAdminCodNoticeForm(){
+ return CODNotice.normalize({success:true,enabled:!!$('codNoticeEnabled')?.checked,title:$('codNoticeTitle')?.value||'',body:$('codNoticeBody')?.value||''});
+}
+function previewAdminCodNotice(){
+ const preview=$('codNoticeAdminPreview');if(!preview)return;
+ try{
+  const notice=readAdminCodNoticeForm();preview.innerHTML=CODNotice.render(notice);
+  if(!notice.enabled){const label=document.createElement('p');label.textContent='Mensaje desactivado: este borrador no se mostrará al cliente.';preview.prepend(label)}
+ }catch(error){preview.textContent=String(error?.message||'Revisa el mensaje.')}
+}
+function adminCodNoticeRequestCurrent(epoch,sequence){
+ return adminSessionAuthorized&&adminAuthEpoch===epoch&&adminCodNoticeSequence===sequence;
+}
+async function verifyAdminCodNoticeAccess(epoch,sequence){
+ const userId=adminSessionUserId;
+ const {data,error}=await sb.auth.getUser();
+ if(!adminCodNoticeRequestCurrent(epoch,sequence))return false;
+ if(error||!userId||data?.user?.id!==userId)throw new Error('No se pudo confirmar la identidad de administrador.');
+ const permission=await sb.rpc('is_store_admin');
+ if(!adminCodNoticeRequestCurrent(epoch,sequence))return false;
+ if(permission.error||permission.data!==true)throw new Error('No se pudo confirmar el permiso de administrador.');
+ const latest=await sb.auth.getUser();
+ if(!adminCodNoticeRequestCurrent(epoch,sequence))return false;
+ if(latest.error||latest.data?.user?.id!==userId)throw new Error('La cuenta cambió durante la consulta. Vuelve a entrar.');
+ return true;
+}
+async function loadAdminCodNotice(){
+ if(!sb||!adminSessionAuthorized||adminCodNoticeBusy)return false;
+ const epoch=adminAuthEpoch,sequence=++adminCodNoticeSequence;
+ adminCodNoticeBusy=true;adminCodNoticeLoaded=false;updateAdminCodNoticeControls();setAdminCodNoticeStatus('Consultando mensaje guardado…');
+ try{
+  if(!await verifyAdminCodNoticeAccess(epoch,sequence))return false;
+  const {data,error}=await sb.rpc('admin_get_storefront_cod_notice');
+  if(!adminCodNoticeRequestCurrent(epoch,sequence))return false;
+  if(error)throw error;
+  const notice=CODNotice.normalize(Array.isArray(data)?data[0]:data);
+  $('codNoticeEnabled').checked=notice.enabled;$('codNoticeTitle').value=notice.title;$('codNoticeBody').value=notice.body;
+  adminCodNoticeLoaded=true;previewAdminCodNotice();setAdminCodNoticeStatus('Mensaje consultado desde Supabase. La vista previa permite revisar tus cambios antes de guardar.','ok');return true;
+ }catch(error){
+  if(adminCodNoticeRequestCurrent(epoch,sequence))setAdminCodNoticeStatus('No se pudo consultar el mensaje. Revisa la migración y el permiso admin. '+String(error?.message||error),'err');
+  return false;
+ }finally{if(adminCodNoticeRequestCurrent(epoch,sequence)){adminCodNoticeBusy=false;updateAdminCodNoticeControls()}}
+}
+async function saveAdminCodNotice(){
+ if(!sb||!adminSessionAuthorized||!adminCodNoticeLoaded||adminCodNoticeBusy)return;
+ let notice;try{notice=readAdminCodNoticeForm()}catch(error){setAdminCodNoticeStatus(error.message,'err');return}
+ const epoch=adminAuthEpoch,sequence=++adminCodNoticeSequence;
+ adminCodNoticeBusy=true;updateAdminCodNoticeControls();setAdminCodNoticeStatus('Guardando mensaje…');
+ try{
+  if(!await verifyAdminCodNoticeAccess(epoch,sequence))return;
+  const {data,error}=await sb.rpc('admin_save_storefront_cod_notice',{p_enabled:notice.enabled,p_title:notice.title,p_body:notice.body});
+  if(!adminCodNoticeRequestCurrent(epoch,sequence))return;
+  if(error)throw error;
+  const saved=CODNotice.normalize(Array.isArray(data)?data[0]:data);
+  $('codNoticeEnabled').checked=saved.enabled;$('codNoticeTitle').value=saved.title;$('codNoticeBody').value=saved.body;previewAdminCodNotice();
+  setAdminCodNoticeStatus('Mensaje guardado. La tienda volverá a consultarlo al abrir el checkout o al recuperar visibilidad.','ok');
+  notifyPublicCatalogChanged('cod-notice-changed');
+ }catch(error){
+  if(adminCodNoticeRequestCurrent(epoch,sequence)){adminCodNoticeLoaded=false;setAdminCodNoticeStatus('No se pudo confirmar el guardado. Recarga el mensaje antes de reintentar. '+String(error?.message||error),'err')}
+ }finally{if(adminCodNoticeRequestCurrent(epoch,sequence)){adminCodNoticeBusy=false;updateAdminCodNoticeControls()}}
+}
+document.addEventListener('input',event=>{if(['codNoticeTitle','codNoticeBody'].includes(event.target?.id))previewAdminCodNotice()});
+document.addEventListener('change',event=>{if(event.target?.id==='codNoticeEnabled')previewAdminCodNotice()});
 const COD_ADMIN_CITIES=["Cali","Bogotá","Medellín","Barranquilla","Cartagena","Bucaramanga","Pereira","Armenia","Manizales","Cúcuta","Pasto","__other__","*"];
 function setCODCitiesStatus(message,kind=''){const el=$("codCitiesSettingsStatus");if(el){el.className='status'+(kind?' '+(kind==='error'?'err':kind==='ok'?'ok':''):'');el.textContent=message}}
 function codCitiesCurrentValue(){return [...document.querySelectorAll('#codCitiesOptions input[type="checkbox"]:checked')].map(x=>x.value)}

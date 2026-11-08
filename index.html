@@ -487,6 +487,12 @@ body{background:linear-gradient(180deg,#fffaf0 0%,#fff6e6 55%,#f8ecd7 100%);colo
   padding:8px 18px!important;
 }
 .paymentOptions{gap:9px}
+.checkoutCodNotice{min-width:0;padding:14px;border:1px solid #e7d6de;border-radius:13px;background:#fff8fa;color:#4f3741;font-size:13px;line-height:1.55;overflow-wrap:anywhere}
+.checkoutCodNotice[hidden]{display:none!important}
+.codNoticeContent h4{font-size:15px;margin:0 0 8px}
+.codNoticeContent p{margin:8px 0;white-space:pre-wrap}
+.codNoticeContent ul{margin:8px 0;padding-left:22px}
+.codNoticeContent li{margin:4px 0;white-space:pre-wrap}
 .paymentOption{
   min-height:52px;
   line-height:1.15;
@@ -1813,6 +1819,7 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
         <label class="paymentOption onlinePaymentOption"><input type="radio" name="paymentMethod" value="PSE" checked> 🏦 <span><b>Pago en línea · PSE o Nequi</b><small>Continuar a Wompi para elegir el medio disponible.</small></span></label>
         <label class="paymentOption onlinePaymentOption"><input type="radio" name="paymentMethod" value="Tarjeta"> 💳 <span><b>Tarjeta, Bancolombia y otros medios</b><small>Pago seguro mediante Wompi; allí confirmas el medio.</small></span></label>
         <label class="paymentOption paymentContraEntrega"><input type="radio" name="paymentMethod" value="Contra entrega" disabled> 💵 <span><b>Pago contra entrega</b><small id="contraEntregaNote">Disponible según las ciudades habilitadas por la tienda.</small></span></label>
+        <section id="checkoutCodNotice" class="checkoutCodNotice codNoticeContent" role="region" aria-label="Información adicional de contraentrega" aria-live="polite" hidden></section>
       </div>
       <section id="checkoutItemSummary" class="checkoutItemSummary" aria-label="Resumen de tu compra" aria-live="polite" hidden>
         <h3 class="checkoutSummaryTitle">🛍️ Resumen de tu compra</h3>
@@ -1938,6 +1945,7 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
 </a>
 <div id="toast" class="toast"></div>
 
+<script src="scripts/cod_notice.js"></script>
 <script>
 const SUPABASE_URL="https://hnlbbtnfmbnbkcgegufa.supabase.co";
 const SUPABASE_KEY="sb_publishable_p2XJjsFd4Hp7LZ1IgfyVAg_hpXnFSSc";
@@ -3576,7 +3584,8 @@ function detailBuyNow(event){
  // Antes solo se consultaban los pagos en línea y podía quedar la lista provisional [Cali].
  void Promise.all([
   refreshOnlinePaymentSetting({silent:true}),
-  refreshCODPaymentSettings({silent:true})
+  refreshCODPaymentSettings({silent:true}),
+  refreshStorefrontCodNotice()
  ]).then(()=>{if($('checkoutModal')?.classList.contains('open'))updateShipping();});
 }
 function closeProductDetail(event,options={}){
@@ -4239,6 +4248,7 @@ function sendCart(){
  document.body.style.overflow='hidden';
  refreshOnlinePaymentSetting({silent:true});
  refreshCODPaymentSettings({silent:true});
+ void refreshStorefrontCodNotice();
 }
 
 function openContact(event){
@@ -4332,6 +4342,40 @@ async function refreshCODPaymentSettings({silent=true}={}){
  })();
  codPaymentSettingsPromise=task;try{return await task}finally{if(codPaymentSettingsPromise===task)codPaymentSettingsPromise=null;}
 }
+let storefrontCodNotice=null,storefrontCodNoticePromise=null,storefrontCodNoticeRefreshPending=false;
+function renderStorefrontCodNotice(){
+ const el=$('checkoutCodNotice');if(!el)return;
+ const visible=storefrontCodNotice?.enabled===true&&selectedPayment()==='Contra entrega';
+ el.hidden=!visible;
+ if(!visible){el.textContent='';return}
+ el.innerHTML=CODNotice.render(storefrontCodNotice);
+}
+async function refreshStorefrontCodNotice(force=false){
+ if(storefrontCodNoticePromise){
+  if(force){storefrontCodNoticeRefreshPending=true;storefrontCodNotice=null;renderStorefrontCodNotice()}
+  return storefrontCodNoticePromise;
+ }
+ storefrontCodNotice=null;renderStorefrontCodNotice();
+ const task=(async()=>{
+  try{
+   const {data,error}=await sb.rpc('get_public_storefront_cod_notice');
+   if(error)throw error;
+   const notice=CODNotice.normalize(Array.isArray(data)?data[0]:data);
+   if(storefrontCodNoticeRefreshPending)return false;
+   storefrontCodNotice=notice;return true;
+  }catch{
+   // Informational only. Missing RPC/error hides copy, never bypasses COD validation or blocks payment.
+   storefrontCodNotice=null;return false;
+  }finally{if(!storefrontCodNoticeRefreshPending)renderStorefrontCodNotice()}
+ })();
+ storefrontCodNoticePromise=task;
+ try{return await task}finally{
+  if(storefrontCodNoticePromise===task){
+   storefrontCodNoticePromise=null;
+   if(storefrontCodNoticeRefreshPending){storefrontCodNoticeRefreshPending=false;void refreshStorefrontCodNotice()}
+  }
+ }
+}
 // Mantiene el selector de ciudades normal al pagar en línea; si solo existe contraentrega,
 // limita las ciudades al conjunto que el administrador habilitó.
 let originalCustomerCityOptionsHTML=null;
@@ -4388,6 +4432,7 @@ function syncPaymentOptions(){
   // Limpia explícitamente cualquier método online que hubiera quedado marcado.
   radios.forEach(r=>{r.checked=false;});
   if(codAllowed&&cod)cod.checked=true;
+  renderStorefrontCodNotice();
   return;
  }
  // If the selected choice became invalid after changing city or enabling online payments,
@@ -4397,6 +4442,7 @@ function syncPaymentOptions(){
   const pse=document.querySelector('input[name="paymentMethod"][value="PSE"]');
   if(pse)pse.checked=true;
  }
+ renderStorefrontCodNotice();
 }
 function updateContraEntregaAvailability(city){
  const radio=document.querySelector('input[name="paymentMethod"][value="Contra entrega"]');
@@ -4556,7 +4602,8 @@ window.addEventListener('pageshow',event=>{
      // Al restaurar desde BFCache, vuelve a consultar las ciudades permitidas.
      void Promise.all([
        refreshOnlinePaymentSetting({silent:true}),
-       refreshCODPaymentSettings({silent:true})
+       refreshCODPaymentSettings({silent:true}),
+       refreshStorefrontCodNotice()
      ]).then(()=>{if($('checkoutModal')?.classList.contains('open'))updateShipping();});
    },80);
  }
@@ -5030,7 +5077,7 @@ document.addEventListener('input',event=>{
 document.addEventListener('change',event=>{
  const id=event.target?.id||'';
  if(['customerName','customerPhone','customerEmail','customerCity','customerCityOther','customerAddress','customerNeighborhood'].includes(id)){clearCheckoutFieldError(id);invalidateCheckoutCouponQuote();if($('checkoutModal')?.classList.contains('open'))updateShipping();}
- if(event.target?.name==='paymentMethod')updateShipping();
+ if(event.target?.name==='paymentMethod'){updateShipping();renderStorefrontCodNotice();if(selectedPayment()==='Contra entrega')void refreshStorefrontCodNotice(true);}
 });
 
 async function confirmCheckout(){
@@ -5617,9 +5664,10 @@ window.addEventListener('keydown',event=>{if(event.key==='Escape'&&!$('seasonalP
 window.addEventListener('storage',event=>{
  if(event.key==='sirevya_seasonal_promo_changed'&&document.visibilityState==='visible')void loadSeasonalPromoFromSupabase({force:true});
  if(event.key==='sirevya_public_catalog_changed'&&document.visibilityState==='visible'){
-  try{const payload=JSON.parse(event.newValue||'{}');if(['shipping-settings-changed','shipping-rules-changed'].includes(payload.type))void loadStorefrontShippingSettings(true)}catch{}
+  try{const payload=JSON.parse(event.newValue||'{}');if(['shipping-settings-changed','shipping-rules-changed'].includes(payload.type))void loadStorefrontShippingSettings(true);if(payload.type==='cod-notice-changed')void refreshStorefrontCodNotice(true)}catch{}
  }
 });
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&$('checkoutModal')?.classList.contains('open'))void refreshStorefrontCodNotice(true)});
 void loadSeasonalPromoFromSupabase();
 void loadStorefrontProductCombos();
 let publicCatalogRealtimeChannel=null;
@@ -5633,6 +5681,7 @@ function startPublicCatalogRealtime(){
     if(type==='promotion-changed'){void loadSeasonalPromoFromSupabase({force:true});return}
     if(type==='combo-changed'){void loadStorefrontProductCombos({force:true});return}
     if(type==='shipping-settings-changed'||type==='shipping-rules-changed'){void loadStorefrontShippingSettings(true);return}
+    if(type==='cod-notice-changed'){void refreshStorefrontCodNotice(true);return}
     void refreshInventoryStatus(true);
     const pid=String(payload.productId||'');
     if(pid&&['product-saved','product-images-changed'].includes(type)){

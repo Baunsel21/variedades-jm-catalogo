@@ -40,6 +40,15 @@ Cada criterio se conserva hasta que exista evidencia en código, Supabase y prue
 - [ ] Calendario de promociones incluye fechas, zona horaria, prioridad, productos/categorías elegibles y copy veraz; popup, combos, cupones y envío no aplican beneficios duplicados a la misma unidad.
 - [ ] El subtotal con combo/cupón, descuento, envío y total coinciden entre navegador, quote SQL, pedido COD y amount-in-cents de Wompi; falla cerrada ante diferencias.
 
+### Mensaje informativo COD — requerimiento adicional del módulo 4
+
+> Implementación local del editor, preview, singleton/RPC protegidas y aviso checkout en [`modulo-4-mensaje-contraentrega.md`](modulo-4-mensaje-contraentrega.md). No aplicado en Supabase ni publicado; las casillas siguen abiertas hasta staging. Plantillas WhatsApp y snapshot histórico no están implementados.
+
+- [ ] El administrador escribe título/contenido, párrafos, saltos y listas; puede incluir símbolos/emojis, transportadora, plazo, condiciones y restricciones reales sin modificar HTML/JavaScript. Revisa una vista previa antes de guardar.
+- [ ] La configuración se guarda segura en Supabase y solo los administradores autorizados pueden modificarla. El mensaje activado se actualiza en la tienda desde la configuración guardada.
+- [ ] El cliente ve el cuadro debajo de contraentrega cuando la selecciona; es accesible y responsive. Desactivar la información o fallar su carga no desactiva ni evita las validaciones del medio de pago.
+- [ ] Los mensajes de confirmación por WhatsApp son editables con contrato de envío/canal validado; las condiciones vigentes quedan relacionadas con el pedido cuando haga falta consulta histórica, sin alterar Wompi ni reservar dos veces.
+
 ## Fase 5: Pedidos, Wompi/PSE y conciliación
 
 > Se incorpora el documento de contratos ya preparado en PR #16: [`fase-5-modelo-pedidos.md`](fase-5-modelo-pedidos.md). No establece una FK nueva ni une canales por teléfono, monto o fecha. La migración local de estados COD no sustituye conciliación ni prueba de concurrencia Wompi.
