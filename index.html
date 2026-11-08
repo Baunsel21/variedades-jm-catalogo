@@ -1906,11 +1906,22 @@ const WOMPI_RESERVATIONS_KEY='jm_wompi_reservations_v2';
 const WOMPI_RESERVATION_TTL=10*60*1000;
 
 function normalizeReservationItems(items){
- return (Array.isArray(items)?items:[]).map(x=>({
-   id:String(x.id||''),qty:Math.max(1,Number(x.qty)||1),
-   color:String(x.color||'').trim().toLocaleLowerCase('es'),
-   size:String(x.size||'').trim().toLocaleLowerCase('es')
- })).sort((x,y)=>x.id.localeCompare(y.id)||x.color.localeCompare(y.color)||x.size.localeCompare(y.size)||x.qty-y.qty);
+ const grouped=new Map();
+ for(const x of (Array.isArray(items)?items:[])){
+   const id=String(x?.id||'').trim().toLowerCase();
+   if(!id)continue;
+   const rawColor=String(x?.color||'').trim().toLocaleLowerCase('es');
+   const rawSize=String(x?.size||'').trim().toLocaleLowerCase('es');
+   // Keep the browser comparison identical to reserve_inventory(): “Sin color”,
+   // “Única” and empty options represent the same variant.
+   const color=['','sin color'].includes(rawColor)?'':rawColor;
+   const size=['','unica','única'].includes(rawSize)?'':rawSize;
+   const qty=Math.max(1,Math.floor(Number(x?.qty)||1));
+   const key=`${id}\u0000${color}\u0000${size}`;
+   const previous=grouped.get(key);
+   grouped.set(key,{id,qty:(previous?.qty||0)+qty,color,size});
+ }
+ return [...grouped.values()].sort((x,y)=>x.id.localeCompare(y.id)||x.color.localeCompare(y.color)||x.size.localeCompare(y.size));
 }
 function reservationItemsMatch(a,b){
  const left=normalizeReservationItems(a),right=normalizeReservationItems(b);
