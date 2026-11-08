@@ -1646,7 +1646,7 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
     <button class="iconBtn cartTop" type="button" aria-label="Abrir carrito" title="Carrito" onclick="toggleCart()"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h14l1 13H4L5 8Z"></path><path d="M8 8V6a4 4 0 0 1 8 0v2"></path></svg><span id="cartBadge" class="cartBadge">0</span></button>
   </div>
 </div></header>
-<div class="jmTicker"><div class="jmTickerTrack"><span>♥ Envío gratis en Cali</span><span>✦ Compra segura</span><span>♛ La mejor calidad</span><span>♥ Tu estilo, nuestra pasión</span><span data-shipping-policy>✦ Consulta las condiciones de envío vigentes</span><span>♛ Nuevos productos</span><span>♥ Envío gratis en Cali</span><span>✦ Compra segura</span></div></div>
+<div class="jmTicker"><div class="jmTickerTrack"><span>♥ Tarifas según ciudad</span><span>✦ Compra segura</span><span>♛ La mejor calidad</span><span>♥ Tu estilo, nuestra pasión</span><span data-shipping-policy>✦ Consulta las condiciones de envío vigentes</span><span>♛ Nuevos productos</span><span>♥ Tarifas según ciudad</span><span>✦ Compra segura</span></div></div>
 <div id="mobileMenu" class="mobileMenu" aria-hidden="true" onclick="closeMobileMenu(event)">
   <div class="mobileMenuPanel">
     <div class="mobileMenuHead">
@@ -1693,7 +1693,7 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
   </div>
 </div>
 <main id="inicio" class="wrap">
-<section class="benefits"><div class="benefit"><div class="benefitIcon">📍</div><div><b>Cali</b><small>$0 de envío</small></div></div><div class="benefit"><div class="benefitIcon">🎁</div><div><b>Otras ciudades</b><small>Consulta tarifas en el carrito</small></div></div><div class="benefit"><div class="benefitIcon">🛡️</div><div><b>Compra segura</b><small>Contra entrega o pago online</small></div></div></section>
+<section class="benefits"><div class="benefit"><div class="benefitIcon">📍</div><div><b>Cali</b><small>Tarifa pendiente de verificación</small></div></div><div class="benefit"><div class="benefitIcon">🎁</div><div><b>Otras ciudades</b><small>Consulta tarifas en el carrito</small></div></div><div class="benefit"><div class="benefitIcon">🛡️</div><div><b>Compra segura</b><small>Contra entrega o pago online</small></div></div></section>
 <div id="error" class="error"></div>
 
 
@@ -1705,7 +1705,7 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
   <input id="search" class="search" placeholder="Buscar productos..." oninput="handleSearchInput()" aria-label="Buscar productos">
 </div>
 <div class="catalogCountLine"><span id="count" class="count">Cargando catálogo…</span></div>
-<section id="cartBar" class="cartBar" aria-hidden="true" onclick="if(event.target===this)hideCart()"><div class="cartPanel" role="dialog" aria-modal="true" aria-labelledby="cartDrawerTitle"><div class="cartDrawerBody"><div class="cartHead"><div><div id="cartDrawerTitle" class="cartTitle">Tu carrito</div><div id="cartSummary" class="cartSummary">0 productos</div></div><button class="cartClose" type="button" onclick="hideCart()" aria-label="Cerrar carrito">×</button></div><div class="cartShippingBox" aria-live="polite"><div id="cartShippingMessage" class="cartShippingMessage">Cali tiene envío gratis; consulta la tarifa vigente en el checkout.</div><div class="cartShippingTrack" role="progressbar" aria-label="Progreso para envío gratis fuera de Cali" aria-valuemin="0" aria-valuemax="1" aria-valuenow="0"><div id="cartShippingFill" class="cartShippingFill"></div><span id="cartShippingTruck" class="cartShippingTruck" aria-hidden="true">🚚</span></div><div class="cartShippingFoot"><span>Tarifas vigentes según ciudad y subtotal</span><span id="cartShippingPercent">0%</span></div><div class="cartShippingLocalNote">🚚 Envío gratis a Cali también</div></div><div id="cartItems" class="cartItems"></div><div class="cartFooter"><div class="cartFooterTotal"><span>Total estimado</span><strong id="cartDrawerTotal">$0</strong></div><div id="cartDiscountLine" class="cartDiscountSummary" hidden></div><p class="cartFooterNote">El envío se confirma según tu ciudad en el siguiente paso.</p><button id="cartSend" class="cartSend" type="button" onclick="sendCart()">Pagar pedido</button></div></div></div></section>
+<section id="cartBar" class="cartBar" aria-hidden="true" onclick="if(event.target===this)hideCart()"><div class="cartPanel" role="dialog" aria-modal="true" aria-labelledby="cartDrawerTitle"><div class="cartDrawerBody"><div class="cartHead"><div><div id="cartDrawerTitle" class="cartTitle">Tu carrito</div><div id="cartSummary" class="cartSummary">0 productos</div></div><button class="cartClose" type="button" onclick="hideCart()" aria-label="Cerrar carrito">×</button></div><div class="cartShippingBox" aria-live="polite"><div id="cartShippingMessage" class="cartShippingMessage">Consultando la tarifa vigente de envío…</div><div class="cartShippingTrack" style="display:none" hidden aria-hidden="true" role="progressbar" aria-label="Progreso para envío gratis fuera de Cali" aria-valuemin="0" aria-valuemax="1" aria-valuenow="0"><div id="cartShippingFill" class="cartShippingFill"></div><span id="cartShippingTruck" class="cartShippingTruck" aria-hidden="true">🚚</span></div><div class="cartShippingFoot"><span>La tarifa se confirma al seleccionar una ciudad</span><span id="cartShippingPercent">—</span></div><div class="cartShippingLocalNote" hidden>🚚 Envío gratis a Cali también</div></div><div id="cartItems" class="cartItems"></div><div class="cartFooter"><div class="cartFooterTotal"><span>Total estimado</span><strong id="cartDrawerTotal">$0</strong></div><div id="cartDiscountLine" class="cartDiscountSummary" hidden></div><p class="cartFooterNote">El envío se confirma según tu ciudad en el siguiente paso.</p><button id="cartSend" class="cartSend" type="button" onclick="sendCart()">Pagar pedido</button></div></div></div></section>
 <section id="storefrontComboCatalogSection" class="storefrontComboCatalogSection" hidden aria-labelledby="storefrontComboCatalogTitle">
   <div id="storefrontComboCatalogIntro" class="storefrontComboCatalogIntro">
     <span class="storefrontComboEyebrow">SIREVYA · COMPLETA TU ESTILO</span>
@@ -1736,7 +1736,7 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
 <div id="checkoutModal" class="checkoutModal" onclick="closeCheckout(event)">
   <div class="checkoutBox">
     <div class="checkoutHead"><div class="checkoutTitle">📦 Finalizar pedido</div><button class="checkoutClose" type="button" onclick="closeCheckout()">×</button></div>
-    <p id="checkoutPaymentNote" class="checkoutNote">Las tarifas de envío vigentes se calculan según tu ciudad y el subtotal. Los pagos en línea se procesan de forma segura con Wompi. Puedes elegir PSE, tarjeta, Nequi o Bancolombia.</p>
+    <p id="checkoutPaymentNote" class="checkoutNote">La tarifa se confirma al verificar la configuración vigente y seleccionar tu ciudad. Los pagos en línea se procesan de forma segura con Wompi. Puedes elegir PSE, tarjeta, Nequi o Bancolombia.</p>
     <div id="checkoutValidationSummary" class="checkoutValidationSummary" role="alert" aria-live="assertive" hidden></div>
     <div class="checkoutGrid">
       <label for="customerName">Nombre completo *</label><input id="customerName" type="text" autocomplete="name" placeholder="Tu nombre" required aria-describedby="checkoutErrorCustomerName"><small id="checkoutErrorCustomerName" class="checkoutFieldError"></small>
@@ -1750,7 +1750,7 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
       <div id="customerCityOtherWrap" hidden><label for="customerCityOther">Escribe tu ciudad *</label><input id="customerCityOther" type="text" maxlength="80" autocomplete="address-level2" placeholder="Nombre de tu ciudad" aria-describedby="checkoutErrorCustomerCityOther" oninput="updateShipping()"><small id="checkoutErrorCustomerCityOther" class="checkoutFieldError"></small></div>
       <label for="customerAddress">Dirección *</label><input id="customerAddress" type="text" autocomplete="street-address" placeholder="Calle, carrera, número, etc." required aria-describedby="checkoutErrorCustomerAddress"><small id="checkoutErrorCustomerAddress" class="checkoutFieldError"></small>
       <label for="customerNeighborhood">Barrio / referencia *</label><input id="customerNeighborhood" type="text" placeholder="Barrio, conjunto o referencia" required aria-describedby="checkoutErrorCustomerNeighborhood"><small id="checkoutErrorCustomerNeighborhood" class="checkoutFieldError"></small>
-      <div class="shippingBox"><div class="shippingLine"><span>🚚 Envío</span><span id="shippingValue">Selecciona una ciudad</span></div><div id="shippingNote" class="shippingSmall">Las tarifas y beneficios de envío se calculan con la configuración vigente.</div></div>
+      <div class="shippingBox"><div class="shippingLine"><span>🚚 Envío</span><span id="shippingValue">Selecciona una ciudad</span></div><div id="shippingNote" class="shippingSmall">La tarifa se confirma al verificar la configuración vigente.</div></div>
       <label>Forma de pago</label>
       <div class="paymentOptions">
         <label class="paymentOption onlinePaymentOption"><input type="radio" name="paymentMethod" value="PSE" checked> 🏦 <span><b>Pago en línea · PSE o Nequi</b><small>Continuar a Wompi para elegir el medio disponible.</small></span></label>
@@ -1762,7 +1762,7 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
         <div id="checkoutSummaryItems" class="checkoutSummaryItems"></div>
         <div class="checkoutSummaryFoot">Verifica producto, talla y color antes de confirmar el pedido.</div>
       </section>
-<div class="checkoutTotal"><span>Total</span><span id="checkoutTotal">$0</span></div>
+<div class="checkoutTotal"><span>Total</span><span id="checkoutTotal">Por verificar</span></div>
       <div class="checkoutActions"><button class="checkoutCancel" type="button" onclick="closeCheckout()">Cancelar</button><button id="checkoutConfirmBtn" class="checkoutConfirm" type="button" onclick="confirmCheckout()">✅ Confirmar pedido</button></div>
     </div>
   </div>
@@ -1850,8 +1850,8 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
         <div class="detailPurchaseActions"><button id="detailAdd" class="detailAdd" type="button" onclick="detailAddToCart(event)">🛒 Agregar al carrito</button><button id="detailBuyNow" class="detailBuyNow" type="button" onclick="detailBuyNow(event)">⚡ Comprar ahora</button></div>
         <section class="detailShippingBenefits" aria-label="Información de envíos">
           <div class="detailShippingHeadline"><span aria-hidden="true">✈</span><div><b>Envíos a toda Colombia</b><small>Tu estilo llega hasta tu ciudad.</small></div></div>
-          <div class="detailShippingRule"><span class="detailShippingIcon" aria-hidden="true">♥</span><div><b>Envío gratis en Cali</b><small>Sin costo de envío en Cali.</small></div></div>
-          <div class="detailShippingRule"><span class="detailShippingIcon" aria-hidden="true">🚚</span><div><b>Envío gratis según ciudad y compra</b><small>Cali es gratis; consulta el valor vigente de envío en el carrito.</small></div></div>
+          <div class="detailShippingRule"><span class="detailShippingIcon" aria-hidden="true">♥</span><div><b>Tarifa de envío en Cali</b><small>Se confirma al verificar la configuración vigente.</small></div></div>
+          <div class="detailShippingRule"><span class="detailShippingIcon" aria-hidden="true">🚚</span><div><b>Envíos según ciudad y compra</b><small>Consulta el valor vigente en el carrito.</small></div></div>
         </section>
       </div>
     </div>
@@ -1897,6 +1897,7 @@ const DEFAULT_STOREFRONT_SHIPPING_SETTINGS={national_shipping_cost:15000,free_sh
 let storefrontShippingSettings={...DEFAULT_STOREFRONT_SHIPPING_SETTINGS};
 let storefrontShippingSettingsLoaded=false;
 let storefrontShippingSettingsPromise=null;
+let storefrontShippingSettingsLoadError=false;
 let checkoutShipping=0;
 
 function calculateStorefrontShipping(city,discountedSubtotal,settings=storefrontShippingSettings){
@@ -1908,36 +1909,59 @@ function calculateStorefrontShipping(city,discountedSubtotal,settings=storefront
  return Number.isSafeInteger(fee)&&fee>=0?fee:DEFAULT_STOREFRONT_SHIPPING_SETTINGS.national_shipping_cost;
 }
 function storefrontShippingPolicyText(){
+ if(!storefrontShippingSettingsLoaded||storefrontShippingSettingsLoadError){
+  return storefrontShippingSettingsLoadError?'No se pudo verificar la tarifa vigente. Se confirmará cuando se recupere la conexión.':'La tarifa de envío se confirma al seleccionar la ciudad y verificar la configuración vigente.';
+ }
  const threshold=storefrontShippingSettings.free_shipping_threshold;
  return threshold===null
   ?'Envío gratis en Cali. En otras ciudades se aplica la tarifa nacional vigente.'
   :`Envío gratis en Cali y desde ${money(threshold)} en otras ciudades.`;
 }
 function updateStorefrontShippingCopy(){
+ const shippingTicker=document.querySelector('.jmTickerTrack [data-shipping-policy]');
+ const caliBenefit=document.querySelector('.benefits .benefit:nth-child(1) small');
+ const otherBenefit=document.querySelector('.benefits .benefit:nth-child(2) small');
+ const foot=document.querySelector('.cartShippingFoot span:first-child');
+ const rules=document.querySelectorAll('.detailShippingBenefits .detailShippingRule');
+ const paymentNote=$('checkoutPaymentNote');
+ const track=document.querySelector('.cartShippingTrack');
+ const caliNote=document.querySelector('.cartShippingLocalNote');
+ if(!storefrontShippingSettingsLoaded||storefrontShippingSettingsLoadError){
+  if(shippingTicker)shippingTicker.textContent='✦ Consulta la tarifa vigente al seleccionar tu ciudad';
+  if(caliBenefit)caliBenefit.textContent='Tarifa por confirmar';
+  if(otherBenefit)otherBenefit.textContent='Tarifa por confirmar';
+  if(foot)foot.textContent='Selecciona una ciudad para consultar el envío';
+  if(rules[0]){const h=rules[0].querySelector('b'),c=rules[0].querySelector('small');if(h)h.textContent='Tarifa en Cali';if(c)c.textContent='Se confirma al verificar la configuración vigente.';}
+  if(rules[1]){const h=rules[1].querySelector('b'),c=rules[1].querySelector('small');if(h)h.textContent='Tarifa por destino';if(c)c.textContent='Selecciona una ciudad para confirmarla.';}
+  if(paymentNote)paymentNote.textContent=`${storefrontShippingPolicyText()} Los pagos en línea se procesan de forma segura con Wompi.`;
+  if(track){track.hidden=true;track.style.display='none';track.setAttribute('aria-hidden','true');}
+  if(caliNote)caliNote.hidden=true;
+  return;
+ }
  const threshold=storefrontShippingSettings.free_shipping_threshold;
  const policy=storefrontShippingPolicyText();
- const shippingTicker=document.querySelector('.jmTickerTrack [data-shipping-policy]');
  if(shippingTicker)shippingTicker.textContent=threshold===null?'✦ Envío nacional: tarifa vigente; Cali gratis':`✦ Envío gratis desde ${money(threshold)} fuera de Cali`;
- const benefit=document.querySelector('.benefits .benefit:nth-child(2) small');
- if(benefit)benefit.textContent=threshold===null?`Tarifa nacional: ${money(storefrontShippingSettings.national_shipping_cost)}`:`Envío gratis desde ${money(threshold)}`;
- const foot=document.querySelector('.cartShippingFoot span:first-child');
+ if(caliBenefit)caliBenefit.textContent='Envío gratis';
+ if(otherBenefit)otherBenefit.textContent=threshold===null?`Tarifa nacional: ${money(storefrontShippingSettings.national_shipping_cost)}`:`Envío gratis desde ${money(threshold)}`;
  if(foot)foot.textContent=threshold===null?`Fuera de Cali: ${money(storefrontShippingSettings.national_shipping_cost)} de envío`:`Envío gratis desde ${money(threshold)} fuera de Cali`;
- const otherCityShippingRule=document.querySelectorAll('.detailShippingBenefits .detailShippingRule')[1];
+ const caliShippingRule=rules[0];
+ if(caliShippingRule){const h=caliShippingRule.querySelector('b'),c=caliShippingRule.querySelector('small');if(h)h.textContent='Envío gratis en Cali';if(c)c.textContent='Sin costo de envío en Cali.';}
+ const otherCityShippingRule=rules[1];
  if(otherCityShippingRule){
   const detailHeading=otherCityShippingRule.querySelector('b');
   const detailCopy=otherCityShippingRule.querySelector('small');
   if(detailHeading)detailHeading.textContent=threshold===null?'Tarifa fuera de Cali':'Envío gratis a otras ciudades';
   if(detailCopy)detailCopy.textContent=threshold===null?`Envío nacional: ${money(storefrontShippingSettings.national_shipping_cost)}.`:`En compras desde ${money(threshold)} después de descuentos.`;
  }
- const paymentNote=$('checkoutPaymentNote');
  if(paymentNote)paymentNote.textContent=`${policy} Los pagos en línea se procesan de forma segura con Wompi. Puedes elegir PSE, tarjeta, Nequi o Bancolombia.`;
- const track=document.querySelector('.cartShippingTrack');
  if(track)track.setAttribute('aria-valuemax',threshold===null?'1':String(threshold));
+ if(caliNote)caliNote.hidden=false;
 }
 async function loadStorefrontShippingSettings(force=false){
  if(storefrontShippingSettingsPromise)return storefrontShippingSettingsPromise;
- if(storefrontShippingSettingsLoaded&&!force)return true;
+ if(storefrontShippingSettingsLoaded&&!storefrontShippingSettingsLoadError&&!force)return true;
  const task=(async()=>{
+  if(!storefrontShippingSettingsLoaded){storefrontShippingSettingsLoadError=false;updateStorefrontShippingCopy();renderCart();if($('checkoutModal')?.classList.contains('open'))updateShipping();}
   const {data,error}=await sb.rpc('get_public_storefront_shipping_settings');
   if(error)throw error;
   const row=Array.isArray(data)?data[0]:data;
@@ -1949,6 +1973,7 @@ async function loadStorefrontShippingSettings(force=false){
   }
   storefrontShippingSettings={national_shipping_cost:fee,free_shipping_threshold:threshold,free_shipping_in_cali:true};
   storefrontShippingSettingsLoaded=true;
+  storefrontShippingSettingsLoadError=false;
   updateStorefrontShippingCopy();
   renderCart();
   if($('checkoutModal')?.classList.contains('open'))updateShipping();
@@ -1956,7 +1981,7 @@ async function loadStorefrontShippingSettings(force=false){
  })();
  storefrontShippingSettingsPromise=task;
  try{return await task}
- catch(error){console.warn('No se pudo actualizar la configuración de envíos; el checkout verificará Supabase antes de continuar.',error);return false}
+ catch(error){storefrontShippingSettingsLoadError=true;updateStorefrontShippingCopy();renderCart();if($('checkoutModal')?.classList.contains('open'))updateShipping();console.warn('No se pudo actualizar la configuración de envíos; el checkout verificará Supabase antes de continuar.',error);return false}
  finally{if(storefrontShippingSettingsPromise===task)storefrontShippingSettingsPromise=null}
 }
 
@@ -3664,14 +3689,21 @@ function hideCart(){
  if(!$('checkoutModal')?.classList.contains('open'))document.body.style.overflow='';
 }
 function updateCartShippingProgress(total){
+ const message=$('cartShippingMessage'),fill=$('cartShippingFill'),truck=$('cartShippingTruck'),percent=$('cartShippingPercent');
+ const track=fill?.parentElement,caliNote=document.querySelector('.cartShippingLocalNote');
+ if(!storefrontShippingSettingsLoaded||storefrontShippingSettingsLoadError){
+  if(message)message.textContent=storefrontShippingSettingsLoadError?'No se pudo verificar la tarifa vigente. El envío se confirmará cuando se recupere la conexión.':'Consultando la tarifa vigente de envío…';
+  if(fill)fill.style.width='0%';if(truck)truck.style.left='3%';if(percent)percent.textContent='—';
+  if(track){track.hidden=true;track.style.display='none';track.setAttribute('aria-hidden','true');track.setAttribute('aria-valuemax','1');track.setAttribute('aria-valuenow','0');track.setAttribute('aria-valuetext','Tarifa de envío pendiente de verificación');}
+  if(caliNote)caliNote.hidden=true;
+  return;
+ }
  const threshold=storefrontShippingSettings.free_shipping_threshold;
  const hasThreshold=threshold!==null&&Number.isSafeInteger(Number(threshold))&&Number(threshold)>0;
  const target=hasThreshold?Number(threshold):0;
  const safeTotal=Math.max(0,Number(total)||0);
  const progress=hasThreshold?Math.max(0,Math.min(100,safeTotal/target*100)):0;
  const missing=hasThreshold?Math.max(0,target-safeTotal):0;
- const message=$('cartShippingMessage'),fill=$('cartShippingFill'),truck=$('cartShippingTruck'),percent=$('cartShippingPercent');
- const track=fill?.parentElement;
  if(message){
    message.innerHTML=!hasThreshold
      ? `En Cali el envío es gratis. Fuera de Cali: <strong>${money(storefrontShippingSettings.national_shipping_cost)}</strong>.`
@@ -3682,7 +3714,8 @@ function updateCartShippingProgress(total){
  if(fill)fill.style.width=progress+'%';
  if(truck)truck.style.left=Math.max(3,Math.min(97,progress))+'%';
  if(percent)percent.textContent=hasThreshold?Math.round(progress)+'%':'—';
- if(track){track.style.display=hasThreshold?'':'none';if(hasThreshold)track.removeAttribute('aria-hidden');else track.setAttribute('aria-hidden','true');track.setAttribute('aria-valuemax',hasThreshold?String(target):'1');track.setAttribute('aria-valuenow',String(hasThreshold?Math.round(Math.min(target,safeTotal)):0));track.setAttribute('aria-valuetext',!hasThreshold?'No hay mínimo de envío gratis configurado':safeTotal>=target?'Envío gratis desbloqueado':money(missing)+' para envío gratis');}
+ if(track){track.hidden=!hasThreshold;track.style.display=hasThreshold?'':'none';if(hasThreshold)track.removeAttribute('aria-hidden');else track.setAttribute('aria-hidden','true');track.setAttribute('aria-valuemax',hasThreshold?String(target):'1');track.setAttribute('aria-valuenow',String(hasThreshold?Math.round(Math.min(target,safeTotal)):0));track.setAttribute('aria-valuetext',!hasThreshold?'No hay mínimo de envío gratis configurado':safeTotal>=target?'Envío gratis desbloqueado':money(missing)+' para envío gratis');}
+ if(caliNote)caliNote.hidden=false;
 }
 function renderCart(){
  const bar=$('cartBar'),items=$('cartItems'),sum=$('cartSummary');
@@ -3896,10 +3929,20 @@ function checkoutCityValue(){
  const raw=selected==='Otra'?String($('customerCityOther')?.value||'').trim():selected;
  return canonicalLocalDeliveryCity(raw)||raw;
 }
+function storefrontShippingDisplayVerified(selectedCity,city){
+ return storefrontShippingSettingsLoaded&&!storefrontShippingSettingsLoadError&&!!selectedCity&&(selectedCity!=='Otra'||!!String(city||'').trim());
+}
 function updateShipping(){
  const selectedCity=$('customerCity')?.value||'';
  const city=checkoutCityValue();
  updateContraEntregaAvailability(city);
+ if(!storefrontShippingDisplayVerified(selectedCity,city)){
+  checkoutShipping=0;
+  if($('shippingValue'))$('shippingValue').textContent=!selectedCity?'Selecciona una ciudad':!storefrontShippingSettingsLoaded&&!storefrontShippingSettingsLoadError?'Verificando…':storefrontShippingSettingsLoadError?'No disponible':'Escribe tu ciudad';
+  if($('shippingNote'))$('shippingNote').textContent=!storefrontShippingSettingsLoaded||storefrontShippingSettingsLoadError?storefrontShippingPolicyText():!selectedCity?storefrontShippingPolicyText()+' Selecciona una ciudad para cotizar.':'Escribe tu ciudad para confirmar la tarifa.';
+  updateCheckoutSummary();
+  return;
+ }
  const priced=calculateStorefrontComboPricing(getCheckoutItems());
  const productsTotal=priced.subtotal;
  const threshold=storefrontShippingSettings.free_shipping_threshold;
@@ -3938,7 +3981,9 @@ function updateCheckoutSummary(){
    discountBox.innerHTML=priced.discountTotal>0?`<span>Descuento por combo<small>${priced.applied.map(row=>`${esc(row.title)} (${row.units} pareja${row.units===1?'':'s'})`).join(' · ')}</small></span><strong>−${money(priced.discountTotal)}</strong>`:'';
   }
  }
- $('checkoutTotal').textContent=money(priced.subtotal+checkoutShipping);
+ const selectedCity=$('customerCity')?.value||'';
+ const city=checkoutCityValue();
+ $('checkoutTotal').textContent=storefrontShippingDisplayVerified(selectedCity,city)?money(priced.subtotal+checkoutShipping):'Por verificar';
 }
 function selectedPayment(){
  return document.querySelector('input[name="paymentMethod"]:checked:not(:disabled)')?.value||'';
@@ -4936,8 +4981,8 @@ window.addEventListener('pageshow',()=>{if(catalogInitialLoadComplete&&document.
 const SIREVYA_PROMO_SESSION_KEY='sirevya_seasonal_promo_shown_v2';
 function seasonalPromoSessionKey(config){const version=String(config?.updated_at||'legacy');return `${SIREVYA_PROMO_SESSION_KEY}:${version}`}
 const SIREVYA_PROMO_PRESETS={
- halloween:{background_color:'#21132f',accent_color:'#ff914d',particles:['🕸️','🎃','🕷️','✦','🦇'],eyebrow:'TEMPORADA DE HALLOWEEN',title:'¡Halloween con estilo!',message:'Descubre la temporada y aprovecha el envío gratis a Cali.',button_label:'Ver promoción'},
- elegant:{background_color:'#17131d',accent_color:'#d7b779',particles:['✦','✧','❋','✦','✧'],eyebrow:'DETALLES QUE ENAMORAN',title:'Un detalle para ti',message:'Descubre tus favoritos y aprovecha el envío gratis a Cali.',button_label:'Explorar catálogo'},
+ halloween:{background_color:'#21132f',accent_color:'#ff914d',particles:['🕸️','🎃','🕷️','✦','🦇'],eyebrow:'TEMPORADA DE HALLOWEEN',title:'¡Halloween con estilo!',message:'Descubre la temporada y consulta las tarifas vigentes al elegir tu ciudad.',button_label:'Ver promoción'},
+ elegant:{background_color:'#17131d',accent_color:'#d7b779',particles:['✦','✧','❋','✦','✧'],eyebrow:'DETALLES QUE ENAMORAN',title:'Un detalle para ti',message:'Descubre tus favoritos y consulta las tarifas vigentes al elegir tu ciudad.',button_label:'Explorar catálogo'},
  romantic:{background_color:'#381426',accent_color:'#ff78a6',particles:['♥','✦','💗','♡','♥'],eyebrow:'UNA SORPRESA PARA TI',title:'Tu estilo merece brillar',message:'Encuentra tu próximo favorito con una promoción especial.',button_label:'Quiero verlo'},
  festive:{background_color:'#101f36',accent_color:'#83dcff',particles:['❄','✧','❄','✦','❄'],eyebrow:'CELEBRA CON SIREVYA',title:'La temporada se viste de estilo',message:'Descubre tus favoritos y promociones especiales.',button_label:'Ver favoritos'}
 };
