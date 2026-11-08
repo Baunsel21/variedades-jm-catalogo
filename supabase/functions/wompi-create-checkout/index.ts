@@ -104,6 +104,12 @@ function copAmount(value: unknown): number | null {
   return Number.isSafeInteger(amount) ? amount : null;
 }
 
+function shouldReleaseSideEffectsAfterPrepareFailure(code: unknown): boolean {
+  // Quote mismatch is returned by prepare before it creates inventory/coupon holds.
+  // Preserve any still-active reservation already owned by this same reference.
+  return String(code ?? "") !== "WOMPI_QUOTE_CHANGED";
+}
+
 function normalizeCouponCode(value: unknown): string {
   return typeof value === "string" ? value.trim().toUpperCase() : "";
 }
@@ -760,11 +766,13 @@ Deno.serve(async (req: Request): Promise<Response> => {
     });
     const preparation = rpcObject(await readJson(preparationResponse));
     if (!preparationResponse.ok || preparation?.success !== true) {
-      await releaseSideEffectsIfNoOrder({ supabaseUrl, serviceRoleKey, reference, hasCoupon: Boolean(couponCode) });
-      cleanupStarted = false;
-      const preparedQuote = rpcObject(preparation?.quote);
       const code = String(preparation?.code ?? "WOMPI_PREPARE_FAILED");
       const quoteChanged = code === "WOMPI_QUOTE_CHANGED";
+      if (shouldReleaseSideEffectsAfterPrepareFailure(code)) {
+        await releaseSideEffectsIfNoOrder({ supabaseUrl, serviceRoleKey, reference, hasCoupon: Boolean(couponCode) });
+      }
+      cleanupStarted = false;
+      const preparedQuote = rpcObject(preparation?.quote);
       const copOrNull = (value: unknown) => value == null ? null : copAmount(value);
       return json({
         code,
