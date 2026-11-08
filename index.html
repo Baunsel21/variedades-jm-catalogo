@@ -1721,6 +1721,7 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
   <label>Desde <input id="catalogPriceMin" type="number" min="0" step="1000" inputmode="numeric" placeholder="Mínimo" aria-label="Precio mínimo en pesos colombianos" oninput="render()"></label>
   <label>Hasta <input id="catalogPriceMax" type="number" min="0" step="1000" inputmode="numeric" placeholder="Máximo" aria-label="Precio máximo en pesos colombianos" oninput="render()"></label>
   <button type="button" onclick="clearCatalogPriceFilter()" aria-label="Limpiar filtro de precio">Limpiar</button>
+  <button type="button" onclick="copyCatalogPriceFilterLink()" aria-label="Copiar enlace de este rango de precios">Compartir</button>
   <span id="catalogPriceFilterStatus" class="catalogPriceFilterStatus" role="status" aria-live="polite"></span>
 </div>
 <div class="catalogCountLine"><button id="favoritesOnlyToggle" class="favoritesFilterButton" type="button" aria-pressed="false" onclick="toggleFavoriteFilter()"><span aria-hidden="true">♡</span> Favoritos <span id="favoriteProductCount">0</span></button><span id="count" class="count">Cargando catálogo…</span></div>
@@ -3534,6 +3535,7 @@ function render(){
  const q=normalizeText($('search').value),cat=$('category').value,sort=$('sort')?.value||'recent';
  const chosenColors=[...selectedCatalogColors];
  const priceRange=readCatalogPriceRange();
+ syncCatalogPriceFilterUrlState(priceRange);
  const priceStatus=$('catalogPriceFilterStatus');
  if(priceStatus)priceStatus.textContent=priceRange.error;
  const title=$('productsHeadingTitle');
@@ -3634,6 +3636,49 @@ function clearCatalogPriceFilter(){
  if(max)max.value='';
  render();
 }
+function buildCatalogPriceFilterUrl(range){
+ if(!range?.valid)throw new TypeError('No se puede compartir un rango de precio inválido.');
+ const url=new URL('/',window.location.origin);
+ if(range.min!==null)url.searchParams.set('min_price',String(range.min));
+ if(range.max!==null)url.searchParams.set('max_price',String(range.max));
+ url.hash='catalogo';
+ return url.href;
+}
+function restoreCatalogPriceFilterFromUrl(){
+ try{
+  const params=new URLSearchParams(window.location.search);
+  if(!params.has('min_price')&&!params.has('max_price'))return;
+  const range=parseCatalogPriceRange(params.get('min_price'),params.get('max_price'));
+  if(!range.valid)return;
+  const min=$('catalogPriceMin'),max=$('catalogPriceMax');
+  if(min)min.value=range.min===null?'':String(range.min);
+  if(max)max.value=range.max===null?'':String(range.max);
+ }catch{}
+}
+function syncCatalogPriceFilterUrlState(range){
+ try{
+  const url=new URL(window.location.href);
+  if(range?.valid&&range.min!==null)url.searchParams.set('min_price',String(range.min));
+  else url.searchParams.delete('min_price');
+  if(range?.valid&&range.max!==null)url.searchParams.set('max_price',String(range.max));
+  else url.searchParams.delete('max_price');
+  const next=url.pathname+(url.search?url.search:'')+(url.hash||'');
+  const current=window.location.pathname+window.location.search+window.location.hash;
+  if(next!==current)window.history.replaceState(window.history.state??null,'',next);
+ }catch{}
+}
+async function copyCatalogPriceFilterLink(){
+ const range=readCatalogPriceRange();
+ if(!range.valid){showToast(range.error);return}
+ const url=buildCatalogPriceFilterUrl(range);
+ try{
+  await navigator.clipboard.writeText(url);
+  showToast('Enlace copiado; solo contiene el rango de precio.');
+ }catch{
+  showToast(`No se pudo copiar. Enlace limpio: ${url}`);
+ }
+}
+restoreCatalogPriceFilterFromUrl();
 
 let cart=[];
 let cartOpen=false;
