@@ -8,7 +8,8 @@ import { createPreviewServer, DEMO_PRODUCTS, PREVIEW_CLIENT_SCRIPT, renderPrevie
 
 const html = await renderPreviewHtml();
 assert.match(html, /PREVIEW DE DESARROLLO/);
-assert.match(html, /catálogo y stock son ficticios/);
+assert.match(html, /productos, stock y tarifas de envío son datos sintéticos \(no oferta real\)/);
+assert.match(html, /pointer-events:none/);
 assert.match(html, /pagos, pedidos, reservas y cambios reales están deshabilitados/);
 assert.match(html, /DEMO-001/);
 assert.match(html, /window\.__SIREVYA_PREVIEW_CLIENT__/);
