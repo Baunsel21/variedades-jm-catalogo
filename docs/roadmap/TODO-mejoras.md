@@ -19,7 +19,7 @@ Cada criterio se conserva hasta que exista evidencia en código, Supabase y prue
 
 ## Fase 3: Catálogo, búsqueda y conversión
 
-> Avance parcial (2026-11-08): toolbar accesible, filtros de precio/talla/disponibilidad, favoritos locales, URL segura, CTA de WhatsApp contextual, fallback de imágenes y RPC mínima de fecha preparados en rama. La fase sigue abierta: faltan etiquetas administrables/ofertas y validar la migración en un entorno aislado. Ver [detalle de Fase 3](fase-3-descubrimiento-catalogo.md).
+> Avance parcial (2026-11-08): toolbar accesible, filtros de precio/talla/disponibilidad, favoritos locales, URL segura, CTA de WhatsApp contextual, fallback de imágenes y RPC mínima de fecha están en el [PR #12 (borrador)](https://github.com/Baunsel21/variedades-jm-catalogo/pull/12). La fase sigue abierta: faltan etiquetas administrables/ofertas y validar la migración en un entorno aislado. Ver [detalle de Fase 3](fase-3-descubrimiento-catalogo.md).
 
 - [ ] El administrador puede marcar producto como destacado, nuevo, oferta o últimas unidades; las etiquetas del catálogo solo aparecen según datos guardados y stock vigente.
 - [ ] El catálogo ofrece filtros accesibles por categoría, rango de precio, color, talla, disponibilidad y ofertas; ordena por precio, novedad y destacados; refleja filtros compartibles en URL cuando no exponga datos personales.

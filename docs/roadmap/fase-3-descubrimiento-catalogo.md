@@ -1,6 +1,6 @@
 # Fase 3 — Descubrimiento y conversión del catálogo
 
-**Estado:** implementación parcial en la rama `feature/catalog-discovery-favorites`; no está desplegada ni completa. Los ítems de Fase 3 en el backlog se mantienen abiertos.
+**Estado:** implementación parcial en la rama `feature/catalog-discovery-favorites`, disponible en el [PR #12 (borrador)](https://github.com/Baunsel21/variedades-jm-catalogo/pull/12); no está desplegada ni completa. Los ítems de Fase 3 en el backlog se mantienen abiertos.
 
 ## Incluido en este incremento
 
