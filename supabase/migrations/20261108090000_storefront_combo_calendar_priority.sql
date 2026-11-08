@@ -190,12 +190,12 @@ BEGIN
    IF v_qty<1 OR v_qty>100 THEN RETURN jsonb_build_object('success',false,'message','La cantidad de una línea no es válida.'); END IF;
    SELECT * INTO v_product FROM public.products p WHERE p.id=(v_input->>'id')::uuid AND p.user_id=v_owner_id;
    IF NOT FOUND THEN RETURN jsonb_build_object('success',false,'message','Uno de los productos ya no existe.'); END IF;
-   IF coalesce(v_product.sale_price,0)<0 THEN RETURN jsonb_build_object('success',false,'message','El precio guardado de un producto no es válido.'); END IF;
+   IF v_product.sale_price IS NULL OR v_product.sale_price<0 THEN RETURN jsonb_build_object('success',false,'message','El precio guardado de un producto no es válido.'); END IF;
    v_ids:=array_append(v_ids,v_product.id);v_names:=array_append(v_names,coalesce(v_product.name,'Producto'));
    v_codes:=array_append(v_codes,coalesce(v_product.code,''));v_categories:=array_append(v_categories,coalesce(v_product.category,''));
-   v_prices:=array_append(v_prices,coalesce(v_product.sale_price,0)::numeric);v_qtys:=array_append(v_qtys,v_qty);v_remaining:=array_append(v_remaining,v_qty);
+   v_prices:=array_append(v_prices,v_product.sale_price::numeric);v_qtys:=array_append(v_qtys,v_qty);v_remaining:=array_append(v_remaining,v_qty);
    v_line_discounts:=array_append(v_line_discounts,0::numeric);v_colors:=array_append(v_colors,btrim(coalesce(v_input->>'color','')));v_sizes:=array_append(v_sizes,btrim(coalesce(v_input->>'size','')));
-   v_base:=v_base+(coalesce(v_product.sale_price,0)::numeric*v_qty);v_line_count:=v_line_count+1;
+   v_base:=v_base+(v_product.sale_price::numeric*v_qty);v_line_count:=v_line_count+1;
  END LOOP;
  v_n:=array_length(v_ids,1);
  FOR v_rule IN

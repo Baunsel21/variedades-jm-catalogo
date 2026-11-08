@@ -38,7 +38,7 @@ Las claves Wompi/COD/carrito y el TTL de 10 minutos permanecen intactos. Se incl
 
 `index.html` unifica la vigencia local de las referencias con helper que mantiene inclusivo el límite exacto de diez minutos, admite hasta 60 segundos de desfase futuro de reloj y descarta punteros pendientes/activos más allá de ese margen. La lectura/restauración no cambia el `startedAt`; `savePendingWompiReference` conserva la hora de inicio al reintentar. Se mantienen las claves históricas `jm_wompi_*` y `jm_cod_order_draft_v1`. `tests/cart_recovery_regression.mjs` ejecuta las funciones reales con reloj y almacenamiento sintéticos, y comprueba además que el resumen usa el precio de catálogo actual y que COD/Wompi cotizan antes de crear pedido/reserva o abrir el checkout del proveedor.
 
-Esto no termina la recuperación avanzada: no hay coordinación entre dispositivos ni prueba concurrente de reutilización en staging, y aún falta comunicar explícitamente cuando precio/stock cambió o cuando un producto guardado ya no está en el catálogo. No se cambió el TTL, las RPC, el payload financiero ni las reservas servidor.
+Carrito y checkout muestran en una región `aria-live` un aviso en texto plano cuando el precio del snapshot cambió o falta un producto/precio del catálogo. Al restaurar una reserva, las líneas sin producto actual se conservan; se muestran como “Por verificar”, se ocultan subtotal/envío/total, tarifa/beneficio superior y resúmenes/ahorros combo parciales, y guards detienen payload, checkout, reserva Wompi y RPC COD antes de efectos. Sin ciudad o con “Otra” vacía tampoco se muestra envío “GRATIS” ni total. La re-cotización revalida estado tras los `await`. Las previews/selectores/toast de combos exigen precio verificado y no exponen ahorros ni agregan ítems con `sale_price` nulo/negativo. Las cotizaciones SQL locales fallan cerrado si `sale_price` es `NULL`; el Edge Wompi local exige quote válida y equivalencia canónica de ítems. Es revisión estática del código versionado, no confirmación de despliegue. Esto no termina la recuperación avanzada: faltan aviso de stock con fuente autorizada, coordinación entre dispositivos y prueba concurrente de reutilización en staging. No se cambió TTL ni esquema de reservas.
 
 ### Dashboard y datos
 
@@ -70,11 +70,11 @@ Archivos propios de la continuación: `admin.html`, `index.html`, `scripts/cod_n
 
 Código: `admin.html`, `index.html`, `scripts/validate.mjs`, `scripts/fase7_csv_preview.mjs`.
 
-SQL local: `supabase/migrations/20261108080000_public_catalog_sort_metadata.sql`, `supabase/migrations/20261108110000_guard_web_order_status_transitions.sql`, `supabase/migrations/20261108120000_admin_web_orders_server_pagination.sql`, `tests/catalog_discovery_metadata.sql`, `tests/cod_regression.sql`, `tests/orders_server_pagination_regression.sql`.
+SQL local: `supabase/migrations/20261108070000_storefront_city_shipping_rules.sql`, `supabase/migrations/20261108080000_public_catalog_sort_metadata.sql`, `supabase/migrations/20261108090000_storefront_combo_calendar_priority.sql`, `supabase/migrations/20261108110000_guard_web_order_status_transitions.sql`, `supabase/migrations/20261108120000_admin_web_orders_server_pagination.sql`, `tests/catalog_discovery_metadata.sql`, `tests/promotion_priority_regression.sql`, `tests/cod_regression.sql`, `tests/orders_server_pagination_regression.sql`.
 
 Rollout manual pendiente: `docs/deployment/restrict_legacy_admin_order_status_after_frontend.sql` (no es migración automática ni se ejecutó).
 
-Regresiones independientes: `tests/admin_account_security_regression.mjs`, `tests/admin_clients_privacy_regression.mjs`, `tests/admin_client_history_regression.mjs`, `tests/admin_orders_server_pagination_regression.mjs`, `tests/dashboard_availability_regression.mjs`, `tests/dashboard_period_regression.mjs`, `tests/admin_dashboard_month_regression.mjs`, `tests/phase1_quote_parity_regression.mjs`, `tests/catalog_discovery_regression.mjs`, `tests/cart_recovery_regression.mjs`, `tests/fase7_csv_preview.mjs`, `tests/admin_csv_preview_regression.mjs`, `tests/cod_notice_regression.mjs`, `tests/admin_cod_notice_regression.mjs`.
+Regresiones independientes: `tests/admin_account_security_regression.mjs`, `tests/admin_clients_privacy_regression.mjs`, `tests/admin_client_history_regression.mjs`, `tests/admin_orders_server_pagination_regression.mjs`, `tests/dashboard_availability_regression.mjs`, `tests/dashboard_period_regression.mjs`, `tests/admin_dashboard_month_regression.mjs`, `tests/phase1_quote_parity_regression.mjs`, `tests/catalog_discovery_regression.mjs`, `tests/combo_preview_regression.mjs`, `tests/cart_recovery_regression.mjs`, `tests/fase7_csv_preview.mjs`, `tests/admin_csv_preview_regression.mjs`, `tests/cod_notice_regression.mjs`, `tests/admin_cod_notice_regression.mjs`.
 
 Documentación: este informe, `TODO-mejoras.md`, `fase-3-descubrimiento-catalogo.md`, `fase-5-modelo-pedidos.md`, `fase-6-pedidos-filtros-paginacion.md`, `fase-6-s2-paginacion-server-side.md` y `fase-7-trazabilidad-importacion-backup.md`.
 
@@ -92,6 +92,7 @@ node tests/dashboard_period_regression.mjs
 node tests/admin_dashboard_month_regression.mjs
 node tests/phase1_quote_parity_regression.mjs
 node tests/catalog_discovery_regression.mjs
+node tests/combo_preview_regression.mjs
 node tests/cart_recovery_regression.mjs
 node tests/fase7_csv_preview.mjs
 node tests/admin_csv_preview_regression.mjs
@@ -99,6 +100,7 @@ node tests/cod_notice_regression.mjs
 node tests/admin_cod_notice_regression.mjs
 node scripts/validate.mjs
 python3 -c "from pathlib import Path; from pglast import parse_sql,parse_plpgsql; [print(p, len(parse_sql(Path(p).read_text())), len(parse_plpgsql(Path(p).read_text()))) for p in ['supabase/migrations/20261108120000_admin_web_orders_server_pagination.sql','tests/orders_server_pagination_regression.sql']]"
+python3 -c "from pathlib import Path; from pglast import parse_sql,parse_plpgsql; [print(p, len(parse_sql(Path(p).read_text())), len(parse_plpgsql(Path(p).read_text()))) for p in ['supabase/migrations/20261108070000_storefront_city_shipping_rules.sql','supabase/migrations/20261108090000_storefront_combo_calendar_priority.sql','tests/promotion_priority_regression.sql']]"
 git diff --check
 ```
 
@@ -114,7 +116,9 @@ Una revisión independiente read-only de `fetchTablePage`, `renderClientes`, `to
 
 **Resumen mensual — incremento separado:** añade solo la opción del selector y el inicio del mes en `summarizeDashboardPeriod`, sin consultas ni escrituras nuevas. Archivos: `admin.html`, `tests/admin_dashboard_month_regression.mjs`, backlog y este informe. PASARON el test mensual (medianoche Colombia, cambio de año, febrero bisiesto, futuro/mes anterior excluidos, importes inválidos y paridad día/semana), `dashboard_period_regression.mjs`, `scripts/validate.mjs` y whitespace. La cifra conserva la etiqueta de registros de `sales` y no equivale a ventas cobradas/conciliadas por medio de pago. No implementa aún exportación XLSX ni reportes canónicos entre canales.
 
-**Carrito — endurecimiento separado:** PASÓ `node tests/cart_recovery_regression.mjs`. La prueba cubre 10 minutos exactos y expiración posterior, timestamps futuros, limpieza de punteros vencidos, reintento sin renovar el reloj, restauración con precio actual de catálogo y cotización antes de side effects COD/Wompi. No se llamó a Supabase ni se tocaron referencias/reservas reales; la recuperación avanzada sigue abierta.
+**Carrito — endurecimiento separado:** PASÓ `node tests/cart_recovery_regression.mjs`. La prueba cubre 10 minutos exactos y expiración posterior, timestamps futuros (incluido el borde +60 s), limpieza de punteros vencidos, reintento sin renovar el reloj, precio actual, aviso accesible de precio cambiado/producto no verificable y cotización antes de side effects COD/Wompi. No se llamó a Supabase ni se tocaron referencias/reservas reales; notificación de cambio de stock y recuperación avanzada siguen abiertas.
+
+**Cotización/previews de combo — correcciones críticas adicionales:** las revisiones independientes detectaron un total parcial de envío, descuentos de combo por línea y previews que convertían precio NULL en cero; también tarjetas por categoría que aún mostraban etiqueta promo sin candidatos con precio válido. Se corrigieron: selector, preview, tarjeta de catálogo, ficha, toast y agregado fallan cerrado; combos sin candidatos se ocultan. Se añadió `tests/combo_preview_regression.mjs`; `tests/cart_recovery_regression.mjs` cubre preview de checkout, tarifa/beneficio, descuentos por línea y destinos vacíos. `20261108070000` y `20261108090000` rechazan `sale_price IS NULL` antes de acumular precio; `tests/promotion_priority_regression.sql` comprueba la definición instalada y, si el esquema admite NULL, fixture sintético en transacción con rollback. PASARON `node tests/combo_preview_regression.mjs`, `node tests/cart_recovery_regression.mjs`, `node tests/catalog_discovery_regression.mjs`, `node tests/phase1_quote_parity_regression.mjs`, `node scripts/validate.mjs`, `git diff --check`, y `pglast` sobre las dos migraciones y el test SQL. SQL no fue ejecutado; el fixture es para staging aislado.
 
 ## Pendientes de lanzamiento y fases abiertas
 

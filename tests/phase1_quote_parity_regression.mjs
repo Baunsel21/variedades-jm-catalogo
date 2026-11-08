@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 
 const catalog = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
-const progressSource = catalog.match(/function updateCartShippingProgress\(total\)\{[\s\S]*?\n\}/)?.[0];
+const progressSource = catalog.match(/function updateCartShippingProgress\(total(?:,catalogVerified=true)?\)\{[\s\S]*?\n\}/)?.[0];
 assert.ok(progressSource, 'Debe existir el renderizador del estado de envío del carrito');
 
 const nodes = {
@@ -53,7 +53,7 @@ assert.equal(nodes.cartShippingMessage.innerHTML.includes('COP 1'), true, 'Calcu
 assert.equal(caliNote.hidden, false, 'Solo entonces vuelve a mostrar el beneficio de Cali');
 
 assert.ok(catalog.includes('storefrontShippingSettingsLoaded&&!storefrontShippingSettingsLoadError'), 'Checkout exige configuración cargada y sin fallo de refresco');
-assert.ok(catalog.includes("textContent=shippingConfigurationVerified?money(total):'—'"), 'Oculta el total hasta verificar la tarifa');
+assert.ok(catalog.includes("textContent=shippingConfigurationVerified&&!recoveryState.productUnverified&&destinationVerified?money(total):'—'"), 'Oculta el total hasta verificar tarifa, productos y destino');
 assert.ok(catalog.includes("const shippingSettingsVerified=await loadStorefrontShippingSettings(true);\n if(!shippingSettingsVerified){showToast('No pudimos verificar la tarifa de envío vigente."), 'La confirmación vuelve a consultar Supabase y falla cerrada');
 assert.ok(catalog.includes('Consultando la tarifa vigente de envío…') && catalog.includes('class="cartShippingLocalNote" hidden') && catalog.includes('class="cartShippingTrack" hidden'), 'El HTML inicial no promete una política ni un progreso sin verificar');
 

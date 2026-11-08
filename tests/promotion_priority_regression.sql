@@ -9,11 +9,13 @@ DECLARE
   v_tag text;
   v_product_a uuid;
   v_product_b uuid;
+  v_sale_price_product uuid;
   v_high_priority_combo uuid;
   v_legacy_combo uuid;
   v_city_rule_id uuid;
   v_zone_rule_id uuid;
   v_quote jsonb;
+  v_quote_definition text;
   v_saved jsonb;
   v_line_discount numeric;
   v_calendar_priority integer;
@@ -29,6 +31,11 @@ BEGIN
      OR has_function_privilege('service_role','public.get_storefront_cart_quote(jsonb,text)','EXECUTE') IS DISTINCT FROM true THEN
     RAISE EXCEPTION 'TEST FAILED: RPC público de combos o cotización no es ejecutable por anon';
   END IF;
+  SELECT pg_get_functiondef('public.get_storefront_cart_quote(jsonb,text)'::regprocedure)
+    INTO v_quote_definition;
+  IF position('sale_price IS NULL' IN v_quote_definition)=0 THEN
+    RAISE EXCEPTION 'TEST FAILED: la RPC instalada debe rechazar productos sin precio antes de cotizar';
+  END IF;
   IF has_function_privilege('public','public.admin_list_storefront_product_combos_v2()','EXECUTE') IS DISTINCT FROM false
      OR has_function_privilege('anon','public.admin_list_storefront_product_combos_v2()','EXECUTE') IS DISTINCT FROM false
      OR has_function_privilege('anon','public.admin_save_storefront_product_combo_v2(uuid,text,uuid,uuid,text,text,text,text,text,boolean,timestamp with time zone,timestamp with time zone,text,numeric,numeric,text,text,integer,text)','EXECUTE') IS DISTINCT FROM false
@@ -40,6 +47,23 @@ BEGIN
   END IF;
 
   v_tag:=replace(gen_random_uuid()::text,'-','');
+  BEGIN
+    INSERT INTO public.products(user_id,code,name,category,quantity,cost_price,sale_price)
+    VALUES(v_admin,'TEST-NULL-PRICE-'||substr(v_tag,1,20),'Precio faltante','__test_null_price_'||substr(v_tag,1,12),1,0,NULL)
+    RETURNING id INTO v_sale_price_product;
+  EXCEPTION WHEN not_null_violation OR check_violation THEN
+    v_sale_price_product:=NULL;
+  END;
+  IF v_sale_price_product IS NOT NULL THEN
+    SELECT public.get_storefront_cart_quote(
+      jsonb_build_array(jsonb_build_object('id',v_sale_price_product,'qty',1)),
+      'Bogotá'
+    ) INTO v_quote;
+    IF coalesce((v_quote->>'success')::boolean,false) IS DISTINCT FROM false
+       OR coalesce(v_quote->>'message','') NOT ILIKE '%precio%' THEN
+      RAISE EXCEPTION 'TEST FAILED: la cotización no rechazó un sale_price NULL.';
+    END IF;
+  END IF;
   BEGIN
     INSERT INTO public.products(user_id,code,name,category,quantity,cost_price,sale_price)
     VALUES(v_admin,'TEST-CAL-A-'||substr(v_tag,1,20),'Prueba calendario A','__test_cal_'||substr(v_tag,1,12),2,0,100000)
