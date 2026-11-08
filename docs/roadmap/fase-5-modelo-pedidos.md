@@ -1,6 +1,6 @@
 # Fase 5 — Contratos de pedidos y relaciones conocidas
 
-**Estado:** documento de análisis en la rama `feature/orders-model-contracts`, apilada sobre el PR #14. No crea vistas, RPCs ni uniones de datos; no se ejecutó SQL ni se leyeron filas de pedidos/clientes.
+**Estado:** [PR #16](https://github.com/Baunsel21/variedades-jm-catalogo/pull/16) en borrador, rama `feature/orders-model-contracts` apilada sobre el PR #14. No crea vistas, RPCs ni uniones de datos; no se ejecutó SQL ni se leyeron filas de pedidos/clientes.
 
 ## Conclusión para el panel
 

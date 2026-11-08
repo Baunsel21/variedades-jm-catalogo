@@ -38,6 +38,8 @@ Cada criterio se conserva hasta que exista evidencia en código, Supabase y prue
 
 ## Fase 5: Pedidos, Wompi/PSE y conciliación
 
+> Avance parcial: mapa de identidades Wompi/COD y límites de unión en [PR #16](https://github.com/Baunsel21/variedades-jm-catalogo/pull/16), borrador sobre PR #14. Aún no hay proyección unificada ni prueba de cardinalidad en staging; idempotencia/concurrencia, conciliación operativa, PSE sandbox y el resto siguen abiertos.
+
 - [ ] Antes de unir datos, documentar contratos/relaciones `orders` y `web_orders`; el panel muestra una sola vista coherente sin duplicar filas, pagos, ventas ni movimientos.
 - [ ] Repetir/concurrir el mismo webhook APPROVED no vuelve a descontar inventario ni crear reservas; estados fuera de orden no degradan un pago aprobado y cada referencia/transacción tiene integridad única.
 - [ ] Conciliación muestra importe, referencia, transacción, estado de pago, inventario, logística y causa. Las acciones de reparación requieren RPC transaccional y guardia admin, confirman el resultado, registran bitácora y nunca inician reembolso sin una política aprobada.
