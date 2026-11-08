@@ -57,22 +57,26 @@ try{
  assert.ok(!catalog.includes('$15.000')&&!catalog.includes('$130.000'),'HTML inicial no muestra tarifas antiguas mientras carga Supabase');
  assert.ok(catalog.includes('cartQuote.discount_total==null')&&catalog.includes('authoritativeComboQuote.discount_total==null'),'Checkout y Wompi rechazan cotizaciones parciales');
  assert.ok(catalog.includes('row?.national_shipping_cost==null')&&admin.includes('row?.national_shipping_cost==null'),'RPCs rechazan fee NULL en vez de tratarlo como $0');
- assert.ok(catalog.includes("document.querySelectorAll('.detailShippingBenefits .detailShippingRule')[1]"),'La política dinámica no reemplaza el beneficio permanente de Cali');
+ assert.ok(catalog.includes("const rules=document.querySelectorAll('.detailShippingBenefits .detailShippingRule');")&&catalog.includes('const caliShippingRule=rules[0]')&&catalog.includes('const otherCityShippingRule=rules[1]'),'Los beneficios de Cali y otros destinos se actualizan por separado');
  assert.ok(catalog.includes('data-shipping-policy')&&catalog.includes("document.querySelector('.jmTickerTrack [data-shipping-policy]')"),'El ticker se actualiza por selector estable al activar/desactivar el umbral');
  const copyMatch=catalog.match(/function updateStorefrontShippingCopy\(\)\{[\s\S]*?\n\}/);
  assert.ok(copyMatch,'Actualizador del texto dinámico de envío');
- const ticker={textContent:'✦ Consulta las condiciones de envío vigentes'},benefit={textContent:''},foot={textContent:''},paymentNote={textContent:''};
- const caliHeading={textContent:'Envío gratis en Cali'},caliCopy={textContent:'Sin costo de envío en Cali.'};
+ const ticker={textContent:'✦ Consulta las condiciones de envío vigentes'},caliBenefit={textContent:''},benefit={textContent:''},foot={textContent:''},paymentNote={textContent:''};
+ const caliHeading={textContent:'Tarifa de envío en Cali'},caliCopy={textContent:'Se confirma al verificar la configuración vigente.'};
  const otherHeading={textContent:''},otherCopy={textContent:''};
  const detailRules=[{querySelector:s=>s==='b'?caliHeading:caliCopy},{querySelector:s=>s==='b'?otherHeading:otherCopy}];
- const copyContext=vm.createContext({storefrontShippingSettings:{national_shipping_cost:17500,free_shipping_threshold:null},
-  storefrontShippingPolicyText:()=> 'Envío gratis en Cali; tarifa nacional vigente.',money:value=>`COP ${value}`,$:()=>paymentNote,
-  document:{querySelector:s=>({'.jmTickerTrack [data-shipping-policy]':ticker,'.benefits .benefit:nth-child(2) small':benefit,'.cartShippingFoot span:first-child':foot,'.cartShippingTrack':null}[s]??null),
-   querySelectorAll:s=>s==='.detailShippingBenefits .detailShippingRule'?detailRules:[]}});
+ const copyContext=vm.createContext({storefrontShippingSettings:{national_shipping_cost:17500,free_shipping_threshold:null},storefrontShippingSettingsLoaded:false,storefrontShippingSettingsLoadError:false,
+ storefrontShippingPolicyText:()=> 'Envío gratis en Cali; tarifa nacional vigente.',money:value=>`COP ${value}`,$:()=>paymentNote,
+ document:{querySelector:s=>({'.jmTickerTrack [data-shipping-policy]':ticker,'.benefits .benefit:nth-child(1) small':caliBenefit,'.benefits .benefit:nth-child(2) small':benefit,'.cartShippingFoot span:first-child':foot,'.cartShippingTrack':null}[s]??null),
+ querySelectorAll:s=>s==='.detailShippingBenefits .detailShippingRule'?detailRules:[]}});
  vm.runInContext(copyMatch[0],copyContext);
  copyContext.updateStorefrontShippingCopy();
+ assert.equal(caliBenefit.textContent,'Tarifa por confirmar','No se promete Cali gratis antes de verificar la configuración');
+ assert.equal(caliHeading.textContent,'Tarifa en Cali','La ficha mantiene Cali neutral antes del RPC');
+ copyContext.storefrontShippingSettingsLoaded=true;copyContext.updateStorefrontShippingCopy();
  assert.equal(ticker.textContent,'✦ Envío nacional: tarifa vigente; Cali gratis','Ticker muestra estado sin umbral');
- assert.equal(caliHeading.textContent,'Envío gratis en Cali','La copia dinámica no reemplaza la tarjeta de Cali');
+ assert.equal(caliBenefit.textContent,'Envío gratis','El beneficio de Cali se restaura tras la configuración válida');
+ assert.equal(caliHeading.textContent,'Envío gratis en Cali','La ficha restaura el beneficio de Cali tras el RPC');
  assert.equal(otherHeading.textContent,'Tarifa fuera de Cali','La ficha informa la tarifa si el umbral está desactivado');
  copyContext.storefrontShippingSettings.free_shipping_threshold=150000;copyContext.updateStorefrontShippingCopy();
  assert.equal(ticker.textContent,'✦ Envío gratis desde COP 150000 fuera de Cali','Ticker se actualiza al reactivar el umbral');
@@ -80,12 +84,18 @@ try{
  const progressMatch=catalog.match(/function updateCartShippingProgress\(total\)\{[\s\S]*?\n\}/);
  assert.ok(progressMatch,'Actualizador del progreso de envío');
  const progressTrack={style:{},attrs:{},setAttribute(k,v){this.attrs[k]=v},removeAttribute(k){delete this.attrs[k]}};
- const progressNodes={cartShippingMessage:{innerHTML:''},cartShippingFill:{style:{},parentElement:progressTrack},cartShippingTruck:{style:{}},cartShippingPercent:{textContent:''}};
- const progressContext=vm.createContext({storefrontShippingSettings:{national_shipping_cost:17500,free_shipping_threshold:null},money:value=>`COP ${value}`,$:id=>progressNodes[id]??null});
+ const progressNodes={cartShippingMessage:{innerHTML:'',textContent:''},cartShippingFill:{style:{},parentElement:progressTrack},cartShippingTruck:{style:{}},cartShippingPercent:{textContent:''}};
+ const progressLocalNote={hidden:false};
+ const progressContext=vm.createContext({storefrontShippingSettings:{national_shipping_cost:17500,free_shipping_threshold:null},storefrontShippingSettingsLoaded:false,storefrontShippingSettingsLoadError:false,money:value=>`COP ${value}`,$:id=>progressNodes[id]??null,document:{querySelector:selector=>selector==='.cartShippingLocalNote'?progressLocalNote:null}});
  vm.runInContext(progressMatch[0],progressContext);
+ progressContext.updateCartShippingProgress(100000);
+ assert.equal(progressLocalNote.hidden,true,'La nota de Cali se oculta antes de verificar settings');
+ assert.equal(progressNodes.cartShippingMessage.textContent,'Consultando la tarifa vigente de envío…','El carrito anuncia carga pendiente sin prometer Cali gratis');
+ progressContext.storefrontShippingSettingsLoaded=true;
  progressContext.updateCartShippingProgress(100000);
  assert.equal(progressTrack.style.display,'none','No se muestra progreso con umbral desactivado');
  assert.equal(progressNodes.cartShippingPercent.textContent,'—','No se anuncia porcentaje falso sin umbral');
+ assert.equal(progressLocalNote.hidden,false,'La nota de Cali se restaura después de verificar la configuración');
  progressContext.storefrontShippingSettings.free_shipping_threshold=150000;progressContext.updateCartShippingProgress(75000);
  assert.equal(progressTrack.style.display,'','El progreso aparece al activar umbral');
  assert.equal(progressNodes.cartShippingPercent.textContent,'50%','El porcentaje coincide con el umbral nuevo');

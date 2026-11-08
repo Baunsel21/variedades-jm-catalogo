@@ -1412,10 +1412,16 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
 .detailHeaderWordmark{display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;gap:3px!important;min-width:0!important;text-align:center!important;color:#28231f!important;line-height:1!important}
 .detailHeaderWordmark strong{font-family:Georgia,'Times New Roman',serif!important;font-weight:500!important;font-size:clamp(28px,4vw,40px)!important;letter-spacing:-.03em!important}
 .detailHeaderWordmark small{font-size:8px!important;letter-spacing:1.15px!important;text-transform:uppercase!important;color:#756c62!important;white-space:nowrap!important}
-/* No hay controles de filtro encima de los productos. La búsqueda y el contador permanecen compactos. */
+/* Favoritos de catálogo: estado local del navegador, separado del carrito y de la cuenta. */
 .marketplaceToolbar{display:none!important}
-.catalogCountLine{display:flex!important;justify-content:flex-end!important;align-items:center!important;min-height:22px!important;margin:0 12px 5px!important;padding:0 2px!important;background:transparent!important}
+.catalogCountLine{display:flex!important;justify-content:space-between!important;align-items:center!important;min-height:32px!important;margin:0 12px 5px!important;padding:0 2px!important;background:transparent!important}
 .catalogCountLine .count{display:block!important;margin:0!important;padding:3px 0!important;color:#8b8178!important;font-size:11px!important;text-align:right!important}
+.favoritesFilterButton{display:inline-flex!important;align-items:center!important;gap:5px!important;min-height:30px!important;padding:5px 10px!important;border:1px solid #ead8da!important;border-radius:999px!important;background:#fff!important;color:#7b1730!important;font-size:12px!important;font-weight:700!important;cursor:pointer!important}
+.favoritesFilterButton[aria-pressed="true"]{background:#7b1730!important;color:#fff!important;border-color:#7b1730!important}
+.catalogCardTitle{display:flex!important;align-items:center!important;gap:8px!important;min-width:0!important}
+.catalogCardTitle .name{flex:1 1 auto!important;min-width:0!important}
+.productFavoriteButton{display:inline-flex!important;flex:0 0 34px!important;align-items:center!important;justify-content:center!important;width:34px!important;height:34px!important;padding:0!important;border:1px solid #ead8da!important;border-radius:50%!important;background:#fff!important;color:#7b1730!important;font-size:20px!important;line-height:1!important;cursor:pointer!important}
+.productFavoriteButton[aria-pressed="true"]{background:#7b1730!important;color:#fff!important;border-color:#7b1730!important}
 /* Menú lateral: logo al principio y controles de categoría, orden y color disponibles directamente. */
 .mobileMenu{z-index:650!important}
 .mobileMenuPanel{width:min(88vw,380px)!important;max-width:380px!important;background:#fff!important;color:#302b27!important}
@@ -1704,7 +1710,7 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
 <div class="catalogSearchRow" id="catalogSearchRow">
   <input id="search" class="search" placeholder="Buscar productos..." oninput="handleSearchInput()" aria-label="Buscar productos">
 </div>
-<div class="catalogCountLine"><span id="count" class="count">Cargando catálogo…</span></div>
+<div class="catalogCountLine"><button id="favoritesOnlyToggle" class="favoritesFilterButton" type="button" aria-pressed="false" onclick="toggleFavoriteFilter()"><span aria-hidden="true">♡</span> Favoritos <span id="favoriteProductCount">0</span></button><span id="count" class="count">Cargando catálogo…</span></div>
 <section id="cartBar" class="cartBar" aria-hidden="true" onclick="if(event.target===this)hideCart()"><div class="cartPanel" role="dialog" aria-modal="true" aria-labelledby="cartDrawerTitle"><div class="cartDrawerBody"><div class="cartHead"><div><div id="cartDrawerTitle" class="cartTitle">Tu carrito</div><div id="cartSummary" class="cartSummary">0 productos</div></div><button class="cartClose" type="button" onclick="hideCart()" aria-label="Cerrar carrito">×</button></div><div class="cartShippingBox" aria-live="polite"><div id="cartShippingMessage" class="cartShippingMessage">Consultando la tarifa vigente de envío…</div><div class="cartShippingTrack" style="display:none" hidden aria-hidden="true" role="progressbar" aria-label="Progreso para envío gratis fuera de Cali" aria-valuemin="0" aria-valuemax="1" aria-valuenow="0"><div id="cartShippingFill" class="cartShippingFill"></div><span id="cartShippingTruck" class="cartShippingTruck" aria-hidden="true">🚚</span></div><div class="cartShippingFoot"><span>La tarifa se confirma al seleccionar una ciudad</span><span id="cartShippingPercent">—</span></div><div class="cartShippingLocalNote" hidden>🚚 Envío gratis a Cali también</div></div><div id="cartItems" class="cartItems"></div><div class="cartFooter"><div class="cartFooterTotal"><span>Total estimado</span><strong id="cartDrawerTotal">$0</strong></div><div id="cartDiscountLine" class="cartDiscountSummary" hidden></div><p class="cartFooterNote">El envío se confirma según tu ciudad en el siguiente paso.</p><button id="cartSend" class="cartSend" type="button" onclick="sendCart()">Pagar pedido</button></div></div></div></section>
 <section id="storefrontComboCatalogSection" class="storefrontComboCatalogSection" hidden aria-labelledby="storefrontComboCatalogTitle">
   <div id="storefrontComboCatalogIntro" class="storefrontComboCatalogIntro">
@@ -3520,6 +3526,7 @@ function render(){
  const text=normalizeText((p.code||'')+' '+(p.name||'')+' '+(p.category||''));
  // El stock por variante prevalece sobre quantity cuando hay combinaciones configuradas.
  if(productStockTotal(p)<=0)return false;
+ if(catalogFavoritesOnly&&!favoriteProductIds.has(String(p.id)))return false;
  if(!text.includes(q)||(cat&&p.category!==cat))return false;
  if(chosenColors.length&&!chosenColors.some(key=>colorIndex.byProduct.get(p)?.has(key)))return false;
  return true;
@@ -3538,13 +3545,57 @@ function render(){
    const ok=variantTotal>0 || reservedForThisSession;
    const blocked=!ok && !hasOwnActiveReservationForProduct(p.id);
    const key='photo_'+p.id;
-return `<article class="card ${blocked?'inventoryUnavailable':''}" data-product-id="${esc(p.id)}" aria-disabled="${blocked?'true':'false'}" onclick="openProductDetail('${esc(p.id)}',event)">${blocked?'<div class="inventoryLock">🔒 RESERVADO / AGOTADO</div>':''}<div class="photo photoSwipe" data-photo="${esc(key)}" data-index="0" onpointerdown="photoTouchStart(event)" onpointermove="photoTouchMove(event)" onpointerup="photoTouchEnd(event)" onpointercancel="photoTouchEnd(event)" onclick="photoClickGuard(event)" onpointerenter="photoHover(event)" onpointerleave="photoHoverLeave(event)">${imgs.length?`<img data-src="${esc(imgs[0])}" alt="${esc(p.name)}" loading="lazy" decoding="async" onerror="this.style.display='none'">${imgs.length>1?``:''}`:'<div class="noimg">📦</div>'}</div><div class="body"><div class="name">${esc(p.name)}</div><div class="price">${money(p.sale_price)}</div>${renderVariantOptions(p)}</div></article>`
+return `<article class="card ${blocked?'inventoryUnavailable':''}" data-product-id="${esc(p.id)}" aria-disabled="${blocked?'true':'false'}" onclick="openProductDetail('${esc(p.id)}',event)">${blocked?'<div class="inventoryLock">🔒 RESERVADO / AGOTADO</div>':''}<div class="photo photoSwipe" data-photo="${esc(key)}" data-index="0" onpointerdown="photoTouchStart(event)" onpointermove="photoTouchMove(event)" onpointerup="photoTouchEnd(event)" onpointercancel="photoTouchEnd(event)" onclick="photoClickGuard(event)" onpointerenter="photoHover(event)" onpointerleave="photoHoverLeave(event)">${imgs.length?`<img data-src="${esc(imgs[0])}" alt="${esc(p.name)}" loading="lazy" decoding="async" onerror="this.style.display='none'">${imgs.length>1?``:''}`:'<div class="noimg">📦</div>'}</div><div class="body"><div class="catalogCardTitle"><div class="name">${esc(p.name)}</div><button class="productFavoriteButton" type="button" data-favorite-id="${esc(p.id)}" aria-pressed="${isCatalogFavorite(p.id)}" aria-label="${isCatalogFavorite(p.id)?'Quitar':'Añadir'} ${esc(p.name)} ${isCatalogFavorite(p.id)?'de':'a'} favoritos" onclick="toggleCatalogFavorite(event,this)"><span aria-hidden="true">${isCatalogFavorite(p.id)?'♥':'♡'}</span></button></div><div class="price">${money(p.sale_price)}</div>${renderVariantOptions(p)}</div></article>`
  }).join(''):'<div class="empty">No encontramos productos con esos filtros.</div>';
  document.querySelectorAll('#grid .card').forEach(card=>{const p=productos.find(x=>String(x.id)===String(card.dataset.productId));if(p)updateVariantAvailability(card,p)});
  activateCatalogLazyImages();
  renderStorefrontComboCatalog();
  renderCart();
 }
+
+const SIREVYA_CATALOG_FAVORITES_KEY='sirevya_catalog_favorites_v1';
+const CATALOG_FAVORITES_LIMIT=500;
+let favoriteProductIds=loadCatalogFavorites();
+let catalogFavoritesOnly=false;
+function parseCatalogFavorites(raw){
+ try{
+  const value=JSON.parse(String(raw||'[]'));
+  if(!Array.isArray(value))return new Set();
+  return new Set(value.map(item=>String(item??'').trim()).filter(id=>id&&id.length<=128&&!/[\u0000-\u001f]/.test(id)).slice(0,CATALOG_FAVORITES_LIMIT));
+ }catch{return new Set();}
+}
+function loadCatalogFavorites(){
+ try{return parseCatalogFavorites(localStorage.getItem(SIREVYA_CATALOG_FAVORITES_KEY))}catch{return new Set()}
+}
+function saveCatalogFavorites(){
+ try{localStorage.setItem(SIREVYA_CATALOG_FAVORITES_KEY,JSON.stringify([...favoriteProductIds].slice(0,CATALOG_FAVORITES_LIMIT)));return true}
+ catch{showToast('No se pudieron guardar los favoritos en este navegador.');return false}
+}
+function isCatalogFavorite(id){return favoriteProductIds.has(String(id??''))}
+function updateFavoriteControls(){
+ const button=$('favoritesOnlyToggle');
+ if(!button)return;
+ button.setAttribute('aria-pressed',String(catalogFavoritesOnly));
+ button.setAttribute('aria-label',`Mostrar solo mis favoritos. ${favoriteProductIds.size} guardados.`);
+ button.innerHTML=`<span aria-hidden="true">${catalogFavoritesOnly?'♥':'♡'}</span> Favoritos <span id="favoriteProductCount">${favoriteProductIds.size}</span>`;
+}
+function toggleFavoriteFilter(){catalogFavoritesOnly=!catalogFavoritesOnly;updateFavoriteControls();render()}
+function toggleCatalogFavorite(event,button){
+ if(event){event.preventDefault();event.stopPropagation()}
+ const id=String(button?.dataset?.favoriteId||'').trim();
+ if(!id)return;
+ if(favoriteProductIds.has(id))favoriteProductIds.delete(id);
+ else if(favoriteProductIds.size<CATALOG_FAVORITES_LIMIT)favoriteProductIds.add(id);
+ else{showToast('Puedes guardar hasta 500 favoritos en este navegador.');return}
+ saveCatalogFavorites();updateFavoriteControls();render();
+}
+window.addEventListener('storage',event=>{
+ if(event.key!==SIREVYA_CATALOG_FAVORITES_KEY&&event.key!==null)return;
+ favoriteProductIds=event.key===null?new Set():parseCatalogFavorites(event.newValue);
+ updateFavoriteControls();
+ if(catalogInitialLoadComplete)render();
+});
+updateFavoriteControls();
 
 let cart=[];
 let cartOpen=false;
