@@ -500,6 +500,20 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
             <div style="margin-top:12px"><button id="saveOnlinePaymentsBtn" class="primary" onclick="saveOnlinePaymentSettings()" disabled>💾 Guardar cambios</button></div>
             <p class="paymentSettingsHelp" style="margin-bottom:0">Los cambios se guardan en Supabase y se consultan desde el catálogo al abrir el pago y durante la navegación.</p>
           </div>
+          <div class="box" style="grid-column:1/-1" id="storefrontShippingSettingsBox">
+            <div class="rowBetween" style="align-items:flex-start;gap:16px;flex-wrap:wrap">
+              <div style="flex:1;min-width:220px"><h3 style="margin-bottom:7px">🚚 Tarifas de envío del catálogo</h3><p class="muted" style="margin-top:0">Cambia aquí la tarifa nacional y el mínimo para envío gratis, sin editar código. Cali y sus alias actuales conservan el envío gratis. La regla actual se mantiene al iniciar: $15.000 y envío gratis desde $130.000 después de descuentos.</p></div>
+              <span class="status ok">Cali: envío gratis</span>
+            </div>
+            <div class="promoAdminGrid" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr))">
+              <label>Tarifa nacional (COP)<input id="shippingNationalCost" type="number" min="0" max="5000000" step="1" inputmode="numeric" value="15000" required disabled><small>Se cobra fuera de Cali si no se alcanza el mínimo.</small></label>
+              <label class="promoToggleRow"><input id="shippingFreeThresholdEnabled" type="checkbox" checked disabled> Activar envío gratis por mínimo de compra</label>
+              <label>Mínimo para envío gratis (COP)<input id="shippingFreeThreshold" type="number" min="1" max="50000000" step="1" inputmode="numeric" value="130000" required disabled><small>Se calcula sobre el subtotal después de descuentos.</small></label>
+            </div>
+            <div id="shippingSettingsStatus" class="status" role="status" aria-live="polite" style="margin-top:10px">Cargando configuración de envíos…</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><button id="saveStorefrontShippingSettingsBtn" class="primary" type="button" onclick="saveStorefrontShippingSettings()" disabled>💾 Guardar tarifas</button><button id="refreshStorefrontShippingSettingsBtn" class="softbtn" type="button" onclick="loadStorefrontShippingSettingsAdmin(true)">↻ Recargar tarifas</button></div>
+            <p class="paymentSettingsHelp" style="margin-bottom:0">El catálogo, contraentrega y Wompi usan una sola cotización de Supabase. Los pedidos existentes conservan el envío que se calculó cuando fueron creados.</p>
+          </div>
           <div class="box" style="grid-column:1/-1" id="wompiReconciliationBox">
             <div class="rowBetween" style="align-items:flex-start;gap:16px;flex-wrap:wrap">
               <div style="flex:1;min-width:220px"><h3 style="margin-bottom:7px">🧾 Conciliaciones Wompi pendientes</h3><p class="muted" style="margin-top:0">Muestra pagos aprobados que no pudieron finalizar el inventario automáticamente. Esta vista es solo de consulta: no cambia stock ni estados por sí sola.</p></div>
@@ -927,6 +941,114 @@ async function saveOnlinePaymentSettings(){
  }
 }
 
+let storefrontShippingAdminLoaded=false;
+let storefrontShippingAdminOriginal=null;
+let storefrontShippingAdminSaving=false;
+function setStorefrontShippingAdminStatus(message,kind=''){
+ const el=$('shippingSettingsStatus');if(!el)return;
+ el.className='status'+(kind?' '+kind:'');el.textContent=message;
+}
+function readStorefrontShippingAdminForm(){
+ const feeRaw=String($('shippingNationalCost')?.value??'').trim();
+ const fee=feeRaw===''?NaN:Number(feeRaw);
+ const thresholdEnabled=!!$('shippingFreeThresholdEnabled')?.checked;
+ const thresholdRaw=String($('shippingFreeThreshold')?.value??'').trim();
+ const threshold=thresholdEnabled?(thresholdRaw===''?NaN:Number(thresholdRaw)):null;
+ return {fee,threshold};
+}
+function updateStorefrontShippingAdminForm(){
+ const feeInput=$('shippingNationalCost'),thresholdToggle=$('shippingFreeThresholdEnabled'),thresholdInput=$('shippingFreeThreshold');
+ const button=$('saveStorefrontShippingSettingsBtn');
+ if(feeInput)feeInput.required=true;
+ if(thresholdInput)thresholdInput.required=!!thresholdToggle?.checked;
+ if(thresholdInput)thresholdInput.disabled=!storefrontShippingAdminLoaded||!thresholdToggle?.checked||storefrontShippingAdminSaving;
+ if(feeInput)feeInput.disabled=!storefrontShippingAdminLoaded||storefrontShippingAdminSaving;
+ if(thresholdToggle)thresholdToggle.disabled=!storefrontShippingAdminLoaded||storefrontShippingAdminSaving;
+ const value=readStorefrontShippingAdminForm();
+ const valid=Number.isSafeInteger(value.fee)&&value.fee>=0&&value.fee<=5000000&&
+  (value.threshold===null||(Number.isSafeInteger(value.threshold)&&value.threshold>=1&&value.threshold<=50000000));
+ const unchanged=storefrontShippingAdminOriginal&&value.fee===storefrontShippingAdminOriginal.fee&&value.threshold===storefrontShippingAdminOriginal.threshold;
+ if(button)button.disabled=!storefrontShippingAdminLoaded||storefrontShippingAdminSaving||!valid||!!unchanged;
+}
+async function loadStorefrontShippingSettingsAdmin(showStatus=true){
+ const button=$('refreshStorefrontShippingSettingsBtn');
+ if(button)button.disabled=true;
+ storefrontShippingAdminLoaded=false;
+ updateStorefrontShippingAdminForm();
+ if(showStatus)setStorefrontShippingAdminStatus('Cargando la configuración guardada…');
+ try{
+  const {data,error}=await sb.rpc('get_public_storefront_shipping_settings');
+  if(error)throw error;
+  const row=Array.isArray(data)?data[0]:data;
+  const fee=Number(row?.national_shipping_cost);
+  const threshold=row?.free_shipping_threshold==null?null:Number(row.free_shipping_threshold);
+  if(row?.success!==true||row?.national_shipping_cost==null||!Number.isSafeInteger(fee)||fee<0||fee>5000000||
+     (threshold!==null&&(!Number.isSafeInteger(threshold)||threshold<1||threshold>50000000))||row.free_shipping_in_cali!==true){
+   throw new Error('Supabase no devolvió tarifas válidas o no confirmó Cali gratis.');
+  }
+  storefrontShippingAdminOriginal={fee,threshold};
+  $('shippingNationalCost').value=String(fee);
+  $('shippingFreeThresholdEnabled').checked=threshold!==null;
+  $('shippingFreeThreshold').value=threshold===null?'':String(threshold);
+  storefrontShippingAdminLoaded=true;
+  setStorefrontShippingAdminStatus(`Configuración cargada. Cali continúa gratis; tarifa nacional ${money(fee)}${threshold===null?'':` · envío gratis desde ${money(threshold)} después de descuentos`}.`,'ok');
+  return true;
+ }catch(error){
+  console.error('No se pudieron cargar las tarifas de envío:',error);
+  setStorefrontShippingAdminStatus('No se pudo cargar la configuración. No guardes cambios hasta instalar la migración de tarifas. Detalle: '+String(error?.message||error),'err');
+  return false;
+ }finally{
+  updateStorefrontShippingAdminForm();
+  if(button)button.disabled=false;
+ }
+}
+async function saveStorefrontShippingSettings(){
+ if(!storefrontShippingAdminLoaded)return setStorefrontShippingAdminStatus('Primero carga correctamente la configuración desde Supabase.','err');
+ const value=readStorefrontShippingAdminForm();
+ if(!Number.isSafeInteger(value.fee)||value.fee<0||value.fee>5000000||
+    (value.threshold!==null&&(!Number.isSafeInteger(value.threshold)||value.threshold<1||value.threshold>50000000))){
+  setStorefrontShippingAdminStatus('Revisa los importes: tarifa entre $0 y $5.000.000; mínimo entre $1 y $50.000.000 o desactivado.','err');return;
+ }
+ storefrontShippingAdminSaving=true;
+ const button=$('saveStorefrontShippingSettingsBtn');if(button)button.textContent='⏳ Guardando…';
+ updateStorefrontShippingAdminForm();
+ try{
+  const {data,error}=await sb.rpc('admin_save_storefront_shipping_settings',{
+   p_national_shipping_cost:value.fee,
+   p_free_shipping_threshold:value.threshold
+  });
+  if(error)throw error;
+  const row=Array.isArray(data)?data[0]:data;
+  if(row?.success!==true)throw new Error(row?.message||'Supabase no confirmó el cambio.');
+  const fee=Number(row.national_shipping_cost);
+  const threshold=row.free_shipping_threshold==null?null:Number(row.free_shipping_threshold);
+  if(row?.national_shipping_cost==null||!Number.isSafeInteger(fee)||fee<0||fee>5000000||
+     (threshold!==null&&(!Number.isSafeInteger(threshold)||threshold<1||threshold>50000000))||row.free_shipping_in_cali!==true){
+   throw new Error('La respuesta de Supabase no contiene tarifas dentro de los límites o no confirmó Cali gratis.');
+  }
+  storefrontShippingAdminOriginal={fee,threshold};
+  $('shippingNationalCost').value=String(fee);
+  $('shippingFreeThresholdEnabled').checked=threshold!==null;
+  $('shippingFreeThreshold').value=threshold===null?'':String(threshold);
+  setStorefrontShippingAdminStatus(`Tarifas guardadas. Cali permanece gratis; el catálogo y los pagos recibirán la regla nueva al recalcular. Tarifa: ${money(fee)}${threshold===null?'':` · mínimo: ${money(threshold)}`}.`,'ok');
+  notifyPublicCatalogChanged('shipping-settings-changed');
+  toast('Tarifas de envío guardadas');
+ }catch(error){
+  console.error('No se pudieron guardar las tarifas de envío:',error);
+  setStorefrontShippingAdminStatus('No se guardó el cambio. Verifica que tu cuenta sea la administradora autorizada. Detalle: '+String(error?.message||error),'err');
+ }finally{
+  storefrontShippingAdminSaving=false;
+  if(button)button.textContent='💾 Guardar tarifas';
+  updateStorefrontShippingAdminForm();
+ }
+}
+document.addEventListener('input',event=>{
+ if(['shippingNationalCost','shippingFreeThreshold'].includes(event.target?.id))updateStorefrontShippingAdminForm();
+});
+document.addEventListener('change',event=>{
+ if(event.target?.id==='shippingFreeThresholdEnabled')updateStorefrontShippingAdminForm();
+});
+
 async function loadWompiReconciliation(showStatus=true){
  const status=$('wompiReconciliationStatus'),list=$('wompiReconciliationList'),button=$('refreshWompiReconciliationBtn');
  if(button)button.disabled=true;
@@ -1108,6 +1230,7 @@ function show(id,btn){
    if(!onlinePaymentSettingLoaded)void loadOnlinePaymentSettingsAdmin();
    void loadWompiReconciliation(false);
    if(!codCitiesSettingsLoaded)void loadCODCitiesSettingsAdmin();
+   if(!storefrontShippingAdminLoaded)void loadStorefrontShippingSettingsAdmin(false);
    if(!seasonalPromoSettingsLoaded)void loadSeasonalPromoSettingsAdmin();
    void loadStorefrontProductCombosAdmin();
  }
