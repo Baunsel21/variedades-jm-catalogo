@@ -110,6 +110,7 @@ try{
  assert.ok(admin.includes('row.free_shipping_in_cali!==true'),'Respuesta de guardado valida la regla Cali');
 
  const shippingMigration=read('supabase/migrations/20261108060000_configurable_storefront_shipping.sql');
+ const shippingAclMigration=read('supabase/migrations/20261108060050_restrict_admin_shipping_rpc.sql');
  const codGuardMigration=read('supabase/migrations/20261108060100_cod_checkout_quote_guard.sql');
  const wompiFunction=read('supabase/functions/wompi-create-checkout/index.ts');
  const codRestrictMigration=read('docs/deployment/restrict_legacy_cod_rpc_after_frontend.sql');
@@ -118,6 +119,8 @@ try{
  const codLegacyAclTest=read('tests/cod_legacy_acl.sql');
  assert.ok(shippingMigration.includes('VALUES (1,15000,130000) ON CONFLICT (id) DO NOTHING'),'Valores actuales como defaults sin sobrescribir datos');
  assert.ok(shippingMigration.includes('public.is_store_admin()'),'Guardia de administrador en el guardado');
+ assert.ok(shippingAclMigration.includes('FROM PUBLIC,anon,service_role')&&shippingAclMigration.includes('TO authenticated'),'Hotfix ACL deja el RPC admin solo para authenticated');
+ assert.ok(shippingTest.includes("has_function_privilege('public'")&&shippingTest.includes("has_function_privilege('anon'")&&shippingTest.includes("has_function_privilege('service_role'")&&shippingTest.includes("has_function_privilege('authenticated'"),'Prueba de grants exige solo authenticated para guardar tarifas');
  assert.ok(shippingMigration.includes('v_free_shipping_threshold IS NOT NULL AND v_subtotal>=v_free_shipping_threshold'),'Umbral calculado sobre subtotal con descuentos');
  assert.ok(shippingMigration.includes("v_normalized_city IN ('cali','santiago de cali','cali valle del cauca')"),'Cali conserva la excepción gratis server-side');
  assert.ok(shippingMigration.includes('TO anon,authenticated,service_role'),'Cotización pública y Wompi con grants explícitos');

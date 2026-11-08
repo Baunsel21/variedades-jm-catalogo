@@ -33,6 +33,8 @@ BEGIN
     RAISE EXCEPTION 'TEST FAILED: la cotización no está concedida a anon y service_role';
   END IF;
   IF has_function_privilege('anon','public.admin_save_storefront_shipping_settings(bigint,bigint)','EXECUTE') IS DISTINCT FROM false
+     OR has_function_privilege('public','public.admin_save_storefront_shipping_settings(bigint,bigint)','EXECUTE') IS DISTINCT FROM false
+     OR has_function_privilege('service_role','public.admin_save_storefront_shipping_settings(bigint,bigint)','EXECUTE') IS DISTINCT FROM false
      OR has_function_privilege('authenticated','public.admin_save_storefront_shipping_settings(bigint,bigint)','EXECUTE') IS DISTINCT FROM true THEN
     RAISE EXCEPTION 'TEST FAILED: grants del editor de envío no son mínimos';
   END IF;
