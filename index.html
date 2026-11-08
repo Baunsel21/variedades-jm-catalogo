@@ -1426,6 +1426,7 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
 .catalogPriceFilterStatus{flex:1 0 100%!important;min-height:14px!important;color:#9b3150!important;font-size:11px!important}
 .catalogCardTitle{display:flex!important;align-items:center!important;gap:8px!important;min-width:0!important}
 .catalogCardTitle .name{flex:1 1 auto!important;min-width:0!important}
+.productReference{display:block!important;margin-top:2px!important;color:#8b8178!important;font-size:10px!important;line-height:1.25!important;overflow-wrap:anywhere!important}
 .productFavoriteButton{display:inline-flex!important;flex:0 0 34px!important;align-items:center!important;justify-content:center!important;width:34px!important;height:34px!important;padding:0!important;border:1px solid #ead8da!important;border-radius:50%!important;background:#fff!important;color:#7b1730!important;font-size:20px!important;line-height:1!important;cursor:pointer!important}
 .productFavoriteButton[aria-pressed="true"]{background:#7b1730!important;color:#fff!important;border-color:#7b1730!important}
 /* Menú lateral: logo al principio y controles de categoría, orden y color disponibles directamente. */
@@ -3564,7 +3565,7 @@ function render(){
    const ok=variantTotal>0 || reservedForThisSession;
    const blocked=!ok && !hasOwnActiveReservationForProduct(p.id);
    const key='photo_'+p.id;
-return `<article class="card ${blocked?'inventoryUnavailable':''}" data-product-id="${esc(p.id)}" aria-disabled="${blocked?'true':'false'}" onclick="openProductDetail('${esc(p.id)}',event)">${blocked?'<div class="inventoryLock">🔒 RESERVADO / AGOTADO</div>':''}<div class="photo photoSwipe" data-photo="${esc(key)}" data-index="0" onpointerdown="photoTouchStart(event)" onpointermove="photoTouchMove(event)" onpointerup="photoTouchEnd(event)" onpointercancel="photoTouchEnd(event)" onclick="photoClickGuard(event)" onpointerenter="photoHover(event)" onpointerleave="photoHoverLeave(event)">${imgs.length?`<img data-src="${esc(imgs[0])}" alt="${esc(p.name)}" loading="lazy" decoding="async" onerror="this.style.display='none'">${imgs.length>1?``:''}`:'<div class="noimg">📦</div>'}</div><div class="body"><div class="catalogCardTitle"><div class="name">${esc(p.name)}</div><button class="productFavoriteButton" type="button" data-favorite-id="${esc(p.id)}" aria-pressed="${isCatalogFavorite(p.id)}" aria-label="${isCatalogFavorite(p.id)?'Quitar':'Añadir'} ${esc(p.name)} ${isCatalogFavorite(p.id)?'de':'a'} favoritos" onclick="toggleCatalogFavorite(event,this)"><span aria-hidden="true">${isCatalogFavorite(p.id)?'♥':'♡'}</span></button></div><div class="price">${money(p.sale_price)}</div>${renderVariantOptions(p)}</div></article>`
+return `<article class="card ${blocked?'inventoryUnavailable':''}" data-product-id="${esc(p.id)}" aria-disabled="${blocked?'true':'false'}" onclick="openProductDetail('${esc(p.id)}',event)">${blocked?'<div class="inventoryLock">🔒 RESERVADO / AGOTADO</div>':''}<div class="photo photoSwipe" data-photo="${esc(key)}" data-index="0" onpointerdown="photoTouchStart(event)" onpointermove="photoTouchMove(event)" onpointerup="photoTouchEnd(event)" onpointercancel="photoTouchEnd(event)" onclick="photoClickGuard(event)" onpointerenter="photoHover(event)" onpointerleave="photoHoverLeave(event)">${imgs.length?`<img data-src="${esc(imgs[0])}" alt="${esc(p.name)}" loading="lazy" decoding="async" onerror="this.style.display='none'">${imgs.length>1?``:''}`:'<div class="noimg">📦</div>'}</div><div class="body"><div class="catalogCardTitle"><div class="name">${esc(p.name)}</div><button class="productFavoriteButton" type="button" data-favorite-id="${esc(p.id)}" aria-pressed="${isCatalogFavorite(p.id)}" aria-label="${isCatalogFavorite(p.id)?'Quitar':'Añadir'} ${esc(p.name)} ${isCatalogFavorite(p.id)?'de':'a'} favoritos" onclick="toggleCatalogFavorite(event,this)"><span aria-hidden="true">${isCatalogFavorite(p.id)?'♥':'♡'}</span></button></div>${catalogProductReferenceMarkup(p)}<div class="price">${money(p.sale_price)}</div>${renderVariantOptions(p)}</div></article>`
  }).join(''):'<div class="empty">No encontramos productos con esos filtros.</div>';
  document.querySelectorAll('#grid .card').forEach(card=>{const p=productos.find(x=>String(x.id)===String(card.dataset.productId));if(p)updateVariantAvailability(card,p)});
  activateCatalogLazyImages();
@@ -3635,6 +3636,10 @@ function clearCatalogPriceFilter(){
  if(min)min.value='';
  if(max)max.value='';
  render();
+}
+function catalogProductReferenceMarkup(product){
+ const code=String(product?.code??'').replace(/[\u0000-\u001f\u007f]/g,'').trim();
+ return code&&code.length<=64?`<div class="productReference">Ref. ${esc(code)}</div>`:'';
 }
 function buildCatalogPriceFilterUrl(range){
  if(!range?.valid)throw new TypeError('No se puede compartir un rango de precio inválido.');
