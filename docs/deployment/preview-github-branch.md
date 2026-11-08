@@ -29,3 +29,8 @@ La ficha del catálogo expone el zoom de imágenes como dialog accesible: trigge
 ## Fallback de imágenes fallidas
 
 Cuando no carga una imagen, la ficha y el zoom sustituyen el icono de error por un mensaje accesible que identifica el producto; las tarjetas conservan sus controles de carrusel y muestran un placeholder local, y los thumbnails/guía también evitan el icono roto. La falla de red no cambia URLs ni datos de producto. Regresión: `node tests/catalog_image_fallback_regression.mjs`.
+
+
+## Orden por precio con valores desconocidos
+
+Los órdenes «Precio menor → mayor» y «Precio mayor → menor» clasifican solo valores numéricos no negativos como precios conocidos. Los precios ausentes, vacíos, inválidos o negativos quedan al final en ambos sentidos; los empates se ordenan por nombre. El comparador no muta productos ni consulta servicios. Regresión: `node tests/catalog_price_sort_regression.mjs`.

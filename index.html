@@ -3724,8 +3724,8 @@ function render(){
  });
  if(sort==='best_selling') arr.sort((a,b)=>(Number(b.sales_count??b.sold_count??b.units_sold??b.total_sold??0)-Number(a.sales_count??a.sold_count??a.units_sold??a.total_sold??0)));
  else if(sort==='name_asc') arr.sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'es',{sensitivity:'base'}));
- else if(sort==='price_asc') arr.sort((a,b)=>(Number(a.sale_price)||0)-(Number(b.sale_price)||0));
- else if(sort==='price_desc') arr.sort((a,b)=>(Number(b.sale_price)||0)-(Number(a.sale_price)||0));
+ else if(sort==='price_asc') arr.sort((a,b)=>compareCatalogPrice(a,b,1));
+ else if(sort==='price_desc') arr.sort((a,b)=>compareCatalogPrice(a,b,-1));
  else if(sort==='stock_desc') arr.sort((a,b)=>productStockTotal(b)-productStockTotal(a));
  else arr=[...arr];
  $('count').textContent=arr.length+' producto'+(arr.length===1?'':'s');
@@ -3801,6 +3801,18 @@ function catalogProductMatchesPriceRange(product,range){
  const price=Number(product?.sale_price);
  if(!Number.isFinite(price)||price<0)return false;
  return (range.min===null||price>=range.min)&&(range.max===null||price<=range.max);
+}
+function catalogProductSortPrice(product){
+ const raw=product?.sale_price;
+ if(raw===null||raw===undefined||(typeof raw!=='number'&&typeof raw!=='string'))return null;
+ if(typeof raw==='string'&&!raw.trim())return null;
+ const price=Number(raw);
+ return Number.isFinite(price)&&price>=0?price:null;
+}
+function compareCatalogPrice(a,b,direction=1){
+ const aPrice=catalogProductSortPrice(a),bPrice=catalogProductSortPrice(b);
+ if(aPrice===null||bPrice===null){if(aPrice===bPrice)return String(a?.name||'').localeCompare(String(b?.name||''),'es',{sensitivity:'base'});return aPrice===null?1:-1}
+ return (aPrice-bPrice)*direction||String(a?.name||'').localeCompare(String(b?.name||''),'es',{sensitivity:'base'});
 }
 function clearCatalogPriceFilter(){
  const min=$('catalogPriceMin'),max=$('catalogPriceMax');
