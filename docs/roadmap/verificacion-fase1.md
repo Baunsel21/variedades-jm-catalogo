@@ -1,25 +1,25 @@
-# Evidencia de revisión — Fase 1
+# Evidencia final — Fase 1 de envíos configurables
 
-**Fecha:** 7 de noviembre de 2026, hora local de la sesión. **PR:** [#9](https://github.com/Baunsel21/variedades-jm-catalogo/pull/9). La rama está separada de `main`.
+**Fecha:** 7–8 de noviembre de 2026, hora de la sesión. **PR:** [#9](https://github.com/Baunsel21/variedades-jm-catalogo/pull/9), fusionado en `main` como `e109d27370e66bab53b16549008d0497a4955920`.
 
-## Verificaciones previas
+## Producción
 
-El HTML de [sirevya.com.co](https://sirevya.com.co/) y el archivo de [GitHub `main`](https://raw.githubusercontent.com/Baunsel21/variedades-jm-catalogo/main/index.html) ya enviaban `expected_total` y `expected_discount_total`. En lecturas agregadas de Supabase se encontraron 0 filas fraccionarias en `products.sale_price`, `storefront_product_combos.discount_value` y `storefront_product_combos.combo_price`; también se confirmó que `web_orders.total`, `discount_total` y `shipping` son `NOT NULL`.
+La Edge Function `wompi-create-checkout` está activa en la versión 31 y mantiene `verify_jwt=false`. El código remoto se comparó byte por byte con el archivo aprobado. Una solicitud de validación con un monto fraccionario recibió HTTP 400 antes de consultar Supabase; no llegó a cotizar, reservar inventario ni insertar un pedido.
 
-## Acciones de producción realizadas con autorización
+Se aplicaron las migraciones `configurable_storefront_shipping`, `restrict_admin_shipping_rpc_20261108060050` y `cod_checkout_quote_guard_20261108060100`. La configuración conserva **15.000 COP** para otras ciudades, **130.000 COP** como umbral y **envío gratis en Cali**. RLS está activo; `anon` no puede leer la tabla ni ejecutar el RPC de guardado, `authenticated` sí puede invocarlo y el guard interno exige administrador. No se reescribieron pedidos históricos ni se cambiaron existencias.
 
-La Edge Function `wompi-create-checkout` está activa en la versión 31 y conserva `verify_jwt=false`, como estaba antes. Una solicitud de validación con un monto fraccionario recibió HTTP 400 antes de invocar cotización, reserva o creación de pedido; no se inició un pago.
+Luego de publicar y probar el wrapper COD, se aplicó con autorización la revocación del RPC COD legacy. El test `cod_legacy_acl.sql` terminó sin error y una lectura posterior confirmó: RPC antiguo bloqueado para `anon` y `authenticated`, permitido para `service_role`; el wrapper `create_contra_delivery_order_with_quote` continúa disponible para checkout anónimo.
 
-Se aplicó la migración `configurable_storefront_shipping`. La fila inicial conserva los importes vigentes (tarifa nacional 15.000 COP y umbral 130.000 COP); RLS está activo y `anon` no puede leer la tabla directamente. No se actualizaron pedidos históricos ni tarifas existentes.
+El dominio respondió HTTP 200 y el contenido de `index.html` y `admin.html` coincidió por SHA-256 con los archivos de `main`. En navegador, el catálogo cargó **56 productos**; la RPC pública respondió `success=true` con los valores actuales, y se vieron la regla de Cali y el envío gratis desde $130.000.
 
-## Pausa de seguridad
+## Regresiones sintéticas
 
-La lectura posterior de privilegios encontró `EXECUTE` efectivo para `anon` en `admin_save_storefront_shipping_settings(bigint,bigint)`, aunque el cuerpo exige `is_store_admin()` y `anon` no puede cambiar tarifas sin esa autorización. No se produjo ningún cambio de configuración por ese hallazgo. Se detuvo el despliegue antes de aplicar la migración COD, ejecutar pruebas sintéticas o fusionar el PR.
+`tests/shipping_config_regression.sql` terminó sin error. El bloque valida tarifa por debajo y en el umbral después de descuentos, alias “Santiago de Cali”, umbral desactivado, grants mínimos, guard de administrador, rechazo COD de un total desactualizado y rollback sin dejar productos, combos ni pedidos de prueba.
 
-Se añadió al PR una migración correctiva aditiva, `20261108060050_restrict_admin_shipping_rpc.sql`, para revocar el permiso a `PUBLIC`, `anon` y `service_role`, conservándolo solo para `authenticated`. Esa corrección aún **no** está aplicada y requiere aprobación actualizada. Después de verificar el ACL, se podrán aplicar el guard COD y las pruebas SQL con rollback; si cualquiera falla, no se fusionará el PR.
+`tests/cod_regression.sql` reportó `rolled_back=true`: creación COD, reintento con la misma referencia sin duplicar pedido, rechazo de un nuevo importe frente al pedido anterior, una sola reserva lógica, visibilidad/rechazo por admin y stock físico estable en 1 unidad. Al terminar verificó **0 productos, 0 pedidos y 0 reservas sintéticas**. No se ejecutó el pago de ningún cliente.
 
-## Pruebas y límites
+Las validaciones locales pasaron: `node scripts/validate.mjs`, `git diff --check`, parseo SQL con `pglast` y transpilación TypeScript. El validador también comprueba el orden `60000 → 60050 → 60100`.
 
-Antes del hallazgo de ACL, `node scripts/validate.mjs`, `git diff --check`, el parseo SQL con `pglast` y la transpilación TypeScript pasaron. Las pruebas de base de datos `tests/shipping_config_regression.sql` y `tests/cod_regression.sql` aún no se ejecutaron en Supabase. No se crearon pedidos/reservas de prueba, no se alteró stock, no se procesaron pagos y el PR #9 sigue sin fusionarse.
+## Límites y siguientes fases
 
-El PR #3 anterior permanece abierto y separado; su diff conserva datos de contacto y textos de envío obsoletos, y al combinarlo con esta rama hay conflicto en `index.html`. No se mezcló ni fusionó.
+No se hizo un pago real ni una transacción bancaria PSE de sandbox. Tampoco inicié sesión en el admin para cambiar una tarifa con una cuenta real; el RPC se probó con identidad administradora y con UID no autorizado en la regresión que hizo rollback. Las mejoras de fases posteriores —tarifas por ciudad, filtros/favoritos, campañas/cupones, dashboard, logística, bitácora, importación, reportes, políticas y rendimiento— siguen pendientes en el backlog.
