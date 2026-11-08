@@ -2,6 +2,8 @@
 
 Cada criterio se conserva hasta que exista evidencia en código, Supabase y pruebas. Las tareas se ejecutan en el orden de dependencias definido en [`plan-integral.md`](plan-integral.md).
 
+> Incremento local del 8 de noviembre de 2026: seguridad de cuenta/recuperación/MFA, disponibilidad fail-closed y estados COD protegidos; tarifas visuales pendientes hasta verificación; integración del slice de descubrimiento/favoritos; dashboard por periodo con fuentes separadas; dry-run CSV sin escrituras. Los avances no equivalen a despliegue ni cierran fases completas. Ver [`incremento-integracion-local.md`](incremento-integracion-local.md).
+
 ## Fase 1: Envíos editables desde el administrador
 
 - [x] En `Admin → Configuración → Envíos`, el administrador puede cargar/editar/guardar la tarifa nacional y el mínimo de envío gratis sin modificar HTML. Valores iniciales: Cali gratis; otras ciudades $15.000; envío gratis desde $130.000 después de descuentos. El guardado requiere administrador y rechaza importes inválidos. Si no carga la configuración, no se muestra un guardado falso. (PR #9 y regresión sintética con rollback.)
@@ -21,6 +23,8 @@ Cada criterio se conserva hasta que exista evidencia en código, Supabase y prue
 
 ## Fase 3: Catálogo, búsqueda y conversión
 
+> El slice existente de PR #12 se integró localmente preservando city/zone, combos y cupones. Incluye filtros, favoritos ID-only, código, WhatsApp contextual y fallback de imagen. Se agregó regresión de color+talla de la misma variante. Etiquetas/ofertas y recuperación avanzada del carrito siguen abiertas; ver [`fase-3-descubrimiento-catalogo.md`](fase-3-descubrimiento-catalogo.md).
+
 - [ ] El administrador puede marcar producto como destacado, nuevo, oferta o últimas unidades; las etiquetas del catálogo solo aparecen según datos guardados y stock vigente.
 - [ ] El catálogo ofrece filtros accesibles por categoría, rango de precio, color, talla, disponibilidad y ofertas; ordena por precio, novedad y destacados; refleja filtros compartibles en URL cuando no exponga datos personales.
 - [ ] La ficha permite ver galería/zoom, variantes, guía de tallas, stock, relacionados, disponibilidad, código y tiempo estimado si está configurado. Fallos de imagen muestran un fallback útil.
@@ -38,6 +42,8 @@ Cada criterio se conserva hasta que exista evidencia en código, Supabase y prue
 
 ## Fase 5: Pedidos, Wompi/PSE y conciliación
 
+> Se incorpora el documento de contratos ya preparado en PR #16: [`fase-5-modelo-pedidos.md`](fase-5-modelo-pedidos.md). No establece una FK nueva ni une canales por teléfono, monto o fecha. La migración local de estados COD no sustituye conciliación ni prueba de concurrencia Wompi.
+
 - [ ] Antes de unir datos, documentar contratos/relaciones `orders` y `web_orders`; el panel muestra una sola vista coherente sin duplicar filas, pagos, ventas ni movimientos.
 - [ ] Repetir/concurrir el mismo webhook APPROVED no vuelve a descontar inventario ni crear reservas; estados fuera de orden no degradan un pago aprobado y cada referencia/transacción tiene integridad única.
 - [ ] Conciliación muestra importe, referencia, transacción, estado de pago, inventario, logística y causa. Las acciones de reparación requieren RPC transaccional y guardia admin, confirman el resultado, registran bitácora y nunca inician reembolso sin una política aprobada.
@@ -48,6 +54,8 @@ Cada criterio se conserva hasta que exista evidencia en código, Supabase y prue
 
 > Avance parcial: filtros/paginación visual de pedidos `web_orders` en [PR #15](https://github.com/Baunsel21/variedades-jm-catalogo/pull/15), borrador apilado sobre PR #14. No integra Wompi/`orders` ni toca estados logísticos; dashboard completo, clientes, logística/notificaciones, paginación server-side y smoke visual siguen abiertos.
 
+> El incremento local añade Hoy/últimos siete días en Colombia, ingresos y promedio por registro no archivado de `sales`, stock bajo/agotado verificado, y consulta explícita de pendientes COD/revisión Wompi. Muestra fecha/fuente, carga/error/no consultado y límites de consulta. No suma canales ni muestra pagos como conciliados.
+
 - [ ] Dashboard muestra ventas por día/semana, pedidos pendientes, ventas/valor promedio, alertas de inventario bajo, agotados y pagos con revisión pendiente, indicando fecha/fuente y estados de carga/error.
 - [ ] Los filtros de pedido incluyen periodo, estado, ciudad y pago; listas usan paginación, conservan conteos correctos y nunca presentan error de consulta como “sin pedidos”.
 - [ ] El historial de clientes muestra órdenes relacionadas, recurrencia y notas bajo autorización del administrador; PII se obtiene bajo demanda, no se guarda en logs/URL/localStorage ni queda expuesta a público.
@@ -55,6 +63,8 @@ Cada criterio se conserva hasta que exista evidencia en código, Supabase y prue
 - [ ] Notificaciones del admin avisan nuevos pedidos, stock bajo, pagos aprobados con conciliación pendiente y reservas próximas a vencer; pueden silenciarse/configurarse y no contienen PII innecesaria.
 
 ## Fase 7: Trazabilidad, importación y exportación
+
+> Se implementó helper puro y UI local de previsualización CSV con límites, duplicados, errores y escape de contenido. No sube archivos, no importa datos y limpia la vista al navegar/cerrar sesión. RPC transaccional, bitácora, backup minimizado y manifest/restauración siguen abiertos; ver [`fase-7-trazabilidad-importacion-backup.md`](fase-7-trazabilidad-importacion-backup.md).
 
 - [ ] Bitácora inmutable registra actor autorizado, entidad, acción, valores antes/después permitidos, hora y resultado para inventario, productos, pedidos, envíos y configuración; usuarios comunes no la leen ni modifican.
 - [ ] La importación CSV tiene vista previa sin escrituras, límite de filas/bytes, validación por fila, detección de código duplicado, copia previa y commit transaccional o rollback; el operador ve errores sin datos sensibles.

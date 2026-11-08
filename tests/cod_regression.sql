@@ -4,7 +4,8 @@ DECLARE
  prefix text:='SIM-COD-SEC-'||replace(gen_random_uuid()::text,'-','');
  admin_id uuid; pid uuid:=gen_random_uuid(); oid uuid; invref text;
  items jsonb; result jsonb; retry jsonb; changed_retry jsonb; report jsonb:='{}'::jsonb;
- n integer; stock integer; shipping numeric; message text;
+ invalid_transition jsonb; stale_transition jsonb; legacy_transition jsonb;
+ n integer; stock integer; shipping numeric; message text; current_status text;
 BEGIN
  SELECT admin_user_id INTO admin_id FROM public.store_settings WHERE id=1 LIMIT 1;
  BEGIN
@@ -58,12 +59,44 @@ BEGIN
   EXECUTE 'SET LOCAL ROLE authenticated';
   SELECT count(*) INTO n FROM public.web_orders WHERE id=oid LIMIT 1;
   IF n IS DISTINCT FROM 1 THEN RAISE EXCEPTION 'Administrador no puede ver pedido COD'; END IF;
-  result:=public.admin_update_web_order_status_secure(oid,'rechazado');
+  IF has_table_privilege('authenticated','public.web_orders','UPDATE')
+     OR has_table_privilege('authenticated','public.web_orders','INSERT')
+     OR has_table_privilege('authenticated','public.web_orders','DELETE')
+     OR has_table_privilege('authenticated','public.web_orders','TRUNCATE')
+     OR has_table_privilege('anon','public.web_orders','UPDATE')
+     OR has_table_privilege('anon','public.web_orders','INSERT')
+     OR has_table_privilege('anon','public.web_orders','DELETE')
+     OR has_table_privilege('anon','public.web_orders','TRUNCATE') THEN
+    RAISE EXCEPTION 'Roles cliente conservan escritura directa sobre web_orders';
+  END IF;
+  IF has_table_privilege('authenticated','public.web_orders','SELECT') IS DISTINCT FROM true
+     OR has_function_privilege('authenticated','public.admin_update_web_order_status_secure_v2(uuid,text,text)','EXECUTE') IS DISTINCT FROM true
+     OR has_function_privilege('anon','public.admin_update_web_order_status_secure_v2(uuid,text,text)','EXECUTE') IS DISTINCT FROM false THEN
+    RAISE EXCEPTION 'ACL de lectura/admin RPC del estado COD incorrectas';
+  END IF;
+  SELECT lower(btrim(status)) INTO current_status FROM public.web_orders WHERE id=oid LIMIT 1;
+  IF current_status IS DISTINCT FROM 'pendiente' THEN RAISE EXCEPTION 'El pedido sintético debe iniciar pendiente, recibido: %',current_status; END IF;
+  invalid_transition:=public.admin_update_web_order_status_secure_v2(oid,current_status,'entregado');
+  IF invalid_transition->>'success' IS DISTINCT FROM 'false'
+     OR invalid_transition->>'code' IS DISTINCT FROM 'ORDER_STATUS_TRANSITION_INVALID' THEN
+    RAISE EXCEPTION 'El servidor aceptó una transición COD inválida: %',invalid_transition;
+  END IF;
+  result:=public.admin_update_web_order_status_secure_v2(oid,current_status,'rechazado');
   IF result->>'success' IS DISTINCT FROM 'true' THEN RAISE EXCEPTION 'No se pudo rechazar el pedido sintético: %',result; END IF;
+  stale_transition:=public.admin_update_web_order_status_secure_v2(oid,current_status,'confirmado');
+  IF stale_transition->>'success' IS DISTINCT FROM 'false'
+     OR stale_transition->>'code' IS DISTINCT FROM 'ORDER_STATUS_CONFLICT' THEN
+    RAISE EXCEPTION 'El servidor no rechazó el estado obsoleto: %',stale_transition;
+  END IF;
+  legacy_transition:=public.admin_update_web_order_status_secure(oid,'confirmado');
+  IF legacy_transition->>'success' IS DISTINCT FROM 'false'
+     OR legacy_transition->>'code' IS DISTINCT FROM 'ORDER_STATUS_TRANSITION_INVALID' THEN
+    RAISE EXCEPTION 'El wrapper legacy permitió eludir la matriz de estados: %',legacy_transition;
+  END IF;
   EXECUTE 'RESET ROLE';
   SELECT quantity INTO stock FROM public.products WHERE id=pid LIMIT 1;
   IF stock IS DISTINCT FROM 1 THEN RAISE EXCEPTION 'Rechazo COD alteró stock físico'; END IF;
-  report:=report||jsonb_build_object('admin_cod_order_visible',true,'admin_cod_reject',true,'stock_after_reject',stock);
+  report:=report||jsonb_build_object('admin_cod_order_visible',true,'admin_cod_direct_writes_revoked',true,'admin_cod_invalid_transition_rejected',true,'admin_cod_optimistic_conflict_rejected',true,'admin_cod_legacy_wrapper_guarded',true,'admin_cod_reject',true,'stock_after_reject',stock);
   RAISE EXCEPTION USING ERRCODE='ZX001',MESSAGE='ROLLBACK_CONTROLADO_COD';
  EXCEPTION
   WHEN SQLSTATE 'ZX001' THEN report:=report||jsonb_build_object('rolled_back',true);

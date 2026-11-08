@@ -38,6 +38,9 @@ try{
  assert.equal(context.safeCSVCell('Camisa "M"'),'"Camisa ""M"""');
  assert.equal(context.safeCSVCell('Cali'),'"Cali"');
  assert.ok(admin.includes("${esc(({home:'Pantalla de inicio'"),'Etiqueta de promoción escapada');
+ const promoPresets=catalog.match(/const SIREVYA_PROMO_PRESETS=\{([\s\S]*?)\n\};/);
+ assert.ok(promoPresets,'Presets fallback de campañas configurables');
+ assert.ok(!/message:'[^']*(?:env[ií]o gratis|descuento garantizado|rebaja garantizada)/i.test(promoPresets[1]),'El copy fallback no promete beneficios no ligados a una regla vigente');
 
  const shippingMatch=catalog.match(/function calculateStorefrontShipping\([\s\S]*?\n\}/);
  assert.ok(shippingMatch,'Cálculo de tarifa local aislado');
@@ -127,7 +130,8 @@ try{
  assert.ok(progressMatch,'Actualizador del progreso de envío');
  const progressTrack={style:{},attrs:{},setAttribute(k,v){this.attrs[k]=v},removeAttribute(k){delete this.attrs[k]}};
  const progressNodes={cartShippingMessage:{innerHTML:''},cartShippingFill:{style:{},parentElement:progressTrack},cartShippingTruck:{style:{}},cartShippingPercent:{textContent:''}};
- const progressContext=vm.createContext({storefrontShippingSettings:{national_shipping_cost:17500,free_shipping_threshold:null},money:value=>`COP ${value}`,$:id=>progressNodes[id]??null});
+ const progressLocalNote={hidden:true};
+ const progressContext=vm.createContext({storefrontShippingSettings:{national_shipping_cost:17500,free_shipping_threshold:null,destination_rules:[]},storefrontShippingSettingsLoaded:true,storefrontShippingSettingsLoadError:false,document:{querySelector:()=>progressLocalNote},money:value=>`COP ${value}`,$:id=>progressNodes[id]??null});
  vm.runInContext(progressMatch[0],progressContext);
  progressContext.updateCartShippingProgress(100000);
  assert.equal(progressTrack.style.display,'none','No se muestra progreso con umbral desactivado');
@@ -166,10 +170,13 @@ try{
  const codRestrictMigration=read('docs/deployment/restrict_legacy_cod_rpc_after_frontend.sql');
  const shippingTest=read('tests/shipping_config_regression.sql');
  const cityShippingTest=read('tests/storefront_city_shipping_regression.sql');
- const codTest=read('tests/cod_regression.sql');
- const codLegacyAclTest=read('tests/cod_legacy_acl.sql');
-	 const shippingMigrationOrder=fs.readdirSync(path.join(root,'supabase/migrations')).filter(name=>/^202611080(60000|60050|60100|70000|90000)_/.test(name)||/^20261108100000_/.test(name)).sort();
-	 assert.deepEqual(shippingMigrationOrder,['20261108060000_configurable_storefront_shipping.sql','20261108060050_restrict_admin_shipping_rpc.sql','20261108060100_cod_checkout_quote_guard.sql','20261108070000_storefront_city_shipping_rules.sql','20261108090000_storefront_combo_calendar_priority.sql','20261108100000_storefront_coupons.sql'],'Orden obligatorio de configuración, ACL, reglas city/zone, calendario city-aware y cupones');
+	 const codTest=read('tests/cod_regression.sql');
+	 const codLegacyAclTest=read('tests/cod_legacy_acl.sql');
+	 const orderStatusMigration=read('supabase/migrations/20261108110000_guard_web_order_status_transitions.sql');
+	 const legacyStatusCutover=read('docs/deployment/restrict_legacy_admin_order_status_after_frontend.sql');
+	 assert.ok(legacyStatusCutover.includes('MANUAL POST-FRONTEND ONLY')&&legacyStatusCutover.includes('REVOKE ALL ON FUNCTION public.admin_update_web_order_status_secure(uuid,text) FROM PUBLIC,anon,authenticated')&&legacyStatusCutover.includes('REVOKE ALL ON FUNCTION public.admin_update_web_order_status(uuid,text) FROM PUBLIC,anon,authenticated')&&legacyStatusCutover.includes("has_function_privilege('authenticated','public.admin_update_web_order_status_secure_v2(uuid,text,text)'"),'El corte manual legacy conserva v2 y se verifica después de migrar todos los clientes');
+	 const shippingMigrationOrder=fs.readdirSync(path.join(root,'supabase/migrations')).filter(name=>/^202611080(60000|60050|60100|70000|80000|90000)_/.test(name)||/^20261108100000_/.test(name)||/^20261108110000_/.test(name)).sort();
+	 assert.deepEqual(shippingMigrationOrder,['20261108060000_configurable_storefront_shipping.sql','20261108060050_restrict_admin_shipping_rpc.sql','20261108060100_cod_checkout_quote_guard.sql','20261108070000_storefront_city_shipping_rules.sql','20261108080000_public_catalog_sort_metadata.sql','20261108090000_storefront_combo_calendar_priority.sql','20261108100000_storefront_coupons.sql','20261108110000_guard_web_order_status_transitions.sql'],'Orden obligatorio de configuración, city/zone, metadata catálogo, calendario, cupones y guard de estados COD');
  assert.ok(shippingMigration.includes('VALUES (1,15000,130000) ON CONFLICT (id) DO NOTHING'),'Valores actuales como defaults sin sobrescribir datos');
  assert.ok(shippingMigration.includes('public.is_store_admin()'),'Guardia de administrador en el guardado');
  assert.ok(shippingAclMigration.includes('FROM PUBLIC,anon,service_role')&&shippingAclMigration.includes('TO authenticated'),'Hotfix ACL deja el RPC admin solo para authenticated');
@@ -223,9 +230,14 @@ try{
  assert.ok(codTest.includes("retry->>'discount_total'")&&codTest.includes("retry->>'shipping'"),'Regresión COD exige importes completos al devolver duplicado');
  assert.ok(codTest.includes("a.attname IN ('total','discount_total','shipping')")&&codTest.includes('a.attnotnull')&&codTest.includes('web_orders debe conservar NOT NULL'),'La regresión verifica restricciones no nulas de importes históricos');
  assert.ok(codTest.includes('La prueba dejó productos sintéticos')&&codTest.includes('La prueba dejó reservas sintéticas'),'Rollback COD falla si quedan residuos');
- assert.ok(codTest.includes('cod_changed_price_rejected')&&codTest.includes('creó un pedido duplicado'),'La regresión comprueba reintento COD con cambio de precio');
- assert.ok(codLegacyAclTest.includes('RPC COD antiguo sigue ejecutable')&&codLegacyAclTest.includes('wrapper con guard'),'Prueba del corte COD posdespliegue');
-	for(const key of [
+	 assert.ok(codTest.includes('cod_changed_price_rejected')&&codTest.includes('creó un pedido duplicado'),'La regresión comprueba reintento COD con cambio de precio');
+	 assert.ok(codLegacyAclTest.includes('RPC COD antiguo sigue ejecutable')&&codLegacyAclTest.includes('wrapper con guard'),'Prueba del corte COD posdespliegue');
+	 assert.ok(orderStatusMigration.includes('FOR UPDATE')&&orderStatusMigration.includes('ORDER_STATUS_CONFLICT')&&orderStatusMigration.includes('ORDER_STATUS_TRANSITION_INVALID'),'El RPC COD bloquea la fila y rechaza estado obsoleto/transición inválida');
+	 assert.ok(orderStatusMigration.includes('admin_update_web_order_status_secure_v2')&&orderStatusMigration.includes('RETURN public.admin_update_web_order_status(p_order_id,v_next_status)'),'La API nueva conserva los efectos y el wrapper COD legacy');
+	 assert.ok(orderStatusMigration.includes('REVOKE INSERT,UPDATE,DELETE,TRUNCATE ON TABLE public.web_orders FROM PUBLIC,anon,authenticated')&&orderStatusMigration.includes('GRANT SELECT ON TABLE public.web_orders TO authenticated'),'Clientes no escriben pedidos directamente; el administrador conserva lectura protegida');
+	 assert.ok(admin.includes("sb.rpc('admin_update_web_order_status_secure_v2'")&&admin.includes('p_expected_status:expectedStatus')&&admin.includes('data-current-status='),'El panel envía el estado esperado y maneja concurrencia');
+	 assert.ok(codTest.includes('ORDER_STATUS_TRANSITION_INVALID')&&codTest.includes('ORDER_STATUS_CONFLICT')&&codTest.includes('admin_cod_direct_writes_revoked'),'Regresión COD cubre matriz, carrera optimista y ACL');
+		for(const key of [
 	  "const WOMPI_PENDING_REFERENCE_KEY='jm_wompi_pending_reference_v5';",
   "const WOMPI_PENDING_TIME_KEY='jm_wompi_pending_time_v5';",
   "const WOMPI_CART_KEY='jm_wompi_cart_v5';",

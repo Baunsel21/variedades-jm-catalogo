@@ -291,12 +291,22 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
 <div id="loginScreen" class="loginScreen">
   <div class="loginCard">
     <div class="loginBrand"><div class="logo">✦</div><h2>Variedades JM</h2><p class="muted">Tu negocio, organizado en un solo lugar.</p></div>
-    <div class="field"><label>Correo<input id="email" type="email" placeholder="correo@ejemplo.com"></label></div>
-    <div class="field"><label>Contraseña<input id="password" type="password" placeholder="Tu contraseña"></label></div>
-    <div style="display:flex;gap:8px;margin-top:14px"><button class="primary" style="flex:1" onclick="login()">Entrar</button></div>
-    <p class="muted" style="font-size:12px;margin:10px 0 0">Solo pueden entrar usuarios autorizados por el administrador de la tienda.</p>
-    <div id="loginMsg"></div>
-    <button id="retryLogout" class="softbtn hidden" type="button" onclick="logout()">Reintentar cierre de sesión</button>
+    <div id="adminLoginFields">
+      <div class="field"><label>Correo<input id="email" type="email" autocomplete="username" placeholder="correo@ejemplo.com"></label></div>
+      <div class="field"><label>Contraseña<input id="password" type="password" autocomplete="current-password" placeholder="Tu contraseña"></label></div>
+      <div style="display:flex;gap:8px;margin-top:14px"><button class="primary" style="flex:1" onclick="login()">Entrar</button></div>
+      <button class="softbtn" type="button" style="margin-top:10px;width:100%" onclick="requestAdminPasswordRecovery()">¿Olvidaste tu contraseña?</button>
+      <p class="muted" style="font-size:12px;margin:10px 0 0">Solo pueden entrar usuarios autorizados por el administrador de la tienda.</p>
+      <div id="loginMsg"></div>
+      <button id="retryLogout" class="softbtn hidden" type="button" onclick="logout()">Reintentar cierre de sesión</button>
+    </div>
+    <div id="adminMfaLoginStep" class="hidden" role="region" aria-labelledby="adminMfaLoginTitle">
+      <h3 id="adminMfaLoginTitle">Verificación en dos pasos</h3>
+      <p id="adminMfaLoginHelp" class="muted">Ingresa el código de seguridad para continuar.</p>
+      <label class="field">Código de verificación<input id="adminMfaLoginCode" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="12" aria-label="Código de autenticación de dos factores"></label>
+      <div id="adminMfaLoginStatus" class="status" role="status" aria-live="polite"></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><button class="primary" type="button" onclick="verifyAdminLoginMfa()">Verificar código</button><button class="softbtn" type="button" onclick="logout()">Cancelar y cerrar sesión</button></div>
+    </div>
   </div>
 </div>
 
@@ -329,22 +339,34 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
     <main class="content">
       <section id="inicio" class="view active">
         <div class="hero"><h2 id="heroTitle">Resumen de tu negocio</h2><p id="heroSubtitle">Aquí tienes una vista rápida del estado actual de tu inventario y tus ventas.</p>
-          <div class="heroBtns"><span class="heroChip">📦 <b id="heroProducts">0</b> productos</span><span class="heroChip">🏷️ <b id="heroUnits">0</b> unidades</span><span class="heroChip">🧾 <b id="heroSales">0</b> ventas</span></div>
+          <div class="heroBtns"><span class="heroChip">📦 <b id="heroProducts">0</b> productos</span><span class="heroChip">🏷️ <b id="heroUnits">0</b> unidades físicas</span><span class="heroChip">🧾 <b id="heroSales">0</b> ventas registradas</span></div>
         </div>
         <div class="cards">
           <div class="card stat"><small>Productos</small><div class="num" id="nProductos">0</div><div class="sub">Referencias registradas</div><div class="bubble">📦</div></div>
-          <div class="card stat"><small>Unidades disponibles</small><div class="num" id="nUnidades">0</div><div class="sub">Stock actual</div><div class="bubble">🏷️</div></div>
+          <div class="card stat"><small>Unidades físicas</small><div class="num" id="nUnidades">0</div><div class="sub">No descuenta reservas temporales</div><div class="bubble">🏷️</div></div>
           <div class="card stat"><small>Unidades vendidas</small><div class="num" id="nVendidos">0</div><div class="sub">Ventas registradas</div><div class="bubble">🛒</div></div>
-          <div class="card stat"><small>Ganancia acumulada</small><div class="num" id="nGanancia">$0</div><div class="sub">Sobre ventas registradas</div><div class="bubble">💰</div></div>
+          <div class="card stat"><small>Ganancia bruta estimada</small><div class="num" id="nGanancia">$0</div><div class="sub">Solo ventas registradas; no es conciliación contable</div><div class="bubble">💰</div></div>
+        </div>
+        <div class="box" style="margin-bottom:18px">
+          <div class="rowBetween" style="gap:12px;flex-wrap:wrap"><h3>Resumen por periodo</h3><label class="field" style="min-width:180px">Periodo (Colombia)<select id="dashboardPeriod" onchange="renderDashboardPeriod()"><option value="day">Hoy</option><option value="week">Últimos 7 días, incluido hoy</option></select></label></div>
+          <p class="muted">Ventas no archivadas de <code>sales</code>; promedio por registro de venta, no por pedido. No se suman COD y Wompi ni se consideran pagos conciliados.</p>
+          <p id="dashboardSalesStatus" class="status" role="status" aria-live="polite">Datos todavía no consultados.</p>
+          <div class="kpis"><div class="kpi">Ingresos registrados<b id="dashboardRevenue">—</b></div><div class="kpi">Promedio por registro<b id="dashboardAverage">—</b></div><div class="kpi">Registros en el periodo<b id="dashboardSaleCount">—</b></div><div class="kpi">Stock bajo / agotado verificado<b id="dashboardStockCounts">—</b></div></div>
+          <p id="dashboardInventoryStatus" class="status" role="status" aria-live="polite"></p>
+          <div class="kpis"><div class="kpi">Pedidos COD pendientes (snapshot)<b id="dashboardCodPending">—</b></div><div class="kpi">Casos Wompi por revisar (hasta 50)<b id="dashboardWompiReview">—</b></div></div>
+          <p id="dashboardOrdersStatus" class="status" role="status" aria-live="polite">COD no consultado; el dato no se interpreta como cero.</p>
+          <p id="dashboardWompiStatus" class="status" role="status" aria-live="polite">Conciliación Wompi no consultada.</p>
+          <button id="refreshDashboardOperationsBtn" class="softbtn" type="button" onclick="refreshDashboardOperations()">Consultar pendientes COD y revisiones Wompi</button>
         </div>
         <div class="sectionGrid">
-          <div class="box"><div class="rowBetween"><h3>⚠️ Atención de inventario</h3><span class="badge low" id="lowCount">0</span></div><div id="stockBajo"></div></div>
+          <div class="box"><div class="rowBetween"><h3>⚠️ Atención de inventario</h3><span class="badge low" id="lowCount">0</span></div><p id="availabilityWarningDashboard" class="status err hidden" role="status" aria-live="polite" style="margin:10px 0"></p><div id="stockBajo"></div></div>
           <div class="box"><div class="rowBetween"><h3>🧾 Ventas recientes</h3><button class="softbtn" onclick="show('ventas',document.querySelector('[data-view=ventas]'))">Ver todas</button></div><div id="recentSales"></div></div>
         </div>
       </section>
 
       <section id="inventario" class="view">
         <div class="rowBetween"><div><h2 style="margin:0">📦 Inventario</h2><p class="muted">Consulta tu stock disponible. Las unidades reservadas temporalmente no aparecen disponibles hasta que se liberen.</p></div><button class="primary" onclick="show('producto',document.querySelector('[data-view=producto]'))">＋ Nuevo producto</button></div>
+        <p id="availabilityWarningInventory" class="status err hidden" role="status" aria-live="polite" style="margin:10px 0"></p>
         <div class="searchbar"><input id="buscar" placeholder="🔎 Buscar por código, nombre, categoría o ubicación" oninput="renderProductos()"><select id="filtroCat" style="max-width:190px" onchange="renderProductos()"><option value="">Todas las categorías</option></select><select id="filtroStock" style="max-width:170px" onchange="renderProductos()"><option value="">Todo el stock</option><option value="ok">Con stock</option><option value="low">Stock bajo</option><option value="out">Agotados</option></select></div>
         <div class="rowBetween" style="margin-bottom:10px"><span class="muted" id="inventoryCount">0 productos</span><div><button class="softbtn" onclick="setInventoryMode('cards')">▦ Tarjetas</button> <button class="softbtn" onclick="setInventoryMode('table')">☷ Tabla</button></div></div>
         <div id="inventoryCards" class="productGrid"></div>
@@ -488,18 +510,18 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
       </section>
 
       <section id="reportes" class="view">
-        <div class="rowBetween" style="align-items:flex-start;flex-wrap:wrap;gap:12px"><div><h2 style="margin:0">📊 Reportes</h2><p class="muted">Resumen de ventas, ingresos y rentabilidad.</p></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="softbtn" type="button" onclick="exportSalesReportCSV()">📄 Exportar ventas CSV</button><button class="softbtn" type="button" onclick="refreshStorefrontMarketingMetrics()">↻ Actualizar métricas</button></div></div>
+        <div class="rowBetween" style="align-items:flex-start;flex-wrap:wrap;gap:12px"><div><h2 style="margin:0">📊 Reportes</h2><p class="muted">Resumen estimado de registros de ventas y gastos; no incluye ni concilia automáticamente todos los pedidos COD/Wompi.</p></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="softbtn" type="button" onclick="exportSalesReportCSV()">📄 Exportar ventas CSV</button><button class="softbtn" type="button" onclick="refreshStorefrontMarketingMetrics()">↻ Actualizar métricas</button></div></div>
         <div class="cards">
-          <div class="card stat"><small>Ventas</small><div class="num" id="rVentas">0</div><div class="sub">Registros</div></div>
-          <div class="card stat"><small>Ingresos</small><div class="num" id="rIngresos">$0</div><div class="sub">Total vendido</div></div>
-          <div class="card stat"><small>Costo vendido</small><div class="num" id="rCostos">$0</div><div class="sub">Costo de mercancía</div></div>
-          <div class="card stat"><small>Ganancia</small><div class="num" id="rGanancia">$0</div><div class="sub">Ingresos − costos</div></div><div class="card stat"><small>Gastos</small><div class="num" id="rGastos">$0</div><div class="sub">Gastos del negocio</div></div><div class="card stat"><small>Ganancia después de gastos</small><div class="num" id="rNeta">$0</div><div class="sub">Ganancia − gastos</div></div>
+          <div class="card stat"><small>Ventas registradas</small><div class="num" id="rVentas">0</div><div class="sub">Filas de la tabla de ventas</div></div>
+          <div class="card stat"><small>Ingresos registrados</small><div class="num" id="rIngresos">$0</div><div class="sub">No es total conciliado de pedidos web</div></div>
+          <div class="card stat"><small>Costo estimado</small><div class="num" id="rCostos">$0</div><div class="sub">Costo de ventas registradas</div></div>
+          <div class="card stat"><small>Ganancia bruta estimada</small><div class="num" id="rGanancia">$0</div><div class="sub">Ingresos registrados − costo estimado</div></div><div class="card stat"><small>Gastos registrados</small><div class="num" id="rGastos">$0</div><div class="sub">Filas activas de gastos</div></div><div class="card stat"><small>Resultado estimado</small><div class="num" id="rNeta">$0</div><div class="sub">Ganancia bruta − gastos registrados</div></div>
         </div>
         <div class="box" style="margin-top:16px"><h3>🏆 Productos más vendidos</h3><p class="muted">Basado en los registros de ventas disponibles en el administrador.</p><div id="bestSellingProducts"></div></div>
         <div class="box" style="margin-top:16px"><div class="rowBetween" style="align-items:center;gap:12px;flex-wrap:wrap"><div><h3 style="margin-bottom:4px">📣 Rendimiento de promociones</h3><p class="muted" style="margin:0">Impresiones y clics únicos aproximados por sesión/día, durante los últimos 30 días.</p></div><button class="softbtn" type="button" onclick="refreshStorefrontMarketingMetrics()">↻ Consultar</button></div><div id="storefrontMarketingMetricsStatus" class="promoAdminStatus" role="status" aria-live="polite">Las métricas se consultan al abrir Reportes.</div><div id="storefrontMarketingMetricsReport"></div></div>
         <div class="sectionGrid">
-          <div class="box"><h3>🏷️ Inventario por categoría</h3><div id="cats"></div></div>
-          <div class="box"><h3>💵 Valor actual del inventario</h3><div id="inventoryValue" style="font-size:28px;font-weight:900">$0</div><p class="muted">Calculado con costo de compra × unidades disponibles.</p></div>
+          <div class="box"><h3>🏷️ Unidades físicas por categoría</h3><div id="cats"></div></div>
+          <div class="box"><h3>💵 Valor físico estimado del inventario</h3><div id="inventoryValue" style="font-size:28px;font-weight:900">$0</div><p class="muted">Costo de compra × unidades físicas registradas; no descuenta reservas temporales.</p></div>
         </div>
       </section>
 
@@ -507,6 +529,32 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
         <div><h2 style="margin:0">⚙️ Configuración y herramientas</h2><p class="muted">Opciones para cuidar y llevar tus datos.</p></div>
         <div class="sectionGrid">
           <div class="box"><h3>☁️ Conexión</h3><p class="muted">Los datos principales se guardan en Supabase y pueden consultarse desde tus dispositivos con la misma cuenta.</p><div class="status ok">✓ Conexión preparada</div></div>
+          <div class="box" style="grid-column:1/-1" id="adminAccountSecurityBox">
+            <h3>🔐 Seguridad de la cuenta</h3>
+            <p class="muted">La contraseña se gestiona exclusivamente con Supabase Auth; nunca se guarda en tablas propias ni en el navegador. Cuenta activa: <strong id="securityAccountEmail">—</strong></p>
+            <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(210px,1fr))">
+              <label id="adminCurrentPasswordField">Contraseña actual<input id="currentAdminPassword" type="password" autocomplete="current-password" maxlength="128"></label>
+              <label>Nueva contraseña<input id="newAdminPassword" type="password" autocomplete="new-password" minlength="12" maxlength="128"></label>
+              <label>Confirmar nueva contraseña<input id="confirmAdminPassword" type="password" autocomplete="new-password" minlength="12" maxlength="128"></label>
+            </div>
+            <p class="muted" style="margin:8px 0">Usa al menos 12 caracteres. El cambio normal solicita la contraseña actual; el enlace de recuperación se valida con el token de Supabase Auth.</p>
+            <div style="display:flex;gap:8px;flex-wrap:wrap"><button id="changeAdminPasswordBtn" class="primary" type="button" onclick="changeAdminPassword()">Cambiar contraseña</button><button id="sendAdminRecoveryBtn" class="softbtn" type="button" onclick="requestAdminPasswordRecovery(true)">Enviar enlace de recuperación</button><button class="softbtn" type="button" onclick="closeAllAdminSessions()">Cerrar todas mis sesiones</button></div>
+            <div id="adminSecurityStatus" class="status" role="status" aria-live="polite" style="margin-top:10px"></div>
+            <div style="margin-top:18px;padding-top:14px;border-top:1px solid #e8edf2">
+              <h4 style="margin:0 0 6px">Autenticación de dos factores (MFA)</h4>
+              <p class="muted" style="margin:0 0 10px">TOTP funciona con aplicaciones autenticadoras. Si está activado en la cuenta, el panel exige el segundo factor antes de cargar datos administrativos. El secreto solo se muestra durante la vinculación y no se persiste.</p>
+              <div id="adminMfaStatus" class="status" role="status" aria-live="polite">Consultando capacidades de Supabase Auth…</div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><button id="setupAdminMfaBtn" class="softbtn" type="button" onclick="startAdminMfaEnrollment()" disabled>Configurar MFA TOTP</button><button id="disableAdminMfaBtn" class="dangerbtn hidden" type="button" onclick="beginDisableAdminMfa()">Desactivar TOTP</button></div>
+              <div id="adminMfaDisablePanel" class="hidden" style="margin-top:10px"><label>Confirma con el código de tu autenticador<input id="adminMfaDisableCode" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="12"></label><div style="display:flex;gap:8px;margin-top:8px"><button class="dangerbtn" type="button" onclick="confirmDisableAdminMfa()">Verificar y desactivar</button><button class="softbtn" type="button" onclick="cancelDisableAdminMfa()">Cancelar</button></div></div>
+              <div id="adminMfaSetupPanel" class="box hidden" style="margin-top:12px">
+                <p>Escanea este código con tu aplicación autenticadora. Si no puedes escanearlo, ingresa manualmente la clave que aparece debajo. No compartas la clave.</p>
+                <img id="adminMfaQr" class="hidden" alt="Código QR de vinculación de MFA" style="display:block;max-width:220px;width:100%;height:auto;margin:10px auto;background:#fff;padding:10px;border-radius:8px">
+                <p>Clave manual: <code id="adminMfaSecret">No disponible</code></p>
+                <label>Código de seis dígitos<input id="adminMfaCode" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="12"></label>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button class="primary" type="button" onclick="verifyAdminMfaEnrollment()">Verificar y activar</button><button class="softbtn" type="button" onclick="cancelAdminMfaEnrollment()">Cancelar configuración</button></div>
+              </div>
+            </div>
+          </div>
           <div class="box" style="grid-column:1/-1" id="onlinePaymentsSettingsBox">
             <div class="rowBetween" style="align-items:flex-start;gap:16px;flex-wrap:wrap">
               <div style="flex:1;min-width:220px"><h3 style="margin-bottom:7px">💳 Pagos en línea del catálogo</h3><p class="muted" style="margin-top:0">Controla si los clientes pueden pagar mediante Wompi. Al desactivarlo, el catálogo ocultará las dos opciones de pago en línea. La contraentrega solo estará disponible en las ciudades que habilites abajo.</p></div>
@@ -665,6 +713,13 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
           </div>
           <div class="box"><h3>🎨 Apariencia</h3><button class="softbtn" onclick="toggleCompact()">Cambiar modo compacto</button><p class="muted" style="font-size:12px">La preferencia queda guardada en este dispositivo.</p></div>
           <div class="box"><h3>💾 Copia de respaldo</h3><p class="muted">Descarga una copia de las tablas disponibles y sus referencias a imágenes. Las fotos binarias de R2 no se incluyen; para borrar productos en lote, conserva además una copia de las fotografías necesarias.</p><button class="primary" onclick="exportBackup(event)">⬇️ Descargar respaldo JSON</button><button class="softbtn" style="margin-left:6px" onclick="exportCSV()">📄 Exportar inventario CSV</button></div>
+          <div class="box" style="grid-column:1/-1"><h3>Previsualizar productos CSV — sin importar</h3>
+            <p class="muted">Validación local sin subir el archivo ni modificar productos o inventario. Hasta 1 MiB y 500 filas; encabezados exactos: <code>code,name,category,cost,sale_price,quantity</code>. No acepta variantes, fotos ni datos de clientes. El CSV exportado de inventario no es este contrato de importación.</p>
+            <label class="field">Archivo CSV UTF-8<input id="productCsvPreviewFile" type="file" accept=".csv,text/csv" onchange="clearProductCsvPreview(false)"></label>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button id="productCsvPreviewBtn" class="softbtn" type="button" onclick="previewProductCsvFile()">Validar y previsualizar</button><button class="softbtn" type="button" onclick="clearProductCsvPreview()">Borrar previsualización</button></div>
+            <p id="productCsvPreviewStatus" class="status" role="status" aria-live="polite">No se ha leído ningún archivo. La importación real no está habilitada.</p>
+            <div id="productCsvPreviewErrors"></div><div id="productCsvPreviewRows" style="overflow:auto;max-height:340px"></div>
+          </div>
           <div class="box"><h3>🔐 Sesión</h3><p class="muted">Cuenta actualmente conectada:</p><b id="accountEmail">—</b><div style="margin-top:12px"><button class="dangerbtn" onclick="logout()">Cerrar sesión</button></div></div>
           <div class="box" style="grid-column:1/-1;border-color:#e7d8b0"><h3>🗄️ Archivo seguro de ventas</h3>
             <p class="muted">Las ventas de prueba ya no se borran. Se marcan como archivadas, dejan de aparecer en los reportes y pueden restaurarse desde este panel.</p>
@@ -707,9 +762,14 @@ let editingSizeGuideImagePath="",sizeGuideImageRemoveRequested=false,sizeGuidePr
 let proveedores=[],gastos=[],movimientos=[];
 // Mantiene el error de carga por módulo para no mostrar como vacío un dato que falló al consultarse.
 let moduleLoadErrors={};
+let publicAvailabilityWarning='';
 let adminDeferredModuleLoaded={clients:false,suppliers:false,expenses:false,movements:false,orders:false};
 let adminDeferredModuleInFlight={};
 let pedidos=[];
+let dashboardCoreSnapshot={loaded:false,busy:false,error:'',updatedAt:null};
+let dashboardOrdersUpdatedAt=null;
+let dashboardWompiSnapshot={loaded:false,busy:false,error:'',count:0,updatedAt:null};
+let productCsvPreviewToken=0;
 let pedidosPage=1,pedidosPageSize=20,pedidosLoadError='',ordersFacetOptionsSignature='';
 let brandName=localStorage.getItem("jm_brand_name")||"Variedades JM";
 let brandIcon=localStorage.getItem("jm_brand_icon")||"";
@@ -1260,6 +1320,10 @@ document.addEventListener('change',event=>{
 });
 
 async function loadWompiReconciliation(showStatus=true){
+ if(!adminSessionAuthorized)return;
+ if(dashboardWompiSnapshot.busy)return;
+ const authEpoch=adminAuthEpoch;
+ dashboardWompiSnapshot.busy=true;renderDashboardPeriod();
  const status=$('wompiReconciliationStatus'),list=$('wompiReconciliationList'),button=$('refreshWompiReconciliationBtn');
  if(button)button.disabled=true;
  if(showStatus&&status){status.className='status';status.textContent='Consultando conciliaciones pendientes…';}
@@ -1268,15 +1332,19 @@ async function loadWompiReconciliation(showStatus=true){
    .select('transaction_id,reference,amount_in_cents,reconciliation_status,reason,first_seen_at,last_seen_at')
    .eq('reconciliation_status','NEEDS_REVIEW')
    .order('last_seen_at',{ascending:false}).limit(50);
+  if(authEpoch!==adminAuthEpoch||!adminSessionAuthorized)return;
   if(error)throw error;
   const rows=Array.isArray(data)?data:[];
+  dashboardWompiSnapshot={loaded:true,busy:true,error:'',count:rows.length,updatedAt:new Date()};
   if(list)list.innerHTML=rows.length?rows.map(row=>`<article class="box" style="margin-top:9px;border-color:#f0c2ca"><div class="rowBetween" style="gap:12px;flex-wrap:wrap"><strong>${esc(row.reference||'Sin referencia')}</strong><span class="status err">NEEDS_REVIEW</span></div><div class="muted" style="font-size:12px;margin-top:6px">Transacción: ${esc(row.transaction_id||'—')} · Monto: ${money(Number(row.amount_in_cents||0)/100)} · Último registro: ${esc(row.last_seen_at||'—')}</div><p style="margin:8px 0 0;white-space:pre-wrap">${esc(row.reason||'Revisión manual requerida.')}</p></article>`).join(''):'<div class="empty">No hay conciliaciones pendientes.</div>';
   if(status){status.className='status ok';status.textContent=rows.length?`Hay ${rows.length} conciliación(es) para revisar.`:'No hay conciliaciones pendientes.';}
  }catch(error){
+  if(authEpoch!==adminAuthEpoch||!adminSessionAuthorized)return;
+  dashboardWompiSnapshot.error='No se pudo consultar la fuente de conciliación.';
   console.error('No se pudieron cargar las conciliaciones Wompi:',error);
   if(list)list.innerHTML='<div class="empty">No se pudieron consultar las conciliaciones.</div>';
   if(status){status.className='status err';status.textContent='No se pudo consultar la conciliación. Comprueba que tu usuario sea el administrador autorizado.';}
- }finally{if(button)button.disabled=false;}
+ }finally{if(authEpoch===adminAuthEpoch){dashboardWompiSnapshot.busy=false;renderDashboardPeriod();}if(button)button.disabled=false;}
 }
 
 
@@ -1325,17 +1393,249 @@ async function resetBrand(){
   toast(error?"Restaurado solo en este dispositivo":"Personalización restaurada en todos tus dispositivos");
 }
 let adminAuthSubscription=null,adminSessionAuthorized=false,adminSessionUserId='',adminAuthorizationBusy=false,adminStartBusy=false,adminAuthEpoch=0;
+let adminPasswordRecoveryMode=false,adminMfaLoginChallenge=null,adminMfaEnrollment=null,adminMfaTotpFactorId='';
 function lockAdminPanel(message='Tu sesión terminó. Vuelve a entrar.'){
  adminAuthEpoch++;
+ const pendingMfaFactorId=adminMfaEnrollment?.factorId;
  adminSessionAuthorized=false;adminSessionUserId='';
+ adminPasswordRecoveryMode=false;adminMfaLoginChallenge=null;adminMfaEnrollment=null;adminMfaTotpFactorId='';
  $("app").classList.add("hidden");$("loginScreen").classList.remove("hidden");
+ $('adminLoginFields')?.classList.remove('hidden');$('adminMfaLoginStep')?.classList.add('hidden');
  if(adminCatalogRealtimeChannel&&sb){const channel=adminCatalogRealtimeChannel;adminCatalogRealtimeChannel=null;void sb.removeChannel(channel).catch(error=>console.debug('No se pudo cerrar el canal administrativo.',error));}
  adminCatalogRealtimeReady=false;adminCatalogRealtimePending=[];
  productos=[];ventas=[];clientes=[];proveedores=[];gastos=[];movimientos=[];pedidos=[];
+ dashboardCoreSnapshot={loaded:false,busy:false,error:'',updatedAt:null};dashboardOrdersUpdatedAt=null;
+ dashboardWompiSnapshot={loaded:false,busy:false,error:'',count:0,updatedAt:null};
+ moduleLoadErrors={};pedidosLoadError='';publicAvailabilityWarning='';
+ clearProductCsvPreview();
  Object.keys(adminDeferredModuleLoaded).forEach(key=>adminDeferredModuleLoaded[key]=false);
  ['listaPedidos','listaProductos','listaVentas','listaClientes','listaProveedores','listaGastos','listaMovimientos','wompiReconciliationList'].forEach(id=>{const el=$(id);if(el)el.textContent='';});
  const password=$("password");if(password)password.value='';
+ ['currentAdminPassword','newAdminPassword','confirmAdminPassword','adminMfaCode','adminMfaDisableCode','adminMfaLoginCode'].forEach(id=>{const field=$(id);if(field)field.value=''});
+ $('adminMfaSetupPanel')?.classList.add('hidden');$('adminMfaDisablePanel')?.classList.add('hidden');$('disableAdminMfaBtn')?.classList.add('hidden');
+ const currentField=$('adminCurrentPasswordField');if(currentField)currentField.classList.remove('hidden');
+ const qr=$('adminMfaQr');if(qr){qr.removeAttribute('src');qr.classList.add('hidden')}
+ const secret=$('adminMfaSecret');if(secret)secret.textContent='No disponible';
+ if(pendingMfaFactorId&&sb?.auth?.mfa?.unenroll)void sb.auth.mfa.unenroll({factorId:pendingMfaFactorId}).catch(()=>{});
  loginMsg(message);
+}
+function setAdminSecurityStatus(message,kind=''){
+ const el=$('adminSecurityStatus');if(!el)return;el.textContent=message||'';el.className='status'+(kind?' '+kind:'');
+}
+function setAdminMfaStatus(message,kind=''){
+ const el=$('adminMfaStatus');if(!el)return;el.textContent=message||'';el.className='status'+(kind?' '+kind:'');
+}
+function validateAdminPasswordInputs(current,next,confirmation,requireCurrent=true){
+ const oldValue=String(current||''),newValue=String(next||''),confirmValue=String(confirmation||'');
+ if(requireCurrent&&!oldValue)return 'Escribe la contraseña actual.';
+ if(newValue.length<12)return 'La nueva contraseña debe tener al menos 12 caracteres.';
+ if(newValue.length>128)return 'La nueva contraseña supera el límite permitido.';
+ if(newValue!==confirmValue)return 'La confirmación no coincide.';
+ if(requireCurrent&&newValue===oldValue)return 'Elige una contraseña diferente a la actual.';
+ return '';
+}
+async function requestAdminPasswordRecovery(inPanel=false){
+ if(!configured())return inPanel?setAdminSecurityStatus('Supabase no está configurado.','err'):loginMsg('Supabase no está configurado.');
+ if(inPanel&&!adminSessionAuthorized)return setAdminSecurityStatus('Vuelve a validar la sesión administrativa.','err');
+ ensureAdminAuthClient();
+ const email=String(inPanel?$('securityAccountEmail')?.textContent:$('email')?.value||'').trim();
+ if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))return inPanel?setAdminSecurityStatus('No hay un correo válido asociado a esta sesión.','err'):loginMsg('Escribe un correo válido para solicitar recuperación.');
+ try{
+  const redirectTo=new URL('/admin.html',window.location.origin).toString();
+  const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo});
+  if(error)throw error;
+  const message='Si el correo está asociado a una cuenta compatible, Supabase enviará un enlace de recuperación. Revisa también la carpeta de correo no deseado.';
+  if(inPanel)setAdminSecurityStatus(message,'ok');else loginMsg(message,true);
+ }catch(error){
+  const message='No se pudo solicitar el enlace. Comprueba la URL permitida de redirección en Supabase Auth e inténtalo más tarde.';
+  if(inPanel)setAdminSecurityStatus(message,'err');else loginMsg(message);
+ }
+}
+async function applyAdminPasswordUpdate(next){
+ const update=await sb.auth.updateUser({password:next});
+ if(update.error)throw new Error('Supabase Auth rechazó el cambio. Revisa la política de contraseña del proyecto e inténtalo de nuevo.');
+ adminPasswordRecoveryMode=false;
+ const currentField=$('adminCurrentPasswordField');if(currentField)currentField.classList.remove('hidden');
+ let sessionNote='';
+ try{const closed=await sb.auth.signOut({scope:'others'});if(closed.error)sessionNote=' No se pudo confirmar el cierre de otras sesiones; revísalo desde el proveedor Auth.'}
+ catch{sessionNote=' No se pudo confirmar el cierre de otras sesiones; revísalo desde el proveedor Auth.'}
+ setAdminSecurityStatus('Contraseña actualizada con Supabase Auth.'+sessionNote,sessionNote?'':'ok');
+}
+async function verifyAdminCurrentPassword(user,password){
+ if(!user?.email||!supabase?.createClient)throw new Error('No se pudo validar la cuenta administrativa.');
+ const verifier=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}});
+ try{
+  const {data,error}=await verifier.auth.signInWithPassword({email:user.email,password});
+  if(error||data?.user?.id!==user.id)throw new Error('No se pudo verificar la contraseña actual.');
+ }finally{
+  try{await verifier.auth.signOut({scope:'local'})}catch(error){}
+ }
+}
+async function changeAdminPassword(){
+ if(!adminSessionAuthorized||!adminSessionUserId)return setAdminSecurityStatus('No hay una sesión administrativa autorizada.','err');
+ const current=$('currentAdminPassword')?.value||'',next=$('newAdminPassword')?.value||'',confirmation=$('confirmAdminPassword')?.value||'';
+ const validation=validateAdminPasswordInputs(current,next,confirmation,!adminPasswordRecoveryMode);
+ if(validation)return setAdminSecurityStatus(validation,'err');
+ const button=$('changeAdminPasswordBtn');if(button)button.disabled=true;
+ const actionAuthEpoch=adminAuthEpoch;
+ let adminAuthorizationLost=false,mfaAssuranceLost=false;
+ setAdminSecurityStatus('Verificando la cuenta y actualizando la contraseña…');
+ try{
+  const {data:{user},error:userError}=await sb.auth.getUser();
+  if(userError||!user||user.id!==adminSessionUserId){adminAuthorizationLost=true;throw new Error('La sesión cambió. Vuelve a entrar antes de modificar la contraseña.')}
+  const adminCheck=await sb.rpc('is_store_admin');
+  if(adminCheck.error||adminCheck.data!==true){adminAuthorizationLost=true;throw new Error('La cuenta ya no tiene autorización administrativa.')}
+  if(!adminPasswordRecoveryMode){
+   await verifyAdminCurrentPassword(user,current);
+   const mfa=sb.auth.mfa;
+   if(mfa?.getAuthenticatorAssuranceLevel){
+    const assurance=await mfa.getAuthenticatorAssuranceLevel();
+    if(assurance.error){mfaAssuranceLost=true;throw new Error('No se pudo comprobar el segundo factor. Vuelve a iniciar sesión.')}
+    if(assurance.data?.nextLevel==='aal2'&&assurance.data?.currentLevel!=='aal2'){mfaAssuranceLost=true;throw new Error('La sesión no tiene el segundo factor requerido. Vuelve a iniciar sesión.')}
+   }
+  }
+  const currentSession=await sb.auth.getUser();
+  if(actionAuthEpoch!==adminAuthEpoch||!adminSessionAuthorized||currentSession.error||currentSession.data?.user?.id!==adminSessionUserId){adminAuthorizationLost=true;throw new Error('La sesión cambió durante la operación. Vuelve a entrar antes de modificar la contraseña.')}
+  const currentAdminCheck=await sb.rpc('is_store_admin');
+  if(currentAdminCheck.error||currentAdminCheck.data!==true){adminAuthorizationLost=true;throw new Error('La cuenta ya no tiene autorización administrativa.')}
+  if(actionAuthEpoch!==adminAuthEpoch||!adminSessionAuthorized){adminAuthorizationLost=true;throw new Error('La sesión cambió antes de actualizar la contraseña.');}
+  await applyAdminPasswordUpdate(next);
+ }catch(error){
+  setAdminSecurityStatus(error?.message||'No se pudo actualizar la contraseña.','err');
+ }finally{
+  for(const id of ['currentAdminPassword','newAdminPassword','confirmAdminPassword']){const field=$(id);if(field)field.value=''}
+  if(button)button.disabled=false;
+  if(adminAuthorizationLost){lockAdminPanel('La cuenta no está autorizada para administrar la tienda.');void sb.auth.signOut({scope:'local'}).catch(()=>{})}
+  else if(mfaAssuranceLost){lockAdminPanel('La sesión MFA no pudo confirmarse. Inicia sesión nuevamente.');void sb.auth.signOut({scope:'local'}).catch(()=>{})}
+ }
+}
+async function closeAllAdminSessions(){
+ if(!adminSessionAuthorized||!adminSessionUserId)return setAdminSecurityStatus('No hay una sesión administrativa autorizada.','err');
+ if(!confirm('Se cerrará la sesión administrativa en este dispositivo y en los demás dispositivos. ¿Continuar?'))return;
+ try{
+  const {error}=await sb.auth.signOut({scope:'global'});
+  if(error)throw error;
+  location.reload();
+ }catch(error){setAdminSecurityStatus('No se pudo confirmar el cierre de todas las sesiones. Cierra esta sesión y vuelve a intentarlo.','err')}
+}
+function showAdminMfaLoginStep(help,status=''){
+ $('adminLoginFields')?.classList.add('hidden');$('adminMfaLoginStep')?.classList.remove('hidden');
+ const helpNode=$('adminMfaLoginHelp');if(helpNode)helpNode.textContent=help||'Ingresa el código de seguridad para continuar.';
+ const statusNode=$('adminMfaLoginStatus');if(statusNode){statusNode.textContent=status;statusNode.className='status'+(status?' err':'')}
+ const input=$('adminMfaLoginCode');if(input){input.value='';input.focus()}
+}
+async function enforceAdminMfaBeforePanel(){
+ const authEpoch=adminAuthEpoch;
+ const mfa=sb?.auth?.mfa;
+ if(!mfa||typeof mfa.getAuthenticatorAssuranceLevel!=='function'||typeof mfa.listFactors!=='function')return true;
+ const assurance=await mfa.getAuthenticatorAssuranceLevel();
+ if(authEpoch!==adminAuthEpoch)return false;
+ if(assurance.error)throw assurance.error;
+ if(!['aal1','aal2'].includes(assurance.data?.currentLevel)||!['aal1','aal2'].includes(assurance.data?.nextLevel))throw new Error('Supabase Auth no confirmó el nivel MFA de la sesión.');
+ if(assurance.data?.currentLevel==='aal2'||assurance.data?.nextLevel!=='aal2')return true;
+ const listed=await mfa.listFactors();if(listed.error)throw listed.error;
+ if(authEpoch!==adminAuthEpoch)return false;
+ const factors=[...(listed.data?.totp||[]),...(listed.data?.phone||[])];
+ const factor=factors.find(item=>item.status==='verified');
+ if(!factor){showAdminMfaLoginStep('Tu cuenta requiere MFA, pero no hay un factor verificado disponible. Contacta al administrador principal para recuperar el acceso.','No se habilitó el panel.');return false}
+ const challenged=await mfa.challenge({factorId:factor.id});
+ if(authEpoch!==adminAuthEpoch)return false;
+ if(challenged.error)throw challenged.error;
+ const challengeId=challenged.data?.id;
+ if(!challengeId)throw new Error('Supabase Auth no devolvió un reto MFA válido.');
+ adminMfaLoginChallenge={factorId:factor.id,challengeId,type:factor.factor_type||factor.type||'totp'};
+ showAdminMfaLoginStep(adminMfaLoginChallenge.type==='phone'?'Supabase envió un código al segundo factor telefónico verificado.':'Ingresa el código vigente de tu aplicación autenticadora.');
+ return false;
+}
+async function verifyAdminLoginMfa(){
+ const authEpoch=adminAuthEpoch;
+ const pending=adminMfaLoginChallenge,code=String($('adminMfaLoginCode')?.value||'').replace(/\s/g,'');
+ if(!pending)return showAdminMfaLoginStep('Inicia sesión nuevamente para solicitar un código.','No hay un reto MFA activo.');
+ if(!/^\d{6}$/.test(code)){const status=$('adminMfaLoginStatus');if(status){status.textContent='Ingresa los seis dígitos del código.';status.className='status err'}return}
+ const button=document.querySelector('#adminMfaLoginStep button.primary');if(button)button.disabled=true;
+ try{
+  const {error}=await sb.auth.mfa.verify({factorId:pending.factorId,challengeId:pending.challengeId,code});
+  if(authEpoch!==adminAuthEpoch)return;
+  if(error){const status=$('adminMfaLoginStatus');if(status){status.textContent='Código no válido o vencido. Solicita otro inicio de sesión e inténtalo de nuevo.';status.className='status err'}return}
+  adminMfaLoginChallenge=null;$('adminMfaLoginStep')?.classList.add('hidden');
+  await startApp();
+ }catch(error){if(authEpoch!==adminAuthEpoch)return;const status=$('adminMfaLoginStatus');if(status){status.textContent='No se pudo validar el código. Comprueba la conexión e inténtalo de nuevo.';status.className='status err'}}
+ finally{if(button)button.disabled=false}
+}
+async function loadAdminMfaSettings(){
+ const setup=$('setupAdminMfaBtn'),disable=$('disableAdminMfaBtn'),mfa=sb?.auth?.mfa;
+ if(!adminSessionAuthorized)return;
+ adminMfaTotpFactorId='';
+ if(!mfa||typeof mfa.listFactors!=='function'||typeof mfa.enroll!=='function'){
+  if(setup)setup.disabled=true;if(disable)disable.classList.add('hidden');
+  setAdminMfaStatus('Esta versión/configuración de Supabase Auth no permite gestionar MFA TOTP desde el panel.');return;
+ }
+ if(setup)setup.disabled=true;
+ setAdminMfaStatus('Consultando factores verificados…');
+ try{
+  const {data,error}=await mfa.listFactors();if(error)throw error;
+  const factors=data?.totp||[],verified=factors.find(item=>item.status==='verified'),verifiedPhone=(data?.phone||[]).some(item=>item.status==='verified');
+  adminMfaTotpFactorId=verified?.id||'';
+  if(verified){setAdminMfaStatus('MFA TOTP está activo para esta cuenta. El panel solicitará un código después de cada nuevo inicio de sesión.','ok');if(setup)setup.disabled=true;if(disable)disable.classList.remove('hidden')}
+  else{setAdminMfaStatus(verifiedPhone?'Hay un segundo factor telefónico activo. Puedes añadir TOTP para contar con una aplicación autenticadora.':'No hay un factor TOTP activo. Actívalo para exigir un código además de la contraseña.');if(setup)setup.disabled=false;if(disable)disable.classList.add('hidden')}
+ }catch(error){if(setup)setup.disabled=true;if(disable)disable.classList.add('hidden');setAdminMfaStatus('No se pudo consultar MFA en Supabase Auth. No se cambiaron factores.','err')}
+}
+async function startAdminMfaEnrollment(){
+ if(!adminSessionAuthorized||!sb?.auth?.mfa)return setAdminMfaStatus('Inicia sesión como administrador para configurar MFA.','err');
+ const button=$('setupAdminMfaBtn');if(button)button.disabled=true;
+ try{
+  const listed=await sb.auth.mfa.listFactors();if(listed.error)throw listed.error;
+  const existing=(listed.data?.totp||[]).find(item=>item.status==='verified');
+  if(existing){adminMfaTotpFactorId=existing.id;setAdminMfaStatus('Ya hay un factor TOTP activo.');await loadAdminMfaSettings();return}
+  const {data,error}=await sb.auth.mfa.enroll({factorType:'totp',friendlyName:'Variedades JM - administrador'});
+  if(error)throw error;
+  const factorId=data?.id,totp=data?.totp,secret=String(totp?.secret||''),qrCode=String(totp?.qr_code||'');
+  if(!factorId||!secret)throw new Error('Supabase no devolvió los datos de vinculación esperados.');
+  adminMfaEnrollment={factorId};
+  const secretNode=$('adminMfaSecret');if(secretNode)secretNode.textContent=secret;
+  const qr=$('adminMfaQr');if(qr){const safeDataImage=/^data:image\/(?:svg\+xml|png);(?:base64|utf-8|charset=utf-8),/i.test(qrCode);if(safeDataImage){qr.src=qrCode;qr.classList.remove('hidden')}else{qr.removeAttribute('src');qr.classList.add('hidden')}}
+  $('adminMfaSetupPanel').classList.remove('hidden');
+  setAdminMfaStatus(qr?.classList.contains('hidden')?'Escanea no disponible; usa la clave manual y verifica un código antes de activar.':'Escanea el QR y verifica un código. La clave solo permanece en memoria durante esta configuración.');
+  $('adminMfaCode')?.focus();
+ }catch(error){setAdminMfaStatus('No se pudo iniciar la vinculación TOTP. No se activó MFA.','err');if(button)button.disabled=false}
+}
+async function verifyAdminMfaEnrollment(){
+ const pending=adminMfaEnrollment,code=String($('adminMfaCode')?.value||'').replace(/\s/g,'');
+ if(!pending)return setAdminMfaStatus('Inicia de nuevo la configuración para obtener una clave temporal.','err');
+ if(!/^\d{6}$/.test(code))return setAdminMfaStatus('Ingresa los seis dígitos de tu aplicación autenticadora.','err');
+ try{
+  const challenge=await sb.auth.mfa.challenge({factorId:pending.factorId});if(challenge.error)throw challenge.error;
+  const verified=await sb.auth.mfa.verify({factorId:pending.factorId,challengeId:challenge.data?.id,code});
+  if(verified.error)throw verified.error;
+  adminMfaEnrollment=null;$('adminMfaSetupPanel').classList.add('hidden');$('adminMfaCode').value='';$('adminMfaSecret').textContent='No disponible';$('adminMfaQr').removeAttribute('src');$('adminMfaQr').classList.add('hidden');
+  setAdminMfaStatus('MFA TOTP quedó verificado y activo en Supabase Auth.','ok');await loadAdminMfaSettings();
+ }catch(error){setAdminMfaStatus('No se pudo verificar el código. Comprueba el reloj de tu dispositivo e inténtalo de nuevo.','err')}
+}
+async function cancelAdminMfaEnrollment(){
+ const pending=adminMfaEnrollment;
+ if(!pending)return;
+ try{const {error}=await sb.auth.mfa.unenroll({factorId:pending.factorId});if(error)throw error}
+ catch(error){setAdminMfaStatus('No se pudo cancelar la vinculación pendiente en Supabase.','err');return}
+ adminMfaEnrollment=null;$('adminMfaSetupPanel').classList.add('hidden');$('adminMfaCode').value='';$('adminMfaSecret').textContent='No disponible';$('adminMfaQr').removeAttribute('src');$('adminMfaQr').classList.add('hidden');
+ await loadAdminMfaSettings();
+}
+function beginDisableAdminMfa(){
+ if(!adminMfaTotpFactorId)return setAdminMfaStatus('No se encontró un factor TOTP activo.','err');
+ $('adminMfaDisablePanel').classList.remove('hidden');$('adminMfaDisableCode').value='';setAdminMfaStatus('Para quitar MFA, verifica un código vigente del autenticador.');$('adminMfaDisableCode')?.focus();
+}
+function cancelDisableAdminMfa(){$('adminMfaDisablePanel').classList.add('hidden');$('adminMfaDisableCode').value='';setAdminMfaStatus('No se cambió la configuración de MFA.')}
+async function confirmDisableAdminMfa(){
+ const factorId=adminMfaTotpFactorId,code=String($('adminMfaDisableCode')?.value||'').replace(/\s/g,'');
+ if(!factorId)return setAdminMfaStatus('No se encontró un factor TOTP activo.','err');
+ if(!/^\d{6}$/.test(code))return setAdminMfaStatus('Ingresa los seis dígitos de tu aplicación autenticadora.','err');
+ const button=document.querySelector('#adminMfaDisablePanel button.dangerbtn');if(button)button.disabled=true;
+ try{
+  const challenge=await sb.auth.mfa.challenge({factorId});if(challenge.error)throw challenge.error;
+  const verified=await sb.auth.mfa.verify({factorId,challengeId:challenge.data?.id,code});if(verified.error)throw verified.error;
+  const removed=await sb.auth.mfa.unenroll({factorId});if(removed.error)throw removed.error;
+  adminMfaTotpFactorId='';$('adminMfaDisablePanel').classList.add('hidden');$('adminMfaDisableCode').value='';setAdminMfaStatus('Factor TOTP desactivado tras verificación.','ok');await loadAdminMfaSettings();
+ }catch(error){setAdminMfaStatus('No se pudo desactivar MFA. El factor se conserva; verifica el código y el estado de Supabase Auth.','err')}
+ finally{if(button)button.disabled=false}
 }
 function ensureAdminAuthClient(){
  if(!sb)sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
@@ -1344,7 +1644,8 @@ function ensureAdminAuthClient(){
    if(!session){lockAdminPanel(event==='SIGNED_OUT'?'Sesión cerrada. Vuelve a entrar.':'Inicia sesión para continuar.');return}
    if(adminSessionUserId&&session.user?.id!==adminSessionUserId)lockAdminPanel('La cuenta cambió. Validando autorización…');
    // No esperar llamadas Supabase dentro del callback: evita bloquear la renovación del token.
-   if(event==='SIGNED_IN'&&!adminSessionAuthorized)setTimeout(()=>{void startApp();},0);
+   if(event==='PASSWORD_RECOVERY'){adminPasswordRecoveryMode=true;setTimeout(()=>{void startApp();},0)}
+   else if(event==='SIGNED_IN'&&!adminSessionAuthorized)setTimeout(()=>{void startApp();},0);
    else if(adminSessionAuthorized&&event!=='INITIAL_SESSION')setTimeout(()=>{void revalidateAdminAuthorization();},0);
   });
   adminAuthSubscription=data.subscription;
@@ -1358,6 +1659,13 @@ async function revalidateAdminAuthorization(){
   const {data:isAdmin,error}=await sb.rpc('is_store_admin');
   if(error){console.debug('Autorización no revalidada por un error temporal; las políticas del servidor siguen protegiendo los datos.');return}
   if(isAdmin!==true)lockAdminPanel('Esta cuenta ya no está autorizada para administrar la tienda.');
+  else if(sb.auth.mfa?.getAuthenticatorAssuranceLevel){
+   const assurance=await sb.auth.mfa.getAuthenticatorAssuranceLevel();
+   if(assurance.error){lockAdminPanel('No se pudo verificar el segundo factor. Inicia sesión nuevamente.');return}
+   if(assurance.data?.nextLevel==='aal2'&&assurance.data?.currentLevel!=='aal2'){
+    lockAdminPanel('La sesión requiere verificar de nuevo el segundo factor.');setTimeout(()=>{void startApp()},0);
+   }
+  }
  }catch(error){console.debug('La revalidación administrativa se reintentará al recuperar la conexión.');
  }finally{adminAuthorizationBusy=false;}
 }
@@ -1390,11 +1698,14 @@ async function startApp(){
   if(adminError)throw adminError;
   if(authEpoch!==adminAuthEpoch)return;
   if(isAdmin!==true){lockAdminPanel('Esta cuenta no está autorizada para entrar al panel administrativo.');await sb.auth.signOut({scope:'local'});return}
+  if(!await enforceAdminMfaBeforePanel())return;
+  if(authEpoch!==adminAuthEpoch)return;
   $('retryLogout').classList.add('hidden');
   adminSessionAuthorized=true;adminSessionUserId=user.id;
   $("loginScreen").classList.add("hidden");$("app").classList.remove("hidden");
   startAdminCatalogRealtime();
   $("accountEmail").textContent=user.email||"Cuenta de negocio";
+  const securityEmail=$('securityAccountEmail');if(securityEmail)securityEmail.textContent=user.email||"Cuenta de negocio";
  const meta=user?.user_metadata||{};
  if(meta.jm_brand_name)brandName=meta.jm_brand_name;
  if(meta.jm_brand_icon_path){
@@ -1410,17 +1721,24 @@ async function startApp(){
  }
  localStorage.setItem("jm_brand_name",brandName);localStorage.setItem("jm_brand_icon",brandIcon);localStorage.setItem("jm_brand_icon_path",brandIconPath);applyBrand();
   $("vFecha").value=new Date().toISOString().slice(0,10);$("gFecha").value=new Date().toISOString().slice(0,10);setDateText();await cargarTodo();setInventoryMode(inventoryMode,false);
+  if(authEpoch!==adminAuthEpoch||!adminSessionAuthorized)return;
+  if(adminPasswordRecoveryMode){const currentField=$('adminCurrentPasswordField');if(currentField)currentField.classList.add('hidden');setAdminSecurityStatus('El enlace de recuperación fue validado. Define y confirma tu nueva contraseña para finalizar.','ok');show('config',document.querySelector('.navbtn[data-view="config"]'))}
  }catch(error){
+  if(authEpoch!==adminAuthEpoch)return;
   console.error('No se pudo iniciar el panel administrativo:',error);
   lockAdminPanel('No se pudo validar tu autorización. Comprueba la conexión y vuelve a intentarlo.');
  }finally{adminStartBusy=false;}
 }
 function setDateText(){const d=new Date();$("todayText").textContent=d.toLocaleDateString("es-CO",{weekday:"long",day:"numeric",month:"long",year:"numeric"})}
 function show(id,btn){
+ if(id!=='config')clearProductCsvPreview();
+ if(id!=='config'&&adminMfaEnrollment)void cancelAdminMfaEnrollment();
+ if(id!=='config'&&$('adminMfaDisablePanel')){$('adminMfaDisablePanel').classList.add('hidden');$('adminMfaDisableCode').value=''}
  document.querySelectorAll(".view").forEach(x=>x.classList.remove("active"));$(id).classList.add("active");
  document.querySelectorAll(".navbtn[data-view]").forEach(x=>x.classList.remove("active"));if(btn)btn.classList.add("active");
  const titles={inicio:"Inicio",inventario:"Inventario",producto:editingId?"Editar producto":"Nuevo producto",ventas:"Ventas",pedidos:"Pedidos",clientes:"Clientes",proveedores:"Proveedores",reportes:"Reportes",gastos:"Gastos",movimientos:"Movimientos",config:"Configuración"};
  $("pageTitle").textContent=titles[id]||"Variedades JM";
+ if(id==="inicio")renderDashboardPeriod();
  if(id==="ventas"){refreshSalePreview();renderVentaCatalogo();}
  if(id==="pedidos"){cargarPedidos();}
  if(id==="clientes")void loadAdminDeferredModule('clients');
@@ -1437,6 +1755,7 @@ function show(id,btn){
    loadCategoriesFromTable().catch(err=>{console.error("Error actualizando categorías al abrir la sección:",err);});
  }
  if(id==="config"&&sb){
+   void loadAdminMfaSettings();
    if(!onlinePaymentSettingLoaded)void loadOnlinePaymentSettingsAdmin();
    void loadWompiReconciliation(false);
    if(!codCitiesSettingsLoaded)void loadCODCitiesSettingsAdmin();
@@ -1524,13 +1843,16 @@ function describeAdminTableError(table,error){
 }
 
 function setOrdersUpdatedAt(date=new Date()){
+ dashboardOrdersUpdatedAt=date;
  const status=$("ordersLastUpdated");
- if(status)status.textContent='Última actualización: '+date.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'});
+ if(status)status.textContent='Snapshot COD; paginación visual. Última actualización: '+date.toLocaleString('es-CO',{timeZone:'America/Bogota'});
 }
 let cargarTodoBusy=false;
 async function cargarTodo(){
- if(cargarTodoBusy)return;
+ if(cargarTodoBusy||!adminSessionAuthorized)return;
+ const authEpoch=adminAuthEpoch;
  cargarTodoBusy=true;
+ dashboardCoreSnapshot.busy=true;renderDashboardPeriod();
  const previousErrors={...moduleLoadErrors};
  try{
   const skipped={deferred:true,data:null,error:null};
@@ -1544,13 +1866,29 @@ async function cargarTodo(){
    adminDeferredModuleLoaded.orders?fetchAllTableRows("web_orders","created_at",false):Promise.resolve(skipped),
    sb.rpc("get_public_catalog")
   ]);
-  if(p.error||v.error){alert("No se pudieron cargar inventario o ventas. Revisa la conexión y los permisos SQL/RLS en Supabase.");return}
+  if(authEpoch!==adminAuthEpoch||!adminSessionAuthorized)return;
+  if(p.error||v.error){dashboardCoreSnapshot.error='No se pudieron actualizar inventario o ventas. Se conserva el snapshot anterior, si existe.';alert("No se pudieron cargar inventario o ventas. Revisa la conexión y los permisos SQL/RLS en Supabase.");return}
   const availabilityMap=new Map((!avail?.error?(avail?.data||[]):[]).map(x=>[String(x.id),x]));
+  const missingAvailabilityCount=(p.data||[]).filter(raw=>!availabilityMap.has(String(raw.id))).length;
+  const incompleteVariantCount=(p.data||[]).filter(raw=>{
+    const current=availabilityMap.get(String(raw.id));
+    return !!current&&parseVariants(raw.variants).length>0&&parseVariants(current.variants).length===0&&current.quantity!==null&&current.quantity!==undefined&&Number.isFinite(Number(current.quantity))&&Number(current.quantity)>0;
+  }).length;
+  publicAvailabilityWarning=avail?.error
+    ?'No se pudo verificar disponibilidad reservada. Las acciones de venta quedarán bloqueadas hasta recuperar la cotización del servidor.'
+    :missingAvailabilityCount||incompleteVariantCount
+      ?`${missingAvailabilityCount+incompleteVariantCount} producto(s) no tienen disponibilidad/variantes verificables. Las acciones de venta para esos productos quedarán bloqueadas.`
+      :'';
   productos=(p.data||[]).map(raw=>{
     const current=availabilityMap.get(String(raw.id));
-    return {...raw,availableQuantity:current?Math.max(0,Number(current.quantity)||0):Math.max(0,Number(raw.quantity)||0),availableVariants:current?parseVariants(current.variants):parseVariants(raw.variants)};
+    const physicalVariants=parseVariants(raw.variants),liveVariants=current?parseVariants(current.variants):[];
+    const zeroLiveQuantity=current&&current.quantity!==null&&current.quantity!==undefined&&Number.isFinite(Number(current.quantity))&&Number(current.quantity)===0;
+    const variantAvailabilityVerified=!physicalVariants.length||liveVariants.length>0||zeroLiveQuantity;
+    const verified=!!current&&variantAvailabilityVerified;
+    return {...raw,availabilityVerified:verified,availableQuantity:verified?Math.max(0,Number(current.quantity)||0):0,availableVariants:verified?liveVariants:[]};
   });
   ventas=v.data||[];
+  dashboardCoreSnapshot={loaded:true,busy:true,error:'',updatedAt:new Date()};
   moduleLoadErrors={};
   for(const key of ['clients','suppliers','expenses','movements','orders']){
    const result=({clients:c,suppliers:pr,expenses:g,movements:m,orders:o})[key];
@@ -1565,7 +1903,7 @@ async function cargarTodo(){
    if(key==='orders'){pedidos=data;pedidosLoadError='';ordersFacetOptionsSignature='';adminDeferredModuleLoaded.orders=true;delete moduleLoadErrors.orders;setOrdersUpdatedAt()}
    if(result?.orderMode&&result.orderMode!=='stable')console.warn('Módulo '+key+' se cargó usando orden alternativo:',result.orderMode);
   }
-  if(avail?.error)console.warn("No se pudo calcular disponibilidad reservada; se mostrará el stock físico.",avail.error);
+  if(avail?.error)console.warn("No se pudo calcular disponibilidad reservada; las ventas manuales quedan bloqueadas.",avail.error);
   populateFilters();renderInicio();renderProductos();renderVentas();renderReportes();refrescarSelects();renderVentaCatalogo();
   if(adminDeferredModuleLoaded.clients)renderClientes();
   if(adminDeferredModuleLoaded.suppliers)renderProveedores();
@@ -1574,7 +1912,8 @@ async function cargarTodo(){
   if(adminDeferredModuleLoaded.orders)renderPedidos();
   const errors=Object.keys(moduleLoadErrors).filter(key=>['clients','suppliers','expenses','movements','orders'].includes(key));
   if(errors.length){console.error('Detalle de errores en módulos de Supabase:',errors.map(key=>({modulo:key,error:moduleLoadErrors[key]})));toast('No se cargaron algunos módulos. Ábrelos para consultar el detalle.');}
- }finally{cargarTodoBusy=false}
+ }catch(error){if(authEpoch!==adminAuthEpoch||!adminSessionAuthorized)return;dashboardCoreSnapshot.error='Falló la actualización de datos del panel.';console.error('Error de carga del panel:',error);toast('No se pudo actualizar el panel. Se conserva el snapshot anterior.');}
+ finally{cargarTodoBusy=false;if(authEpoch===adminAuthEpoch){dashboardCoreSnapshot.busy=false;renderDashboardPeriod();}}
 }
 
 function adminViewNeedsLiveAvailability(){
@@ -1593,42 +1932,58 @@ async function refreshPublicAvailability(){
    const currentIds=new Set(productos.map(p=>String(p.id)));
    const incomingIds=new Set(map.keys());
    const productSetChanged=currentIds.size!==incomingIds.size||[...incomingIds].some(id=>!currentIds.has(id));
-   if(productSetChanged){
+     if(productSetChanged){
      // get_public_catalog solo contiene campos públicos. Si entró/salió un producto,
      // recargar la tabla completa para conservar coste, ubicación y campos del admin.
+     publicAvailabilityWarning='Cambió el catálogo. Se bloquean ventas mientras se recarga y verifica el inventario.';
+     productos=productos.map(p=>({...p,availabilityVerified:false,availableQuantity:0,availableVariants:[]}));
+     renderProductos();refrescarSelects();renderVentaCatalogo();renderInicio();renderReportes();
      if(!cargarTodoBusy)await cargarTodo();
      return;
    }
+   const priorAvailabilityWarning=publicAvailabilityWarning;
+   publicAvailabilityWarning='';
    let changed=false;
    productos=productos.map(p=>{
      const x=map.get(String(p.id));
-     if(!x)return p;
-     const available=Math.max(0,Number(x.quantity)||0),variants=parseVariants(x.variants);
+     if(!x){publicAvailabilityWarning='Uno o más productos no tienen disponibilidad verificable. Las ventas manuales están bloqueadas para evitar sobreventa.';changed=true;return {...p,availabilityVerified:false,availableQuantity:0,availableVariants:[]}}
+     const available=Math.max(0,Number(x.quantity)||0),variants=parseVariants(x.variants),physicalVariants=parseVariants(p.variants);
+     const zeroLiveQuantity=x.quantity!==null&&x.quantity!==undefined&&Number.isFinite(Number(x.quantity))&&Number(x.quantity)===0;
+     const variantsVerified=!physicalVariants.length||variants.length>0||zeroLiveQuantity;
+     if(!variantsVerified)publicAvailabilityWarning='Uno o más productos no tienen cantidades de variantes verificables. Las ventas manuales están bloqueadas para evitar sobreventa.';
      const merged={...p,
        name:x.name??p.name,code:x.code??p.code,category:x.category??p.category,
        sale_price:x.sale_price??p.sale_price,image_url:x.image_url??p.image_url,
        colors:Array.isArray(x.colors)?x.colors:p.colors,sizes:Array.isArray(x.sizes)?x.sizes:p.sizes,
-       availableQuantity:available,availableVariants:variants
+       availabilityVerified:variantsVerified,availableQuantity:variantsVerified?available:0,availableVariants:variantsVerified?variants:[]
      };
-     const oldSig=JSON.stringify({name:p.name,code:p.code,category:p.category,sale_price:p.sale_price,image_url:p.image_url,q:availableQuantity(p),v:availableVariants(p)});
-     const newSig=JSON.stringify({name:merged.name,code:merged.code,category:merged.category,sale_price:merged.sale_price,image_url:merged.image_url,q:availableQuantity(merged),v:availableVariants(merged)});
+     const oldSig=JSON.stringify({name:p.name,code:p.code,category:p.category,sale_price:p.sale_price,image_url:p.image_url,q:availableQuantity(p),v:availableVariants(p),verified:p.availabilityVerified!==false});
+     const newSig=JSON.stringify({name:merged.name,code:merged.code,category:merged.category,sale_price:merged.sale_price,image_url:merged.image_url,q:availableQuantity(merged),v:availableVariants(merged),verified:merged.availabilityVerified});
      if(oldSig!==newSig)changed=true;
      return merged;
    });
-   if(changed){renderProductos();refrescarSelects();renderVentaCatalogo();renderInicio();renderReportes();}
- }catch(e){console.warn("No se pudo actualizar la disponibilidad de reservas.",e)}
+   if(changed||priorAvailabilityWarning!==publicAvailabilityWarning){renderProductos();refrescarSelects();renderVentaCatalogo();renderInicio();renderReportes();}
+ }catch(e){
+   console.warn("No se pudo actualizar la disponibilidad de reservas.",e);
+   publicAvailabilityWarning='No se pudo verificar la disponibilidad reservada. Las ventas manuales están bloqueadas hasta recuperar la conexión con el servidor.';
+   productos=productos.map(p=>({...p,availabilityVerified:false,availableQuantity:0,availableVariants:[]}));
+   renderProductos();refrescarSelects();renderVentaCatalogo();renderInicio();renderReportes();
+ }
  finally{availabilityRefreshBusy=false}
 }
 
 let cargarPedidosBusy=false;
 async function cargarPedidos(){
-  if(!sb||cargarPedidosBusy)return;
+  if(!sb||cargarPedidosBusy||!adminSessionAuthorized)return;
+  const authEpoch=adminAuthEpoch;
   cargarPedidosBusy=true;
+  renderDashboardPeriod();
   const button=$("refreshOrdersBtn");
   const originalText=button?.textContent||'↻ Actualizar pedidos';
   if(button){button.disabled=true;button.textContent='⏳ Actualizando…'}
   try{
     const {data,error}=await fetchAllTableRows("web_orders","created_at",false);
+    if(authEpoch!==adminAuthEpoch||!adminSessionAuthorized)return;
     if(error){
       console.error("Error cargando pedidos:",error);
       pedidosLoadError=describeAdminTableError('web_orders',error);moduleLoadErrors.orders=pedidosLoadError;
@@ -1642,6 +1997,7 @@ async function cargarPedidos(){
     setOrdersUpdatedAt();
     renderPedidos();
   }catch(fetchError){
+    if(authEpoch!==adminAuthEpoch||!adminSessionAuthorized)return;
     console.error("Error inesperado actualizando pedidos:",fetchError);
     pedidosLoadError=describeAdminTableError('web_orders',fetchError);moduleLoadErrors.orders=pedidosLoadError;
     toast("No se pudieron actualizar los pedidos. Se conserva la lista anterior.");
@@ -1649,6 +2005,7 @@ async function cargarPedidos(){
   }finally{
     cargarPedidosBusy=false;
     if(button){button.disabled=false;button.textContent=originalText}
+    if(authEpoch===adminAuthEpoch)renderDashboardPeriod();
   }
 }
 
@@ -1707,19 +2064,22 @@ function whatsappPedido(phone,name){
 
 async function cambiarEstadoPedido(id,status){
   const select=[...document.querySelectorAll('.orderStatusSelect')].find(el=>String(el.dataset.orderId||'')===String(id));
+  const order=pedidos.find(row=>String(row.id||'')===String(id));
+  const expectedStatus=select?.dataset.currentStatus||(order?pedidoEstado(order):'');
+  if(!expectedStatus){alert('No se pudo verificar el estado actual del pedido. Actualiza la lista e inténtalo de nuevo.');return}
   if(select)select.disabled=true;
   try{
-    const {data,error}=await sb.rpc('admin_update_web_order_status_secure',{p_order_id:id,p_status:status});
+    const {data,error}=await sb.rpc('admin_update_web_order_status_secure_v2',{p_order_id:id,p_expected_status:expectedStatus,p_status:status});
     if(error){
       const message=String(error.message||'');
       const missingRpc=error.code==='PGRST202'||/could not find the function|function .* does not exist|schema cache/i.test(message);
       alert(missingRpc
-        ?'No se cambió el estado. Ejecuta primero variedades_jm_funciones_admin_atomicas_CORREGIDO.sql para mantener estado e inventario sincronizados.'
+        ?'No se cambió el estado. Primero debe instalarse la migración de validación de estados del pedido.'
         :'No se pudo actualizar el pedido de forma segura. No se confirmó ningún cambio: '+message);
       return;
     }
     const result=Array.isArray(data)?data[0]:data;
-    if(!result?.success){alert(result?.message||'No se pudo actualizar el pedido.');renderPedidos();return}
+    if(!result?.success){alert(result?.message||'No se pudo actualizar el pedido.');if(['ORDER_STATUS_CONFLICT','ORDER_STATUS_TRANSITION_INVALID','ORDER_NOT_FOUND'].includes(result?.code))await cargarPedidos();else renderPedidos();return}
     toast(result.message||('Pedido actualizado: '+pedidoEstadoLabel(status)));
     notifyPublicCatalogChanged();void cargarTodo().catch(error=>console.error("No se pudo actualizar el administrador tras cambiar pedido:",error));
   }catch(error){alert('No se pudo actualizar el pedido: '+(error.message||error))}
@@ -1847,7 +2207,7 @@ function renderPedidos(){
         ${status==="pendiente"?`<button type="button" class="primary" data-order-action="confirm" data-order-id="${esc(p.id)}">✅ Confirmar</button>`:""}
         ${status==="pendiente"?`<button type="button" class="dangerbtn" data-order-action="reject" data-order-id="${esc(p.id)}">❌ Rechazar</button>`:""}
         ${p.customer_phone?`<button type="button" class="action" data-order-action="whatsapp" data-phone="${esc(p.customer_phone)}" data-name="${esc(p.customer_name||"")}">💬 WhatsApp</button>`:""}
-        <select class="orderStatusSelect" data-order-id="${esc(p.id)}" aria-label="Cambiar estado del pedido ${esc(String(p.id||'').slice(0,8))}">
+        <select class="orderStatusSelect" data-order-id="${esc(p.id)}" data-current-status="${esc(status)}" aria-label="Cambiar estado del pedido ${esc(String(p.id||'').slice(0,8))}">
           ${allowedStatuses.map(s=>`<option value="${s}" ${s===status?"selected":""}>${pedidoEstadoLabel(s)}</option>`).join("")}
         </select>
       </div>
@@ -2269,14 +2629,17 @@ function parseVariants(v){
  return [];
 }
 function availableQuantity(p){
+ if(p?.availabilityVerified===false)return 0;
  const n=Number(p?.availableQuantity);
  return Number.isFinite(n)?Math.max(0,n):Math.max(0,Number(p?.quantity)||0);
 }
 function availableVariants(p){
+ if(p?.availabilityVerified===false)return [];
  // El RPC público puede devolver variantes calculadas con las reservas activas.
- // Si no devuelve ninguna, usamos el JSON del producto como compatibilidad
- // para productos antiguos o respuestas parciales del RPC.
+ // Una respuesta verificada vacía es autoritativa: no revivir stock físico viejo.
  const live=Array.isArray(p?.availableVariants)?p.availableVariants:[];
+ if(p?.availabilityVerified===true)return live;
+ // Compatibilidad con objetos de sesiones/versiones anteriores sin marcador.
  return live.length?live:parseVariants(p?.variants);
 }
 function saleAvailableQuantity(p){
@@ -2287,6 +2650,8 @@ function saleAvailableQuantity(p){
  return availableQuantity(p);
 }
 function saleProductIsAvailable(p){return saleAvailableQuantity(p)>0}
+function availabilityDisplay(p){return p?.availabilityVerified===false?'No verificada':String(availableQuantity(p))}
+function availabilityBadge(p){return p?.availabilityVerified===false?'<span class="badge">No verificada</span>':stockBadge(availableQuantity(p))}
 function availableVariantStock(p,color,size){
  const variants=availableVariants(p);
  if(!variants.length)return availableQuantity(p);
@@ -2609,7 +2974,7 @@ async function renderProductos(){
  const q=($("buscar").value||"").toLowerCase(),cat=$("filtroCat").value,st=$("filtroStock").value;
  let a=productos.filter(p=>{
    const text=(p.code+" "+p.name+" "+p.category+" "+(p.location||"")).toLowerCase();
-   const stock=availableQuantity(p);return text.includes(q)&&(!cat||p.category===cat)&&(!st||(st==="ok"&&stock>2)||(st==="low"&&stock>0&&stock<=2)||(st==="out"&&stock<=0));
+   const stock=availableQuantity(p),verified=p?.availabilityVerified!==false;return text.includes(q)&&(!cat||p.category===cat)&&(!st||(st==="ok"&&verified&&stock>2)||(st==="low"&&verified&&stock>0&&stock<=2)||(st==="out"&&verified&&stock<=0));
  });
  $("inventoryCount").textContent=`${a.length} producto${a.length===1?"":"s"}`;
  const rows=await Promise.all(a.map(async p=>{
@@ -2619,33 +2984,90 @@ async function renderProductos(){
  $("inventoryCards").innerHTML=rows.length?rows.map(({p,img,margin})=>`
    <div class="card productCard"><img loading="lazy" decoding="async" class="productImg" src="${esc(img)}" onerror="this.style.display='none'" alt="">
    <div class="productBody"><div class="productCode">${esc(p.code)}</div><div class="productName">${esc(p.name)}</div><div class="mini">${esc(p.category)} • ${esc(p.location||"Sin ubicación")}</div>
-   <div style="display:flex;justify-content:space-between;align-items:end;margin-top:11px"><div><div class="price">${money(p.sale_price)}</div><div class="mini">Compra ${money(p.cost_price)}</div></div><div style="text-align:right"><b>${availableQuantity(p)}</b><div class="mini">disponibles</div></div></div>
-   <div style="margin-top:10px">${stockBadge(availableQuantity(p))}</div><div style="margin-top:12px"><button class="action" onclick="openProduct('${p.id}')">👁️ Ver</button><button class="action" onclick="compartirProducto('${p.id}')">📘</button><button class="action" onclick="editarProducto('${p.id}')">✏️</button><button class="action" onclick="borrarProducto('${p.id}')">🗑️</button></div></div></div>`).join(""):'<div class="empty card" style="grid-column:1/-1">No encontramos productos con esos filtros.</div>';
- $("tablaProductos").innerHTML=rows.length?rows.map(({p,img,margin})=>`<tr><td>${img?`<img loading="lazy" decoding="async" class="thumb" src="${esc(img)}" alt="">`:'<div class="noimg">📦</div>'}</td><td><b>${esc(p.code)}</b></td><td><b>${esc(p.name)}</b></td><td>${esc(p.category)}</td><td><b>${availableQuantity(p)}</b><br>${stockBadge(availableQuantity(p))}</td><td>${money(p.cost_price)}</td><td>${money(p.sale_price)}</td><td>${money(margin)}</td><td>${esc(p.location||"-")}</td><td><button class="action" onclick="openProduct('${p.id}')">👁️</button><button class="action" onclick="compartirProducto('${p.id}')">📘</button><button class="action" onclick="editarProducto('${p.id}')">✏️</button><button class="action" onclick="borrarProducto('${p.id}')">🗑️</button></td></tr>`).join(""):'<tr><td colspan="10" class="empty">No hay productos.</td></tr>';
+   <div style="display:flex;justify-content:space-between;align-items:end;margin-top:11px"><div><div class="price">${money(p.sale_price)}</div><div class="mini">Compra ${money(p.cost_price)}</div></div><div style="text-align:right"><b>${availabilityDisplay(p)}</b><div class="mini">${p.availabilityVerified===false?'disponibilidad':'unidades disponibles'}</div></div></div>
+   <div style="margin-top:10px">${availabilityBadge(p)}</div><div style="margin-top:12px"><button class="action" onclick="openProduct('${p.id}')">👁️ Ver</button><button class="action" onclick="compartirProducto('${p.id}')">📘</button><button class="action" onclick="editarProducto('${p.id}')">✏️</button><button class="action" onclick="borrarProducto('${p.id}')">🗑️</button></div></div></div>`).join(""):'<div class="empty card" style="grid-column:1/-1">No encontramos productos con esos filtros.</div>';
+ $("tablaProductos").innerHTML=rows.length?rows.map(({p,img,margin})=>`<tr><td>${img?`<img loading="lazy" decoding="async" class="thumb" src="${esc(img)}" alt="">`:'<div class="noimg">📦</div>'}</td><td><b>${esc(p.code)}</b></td><td><b>${esc(p.name)}</b></td><td>${esc(p.category)}</td><td><b>${availabilityDisplay(p)}</b><br>${availabilityBadge(p)}</td><td>${money(p.cost_price)}</td><td>${money(p.sale_price)}</td><td>${money(margin)}</td><td>${esc(p.location||"-")}</td><td><button class="action" onclick="openProduct('${p.id}')">👁️</button><button class="action" onclick="compartirProducto('${p.id}')">📘</button><button class="action" onclick="editarProducto('${p.id}')">✏️</button><button class="action" onclick="borrarProducto('${p.id}')">🗑️</button></td></tr>`).join(""):'<tr><td colspan="10" class="empty">No hay productos.</td></tr>';
 }
 function setInventoryMode(mode,save=true){inventoryMode=mode;if(save)localStorage.setItem("jm_inventory_mode",mode);$("inventoryCards").classList.toggle("hidden",mode!=="cards");$("inventoryTable").classList.toggle("hidden",mode!=="table");if(productos.length)renderProductos()}
 async function openProduct(id){
  const p=productos.find(x=>x.id===id);if(!p)return;
  $("modalTitle").textContent=p.code+" — "+p.name;$("modalBody").innerHTML='<div class="empty">Cargando…</div>';$("productModal").classList.add("show");
  const img=await getImageUrl(p.image_url),margin=Number(p.sale_price)-Number(p.cost_price);
- $("modalBody").innerHTML=`${img?`<img src="${esc(img)}" style="width:100%;max-height:320px;object-fit:contain;border-radius:15px;background:#f1f2f6">`:''}<div class="kpis" style="margin-top:15px"><div class="kpi">Disponible<b>${availableQuantity(p)}</b></div><div class="kpi">Stock físico<b>${Number(p.quantity)||0}</b></div><div class="kpi">Venta<b>${money(p.sale_price)}</b></div><div class="kpi">Ganancia/unid.<b>${money(margin)}</b></div></div><div style="margin-top:15px" class="grid"><div><b>Categoría</b><br>${esc(p.category)}</div><div><b>Ubicación</b><br>${esc(p.location||"Sin ubicación")}</div><div><b>Precio compra</b><br>${money(p.cost_price)}</div><div><b>Estado disponible</b><br>${stockBadge(availableQuantity(p))}</div></div>${String(p.description||'').trim()?`<div style="margin-top:15px;white-space:pre-line;line-height:1.5"><b>Descripción</b><br>${esc(p.description)}</div>`:''}<div style="margin-top:18px;display:flex;gap:8px;flex-wrap:wrap"><button class="primary" onclick="closeModal();editarProducto('${p.id}')">✏️ Editar</button><button class="softbtn" onclick="compartirProducto('${p.id}')">📘 Compartir en Facebook</button></div>`;
+ $("modalBody").innerHTML=`${img?`<img src="${esc(img)}" style="width:100%;max-height:320px;object-fit:contain;border-radius:15px;background:#f1f2f6">`:''}<div class="kpis" style="margin-top:15px"><div class="kpi">Unidades disponibles<b>${availabilityDisplay(p)}</b></div><div class="kpi">Stock físico<b>${Number(p.quantity)||0}</b></div><div class="kpi">Venta<b>${money(p.sale_price)}</b></div><div class="kpi">Ganancia/unid.<b>${money(margin)}</b></div></div><div style="margin-top:15px" class="grid"><div><b>Categoría</b><br>${esc(p.category)}</div><div><b>Ubicación</b><br>${esc(p.location||"Sin ubicación")}</div><div><b>Precio compra</b><br>${money(p.cost_price)}</div><div><b>Estado disponible</b><br>${availabilityBadge(p)}</div></div>${String(p.description||'').trim()?`<div style="margin-top:15px;white-space:pre-line;line-height:1.5"><b>Descripción</b><br>${esc(p.description)}</div>`:''}<div style="margin-top:18px;display:flex;gap:8px;flex-wrap:wrap"><button class="primary" onclick="closeModal();editarProducto('${p.id}')">✏️ Editar</button><button class="softbtn" onclick="compartirProducto('${p.id}')">📘 Compartir en Facebook</button></div>`;
 }
 function closeModal(){$("productModal").classList.remove("show")}
 
+function summarizeDashboardPeriod(sales,products,period='day',now=new Date()){
+ const toDate=orderDateKeyColombia(now);
+ const start=new Date(toDate+'T12:00:00Z');
+ if(period==='week')start.setUTCDate(start.getUTCDate()-6);
+ const fromDate=Number.isFinite(start.getTime())?start.toISOString().slice(0,10):'';
+ let revenue=0,count=0,invalidSales=0;
+ for(const sale of Array.isArray(sales)?sales:[]){
+  const raw=String(sale?.sale_date||'');
+  const parsed=new Date(raw+'T12:00:00Z');
+  const date=/^\d{4}-\d{2}-\d{2}$/.test(raw)&&Number.isFinite(parsed.getTime())&&parsed.toISOString().slice(0,10)===raw?raw:'';
+  if(!date){invalidSales++;continue;}
+  if(!fromDate||date<fromDate||date>toDate)continue;
+  const qty=Number(sale.quantity),price=Number(sale.sale_price),amount=qty*price;
+  if(sale.quantity==null||sale.sale_price==null||typeof sale.quantity==='boolean'||typeof sale.sale_price==='boolean'||String(sale.quantity).trim()===''||String(sale.sale_price).trim()===''||!Number.isSafeInteger(qty)||qty<=0||!Number.isSafeInteger(price)||price<0||!Number.isSafeInteger(amount)||!Number.isSafeInteger(revenue+amount)){invalidSales++;continue;}
+  revenue+=amount;count++;
+ }
+ let low=0,out=0,unverified=0;
+ for(const product of Array.isArray(products)?products:[]){
+  if(product?.availabilityVerified===false){unverified++;continue;}
+  const quantity=availableQuantity(product);
+  if(quantity===0)out++;else if(quantity<=2)low++;
+ }
+ return {fromDate,toDate,revenue,count,average:count?revenue/count:null,invalidSales,low,out,unverified};
+}
+function renderDashboardPeriod(){
+ if(!$('dashboardSalesStatus'))return;
+ const summary=summarizeDashboardPeriod(ventas,productos,$('dashboardPeriod')?.value||'day');
+ const stamp=date=>date?new Date(date).toLocaleString('es-CO',{timeZone:'America/Bogota'}):'sin lectura válida';
+ const core=dashboardCoreSnapshot;
+ const salesStatus=$('dashboardSalesStatus');
+ const salesKnown=core.loaded&&!core.error&&!core.busy;
+ $('dashboardRevenue').textContent=salesKnown?money(summary.revenue):'—';
+ $('dashboardAverage').textContent=salesKnown&&summary.count?money(summary.average):'—';
+ $('dashboardSaleCount').textContent=salesKnown?String(summary.count):'—';
+ salesStatus.className=core.error?'status err':'status';
+ salesStatus.textContent=core.busy?'Consultando ventas e inventario…':core.error?core.error+' Última lectura válida: '+stamp(core.updatedAt):!core.loaded?'Ventas e inventario todavía no consultados.':`Fuente: sales no archivadas · ${summary.fromDate} a ${summary.toDate} (Colombia) · Lectura: ${stamp(core.updatedAt)}.${summary.count?'':' Sin registros válidos en el periodo.'}${summary.invalidSales?' '+summary.invalidSales+' registro(s) con datos inválidos excluidos; resumen parcial.':''}`;
+ $('dashboardStockCounts').textContent=salesKnown?`${summary.low} / ${summary.out}`:'—';
+ $('dashboardInventoryStatus').textContent=!salesKnown?'Inventario no disponible hasta una lectura válida.':`Fuente: get_public_catalog con reservas; stock bajo: 1–2 unidades, agotado: 0.${summary.unverified?' '+summary.unverified+' producto(s) sin verificar, excluidos.':''}${publicAvailabilityWarning?' '+publicAvailabilityWarning:''}`;
+ const ordersKnown=adminDeferredModuleLoaded.orders&&!pedidosLoadError&&!moduleLoadErrors.orders&&!cargarPedidosBusy;
+ $('dashboardCodPending').textContent=ordersKnown?String(pedidos.filter(p=>pedidoEstado(p)==='pendiente').length):'—';
+ $('dashboardOrdersStatus').className=pedidosLoadError||moduleLoadErrors.orders?'status err':'status';
+ $('dashboardOrdersStatus').textContent=cargarPedidosBusy?'Consultando snapshot COD…':pedidosLoadError||moduleLoadErrors.orders?'No se pudo actualizar COD; la cifra anterior no se considera vigente. Última lectura: '+stamp(dashboardOrdersUpdatedAt):!adminDeferredModuleLoaded.orders?'COD no consultado. Pulsa Consultar para obtener el snapshot.':`Fuente: web_orders, estados comerciales; todos los pedidos cargados, no solo el periodo. Lectura: ${stamp(dashboardOrdersUpdatedAt)}. Paginación visual, no conciliación financiera.`;
+ const wompi=dashboardWompiSnapshot;
+ $('dashboardWompiReview').textContent=wompi.loaded&&!wompi.error&&!wompi.busy?(wompi.count===50?'50 o más':String(wompi.count)):'—';
+ $('dashboardWompiStatus').className=wompi.error?'status err':'status';
+ $('dashboardWompiStatus').textContent=wompi.busy?'Consultando revisiones Wompi…':wompi.error?wompi.error+' Última lectura: '+stamp(wompi.updatedAt):!wompi.loaded?'Conciliación Wompi no consultada. No se interpreta como cero.':`Fuente: sirevya_wompi_inventory_reconciliation, NEEDS_REVIEW; consulta de hasta 50 casos. Lectura: ${stamp(wompi.updatedAt)}. No representa todos los pagos ni resuelve conciliaciones.`;
+}
+async function refreshDashboardOperations(){
+ if(!sb)return;
+ const button=$('refreshDashboardOperationsBtn');if(button?.disabled)return;
+ if(button)button.disabled=true;
+ try{await Promise.all([cargarPedidos(),loadWompiReconciliation(false)]);}
+ finally{if(button)button.disabled=false;renderDashboardPeriod();}
+}
 function renderInicio(){
  const units=productos.reduce((s,p)=>s+(Number(p.quantity)||0),0),sold=ventas.reduce((s,v)=>s+(Number(v.quantity)||0),0),gain=ventas.reduce((s,v)=>s+(Number(v.quantity)||0)*(Number(v.sale_price)-Number(v.cost_price)),0);
  $("nProductos").textContent=productos.length;$("nUnidades").textContent=units;$("nVendidos").textContent=sold;$("nGanancia").textContent=money(gain);
  $("heroProducts").textContent=productos.length;$("heroUnits").textContent=units;$("heroSales").textContent=ventas.length;
- const low=productos.filter(p=>availableQuantity(p)<=2);$("lowCount").textContent=low.length;
- $("stockBajo").innerHTML=low.length?low.slice(0,8).map(p=>`<div class="alert"><div class="rowBetween"><b>${esc(p.code)} — ${esc(p.name)}</b>${stockBadge(availableQuantity(p))}</div><span class="muted">${availableQuantity(p)} disponible(s) • ${esc(p.location||"Sin ubicación")}</span></div>`).join(""):'<div class="empty">✓ Todo el inventario tiene más de 2 unidades.</div>';
+ for(const id of ['availabilityWarningDashboard','availabilityWarningInventory']){const warning=$(id);if(warning){warning.textContent=publicAvailabilityWarning;warning.classList.toggle('hidden',!publicAvailabilityWarning)}}
+ const verifiedProducts=productos.filter(p=>p.availabilityVerified!==false),low=verifiedProducts.filter(p=>availableQuantity(p)<=2);$("lowCount").textContent=low.length;
+ $("stockBajo").innerHTML=publicAvailabilityWarning&&!verifiedProducts.length?'<div class="empty">No se muestran alertas: la disponibilidad no pudo verificarse.</div>':low.length?low.slice(0,8).map(p=>`<div class="alert"><div class="rowBetween"><b>${esc(p.code)} — ${esc(p.name)}</b>${stockBadge(availableQuantity(p))}</div><span class="muted">${availableQuantity(p)} disponible(s) • ${esc(p.location||"Sin ubicación")}</span></div>`).join(""):(productos.length?'<div class="empty">✓ Todo el inventario verificado tiene más de 2 unidades disponibles.</div>':'<div class="empty">No hay productos registrados.</div>');
  $("recentSales").innerHTML=ventas.slice(0,6).map(v=>`<div class="listItem"><div class="rowBetween"><b>${esc(v.product_code)} — ${esc(v.product_name)}</b><b>${money(Number(v.quantity)*Number(v.sale_price))}</b></div><span class="muted">${v.sale_date} • ${v.quantity} unidad(es)</span></div>`).join("")||'<div class="empty">No hay ventas todavía.</div>';
+ renderDashboardPeriod();
 }
 function refrescarSelects(){
  const select=$("vProducto");if(!select)return;
  // Mantener el producto que el usuario ya eligió al actualizar stock/reservas.
  const previous=String(select.value||"");
  const availableProducts=productos.filter(saleProductIsAvailable);
- select.innerHTML=availableProducts.map(p=>`<option value="${esc(String(p.id))}">${esc(p.code)} — ${esc(p.name)} (${saleAvailableQuantity(p)} disponibles)</option>`).join("")||'<option value="">No hay productos con stock disponible</option>';
+ const emptyOption=publicAvailabilityWarning?'No hay productos con disponibilidad verificada':'No hay productos con stock disponible';
+ select.innerHTML=availableProducts.map(p=>`<option value="${esc(String(p.id))}">${esc(p.code)} — ${esc(p.name)} (${saleAvailableQuantity(p)} disponibles)</option>`).join("")||`<option value="">${emptyOption}</option>`;
  if(availableProducts.some(p=>String(p.id)===previous))select.value=previous;
  else select.value=availableProducts.length?String(availableProducts[0].id):"";
  select.onchange=()=>{renderSaleVariantSelector();refreshSalePreview();renderVentaCatalogo()};
@@ -2674,7 +3096,7 @@ function renderSaleVariantSelector(){
 async function compartirProducto(id){
  const p=productos.find(x=>String(x.id)===String(id));
  if(!p)return;
- const text=`Variedades JM 👋\n\n📦 ${p.name}\n🔖 Código: ${p.code}\n🏷️ Categoría: ${p.category||"Producto"}\n💰 Precio: ${money(p.sale_price)}\n${availableQuantity(p)>0?"✅ Disponible":"❌ Agotado"}`;
+ const text=`Variedades JM 👋\n\n📦 ${p.name}\n🔖 Código: ${p.code}\n🏷️ Categoría: ${p.category||"Producto"}\n💰 Precio: ${money(p.sale_price)}\n${p.availabilityVerified===false?"⚠️ Disponibilidad no verificada":availableQuantity(p)>0?"✅ Disponible":"❌ Agotado"}`;
  const publicUrl=new URL("https://sirevya.com.co/");publicUrl.searchParams.set("producto",String(p.id));const url=publicUrl.href;
  try{
    if(navigator.share){
@@ -2705,11 +3127,11 @@ async function renderVentaCatalogo(){
  if(renderToken!==ventaCatalogRenderToken)return;
  const selected=String($("vProducto")?.value||"");
  el.innerHTML=rows.map(({p,img})=>{
-   const stock=saleAvailableQuantity(p),disabled=stock<=0,sel=String(p.id)===selected;
-   return `<button type="button" class="saleProductCard ${disabled?'disabled ':''}${sel?'selected':''}" data-product-id="${esc(String(p.id))}" ${disabled?'disabled':''} aria-pressed="${sel?'true':'false'}" title="${disabled?'Sin stock disponible':'Seleccionar '+esc(p.name)}">
+   const verified=p?.availabilityVerified!==false,stock=saleAvailableQuantity(p),disabled=!verified||stock<=0,sel=String(p.id)===selected;
+   return `<button type="button" class="saleProductCard ${disabled?'disabled ':''}${sel?'selected':''}" data-product-id="${esc(String(p.id))}" ${disabled?'disabled':''} aria-pressed="${sel?'true':'false'}" title="${!verified?'Disponibilidad no verificada':disabled?'Agotado':'Seleccionar '+esc(p.name)}">
      <div class="saleSelected" aria-hidden="true">✓</div>
      ${img?`<img class="saleProductImg" src="${esc(img)}" alt="${esc(p.name)}" loading="lazy" decoding="async">`:'<div class="saleNoImg">📦</div>'}
-     <div class="saleProductBody"><div class="saleProductCode">${esc(p.code)}</div><div class="saleProductName">${esc(p.name)}</div><div class="saleProductPrice">${money(p.sale_price)}</div><div class="saleProductStock">${stock>0?stock+' disponible(s)':'Agotado'}</div></div>
+     <div class="saleProductBody"><div class="saleProductCode">${esc(p.code)}</div><div class="saleProductName">${esc(p.name)}</div><div class="saleProductPrice">${money(p.sale_price)}</div><div class="saleProductStock">${!verified?'Disponibilidad no verificada':stock>0?stock+' disponible(s)':'Agotado'}</div></div>
    </button>`;
  }).join('');
  if(!el.dataset.saleClickBound){
@@ -2752,6 +3174,7 @@ function seleccionarProductoVenta(id){
 function refreshSalePreview(){
  const p=productos.find(x=>String(x.id)===String($("vProducto")?.value||"")),q=Number($("vCantidad").value)||0;
  if(!p){$("salePreview").innerHTML='<div class="kpi">Selecciona un producto<b>—</b></div>';return}
+ if(p.availabilityVerified===false){$("salePreview").innerHTML='<div class="kpi">Disponibilidad<b>No verificada</b></div><div class="muted">No se puede registrar una venta hasta verificar stock y reservas.</div>';return}
  const total=q*Number(p.sale_price),gain=q*(Number(p.sale_price)-Number(p.cost_price));
  const variants=availableVariants(p);
  const selected=variants.length?variants.find(v=>variantKey(v.color,v.size)===String($("vVariant")?.value||"")):null;
@@ -2762,6 +3185,7 @@ function refreshSalePreview(){
 async function registrarVenta(){
  const pid=$("vProducto").value,q=Number($("vCantidad").value)||0,p=productos.find(x=>String(x.id)===String(pid));
  if(!p||q<1)return alert("Selecciona un producto y una cantidad válida.");
+ if(!saleProductIsAvailable(p))return alert(p.availabilityVerified===false?"No se puede registrar la venta: disponibilidad no verificada.":"No hay stock disponible.");
  let color="",size="";
  const variants=parseVariants(p.variants);
  if(variants.length){
@@ -2945,6 +3369,38 @@ async function borrarTodo(){
   return false;
 }
 
+function clearProductCsvPreview(clearFile=true){
+ productCsvPreviewToken++;
+ if(clearFile&&$('productCsvPreviewFile'))$('productCsvPreviewFile').value='';
+ for(const id of ['productCsvPreviewErrors','productCsvPreviewRows']){const host=$(id);if(host)host.replaceChildren();}
+ const status=$('productCsvPreviewStatus');if(status){status.className='status';status.textContent='No se ha leído ningún archivo. La importación real no está habilitada.';}
+ const button=$('productCsvPreviewBtn');if(button)button.disabled=false;
+}
+async function loadProductCsvPreviewModule(){return import('./scripts/fase7_csv_preview.mjs');}
+async function previewProductCsvFile(){
+ if(!adminSessionAuthorized)return;
+ const file=$('productCsvPreviewFile')?.files?.[0],status=$('productCsvPreviewStatus'),button=$('productCsvPreviewBtn');
+ if(!status||button?.disabled)return;
+ clearProductCsvPreview(false);
+ if(!file){status.textContent='Selecciona un archivo CSV UTF-8.';return;}
+ if(file.size>1048576){status.className='status err';status.textContent='El archivo supera el límite de 1 MiB. No se leyó ni se subió.';return;}
+ if(!dashboardCoreSnapshot.loaded||dashboardCoreSnapshot.error||dashboardCoreSnapshot.busy){status.className='status err';status.textContent='Primero se necesita un inventario cargado sin errores para detectar códigos existentes.';return;}
+ const token=productCsvPreviewToken,authEpoch=adminAuthEpoch;
+ if(button)button.disabled=true;status.textContent='Validando el archivo localmente…';
+ try{
+  const [module,bytes]=await Promise.all([loadProductCsvPreviewModule(),file.arrayBuffer()]);
+  if(token!==productCsvPreviewToken||authEpoch!==adminAuthEpoch||!adminSessionAuthorized)return;
+  const result=module.previewProductsCsv(bytes,{existingCodes:productos.map(p=>p.code),maxBytes:1048576,maxRows:500});
+  if(result.canCommit!==false||result.writePerformed!==false)throw new Error('Contrato de previsualización inválido.');
+  status.className=result.errors.length?'status err':'status ok';
+  status.textContent=`${result.rows.length} fila(s) válida(s), ${result.errors.length} error(es). No se subió ni se importó ningún producto. Comparación de códigos con el snapshot local; no garantiza ausencia de cambios concurrentes.`;
+  $('productCsvPreviewErrors').innerHTML=result.errors.slice(0,20).map(error=>`<div class="status err">Fila ${Number(error.row)||0}: ${esc(error.message)}</div>`).join('')+(result.errors.length>20?'<p class="muted">Solo se muestran los primeros 20 errores.</p>':'');
+  $('productCsvPreviewRows').innerHTML=result.rows.length?'<table><thead><tr><th>Fila</th><th>Código</th><th>Nombre</th><th>Categoría</th><th>Compra COP</th><th>Venta COP</th><th>Stock físico</th></tr></thead><tbody>'+result.rows.slice(0,50).map(row=>`<tr><td>${Number(row.row)}</td><td>${esc(row.code)}</td><td>${esc(row.name)}</td><td>${esc(row.category)}</td><td>${money(row.cost)}</td><td>${money(row.sale_price)}</td><td>${Number(row.quantity)}</td></tr>`).join('')+'</tbody></table>'+(result.rows.length>50?'<p class="muted">Solo se muestran las primeras 50 filas válidas.</p>':''):'';
+ }catch(error){
+  if(token!==productCsvPreviewToken||authEpoch!==adminAuthEpoch)return;
+  status.className='status err';status.textContent='No se pudo leer o validar el archivo local. No se importaron datos.';
+ }finally{if(token===productCsvPreviewToken&&button)button.disabled=false;}
+}
 async function fetchAllRowsForBackup(table){
  const rows=[];
  const pageSize=1000;
