@@ -596,14 +596,15 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
           <div class="box"><h3>🎨 Apariencia</h3><button class="softbtn" onclick="toggleCompact()">Cambiar modo compacto</button><p class="muted" style="font-size:12px">La preferencia queda guardada en este dispositivo.</p></div>
           <div class="box"><h3>💾 Copia de respaldo</h3><p class="muted">Descarga una copia de las tablas disponibles y sus referencias a imágenes. Las fotos binarias de R2 no se incluyen; para borrar productos en lote, conserva además una copia de las fotografías necesarias.</p><button class="primary" onclick="exportBackup(event)">⬇️ Descargar respaldo JSON</button><button class="softbtn" style="margin-left:6px" onclick="exportCSV()">📄 Exportar inventario CSV</button></div>
           <div class="box"><h3>🔐 Sesión</h3><p class="muted">Cuenta actualmente conectada:</p><b id="accountEmail">—</b><div style="margin-top:12px"><button class="dangerbtn" onclick="logout()">Cerrar sesión</button></div></div>
-          <div class="box" style="grid-column:1/-1;border-color:#ffd2d5"><h3>🧹 Limpiar datos de prueba</h3>
-            <p class="muted">Si hiciste ventas de prueba, puedes eliminar <b>solo el historial de ventas</b>. Tus productos, cantidades, fotos y clientes no se borrarán.</p>
-            <button class="dangerbtn" onclick="limpiarVentas()">🗑️ Borrar historial de ventas</button>
-            <p class="muted" style="font-size:11px;margin-bottom:0">Los reportes de ingresos, costos y ganancias quedarán en $0 porque se calculan a partir de las ventas. Antes de continuar debes reconocer que tienes un respaldo reciente descargado.</p>
+          <div class="box" style="grid-column:1/-1;border-color:#e7d8b0"><h3>🗄️ Archivo seguro de ventas</h3>
+            <p class="muted">Las ventas de prueba ya no se borran. Se marcan como archivadas, dejan de aparecer en los reportes y pueden restaurarse desde este panel.</p>
+            <button class="softbtn" onclick="limpiarVentas()">🗄️ Archivar ventas activas</button>
+            <button class="softbtn" style="margin-left:6px" onclick="restaurarUltimoArchivoVentas()">↩️ Restaurar último archivo</button>
+            <p class="muted" style="font-size:11px;margin-bottom:0">El archivado es reversible y no modifica productos, stock, fotos, clientes ni pedidos web.</p>
           </div>
-          <div class="box" style="grid-column:1/-1;border-color:#ffd2d5"><h3>🧹 Borrar productos, ventas y clientes</h3>
-            <p class="muted">Elimina únicamente productos, ventas y clientes de esta cuenta. No elimina pedidos web, proveedores, gastos, movimientos ni categorías. <b>Esta acción no se puede deshacer.</b> Descarga antes un respaldo JSON; las imágenes binarias de R2 requieren respaldo separado.</p>
-            <button class="dangerbtn" onclick="borrarTodo()">⚠️ Eliminar productos, ventas y clientes</button>
+          <div class="box" style="grid-column:1/-1;border-color:#ffd2d5"><h3>🔒 Reinicio total deshabilitado</h3>
+            <p class="muted">El borrado masivo de productos, ventas y clientes está deshabilitado mientras se implementa un archivado reversible por tipo de dato. Así se evita una pérdida irreversible por error.</p>
+            <button class="dangerbtn" type="button" disabled title="Operación deshabilitada para proteger los datos">🔒 Borrado masivo deshabilitado</button>
           </div>
         </div>
       </section>
@@ -1101,6 +1102,7 @@ async function fetchTablePage(table,from,pageSize,orderColumn,ascending){
     ? 'id,customer_name,customer_phone,customer_email,customer_city,customer_address,customer_neighborhood,note,payment_method,subtotal,shipping,total,items,status,created_at,client_reference,inventory_reference,inventory_state,discount_total'
     : '*';
    let query=sb.from(table).select(selectColumns);
+   if(table==='sales')query=query.is('archived_at',null);
    if(plan.primary)query=query.order(plan.primary,{ascending});
    if(plan.secondary)query=query.order(plan.secondary,{ascending:true});
    query=query.range(from,from+pageSize-1);
@@ -2468,34 +2470,30 @@ function renderReportes(){
 }
 
 async function limpiarVentas(){
-  if(!ventas.length){toast("No hay ventas para borrar");return}
-  const ok=confirm("⚠️ BORRAR HISTORIAL DE VENTAS\n\nSe eliminarán todas las ventas y los reportes de ingresos, costos y ganancias quedarán en $0.\n\nNO se borrarán productos, stock, fotos ni clientes.\n\n¿Quieres continuar?");
+  if(!ventas.length){toast("No hay ventas activas para archivar");return}
+  const ok=confirm("ARCHIVAR VENTAS\n\nLas ventas activas dejarán de aparecer en los reportes, pero no se borrarán.\n\nPodrás restaurar el último archivo desde este panel.\n\n¿Quieres continuar?");
   if(!ok)return;
-  if(!requireBackupAcknowledgement('borrar el historial de ventas'))return;
-  const {error}=await sb.from("sales").delete().neq("id","00000000-0000-0000-0000-000000000000");
-  if(error){alert("No se pudo borrar el historial: "+error.message);return}
-  toast("Historial de ventas borrado");
+  if(!requireBackupAcknowledgement('archivar las ventas'))return;
+  const {data,error}=await sb.rpc('admin_archive_sales',{p_confirmation:'ARCHIVAR VENTAS'});
+  if(error){alert("No se pudo archivar el historial: "+error.message);return}
+  const result=Array.isArray(data)?data[0]:data;
+  if(!result?.success){alert(result?.message||"No se archivaron las ventas.");return}
+  toast(result.message||"Ventas archivadas");
+  await cargarTodo();
+}
+async function restaurarUltimoArchivoVentas(){
+  const ok=confirm("RESTAURAR ÚLTIMO ARCHIVO\n\nLas ventas del último archivo volverán a aparecer en los reportes.\n\n¿Quieres continuar?");
+  if(!ok)return;
+  const {data,error}=await sb.rpc('admin_restore_latest_sales_archive');
+  if(error){alert("No se pudo restaurar el archivo: "+error.message);return}
+  const result=Array.isArray(data)?data[0]:data;
+  if(!result?.success){alert(result?.message||"No se restauró ningún archivo.");return}
+  toast(result.message||"Archivo restaurado");
   await cargarTodo();
 }
 async function borrarTodo(){
-  const ok=confirm("⚠️ REINICIO DE ESTA CUENTA\n\nSe eliminarán productos, ventas, clientes y movimientos de inventario asociados. También se eliminarán las recomendaciones combinadas vinculadas a los productos borrados. Se conservarán los pedidos web, gastos, proveedores y categorías. Las imágenes guardadas en Cloudflare R2 no se borran desde Supabase y pueden quedar sin referencia.\n\nDescarga el respaldo JSON y verifica que contenga configuraciones.combinaciones_productos. Esta acción no se puede deshacer. ¿Quieres continuar?");
-  if(!ok)return false;
-  if(!requireBackupAcknowledgement('reiniciar los datos del negocio'))return false;
-  const phrase=prompt('Para confirmar, escribe exactamente: BORRAR TODO');
-  if(phrase!=="BORRAR TODO"){toast("Cancelado. No se borró ningún dato.");return false}
-  let result;
-  try{result=await sb.rpc('admin_reset_business_data',{p_confirmation:phrase})}catch(error){result={error}}
-  if(result?.error){
-    const message=String(result.error.message||'');
-    const missingRpc=result.error.code==='PGRST202'||/could not find the function|function .* does not exist|schema cache/i.test(message);
-    alert(missingRpc?'No se borró ningún dato. Primero ejecuta variedades_jm_funciones_admin_atomicas_CORREGIDO.sql en Supabase para habilitar el reinicio transaccional.':'No se pudo reiniciar la cuenta. La operación se revirtió sin completar cambios: '+message);
-    return false;
-  }
-  const data=Array.isArray(result.data)?result.data[0]:result.data;
-  if(!data?.success){alert(data?.message||'No se pudo reiniciar la cuenta.');return false}
-  toast(data.message||'Reinicio completado');
-  await cargarTodo();
-  return true;
+  alert('El reinicio total está deshabilitado para proteger los datos. Usa el archivado reversible por módulo.');
+  return false;
 }
 
 async function fetchAllRowsForBackup(table){
