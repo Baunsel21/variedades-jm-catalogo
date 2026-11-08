@@ -3,6 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#e7193f">
+<link rel="manifest" href="/manifest.webmanifest">
 <link rel="preconnect" href="https://hnlbbtnfmbnbkcgegufa.supabase.co" crossorigin>
 <link rel="dns-prefetch" href="//hnlbbtnfmbnbkcgegufa.supabase.co">
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
@@ -5470,6 +5472,9 @@ function startPublicCatalogRealtime(){
  }catch(error){publicCatalogRealtimeChannel=null;console.debug('Realtime no disponible; se conserva el refresco de respaldo.',error)}
 }
 startPublicCatalogRealtime();
-
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js', { scope: '/' })
+    .catch(error => console.warn('[PWA] No se pudo activar el shell sin conexión.', error));
+}
 </script>
 </body></html>

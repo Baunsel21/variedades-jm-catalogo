@@ -125,7 +125,8 @@ export const PREVIEW_CLIENT_SCRIPT = String.raw`(()=>{
  window.fetch=async(input,init)=>{
   const raw=typeof input==='string'?input:(input&&input.url)||String(input);
   let url;try{url=new URL(raw,window.location.href)}catch{return new Response(JSON.stringify({error:'preview bloqueado'}),{status:403,headers:{'Content-Type':'application/json'}})}
-  const allowedAsset=url.origin===window.location.origin&&url.pathname.startsWith('/__preview_assets/');
+  const method=String((init&&init.method)||(input&&input.method)||'GET').toUpperCase();
+  const allowedAsset=url.origin===window.location.origin&&url.pathname.startsWith('/__preview_assets/')&&['GET','HEAD'].includes(method);
   if(url.origin!==window.location.origin||url.pathname.startsWith('/__preview_api')||!allowedAsset){
    return new Response(JSON.stringify({error:'Operación de red bloqueada en preview seguro.'}),{status:403,headers:{'Content-Type':'application/json','Cache-Control':'no-store'}})
   }
@@ -266,12 +267,14 @@ function scrubExternalMarkup(html, mode = 'storefront') {
   const allowedAdminModule = '<script type="module" src="./scripts/admin_csv_preview.mjs"></script>';
   const allowedAdminModuleOpenTag = '<script type="module" src="./scripts/admin_csv_preview.mjs">';
   const retainAllowedAdminModule = tag => mode === 'admin' && tag.trim() === allowedAdminModule;
+  const allowedStorefrontManifest = '<link rel="manifest" href="/manifest.webmanifest">';
   html = html.replace(/<script\b(?=[^>]*\bsrc\s*=)[^>]*>[\s\S]*?<\/script\s*>/gi, tag => retainAllowedAdminModule(tag) ? tag : '');
-  html = html.replace(/<script\b(?=[^>]*\bsrc\s*=)[^>]*\/?>/gi, tag => mode === 'admin' && tag.trim() === allowedAdminModuleOpenTag ? tag : '');
+  html = html.replace(/<script\b(?=[^>]*\bsrc\s*=)[^>]*\/>/gi, tag => mode === 'admin' && tag.trim() === allowedAdminModuleOpenTag ? tag : '');
   html = html.replace(/<link\b[^>]*>/gi, tag => {
     if (/\bid\s*=\s*(?:"appFavicon"|'appFavicon'|appFavicon)(?:\s|\/?>)/i.test(tag)) {
       return '<link id="appFavicon" rel="icon" href="/__preview_assets/blocked.svg">';
     }
+    if (mode === 'storefront' && tag.trim() === allowedStorefrontManifest) return allowedStorefrontManifest;
     return '';
   });
   html = html.replace(/<meta\b[^>]*http-equiv\s*=\s*(?:"refresh"|'refresh'|refresh)[^>]*>/gi, '');
@@ -393,8 +396,9 @@ export async function renderPreviewHtml({ root = ROOT, version = getVersion(root
     .some(match => mode !== 'admin' || match[0].trim() !== allowedAdminModuleOpenTag);
   if (unapprovedScriptSrc) throw new Error('Quedó un script con src no autorizado; transformación rechazada.');
   for (const [pattern, label] of unsafe) if (pattern.test(html)) throw new Error(`Quedó ${label}; transformación rechazada.`);
-  const links = [...html.matchAll(/<link\b[^>]*>/gi)].map(match => match[0]);
-  if (links.some(tag => !/^<link id="appFavicon" rel="icon" href="\/__preview_assets\/blocked\.svg">$/i.test(tag))) {
+  const links = [...html.matchAll(/<link\b[^>]*>/gi)].map(match => match[0].trim());
+  if (links.some(tag => !/^<link id="appFavicon" rel="icon" href="\/__preview_assets\/blocked\.svg">$/i.test(tag)
+    && !(mode === 'storefront' && /^<link rel="manifest" href="\/manifest\.webmanifest">$/i.test(tag)))) {
     throw new Error('Quedó un link distinto al favicon local; transformación rechazada.');
   }
   if (/https?:\/\//i.test(withoutXmlNamespaces) || /(^|[\s=(,:;{"'`])\/\/[a-z0-9][a-z0-9.-]*\.[a-z]{2,}/im.test(withoutXmlNamespaces)) {
@@ -416,6 +420,13 @@ function send(res, status, contentType, body, headOnly = false) {
 }
 
 const placeholderSvg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600"><defs><linearGradient id="g" x2="1" y2="1"><stop stop-color="#35101b"/><stop offset="1" stop-color="#161214"/></linearGradient></defs><rect width="800" height="600" fill="url(#g)"/><circle cx="400" cy="240" r="110" fill="none" stroke="#dca45f" stroke-width="8"/><text x="400" y="250" text-anchor="middle" fill="#fff" font-family="Arial,sans-serif" font-size="38" font-weight="700">PREVIEW</text><text x="400" y="430" text-anchor="middle" fill="#e8cda4" font-family="Arial,sans-serif" font-size="22">imagen sintética</text></svg>';
+const PREVIEW_PWA_FILES = new Map([
+  ['/manifest.webmanifest', ['manifest.webmanifest', 'application/manifest+json; charset=utf-8']],
+  ['/sw.js', ['sw.js', 'text/javascript; charset=utf-8']],
+  ['/offline.html', ['offline.html', 'text/html; charset=utf-8']],
+  ['/assets/pwa/icon-192.png', ['assets/pwa/icon-192.png', 'image/png']],
+  ['/assets/pwa/icon-512.png', ['assets/pwa/icon-512.png', 'image/png']],
+]);
 
 export function createPreviewServer({ root = ROOT, versionProvider = () => getVersion(root) } = {}) {
   return createServer(async (req, res) => {
@@ -431,6 +442,23 @@ export function createPreviewServer({ root = ROOT, versionProvider = () => getVe
     if (url.pathname === '/__preview_api' || url.pathname.startsWith('/__preview_api/')) {
       console.warn(`[preview] blocked backend route ${url.pathname}`);
       return send(res, 403, 'application/json; charset=utf-8', JSON.stringify({ error: 'Backend Supabase/Wompi real bloqueado en preview.' }), headOnly);
+    }
+    if (PREVIEW_PWA_FILES.has(url.pathname)) {
+      const [fileName, contentType] = PREVIEW_PWA_FILES.get(url.pathname);
+      try {
+        let body = await readFile(path.join(root, fileName));
+        if (url.pathname === '/manifest.webmanifest') {
+          const manifest = JSON.parse(body.toString('utf8'));
+          manifest.id = '/storefront';
+          manifest.name = 'Sirevya — Preview';
+          manifest.short_name = 'JM Preview';
+          manifest.start_url = '/storefront';
+          body = JSON.stringify(manifest);
+        }
+        return send(res, 200, contentType, body, headOnly);
+      } catch {
+        return send(res, 404, 'text/plain; charset=utf-8', 'PWA preview asset unavailable', headOnly);
+      }
     }
     if (url.pathname === '/scripts/fase7_csv_preview.mjs' || url.pathname === '/scripts/admin_csv_preview.mjs') {
       const fileName = url.pathname === '/scripts/fase7_csv_preview.mjs' ? 'fase7_csv_preview.mjs' : 'admin_csv_preview.mjs';

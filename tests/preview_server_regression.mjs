@@ -195,8 +195,11 @@ assert.equal((await adminClient.auth.updateUser({ password: 'not-a-real-password
 assert.equal((await adminClient.functions.invoke('wompi-create-checkout', { body: {} })).error.code, 'PREVIEW_BLOCKED');
 assert.equal((await adminWindow.fetch('https://example.com/external')).status, 403);
 assert.equal((await adminWindow.fetch('/__preview_assets/demo.svg', { method: 'GET' })).status, 200);
-assert.equal((await adminWindow.fetch('/__preview_assets/demo.svg', { method: 'PUT' })).status, 403);
-assert.equal(adminNativeFetchCalls, 1, 'Solo GET local a assets sintéticos delega al servidor.');
+assert.equal((await adminWindow.fetch('/__preview_assets/demo.svg', { method: 'HEAD' })).status, 200);
+for (const method of ['POST', 'PUT', 'PATCH', 'DELETE']) {
+  assert.equal((await adminWindow.fetch('/__preview_assets/demo.svg', { method })).status, 403, `${method} se bloquea en admin-preview.`);
+}
+assert.equal(adminNativeFetchCalls, 2, 'Solo GET/HEAD local a assets sintéticos delega al servidor.');
 assert.equal(adminWindow.navigator.sendBeacon('https://example.com/track', '{}'), false);
 assert.throws(() => new adminWindow.XMLHttpRequest(), /deshabilitada/);
 assert.throws(() => new adminWindow.WebSocket(), /deshabilitada/);
@@ -210,7 +213,12 @@ const localBackend = await window.fetch('/__preview_api/functions/v1/wompi-creat
 assert.equal(localBackend.status, 403);
 const localAsset = await window.fetch('/__preview_assets/demo.svg');
 assert.equal(localAsset.status, 200);
-assert.equal(nativeFetchCalls, 1, 'Solo se delega al servidor local el asset sintético permitido.');
+const localAssetHead = await window.fetch('/__preview_assets/demo.svg', { method: 'HEAD' });
+assert.equal(localAssetHead.status, 200);
+for (const method of ['POST', 'PUT', 'PATCH', 'DELETE']) {
+  assert.equal((await window.fetch('/__preview_assets/demo.svg', { method })).status, 403, `${method} se bloquea antes de nativeFetch en storefront.`);
+}
+assert.equal(nativeFetchCalls, 2, 'Solo GET/HEAD delegan al servidor local el asset sintético permitido.');
 assert.equal(window.navigator.sendBeacon('https://example.com/telemetry', '{}'), false);
 assert.throws(() => new window.XMLHttpRequest(), /deshabilitada/);
 assert.throws(() => new window.WebSocket(), /deshabilitada/);
@@ -262,6 +270,36 @@ try {
   const storefrontHtml = await storefrontResponse.text();
   assert.match(storefrontHtml, /PREVIEW DE DESARROLLO/);
   assert.doesNotMatch(storefrontHtml, /admin_csv_preview\.mjs/);
+  assert.match(storefrontHtml, /<link rel="manifest" href="\/manifest\.webmanifest">/);
+  assert.match(storefrontHtml, /navigator\.serviceWorker\.register\('\/sw\.js'/);
+  const previewManifestResponse = await fetch(actualBase + '/manifest.webmanifest');
+  assert.equal(previewManifestResponse.status, 200);
+  assert.match(previewManifestResponse.headers.get('content-type'), /application\/manifest\+json/);
+  const previewManifest = await previewManifestResponse.json();
+  assert.equal(previewManifest.start_url, '/storefront');
+  assert.equal(previewManifest.name, 'Sirevya — Preview');
+  assert.deepEqual(previewManifest.icons.map(icon => icon.src), ['/assets/pwa/icon-192.png', '/assets/pwa/icon-512.png']);
+  const workerResponse = await fetch(actualBase + '/sw.js');
+  assert.equal(workerResponse.status, 200);
+  const previewWorker = await workerResponse.text();
+  assert.match(previewWorker, /sirevya-shell-v1/);
+  assert.doesNotMatch(previewWorker, /caches\.put\s*\(/);
+  const workerHead = await fetch(actualBase + '/sw.js', { method: 'HEAD' });
+  assert.equal(workerHead.status, 200);
+  assert.equal(await workerHead.text(), '');
+  const offlineResponse = await fetch(actualBase + '/offline.html');
+  assert.equal(offlineResponse.status, 200);
+  const offlineText = await offlineResponse.text();
+  assert.match(offlineText, /No mostramos inventario, precios ni tarifas guardados como si fueran actuales/);
+  for (const [path, size] of [['/assets/pwa/icon-192.png', 192], ['/assets/pwa/icon-512.png', 512]]) {
+    const iconResponse = await fetch(actualBase + path);
+    assert.equal(iconResponse.status, 200);
+    assert.match(iconResponse.headers.get('content-type'), /image\/png/);
+    const icon = Buffer.from(await iconResponse.arrayBuffer());
+    assert.equal(icon.readUInt32BE(16), size);
+    assert.equal(icon.readUInt32BE(20), size);
+  }
+  assert.equal((await fetch(actualBase + '/assets/pwa/icon-999.png')).status, 404);
   const adminResponse = await fetch(actualBase + '/admin-preview');
   assert.equal(adminResponse.status, 200);
   assert.match(await adminResponse.text(), /ADMIN DE PREVIEW/);
