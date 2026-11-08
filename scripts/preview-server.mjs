@@ -265,7 +265,12 @@ function rewriteUrlAttribute(tag, name, replacement) {
 function scrubExternalMarkup(html) {
   html = html.replace(/<script\b(?=[^>]*\bsrc\s*=)[^>]*>[\s\S]*?<\/script\s*>/gi, '');
   html = html.replace(/<script\b(?=[^>]*\bsrc\s*=)[^>]*\/?>/gi, '');
-  html = html.replace(/<link\b(?=[^>]*\bhref\s*=)[^>]*>/gi, '');
+  html = html.replace(/<link\b[^>]*>/gi, tag => {
+    if (/\bid\s*=\s*(?:"appFavicon"|'appFavicon'|appFavicon)(?:\s|\/?>)/i.test(tag)) {
+      return '<link id="appFavicon" rel="icon" href="/__preview_assets/blocked.svg">';
+    }
+    return '';
+  });
   html = html.replace(/<meta\b[^>]*http-equiv\s*=\s*(?:"refresh"|'refresh'|refresh)[^>]*>/gi, '');
   html = html.replace(/<base\b[^>]*>/gi, '');
   html = html.replace(/<(?:iframe|object)\b[^>]*>[\s\S]*?<\/(?:iframe|object)\s*>/gi, '');
@@ -302,6 +307,13 @@ export async function renderPreviewHtml({ root = ROOT, version = getVersion(root
   if (mode === 'admin') {
     html = html.replace(/w\.document\.write\(`[^`]*`\);w\.document\.close\(\);/g, "console.info('Impresión de recibos deshabilitada en preview seguro.');");
     if (/\bw\.document\.write\(/.test(html)) throw new Error('Quedó un recibo emergente en admin-preview; transformación rechazada.');
+    html = replaceAssignment(html, 'brandName', '"Variedades JM"');
+    html = replaceAssignment(html, 'brandIcon', '""');
+    html = replaceAssignment(html, 'brandIconPath', '""');
+    const imageFunctionPattern = /function\s+publicWorkerImage\(value\)\s*\{[\s\S]*?\n\}/g;
+    if ([...html.matchAll(imageFunctionPattern)].length !== 1) throw new Error('No se encontró el resolver de imágenes del admin; transformación rechazada.');
+    const safeImageFunction = 'function publicWorkerImage(value){const key=imageObjectKey(value);if(!key||/^(?:https?:\\/\\/|\\/\\/|data:|blob:)/i.test(key))return "";return IMAGE_WORKER_URL+"/"+key.split("/").map(part=>encodeURIComponent(part)).join("/");}';
+    html = html.replace(imageFunctionPattern, safeImageFunction);
   }
   html = scrubExternalMarkup(html);
   html = replaceAssignment(html, 'SUPABASE_URL', 'window.location.origin+"/__preview_api"');
@@ -370,12 +382,15 @@ export async function renderPreviewHtml({ root = ROOT, version = getVersion(root
     [/\b[a-z0-9-]+\.supabase\.co\b/i, 'host Supabase'],
     [/\b(?:sb_(?:publishable|secret)_[A-Za-z0-9_-]{8,}|pub_(?:test|prod)_[A-Za-z0-9_-]{8,})\b/i, 'clave de proveedor'],
     [/<script\b[^>]*\bsrc\s*=/i, 'script con src'],
-    [/<link\b[^>]*\bhref\s*=/i, 'recurso link'],
     [/<(?:a|area)\b[^>]*\b(?:href|xlink:href)\s*=\s*(["'])(?:[a-z][a-z0-9+.-]*:|\/\/)/i, 'enlace externo'],
     [/<form\b[^>]*\baction\s*=\s*(["'])(?:[a-z][a-z0-9+.-]*:|\/\/)/i, 'action externa'],
     [/<(?:button|input)\b[^>]*\bformaction\s*=\s*(["'])(?:[a-z][a-z0-9+.-]*:|\/\/)/i, 'formaction externo'],
   ];
   for (const [pattern, label] of unsafe) if (pattern.test(html)) throw new Error(`Quedó ${label}; transformación rechazada.`);
+  const links = [...html.matchAll(/<link\b[^>]*>/gi)].map(match => match[0]);
+  if (links.some(tag => !/^<link id="appFavicon" rel="icon" href="\/__preview_assets\/blocked\.svg">$/i.test(tag))) {
+    throw new Error('Quedó un link distinto al favicon local; transformación rechazada.');
+  }
   if (/https?:\/\//i.test(withoutXmlNamespaces) || /(^|[\s=(,:;{"'`])\/\/[a-z0-9][a-z0-9.-]*\.[a-z]{2,}/im.test(withoutXmlNamespaces)) {
     throw new Error('Quedó una URL externa literal; transformación rechazada.');
   }

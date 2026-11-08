@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { once } from 'node:events';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { createPreviewServer, DEMO_ADMIN_ROWS, DEMO_PRODUCTS, PREVIEW_ADMIN_CLIENT_SCRIPT, PREVIEW_ADMIN_USER, PREVIEW_CLIENT_SCRIPT, renderPreviewHtml } from '../scripts/preview-server.mjs';
@@ -29,6 +29,10 @@ assert.match(adminHtml, /identidad, productos, ventas, stock y pedidos son sint√
 assert.match(adminHtml, /supabase\.createClient\(/);
 assert.match(adminHtml, /admin-preview@example\.invalid/);
 assert.match(adminHtml, /PREVIEW_DISABLED/);
+assert.match(adminHtml, /<link id="appFavicon" rel="icon" href="\/__preview_assets\/blocked\.svg">/);
+assert.match(adminHtml, /let brandName="Variedades JM";/);
+assert.match(adminHtml, /let brandIcon="";/);
+assert.match(adminHtml, /let brandIconPath="";/);
 assert.doesNotMatch(adminHtml, /\b[a-z0-9-]+\.supabase\.co\b/i);
 assert.doesNotMatch(adminHtml, /\b(?:sb_(?:publishable|secret)_[A-Za-z0-9_-]{8,}|pub_(?:test|prod)_[A-Za-z0-9_-]{8,})\b/i);
 assert.doesNotMatch(adminHtml, /<script\b[^>]*\bsrc\s*=/i);
@@ -36,6 +40,17 @@ assert.equal((adminHtml.match(/<head\b/gi)||[]).length, 1, 'El recibo emergente 
 assert.equal((adminHtml.match(/<body\b/gi)||[]).length, 1);
 assert.match(adminHtml, /data-sirevya-preview="safe-client"/);
 assert.equal(adminHtml.indexOf('<script data-sirevya-preview="safe-client">'), adminHtml.search(/<script\b/i), 'El shim admin se carga antes de cualquier script del panel.');
+const safeImageFunction = adminHtml.match(/function publicWorkerImage\(value\)\{[^\n]*\}/)?.[0];
+assert.ok(safeImageFunction, 'El preview conserva el resolver de imagen fail-closed.');
+const imageContext = { imageObjectKey: value => value, IMAGE_WORKER_URL: 'https://preview.invalid/__preview_assets', encodeURIComponent };
+vm.runInNewContext(`${safeImageFunction};globalThis.previewImage=publicWorkerImage;`, imageContext);
+assert.equal(imageContext.previewImage('https://evil.example/image.png'), '');
+assert.equal(imageContext.previewImage('data:image/png;base64,AAAA'), '');
+assert.equal(imageContext.previewImage('images/demo.png'), 'https://preview.invalid/__preview_assets/images/demo.png');
+const rawAdminHtml = await readFile(new URL('../admin.html', import.meta.url), 'utf8');
+const hostileFaviconHtml = await renderPreviewHtml({ mode: 'admin', sourceHtml: rawAdminHtml.replace('href=""', 'href="https://evil.example/favicon.ico"') });
+assert.match(hostileFaviconHtml, /<link id="appFavicon" rel="icon" href="\/__preview_assets\/blocked\.svg">/);
+assert.doesNotMatch(hostileFaviconHtml, /evil\.example|https?:\/\//i);
 assert.equal(DEMO_ADMIN_ROWS.products.length, DEMO_PRODUCTS.length);
 assert.equal(PREVIEW_ADMIN_USER.id, 'preview-admin-user');
 
