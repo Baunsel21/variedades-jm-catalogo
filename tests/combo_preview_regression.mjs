@@ -112,7 +112,7 @@ assert.equal(renderCalls,1);
 assert.match(toastMessages.at(-1),/Ahorras \$300/);
 
 assert.ok(html.includes('!catalogProductPriceIsVerified(product))return []')&&html.includes('catalogProductPriceIsVerified(p)&&comboCategoryMatches(p,category)'),'Socios y opciones del catálogo requieren precio verificable');
-assert.ok(html.includes('storefrontComboPairSummaryMarkup(preview)')&&html.includes('catalogProductPriceIsVerified(primary)?money(primary.sale_price)')&&html.includes('catalogProductPriceIsVerified(product)?money(product.sale_price)'),'Tarjetas y ficha no reemplazan precio inválido por cero');
+assert.ok(html.includes('storefrontComboPairSummaryMarkup(preview)')&&html.includes('catalogPriceLabel(primary)')&&html.includes('catalogPriceLabel(partner)')&&html.includes('catalogPriceLabel(product)'),'Tarjetas y ficha no reemplazan precio inválido por cero');
 assert.ok(html.includes('.filter(storefrontComboHasVerifiedCandidates).slice(0,8)'),'La tarjeta promocional solo aparece si hay candidatos con precios verificados');
 
 console.log('PASS combo_preview_regression: precio inválido fail-closed en selector, preview, tarjetas, detalle, carrito y toast.');

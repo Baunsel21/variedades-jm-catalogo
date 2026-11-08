@@ -18,6 +18,10 @@ const blockStart = html.indexOf('let selectedCatalogColors=new Set();');
 const blockEnd = html.indexOf('function toggleFilterPanel(force){', blockStart);
 assert.ok(blockStart >= 0 && blockEnd > blockStart, 'No se pudo aislar el bloque de descubrimiento del catálogo.');
 const catalogBlock = html.slice(blockStart, blockEnd);
+const priceCheckStart = html.indexOf('function catalogProductPriceIsVerified(product){');
+const priceCheckEnd = html.indexOf('\n}', priceCheckStart);
+assert.ok(priceCheckStart >= 0 && priceCheckEnd > priceCheckStart, 'No se pudo aislar el verificador de precio.');
+const priceCheckFunction = html.slice(priceCheckStart, priceCheckEnd + 2);
 
 const fixtureProducts = [
   {
@@ -162,6 +166,7 @@ const SIREVYA_CATALOG_FAVORITES_KEY = 'sirevya_catalog_favorites_v1';
 let productos = ${JSON.stringify(fixtureProducts)};
 let detailProduct = null;
 let catalogInitialLoadComplete = true;
+${priceCheckFunction}
 ${catalogBlock}
 let favoriteProductIds = loadCatalogFavorites();
 `, context, { filename: 'index.html#catalog-discovery' });

@@ -23,6 +23,8 @@ Siguen pendientes las etiquetas administrables de destacado/nuevo/oferta/última
 
 Antes de habilitar «Más recientes» en un entorno compartido, aplicar y verificar la migración/RPC correspondiente en un entorno aislado y mantener sus pruebas fuera de producción.
 
+Precio público: tarjeta de catálogo, ficha, productos relacionados y texto de WhatsApp muestran «Por verificar» cuando `sale_price` falta, está vacío o es negativo; la ficha deshabilita agregar/comprar, y ambos handlers directos repiten el guard. Con filtro por precio los registros inválidos se excluyen, y los ordenamientos de precio los colocan al final si no hay rango. La cotización no confía en esas etiquetas del navegador. Cobertura en `tests/catalog_price_integrity_regression.mjs`; su dependiente de descubrimiento carga el verificador real de precio. Aún no confirma el contrato en un entorno desplegado.
+
 ## Validación y despliegue
 
 Se ejecutó:

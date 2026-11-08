@@ -2943,7 +2943,7 @@ function openProductDetail(id,event,options={}){
  const scrollBox=modal.querySelector('.productDetailBox');if(scrollBox)scrollBox.scrollTop=0;
  modal.scrollTop=0;
  $('detailName').textContent=elegantProductTitle(p.name)||'Producto';
- $('detailPrice').textContent=money(p.sale_price);
+ syncDetailPriceAndPurchaseState(p);
  updateDetailDescription(p);
  // Si el listado público no devolvió los textos opcionales, intenta recuperarlos
  // para este producto al abrir la ficha. No bloquea fotos, variantes ni botones.
@@ -3370,8 +3370,8 @@ function renderStorefrontComboCatalog(){
   const preview=storefrontComboPairPreview(combo,primary,partner);
   return `<article class="storefrontComboCatalogCard" data-catalog-combo-id="${esc(combo.id)}">
     <div class="storefrontComboCatalogPair">
-	      <button type="button" class="storefrontComboCatalogProduct" data-combo-open-product="${esc(primary.id)}" data-combo-id="${esc(combo.id)}" aria-label="Ver ${esc(primary.name||'producto A')}">${primaryImage?`<img src="${esc(primaryImage)}" alt="${esc(primary.name||'Producto A')}" loading="lazy" decoding="async">`:'<span class="detailRelatedNoImage">✦</span>'}<span class="storefrontComboCatalogProductName">${esc(primary.name||'Producto A')}</span><span class="storefrontComboCatalogProductPrice">${catalogProductPriceIsVerified(primary)?money(primary.sale_price):'Por verificar'}</span></button>
-	      <button type="button" class="storefrontComboCatalogProduct" data-combo-open-product="${esc(partner.id)}" data-combo-id="${esc(combo.id)}" aria-label="Ver ${esc(partner.name||'producto B')}">${partnerImage?`<img src="${esc(partnerImage)}" alt="${esc(partner.name||'Producto B')}" loading="lazy" decoding="async">`:'<span class="detailRelatedNoImage">✦</span>'}<span class="storefrontComboCatalogProductName">${esc(partner.name||'Producto B')}</span><span class="storefrontComboCatalogProductPrice">${catalogProductPriceIsVerified(partner)?money(partner.sale_price):'Por verificar'}</span></button>
+	      <button type="button" class="storefrontComboCatalogProduct" data-combo-open-product="${esc(primary.id)}" data-combo-id="${esc(combo.id)}" aria-label="Ver ${esc(primary.name||'producto A')}">${primaryImage?`<img src="${esc(primaryImage)}" alt="${esc(primary.name||'Producto A')}" loading="lazy" decoding="async">`:'<span class="detailRelatedNoImage">✦</span>'}<span class="storefrontComboCatalogProductName">${esc(primary.name||'Producto A')}</span><span class="storefrontComboCatalogProductPrice">${catalogPriceLabel(primary)}</span></button>
+	      <button type="button" class="storefrontComboCatalogProduct" data-combo-open-product="${esc(partner.id)}" data-combo-id="${esc(combo.id)}" aria-label="Ver ${esc(partner.name||'producto B')}">${partnerImage?`<img src="${esc(partnerImage)}" alt="${esc(partner.name||'Producto B')}" loading="lazy" decoding="async">`:'<span class="detailRelatedNoImage">✦</span>'}<span class="storefrontComboCatalogProductName">${esc(partner.name||'Producto B')}</span><span class="storefrontComboCatalogProductPrice">${catalogPriceLabel(partner)}</span></button>
     </div>
 	    <div class="storefrontComboCatalogCopy"><strong>${esc(combo.title||'Completa el look')}</strong><p>${esc(combo.message||'Compra los dos productos indicados para aplicar la promoción.')}</p>${storefrontComboPairSummaryMarkup(preview)}<button type="button" class="storefrontComboCatalogAction" data-combo-open-product="${esc(primary.id)}" data-combo-id="${esc(combo.id)}">${esc(combo.button_label||'Ver y comprar combo')}</button></div>
    </article>`;
@@ -3390,7 +3390,9 @@ function renderStorefrontComboCatalog(){
  rows.forEach(combo=>{const id=String(combo.id||'');if(id&&!storefrontComboCatalogImpressions.has(id)){storefrontComboCatalogImpressions.add(id);trackStorefrontMarketingEvent('combo',id,'impression')}});
 }
 function updateDetailDescription(p){
- const host=$('detailAdditionalContent');if(!host||!p)return;
+	 if(!p)return;
+	 syncDetailPriceAndPurchaseState(p);
+	 const host=$('detailAdditionalContent');if(!host)return;
  const openSections=new Set(Array.from(host.querySelectorAll('.detailAccordion[open]')).map(el=>el.dataset.detailSection||''));
  const description=String(p.description||'').trim(),sizeGuide=String(p.size_guide||'').trim(),sizeGuideImage=String(p.size_guide_image||'').trim();
  const deliveryText='El tiempo de entrega depende de la ciudad de destino y de la transportadora. Durante la compra podrás confirmar la información del envío para tu dirección.';
@@ -3403,7 +3405,7 @@ function updateDetailDescription(p){
  const guideTextMarkup=sizeGuide?`<p class="detailLongText ${guideImageUrl?'detailSizeGuideTextAfterImage':''}">${esc(sizeGuide)}</p>`:'';
  const sizeGuideSection=(guideImageUrl||sizeGuide)?accordion('Guía de tallas',`${guideImageMarkup}${guideTextMarkup}`,'detailSizeGuideAccordion'):'';
  const deliverySection=accordion('Tiempo de entrega',`<p class="detailLongText">${esc(deliveryText)}</p>`,'detailDeliveryAccordion');
- const relatedSection=related.length?`<section class="detailRelatedSection"><div class="detailSectionHeading"><h3>Productos relacionados</h3><span></span></div><div class="detailRelatedGrid" aria-label="Desliza horizontalmente para ver más productos">${related.map(item=>{const image=productImages(item)[0]||'';return `<button type="button" class="detailRelatedCard" data-related-product-id="${esc(item.id)}" onclick="openRelatedProduct(this,event)">${image?`<img src="${esc(image)}" alt="${esc(item.name||'Producto relacionado')}" loading="lazy" decoding="async">`:'<span class="detailRelatedNoImage">✦</span>'}<span class="detailRelatedName">${esc(item.name||'Producto')}</span><span class="detailRelatedPrice">${money(item.sale_price)}</span></button>`}).join('')}</div><p class="detailRelatedSwipeHint">Desliza para descubrir más productos ↔</p></section>`:'';
+ const relatedSection=related.length?`<section class="detailRelatedSection"><div class="detailSectionHeading"><h3>Productos relacionados</h3><span></span></div><div class="detailRelatedGrid" aria-label="Desliza horizontalmente para ver más productos">${related.map(item=>{const image=productImages(item)[0]||'';return `<button type="button" class="detailRelatedCard" data-related-product-id="${esc(item.id)}" onclick="openRelatedProduct(this,event)">${image?`<img src="${esc(image)}" alt="${esc(item.name||'Producto relacionado')}" loading="lazy" decoding="async">`:'<span class="detailRelatedNoImage">✦</span>'}<span class="detailRelatedName">${esc(item.name||'Producto')}</span><span class="detailRelatedPrice">${catalogPriceLabel(item)}</span></button>`}).join('')}</div><p class="detailRelatedSwipeHint">Desliza para descubrir más productos ↔</p></section>`:'';
  const comboCards=(storefrontProductCombos||[]).map(combo=>({combo,partners:getStorefrontComboPartnerOptions(p,combo)})).filter(x=>x.partners.length>0);
  const comboSection=comboCards.length?`<section class="detailComboSection"><div class="detailSectionHeading"><h3>Combina con estilo</h3><span></span></div>${comboCards.map(({combo,partners})=>{
    const isCategory=String(combo.rule_type||'product_pair')==='category_pair';
@@ -3412,7 +3414,7 @@ function updateDetailDescription(p){
    const cards=partners.slice(0,30).map(product=>{
     const image=productImages(product)[0]||publicImage(product.image_url)||'';
     const preview=storefrontComboPairPreview(combo,p,product);
-	    return `<article class="detailComboChoice"><div class="detailComboImage">${image?`<img src="${esc(image)}" alt="${esc(product.name||'Producto recomendado')}" loading="lazy" decoding="async">`:'<span>✦</span>'}</div><div class="detailComboCopy"><strong>${esc(product.name||'Producto recomendado')}</strong><p>${esc(product.category||'')}</p><span class="detailComboUnitPrice">Este producto: ${catalogProductPriceIsVerified(product)?money(product.sale_price):'Por verificar'}</span>${storefrontComboPairSummaryMarkup(preview,'Ambos sin descuento','Ahorras','Total de los dos')}<button type="button" class="detailComboButton" data-combo-partner-id="${esc(product.id)}" data-combo-id="${esc(combo.id)}" onclick="openComboPartner(this,event)">${esc(combo.button_label||'Elegir este producto')}</button></div></article>`;
+	    return `<article class="detailComboChoice"><div class="detailComboImage">${image?`<img src="${esc(image)}" alt="${esc(product.name||'Producto recomendado')}" loading="lazy" decoding="async">`:'<span>✦</span>'}</div><div class="detailComboCopy"><strong>${esc(product.name||'Producto recomendado')}</strong><p>${esc(product.category||'')}</p><span class="detailComboUnitPrice">Este producto: ${catalogPriceLabel(product)}</span>${storefrontComboPairSummaryMarkup(preview,'Ambos sin descuento','Ahorras','Total de los dos')}<button type="button" class="detailComboButton" data-combo-partner-id="${esc(product.id)}" data-combo-id="${esc(combo.id)}" onclick="openComboPartner(this,event)">${esc(combo.button_label||'Elegir este producto')}</button></div></article>`;
    }).join('');
    return `<div class="detailComboBlock"><div class="detailComboBlockIntro"><strong>${esc(combo.title||'Completa el look')}</strong><p>${esc(combo.message||detailIntro)}${isCategory?' '+detailIntro:''}</p><span class="comboDiscountMeta">${esc(storefrontComboDiscountLabel(combo))}</span></div><div class="detailComboChoices">${cards}</div></div>`;
  }).join('')}</section>`:'';
@@ -3578,6 +3580,7 @@ function detailBuyNow(event){
  if(event){event.preventDefault();event.stopPropagation()}
  if(!detailProduct)return;
  if(productIsBlockedForThisDevice(detailProduct)){showInventoryBlockedMessage();return;}
+ if(!catalogProductPriceIsVerified(detailProduct)){showToast('No se puede continuar: el precio actual del producto no está verificado. Actualiza el catálogo e inténtalo de nuevo.');return;}
  const variants=validateVariants(detailProduct,event);
  if(!variants)return;
  const max=Math.max(1,variantStock(detailProduct,variants.color||'',variants.size||''));
@@ -3703,7 +3706,7 @@ function updateDetailWhatsAppLink(){
   'Hola, quisiera información sobre este producto de Sirevya.',
   'Producto: '+String(detailProduct.name||'Producto'),
   detailProduct.code?'Código: '+String(detailProduct.code):'',
-  'Precio: '+money(detailProduct.sale_price),
+  'Precio: '+catalogPriceLabel(detailProduct),
   color?'Color elegido: '+color:'',
   size?'Talla elegida: '+size:'',
   'Enlace: '+productDetailUrl(detailProduct.id)
@@ -3825,9 +3828,12 @@ function catalogProductMatchesFilters(p,filters,colorIndex,sizeIndex){
  if(filters.availability==='out'&&stock>0)return false;
  const text=normalizeText((p.code||'')+' '+(p.name||'')+' '+(p.category||''));
  if(!text.includes(filters.query)||(filters.category&&normalizeText(p.category)!==normalizeText(filters.category)))return false;
- const price=Number(p.sale_price)||0;
- if(filters.minPrice!==null&&price<filters.minPrice)return false;
- if(filters.maxPrice!==null&&price>filters.maxPrice)return false;
+  if(filters.minPrice!==null||filters.maxPrice!==null){
+   if(!catalogProductPriceIsVerified(p))return false;
+   const price=Number(p.sale_price);
+   if(filters.minPrice!==null&&price<filters.minPrice)return false;
+   if(filters.maxPrice!==null&&price>filters.maxPrice)return false;
+  }
  if(filters.colors.size&&![...filters.colors].some(key=>colorIndex.byProduct.get(p)?.has(key)))return false;
  if(filters.sizes.size&&![...filters.sizes].some(key=>sizeIndex.byProduct.get(p)?.has(key)))return false;
  const variants=variantList(p);
@@ -4015,8 +4021,8 @@ function render(){
  if(sort==='recent'&&catalogCreatedAtAvailable)arr.sort((a,b)=>(Date.parse(b.created_at||'')||0)-(Date.parse(a.created_at||'')||0));
  else if(sort==='best_selling') arr.sort((a,b)=>(Number(b.sales_count??b.sold_count??b.units_sold??b.total_sold??0)-Number(a.sales_count??a.sold_count??a.units_sold??a.total_sold??0)));
  else if(sort==='name_asc') arr.sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'es',{sensitivity:'base'}));
- else if(sort==='price_asc') arr.sort((a,b)=>(Number(a.sale_price)||0)-(Number(b.sale_price)||0));
- else if(sort==='price_desc') arr.sort((a,b)=>(Number(b.sale_price)||0)-(Number(a.sale_price)||0));
+ else if(sort==='price_asc') arr.sort((a,b)=>compareCatalogProductsByPrice(a,b));
+ else if(sort==='price_desc') arr.sort((a,b)=>compareCatalogProductsByPrice(a,b,true));
  else if(sort==='stock_desc') arr.sort((a,b)=>productStockTotal(b)-productStockTotal(a));
  else if(sort!=='recent') arr=[...arr];
  $('count').textContent=arr.length+' producto'+(arr.length===1?'':'s');
@@ -4029,7 +4035,7 @@ function render(){
    const key='photo_'+p.id;
     const favorite=isCatalogFavorite(p.id);
     const favoriteLabel=(favorite?'Quitar ':'Añadir ')+(p.name||'producto')+' '+(favorite?'de':'a')+' favoritos';
-return `<article class="card ${blocked?'inventoryUnavailable':''}" data-product-id="${esc(p.id)}" aria-disabled="${blocked?'true':'false'}" onclick="openProductDetail('${esc(p.id)}',event)">${blocked?'<div class="inventoryLock">🔒 RESERVADO / AGOTADO</div>':''}<button class="cardFavoriteBtn" type="button" aria-pressed="${favorite?'true':'false'}" aria-label="${esc(favoriteLabel)}" title="${esc(favorite?'Quitar de favoritos':'Guardar en favoritos')}" onclick="toggleProductFavorite('${esc(p.id)}',event)">${favorite?'♥':'♡'}</button><div class="photo photoSwipe" data-photo="${esc(key)}" data-index="0" onpointerdown="photoTouchStart(event)" onpointermove="photoTouchMove(event)" onpointerup="photoTouchEnd(event)" onpointercancel="photoTouchEnd(event)" onclick="photoClickGuard(event)" onpointerenter="photoHover(event)" onpointerleave="photoHoverLeave(event)">${imgs.length?`<img data-src="${esc(imgs[0])}" alt="${esc(p.name)}" loading="lazy" decoding="async" onerror="this.style.display='none'">${imgs.length>1?``:''}`:'<div class="noimg">📦</div>'}</div><div class="body"><div class="name">${esc(p.name)}</div><div class="price">${money(p.sale_price)}</div>${renderVariantOptions(p)}</div></article>`
+return `<article class="card ${blocked?'inventoryUnavailable':''}" data-product-id="${esc(p.id)}" aria-disabled="${blocked?'true':'false'}" onclick="openProductDetail('${esc(p.id)}',event)">${blocked?'<div class="inventoryLock">🔒 RESERVADO / AGOTADO</div>':''}<button class="cardFavoriteBtn" type="button" aria-pressed="${favorite?'true':'false'}" aria-label="${esc(favoriteLabel)}" title="${esc(favorite?'Quitar de favoritos':'Guardar en favoritos')}" onclick="toggleProductFavorite('${esc(p.id)}',event)">${favorite?'♥':'♡'}</button><div class="photo photoSwipe" data-photo="${esc(key)}" data-index="0" onpointerdown="photoTouchStart(event)" onpointermove="photoTouchMove(event)" onpointerup="photoTouchEnd(event)" onpointercancel="photoTouchEnd(event)" onclick="photoClickGuard(event)" onpointerenter="photoHover(event)" onpointerleave="photoHoverLeave(event)">${imgs.length?`<img data-src="${esc(imgs[0])}" alt="${esc(p.name)}" loading="lazy" decoding="async" onerror="this.style.display='none'">${imgs.length>1?``:''}`:'<div class="noimg">📦</div>'}</div><div class="body"><div class="name">${esc(p.name)}</div><div class="price">${catalogPriceLabel(p)}</div>${renderVariantOptions(p)}</div></article>`
  }).join(''):`<div class="empty">${filters.favoritesOnly?'No hay favoritos que coincidan con estos filtros.':filters.priceInvalid?'Ajusta el rango de precio para ver productos.':'No encontramos productos con esos filtros.'}</div>`;
  document.querySelectorAll('#grid .card').forEach(card=>{const p=productos.find(x=>String(x.id)===String(card.dataset.productId));if(p)updateVariantAvailability(card,p)});
  activateCatalogLazyImages();
@@ -4042,8 +4048,27 @@ let cartOpen=false;
 let checkoutCart=null;
 function getCheckoutItems(){return checkoutCart||cart;}
 function catalogProductPriceIsVerified(product){
- const raw=product?.sale_price;
- return raw!==null&&raw!==undefined&&String(raw).trim()!==''&&Number.isSafeInteger(Number(raw))&&Number(raw)>=0;
+  const raw=product?.sale_price;
+  return raw!==null&&raw!==undefined&&String(raw).trim()!==''&&Number.isSafeInteger(Number(raw))&&Number(raw)>=0;
+}
+function catalogPriceLabel(product){return catalogProductPriceIsVerified(product)?money(product.sale_price):'Por verificar';}
+function compareCatalogProductsByPrice(a,b,descending=false){
+  const aVerified=catalogProductPriceIsVerified(a),bVerified=catalogProductPriceIsVerified(b);
+  if(aVerified!==bVerified)return aVerified?-1:1;
+  if(!aVerified)return 0;
+  const difference=Number(a.sale_price)-Number(b.sale_price);
+  return descending?-difference:difference;
+}
+function syncDetailPriceAndPurchaseState(product){
+  if(!product)return false;
+  const verified=catalogProductPriceIsVerified(product),price=$('detailPrice');
+  if(price){price.textContent=catalogPriceLabel(product);price.setAttribute('aria-label',verified?'Precio del producto':'Precio no verificado');}
+  for(const id of ['detailAdd','detailBuyNow']){
+   const button=$(id);if(!button)continue;
+   button.disabled=!verified;button.title=verified?'':'No disponible hasta verificar el precio vigente.';
+   if(verified)button.removeAttribute('aria-disabled');else button.setAttribute('aria-disabled','true');
+  }
+  return verified;
 }
 function cartCatalogRecoveryState(items=getCheckoutItems()){
  let priceChanged=false,productUnverified=false;
@@ -4177,6 +4202,7 @@ function saveWompiCart(){
 function addToCart(p,event){
  if(event){event.preventDefault();event.stopPropagation()}
  if(productIsBlockedForThisDevice(p)){showInventoryBlockedMessage();return;}
+ if(!catalogProductPriceIsVerified(p)){showToast('No se puede agregar: el precio actual del producto no está verificado. Actualiza el catálogo e inténtalo de nuevo.');return;}
  const variants=validateVariants(p,event);if(!variants)return;
  const found=cart.find(x=>String(x.id)===String(p.id)&&x.color===variants.color&&x.size===variants.size);
  const pending=!!getPendingWompiReference();

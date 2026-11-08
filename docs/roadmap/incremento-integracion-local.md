@@ -74,7 +74,7 @@ SQL local: `supabase/migrations/20261108070000_storefront_city_shipping_rules.sq
 
 Rollout manual pendiente: `docs/deployment/restrict_legacy_admin_order_status_after_frontend.sql` (no es migración automática ni se ejecutó).
 
-Regresiones independientes: `tests/admin_account_security_regression.mjs`, `tests/admin_clients_privacy_regression.mjs`, `tests/admin_client_history_regression.mjs`, `tests/admin_orders_server_pagination_regression.mjs`, `tests/dashboard_availability_regression.mjs`, `tests/dashboard_period_regression.mjs`, `tests/admin_dashboard_month_regression.mjs`, `tests/phase1_quote_parity_regression.mjs`, `tests/catalog_discovery_regression.mjs`, `tests/combo_preview_regression.mjs`, `tests/cart_recovery_regression.mjs`, `tests/fase7_csv_preview.mjs`, `tests/admin_csv_preview_regression.mjs`, `tests/cod_notice_regression.mjs`, `tests/admin_cod_notice_regression.mjs`.
+Regresiones independientes: `tests/admin_account_security_regression.mjs`, `tests/admin_clients_privacy_regression.mjs`, `tests/admin_client_history_regression.mjs`, `tests/admin_orders_server_pagination_regression.mjs`, `tests/dashboard_availability_regression.mjs`, `tests/dashboard_period_regression.mjs`, `tests/admin_dashboard_month_regression.mjs`, `tests/phase1_quote_parity_regression.mjs`, `tests/catalog_discovery_regression.mjs`, `tests/combo_preview_regression.mjs`, `tests/catalog_price_integrity_regression.mjs`, `tests/cart_recovery_regression.mjs`, `tests/fase7_csv_preview.mjs`, `tests/admin_csv_preview_regression.mjs`, `tests/cod_notice_regression.mjs`, `tests/admin_cod_notice_regression.mjs`.
 
 Documentación: este informe, `TODO-mejoras.md`, `fase-3-descubrimiento-catalogo.md`, `fase-5-modelo-pedidos.md`, `fase-6-pedidos-filtros-paginacion.md`, `fase-6-s2-paginacion-server-side.md` y `fase-7-trazabilidad-importacion-backup.md`.
 
@@ -93,6 +93,7 @@ node tests/admin_dashboard_month_regression.mjs
 node tests/phase1_quote_parity_regression.mjs
 node tests/catalog_discovery_regression.mjs
 node tests/combo_preview_regression.mjs
+node tests/catalog_price_integrity_regression.mjs
 node tests/cart_recovery_regression.mjs
 node tests/fase7_csv_preview.mjs
 node tests/admin_csv_preview_regression.mjs
@@ -119,6 +120,8 @@ Una revisión independiente read-only de `fetchTablePage`, `renderClientes`, `to
 **Carrito — endurecimiento separado:** PASÓ `node tests/cart_recovery_regression.mjs`. La prueba cubre 10 minutos exactos y expiración posterior, timestamps futuros (incluido el borde +60 s), limpieza de punteros vencidos, reintento sin renovar el reloj, precio actual, aviso accesible de precio cambiado/producto no verificable y cotización antes de side effects COD/Wompi. No se llamó a Supabase ni se tocaron referencias/reservas reales; notificación de cambio de stock y recuperación avanzada siguen abiertas.
 
 **Cotización/previews de combo — correcciones críticas adicionales:** las revisiones independientes detectaron un total parcial de envío, descuentos de combo por línea y previews que convertían precio NULL en cero; también tarjetas por categoría que aún mostraban etiqueta promo sin candidatos con precio válido. Se corrigieron: selector, preview, tarjeta de catálogo, ficha, toast y agregado fallan cerrado; combos sin candidatos se ocultan. Se añadió `tests/combo_preview_regression.mjs`; `tests/cart_recovery_regression.mjs` cubre preview de checkout, tarifa/beneficio, descuentos por línea y destinos vacíos. `20261108070000` y `20261108090000` rechazan `sale_price IS NULL` antes de acumular precio; `tests/promotion_priority_regression.sql` comprueba la definición instalada y, si el esquema admite NULL, fixture sintético en transacción con rollback. PASARON `node tests/combo_preview_regression.mjs`, `node tests/cart_recovery_regression.mjs`, `node tests/catalog_discovery_regression.mjs`, `node tests/phase1_quote_parity_regression.mjs`, `node scripts/validate.mjs`, `git diff --check`, y `pglast` sobre las dos migraciones y el test SQL. SQL no fue ejecutado; el fixture es para staging aislado.
+
+**Precio general del catálogo — guard adicional:** tarjeta, ficha, relacionados y WhatsApp usan etiqueta “Por verificar”; la ficha deshabilita CTA y `addToCart`/`detailBuyNow` vuelven a validar antes de cualquier side effect. El filtro por precio excluye precio desconocido y ordenar por precio coloca esos productos al final. `tests/catalog_price_integrity_regression.mjs` ejecuta los helpers reales de etiqueta, filtros, orden y estado de botones y simula handlers directos; `tests/catalog_discovery_regression.mjs` ahora carga el verificador real. PASARON ambos tests, combo, carrito, tarifas, `scripts/validate.mjs` y `git diff --check`. No hubo llamadas a Supabase ni cambios de esquema en este slice.
 
 ## Pendientes de lanzamiento y fases abiertas
 
