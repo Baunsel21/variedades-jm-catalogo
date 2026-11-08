@@ -557,6 +557,7 @@ body{background:linear-gradient(180deg,#fffaf0 0%,#fff6e6 55%,#f8ecd7 100%);colo
 .filterCategoryField{grid-column:1/-1;min-width:0}
 .filterPriceOrderField{grid-column:1;min-width:0}
 .filterColorField{grid-column:2;min-width:0}
+.filterSizeField{grid-column:2;min-width:0}
 .filterFieldTitle{font-size:11px;font-weight:800;color:#766a71}
 .filterColorOptions{display:flex;flex-wrap:wrap;align-items:center;gap:7px;min-width:0}
 .filterColorOption{position:relative;display:inline-flex;align-items:center;gap:7px;min-height:34px;padding:6px 10px;border:1px solid #e9e1e5;border-radius:999px;background:#fff;color:#494047;font-size:12px;font-weight:650;cursor:pointer;transition:background .16s ease,border-color .16s ease,box-shadow .16s ease;user-select:none;-webkit-tap-highlight-color:transparent}
@@ -581,6 +582,7 @@ body{background:linear-gradient(180deg,#fffaf0 0%,#fff6e6 55%,#f8ecd7 100%);colo
  .filterCategoryField{grid-column:1/-1}
  .filterPriceOrderField{grid-column:1}
  .filterColorField{grid-column:2;min-width:0}
+ .filterSizeField{grid-column:2;min-width:0}
  .filterField{font-size:10px}
  .filterField select{font-size:11px;padding:8px 5px}
  .filterColorOptions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px}
@@ -1444,6 +1446,7 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
 .mobileMenuFilterSection .filterCategoryField{grid-column:1/-1!important;min-width:0!important}
 .mobileMenuFilterSection .filterSortField{grid-column:1!important;min-width:0!important}
 .mobileMenuFilterSection .filterColorField{grid-column:2!important;min-width:0!important}
+.mobileMenuFilterSection .filterSizeField{grid-column:2!important;min-width:0!important}
 .mobileMenuFilterSection .filterField{gap:5px!important;font-size:11px!important;color:#756a63!important}
 .mobileMenuFilterSection .filterField select{width:100%!important;min-width:0!important;max-width:100%!important;padding:9px 6px!important;border:1px solid #e5ded7!important;border-radius:9px!important;background:#fff!important;color:#302b27!important;font-size:11px!important}
 .mobileMenuFilterSection .filterFieldTitle{font-size:11px!important;color:#756a63!important}
@@ -1458,6 +1461,7 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
 .filterColorDropdown[aria-expanded="true"] .filterColorChevron{transform:rotate(180deg)}
 .filterColorDropdownPanel{margin-top:5px;padding:7px;border:1px solid #eee5e9;border-radius:10px;background:#fff;max-height:200px;overflow-y:auto;overscroll-behavior:contain}
 #filterColorDropdownPanel[hidden]{display:none!important}
+#filterSizeDropdownPanel[hidden]{display:none!important}
 .mobileMenuFilterSection .filterColorOptions{display:flex!important;flex-direction:column!important;align-items:stretch!important;flex-wrap:nowrap!important;gap:4px!important;width:100%!important}
 .mobileMenuFilterSection .filterColorHelp{font-size:9px!important;line-height:1.35!important;color:#8b8178!important;margin-top:6px!important}
 .mobileMenuFilterSection .filterClear{grid-column:1/-1!important;justify-self:start!important;margin-top:3px!important;border-radius:9px!important;background:#fff!important;border-color:#e6dce0!important;color:#7b1730!important}
@@ -1696,6 +1700,18 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
             <span class="filterColorEmpty">Cargando colores disponibles…</span>
           </div>
           <small class="filterColorHelp">Marca uno o varios tonos. Solo verás productos con stock en esos colores.</small>
+        </div>
+      </div>
+      <div class="filterField filterSizeField">
+        <span class="filterFieldTitle">Filtrar por talla</span>
+        <button id="filterSizeToggle" class="filterColorDropdown filterSizeDropdown" type="button" aria-expanded="false" aria-controls="filterSizeDropdownPanel" onclick="toggleSizeFilterOptions()">
+          <span id="filterSizeSummary">Todas las tallas</span><span class="filterColorChevron" aria-hidden="true">⌄</span>
+        </button>
+        <div id="filterSizeDropdownPanel" class="filterColorDropdownPanel filterSizeDropdownPanel" hidden>
+          <div id="filterSizeOptions" class="filterColorOptions filterSizeOptions" role="group" aria-label="Seleccionar tallas disponibles">
+            <span class="filterColorEmpty">Cargando tallas disponibles…</span>
+          </div>
+          <small class="filterColorHelp">Solo se muestran tallas con stock. Si combinas color y talla, deben coincidir en la misma variante.</small>
         </div>
       </div>
       <button class="filterClear" type="button" onclick="clearCatalogFilters()">Limpiar filtros</button>
@@ -3407,6 +3423,9 @@ function populateFilterCategory(cats){
 let selectedCatalogColors=new Set();
 let selectedCatalogColorNames=new Map();
 let filterColorOptionsSignature='';
+let selectedCatalogSizes=new Set();
+let selectedCatalogSizeNames=new Map();
+let filterSizeOptionsSignature='';
 
 function availableColorsForProduct(p){
  if(!p||productStockTotal(p)<=0)return [];
@@ -3423,6 +3442,28 @@ function availableColorsForProduct(p){
    .filter(c=>{const n=normalizeText(c);return !!n&&n!=='sin color'});
  return [...new Map(inStock.map(c=>[normalizeText(c),c])).values()];
 }
+function catalogSizeFilterKey(value){
+ const key=normalizeText(value);
+ return key&&!['unica','unico','talla unica','sin talla','unitalla','one size'].includes(key)?key:'';
+}
+function availableCatalogSizesForProduct(p){
+ if(!p||productStockTotal(p)<=0)return [];
+ const declared=parseVariantList(p.sizes).filter(size=>catalogSizeFilterKey(size));
+ const variants=variantList(p);
+ let candidates=declared;
+ if(variants.length){
+   const hasNamedSizeVariants=variants.some(v=>catalogSizeFilterKey(v.size));
+   if(hasNamedSizeVariants){
+     const inStock=variants.filter(v=>Number(v.stock)>0);
+     candidates=declared.length
+       ?declared.filter(size=>inStock.some(v=>catalogSizeFilterKey(v.size)===catalogSizeFilterKey(size)))
+       :inStock.map(v=>String(v.size||'').trim()).filter(size=>catalogSizeFilterKey(size));
+   }
+ }
+ const unique=new Map();
+ for(const size of candidates){const key=catalogSizeFilterKey(size);if(key&&!unique.has(key))unique.set(key,String(size).trim())}
+ return [...unique.values()];
+}
 function buildCatalogColorIndex(){
  const colors=new Map(),byProduct=new Map();
  for(const p of productos){
@@ -3436,6 +3477,16 @@ function buildCatalogColorIndex(){
    byProduct.set(p,keys);
  }
  return {colors,byProduct};
+}
+function buildCatalogSizeIndex(){
+ const sizes=new Map();
+ for(const p of productos){
+   for(const size of availableCatalogSizesForProduct(p)){
+     const key=catalogSizeFilterKey(size);
+     if(key&&!sizes.has(key))sizes.set(key,size);
+   }
+ }
+ return {sizes};
 }
 function syncCatalogColorFilterOptions(currentColors){
  const box=$('filterColorOptions');
@@ -3491,6 +3542,50 @@ function setCatalogColorFilter(value,checked){
  else {selectedCatalogColors.delete(key);selectedCatalogColorNames.delete(key);}
  render();
 }
+function syncCatalogSizeFilterOptions(currentSizes){
+ const box=$('filterSizeOptions');if(!box)return;
+ const available=new Map(currentSizes||[]),unavailableSelected=new Set();
+ for(const key of selectedCatalogSizes){if(!available.has(key)){available.set(key,selectedCatalogSizeNames.get(key)||key);unavailableSelected.add(key)}}
+ const sorted=[...available.entries()].sort((a,b)=>a[1].localeCompare(b[1],'es',{sensitivity:'base'}));
+ const signature=JSON.stringify(sorted.map(([key,label])=>[key,label,unavailableSelected.has(key)]));
+ if(signature!==filterSizeOptionsSignature){
+   filterSizeOptionsSignature=signature;
+   box.innerHTML=sorted.length?sorted.map(([key,label])=>{
+     const unavailable=unavailableSelected.has(key),checked=selectedCatalogSizes.has(key);
+     return `<label class="filterColorOption filterSizeOption${checked?' selected':''}${unavailable?' unavailable':''}" title="${esc(unavailable?'Esta talla ya no tiene unidades disponibles':label)}"><input type="checkbox" value="${esc(label)}"${checked?' checked':''} onchange="setCatalogSizeFilter(this.value,this.checked)"><span>${esc(label)}${unavailable?' · sin stock':''}</span></label>`;
+   }).join(''):'<span class="filterColorEmpty">No hay tallas con unidades disponibles.</span>';
+ }
+ box.querySelectorAll('.filterSizeOption').forEach(option=>{const input=option.querySelector('input[type="checkbox"]');if(input){input.checked=selectedCatalogSizes.has(catalogSizeFilterKey(input.value));option.classList.toggle('selected',input.checked)}});
+ updateCatalogSizeSummary();
+}
+function updateCatalogSizeSummary(){
+ const label=$('filterSizeSummary');if(!label)return;
+ const selected=[...selectedCatalogSizes];
+ if(!selected.length){label.textContent='Todas las tallas';return}
+ if(selected.length===1){label.textContent=selectedCatalogSizeNames.get(selected[0])||'1 talla seleccionada';return}
+ label.textContent=selected.length+' tallas seleccionadas';
+}
+function toggleSizeFilterOptions(force){
+ const panel=$('filterSizeDropdownPanel'),button=$('filterSizeToggle');if(!panel||!button)return;
+ const open=typeof force==='boolean'?force:panel.hidden;
+ panel.hidden=!open;button.setAttribute('aria-expanded',String(open));
+}
+function setCatalogSizeFilter(value,checked){
+ const key=catalogSizeFilterKey(value);if(!key)return;
+ if(checked){selectedCatalogSizes.add(key);selectedCatalogSizeNames.set(key,String(value||'').trim())}
+ else{selectedCatalogSizes.delete(key);selectedCatalogSizeNames.delete(key)}
+ render();
+}
+function productMatchesCatalogVariantFilters(p,colors,sizes){
+ const chosenColors=new Set((colors||[]).map(normalizeText).filter(key=>key&&key!=='sin color'));
+ const chosenSizes=new Set((sizes||[]).map(catalogSizeFilterKey).filter(Boolean));
+ if(chosenColors.size&&chosenSizes.size){
+   return variantList(p).some(v=>Number(v.stock)>0&&chosenColors.has(normalizeText(v.color))&&chosenSizes.has(catalogSizeFilterKey(v.size)));
+ }
+ if(chosenColors.size)return availableColorsForProduct(p).some(color=>chosenColors.has(normalizeText(color)));
+ if(chosenSizes.size)return availableCatalogSizesForProduct(p).some(size=>chosenSizes.has(catalogSizeFilterKey(size)));
+ return true;
+}
 
 function toggleFilterPanel(force){
  // Los filtros viven directamente dentro del menú lateral; no necesitan un segundo botón "Filtrar".
@@ -3522,19 +3617,25 @@ function clearCatalogFilters(){
  $('search').value='';
  selectedCatalogColors.clear();
  selectedCatalogColorNames.clear();
+ selectedCatalogSizes.clear();
+ selectedCatalogSizeNames.clear();
  setDirectCategoryMode('');
  updateCategoryButtons();
- render();
- toggleFilterPanel(false);
- toggleColorFilterOptions(false);
+  render();
+  toggleFilterPanel(false);
+  toggleColorFilterOptions(false);
+  toggleSizeFilterOptions(false);
 }
 
 function render(){
  if(catalogSearchDebounceTimer){clearTimeout(catalogSearchDebounceTimer);catalogSearchDebounceTimer=null;}
  const colorIndex=buildCatalogColorIndex();
  syncCatalogColorFilterOptions(colorIndex.colors);
+ const sizeIndex=buildCatalogSizeIndex();
+ syncCatalogSizeFilterOptions(sizeIndex.sizes);
  const q=normalizeText($('search').value),cat=$('category').value,sort=$('sort')?.value||'recent';
  const chosenColors=[...selectedCatalogColors];
+ const chosenSizes=[...selectedCatalogSizes];
  const priceRange=readCatalogPriceRange();
  syncCatalogPriceFilterUrlState(priceRange);
  const priceStatus=$('catalogPriceFilterStatus');
@@ -3548,7 +3649,7 @@ function render(){
  if(catalogFavoritesOnly&&!favoriteProductIds.has(String(p.id)))return false;
  if(!catalogProductMatchesPriceRange(p,priceRange))return false;
  if(!text.includes(q)||(cat&&p.category!==cat))return false;
- if(chosenColors.length&&!chosenColors.some(key=>colorIndex.byProduct.get(p)?.has(key)))return false;
+ if(!productMatchesCatalogVariantFilters(p,chosenColors,chosenSizes))return false;
  return true;
  });
  if(sort==='best_selling') arr.sort((a,b)=>(Number(b.sales_count??b.sold_count??b.units_sold??b.total_sold??0)-Number(a.sales_count??a.sold_count??a.units_sold??a.total_sold??0)));
