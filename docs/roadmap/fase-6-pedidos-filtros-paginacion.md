@@ -1,6 +1,6 @@
 # Fase 6-S1 — Filtros y paginación visual de pedidos
 
-**Estado:** [PR #15](https://github.com/Baunsel21/variedades-jm-catalogo/pull/15) en borrador, rama `feature/admin-orders-filters-pagination`, apilada sobre `feature/checkout-coupons` (PR #14). No se ha fusionado ni desplegado. No requiere ni añade migraciones.
+**Estado:** [PR #15](https://github.com/Baunsel21/variedades-jm-catalogo/pull/15) en borrador, rama `feature/admin-orders-filters-pagination`, apilada sobre `feature/checkout-coupons` (PR #14). No se ha fusionado ni desplegado. F6-S2 añade paginación server-side en una rama posterior; su estado local, RPC y pendientes están en [fase-6-s2-paginacion-server-side.md](fase-6-s2-paginacion-server-side.md). No se ha aplicado su migración en Supabase.
 
 ## Alcance
 
@@ -10,7 +10,7 @@ El estado de página, tamaño y filtros permanece solo en memoria: no escribe PI
 
 ## Límites explícitos
 
-La lectura actual sigue trayendo `web_orders` en páginas técnicas de 1.000 filas antes de aplicar la paginación visual; este slice no es paginación server-side y conserva el límite de seguridad existente. No añade órdenes de `orders`/Wompi a esta lista, no relaciona ventas ni movimientos, no cambia pago/inventario, no crea estados logísticos y no ofrece acciones de reparación. Los contratos entre `orders`, `web_orders`, reservas, ventas y movimientos no están completos/versionados; Fase 5 sigue pendiente de ese preflight. También quedan pendientes dashboard por periodo, clientes, logística separada, notificaciones y reportes adicionales.
+En la implementación de F6-S1, `web_orders` se descarga en páginas técnicas de 1.000 filas antes de aplicar la paginación visual; solo F6-S2 intenta paginar/filtrar en el servidor, y mantiene fallback legacy mientras su RPC no exista. Ninguna lista integra `orders`/Wompi, relaciona ventas/movimientos, cambia pago/inventario, crea estados logísticos ni ofrece acciones de reparación. Los contratos entre `orders`, `web_orders`, reservas, ventas y movimientos no están completos/versionados; Fase 5 sigue pendiente de ese preflight. También quedan pendientes logística separada, notificaciones y pruebas visuales/operativas.
 
 ## Pruebas y entrega
 

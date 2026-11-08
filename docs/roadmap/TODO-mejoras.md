@@ -52,7 +52,7 @@ Cada criterio se conserva hasta que exista evidencia en código, Supabase y prue
 
 ## Fase 6: Dashboard, clientes y logística
 
-> Avance parcial: filtros/paginación visual de pedidos `web_orders` en [PR #15](https://github.com/Baunsel21/variedades-jm-catalogo/pull/15), borrador apilado sobre PR #14. El dashboard incluye métricas con fuentes separadas y Clientes tiene PII bajo demanda más ventas activas por `sales.client_id`; no se presentan filas como pedidos ni se infiere recurrencia. Sigue pendiente historial canónico de pedidos, logística/notificaciones, paginación server-side y smoke visual. No integra Wompi/`orders`.
+> Avance parcial: filtros/paginación visual de pedidos `web_orders` en [PR #15](https://github.com/Baunsel21/variedades-jm-catalogo/pull/15), borrador apilado sobre PR #14. El dashboard incluye métricas con fuentes separadas y Clientes tiene PII bajo demanda más ventas activas por `sales.client_id`; no se presentan filas como pedidos ni se infiere recurrencia. F6-S2 agrega localmente RPC y cliente con paginación server-side en `feature/admin-dashboard-critical-fixes`, con fallback visual si la RPC no está instalada; sigue pendiente staging/smoke y medir costo con volumen representativo. Continúan pendientes historial canónico de pedidos, logística/notificaciones y revisión visual. No integra Wompi/`orders`.
 
 > El incremento local añade Hoy/últimos siete días en Colombia, ingresos y promedio por registro no archivado de `sales`, stock bajo/agotado verificado, y consulta explícita de pendientes COD/revisión Wompi. Muestra fecha/fuente, carga/error/no consultado y límites de consulta. No suma canales ni muestra pagos como conciliados.
 >

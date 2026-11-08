@@ -449,7 +449,7 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
   </div>
   <div class="box" style="margin-top:15px">
     <div class="orderFilters">
-      <label class="orderFilterField orderFilterSearch">Buscar pedido<input id="buscarPedido" aria-label="Buscar pedidos por cliente, teléfono, ciudad, correo o identificador" placeholder="🔎 Cliente, teléfono, ciudad, correo o pedido" oninput="cambiarFiltroPedidos()"></label>
+      <label class="orderFilterField orderFilterSearch">Buscar pedido<input id="buscarPedido" maxlength="120" aria-label="Buscar pedidos por cliente, teléfono, ciudad, correo o identificador" placeholder="🔎 Cliente, teléfono, ciudad, correo o pedido" oninput="cambiarFiltroPedidos(true)"></label>
       <label class="orderFilterField">Estado<select id="filtroPedidoEstado" onchange="cambiarFiltroPedidos()">
         <option value="">Todos los estados</option><option value="pendiente">Pendientes</option><option value="confirmado">Confirmados</option><option value="enviado">Enviados</option><option value="entregado">Entregados</option><option value="rechazado">Rechazados</option><option value="devuelto">Devueltos</option>
       </select></label>
@@ -459,6 +459,7 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
       <label class="orderFilterField">Método de pago<select id="ordersPaymentFilter" onchange="cambiarFiltroPedidos()"><option value="">Todos los métodos</option></select></label>
       <button class="softbtn" type="button" onclick="limpiarFiltrosPedidos()">Limpiar filtros</button>
     </div>
+    <div id="ordersFacetNotice" class="muted" role="status" aria-live="polite" hidden></div>
     <div id="ordersLoadStatus" class="status err" role="alert" hidden></div>
     <div id="ordersResultsSummary" class="orderResultsSummary" role="status" aria-live="polite"></div>
     <div id="listaPedidos"><div class="empty">Cargando pedidos...</div></div>
@@ -772,6 +773,9 @@ let dashboardOrdersUpdatedAt=null;
 let dashboardWompiSnapshot={loaded:false,busy:false,error:'',count:0,updatedAt:null};
 let productCsvPreviewToken=0;
 let pedidosPage=1,pedidosPageSize=20,pedidosLoadError='',ordersFacetOptionsSignature='';
+let ordersServerPageMode=false,ordersPageSnapshot=null,ordersFacetOptions={cities:[],payments:[],citiesTruncated:false,paymentsTruncated:false};
+let ordersLegacyFallbackMode=false;
+let ordersLoadSequence=0,ordersSearchDebounce=null;
 let brandName=localStorage.getItem("jm_brand_name")||"Variedades JM";
 let brandIcon=localStorage.getItem("jm_brand_icon")||"";
 let brandIconPath=localStorage.getItem("jm_brand_icon_path")||"";
@@ -1404,11 +1408,15 @@ function lockAdminPanel(message='Tu sesión terminó. Vuelve a entrar.'){
  $('adminLoginFields')?.classList.remove('hidden');$('adminMfaLoginStep')?.classList.add('hidden');
  if(adminCatalogRealtimeChannel&&sb){const channel=adminCatalogRealtimeChannel;adminCatalogRealtimeChannel=null;void sb.removeChannel(channel).catch(error=>console.debug('No se pudo cerrar el canal administrativo.',error));}
  adminCatalogRealtimeReady=false;adminCatalogRealtimePending=[];
- clearClientContactDetails({clearSearch:true,render:false});
- productos=[];ventas=[];clientes=[];proveedores=[];gastos=[];movimientos=[];pedidos=[];
- dashboardCoreSnapshot={loaded:false,busy:false,error:'',updatedAt:null};dashboardOrdersUpdatedAt=null;
+	 clearClientContactDetails({clearSearch:true,render:false});
+	 productos=[];ventas=[];clientes=[];proveedores=[];gastos=[];movimientos=[];pedidos=[];
+	 if(ordersSearchDebounce!==null){clearTimeout(ordersSearchDebounce);ordersSearchDebounce=null;}
+	 ordersLoadSequence++;cargarPedidosBusy=false;ordersServerPageMode=false;ordersPageSnapshot=null;
+	 ordersFacetOptions={cities:[],payments:[],citiesTruncated:false,paymentsTruncated:false};ordersFacetOptionsSignature='';pedidosPage=1;pedidosPageSize=20;
+	 const ordersRefreshButton=$('refreshOrdersBtn');if(ordersRefreshButton){ordersRefreshButton.disabled=false;ordersRefreshButton.textContent=ordersRefreshButton.dataset.ordersOriginalText||'↻ Actualizar pedidos';delete ordersRefreshButton.dataset.ordersOriginalText;}
+	 dashboardCoreSnapshot={loaded:false,busy:false,error:'',updatedAt:null};dashboardOrdersUpdatedAt=null;
  dashboardWompiSnapshot={loaded:false,busy:false,error:'',count:0,updatedAt:null};
- moduleLoadErrors={};pedidosLoadError='';publicAvailabilityWarning='';adminDeferredModuleInFlight={};
+ moduleLoadErrors={};pedidosLoadError='';publicAvailabilityWarning='';adminDeferredModuleInFlight={};ordersLegacyFallbackMode=false;
  clearProductCsvPreview();
  Object.keys(adminDeferredModuleLoaded).forEach(key=>adminDeferredModuleLoaded[key]=false);
  ['listaPedidos','listaProductos','listaVentas','listaClientes','listaProveedores','listaGastos','listaMovimientos','wompiReconciliationList'].forEach(id=>{const el=$(id);if(el)el.textContent='';});
@@ -1788,7 +1796,7 @@ function isMissingOrderColumnError(error){
  const message=String(error?.message||'');
  return code==='42703'||code==='PGRST204'||(/column .* does not exist|could not find the .* column|column .* not found/i.test(message));
 }
-async function fetchTablePage(table,from,pageSize,orderColumn,ascending){
+async function fetchTablePage(table,from,pageSize,orderColumn,ascending,selectOverride=null){
  const attempts=[
    {primary:orderColumn,secondary:'id',label:'stable'},
    {primary:null,secondary:'id',label:'id-only'},
@@ -1797,10 +1805,10 @@ async function fetchTablePage(table,from,pageSize,orderColumn,ascending){
  let lastError=null;
  for(let i=0;i<attempts.length;i++){
    const plan=attempts[i];
-   const selectColumns=table==='web_orders'
+   const selectColumns=selectOverride||(table==='web_orders'
     ? 'id,customer_name,customer_phone,customer_email,customer_city,customer_address,customer_neighborhood,note,payment_method,subtotal,shipping,total,items,status,created_at,client_reference,inventory_reference,inventory_state,discount_total'
     : table==='clients'?'id,name'
-    : '*';
+    : '*');
    let query=sb.from(table).select(selectColumns);
    if(table==='sales')query=query.is('archived_at',null);
    if(plan.primary)query=query.order(plan.primary,{ascending});
@@ -1815,10 +1823,10 @@ async function fetchTablePage(table,from,pageSize,orderColumn,ascending){
  }
  return {data:null,error:lastError,orderMode:'failed'};
 }
-async function fetchAllTableRows(table,orderColumn,ascending=true){
+async function fetchAllTableRows(table,orderColumn,ascending=true,selectOverride=null){
  const rows=[];const pageSize=1000;const maxRows=100000;let orderMode='stable';
  for(let from=0;from<maxRows;from+=pageSize){
-   const result=await fetchTablePage(table,from,pageSize,orderColumn,ascending);
+   const result=await fetchTablePage(table,from,pageSize,orderColumn,ascending,selectOverride);
    if(result.error)return {data:null,error:result.error,orderMode:result.orderMode||orderMode};
    orderMode=result.orderMode||orderMode;
    const batch=result.data||[];rows.push(...batch);
@@ -1849,7 +1857,7 @@ function describeAdminTableError(table,error){
 function setOrdersUpdatedAt(date=new Date()){
  dashboardOrdersUpdatedAt=date;
  const status=$("ordersLastUpdated");
- if(status)status.textContent='Snapshot COD; paginación visual. Última actualización: '+date.toLocaleString('es-CO',{timeZone:'America/Bogota'});
+ if(status)status.textContent='Snapshot COD; '+(ordersServerPageMode?'paginación server-side':'paginación visual (RPC paginada no disponible)')+'. Última actualización: '+date.toLocaleString('es-CO',{timeZone:'America/Bogota'});
 }
 let cargarTodoBusy=false;
 async function cargarTodo(){
@@ -1867,7 +1875,7 @@ async function cargarTodo(){
    adminDeferredModuleLoaded.suppliers?fetchAllTableRows("suppliers","name",true):Promise.resolve(skipped),
    adminDeferredModuleLoaded.expenses?fetchAllTableRows("expenses","expense_date",false):Promise.resolve(skipped),
    adminDeferredModuleLoaded.movements?fetchAllTableRows("inventory_movements","created_at",false):Promise.resolve(skipped),
-   adminDeferredModuleLoaded.orders?fetchAllTableRows("web_orders","created_at",false):Promise.resolve(skipped),
+   adminDeferredModuleLoaded.orders&&!ordersServerPageMode&&!ordersLegacyFallbackMode?fetchAllTableRows("web_orders","created_at",false):Promise.resolve(skipped),
    sb.rpc("get_public_catalog")
   ]);
   if(authEpoch!==adminAuthEpoch||!adminSessionAuthorized)return;
@@ -1916,6 +1924,7 @@ async function cargarTodo(){
   if(adminDeferredModuleLoaded.orders)renderPedidos();
   const errors=Object.keys(moduleLoadErrors).filter(key=>['clients','suppliers','expenses','movements','orders'].includes(key));
   if(errors.length){console.error('Detalle de errores en módulos de Supabase:',errors.map(key=>({modulo:key,error:moduleLoadErrors[key]})));toast('No se cargaron algunos módulos. Ábrelos para consultar el detalle.');}
+  if((ordersServerPageMode||ordersLegacyFallbackMode)&&adminDeferredModuleLoaded.orders&&!cargarPedidosBusy)void cargarPedidos();
  }catch(error){if(authEpoch!==adminAuthEpoch||!adminSessionAuthorized)return;dashboardCoreSnapshot.error='Falló la actualización de datos del panel.';console.error('Error de carga del panel:',error);toast('No se pudo actualizar el panel. Se conserva el snapshot anterior.');}
  finally{cargarTodoBusy=false;if(authEpoch===adminAuthEpoch){dashboardCoreSnapshot.busy=false;renderDashboardPeriod();}}
 }
@@ -1977,39 +1986,110 @@ async function refreshPublicAvailability(){
 }
 
 let cargarPedidosBusy=false;
+function readAdminOrdersFilters(){
+ return {search:$('buscarPedido')?.value||'',status:$('filtroPedidoEstado')?.value||'',fromDate:$('ordersFromDate')?.value||'',toDate:$('ordersToDate')?.value||'',city:$('ordersCityFilter')?.value||'',payment:$('ordersPaymentFilter')?.value||''};
+}
+function adminOrdersFilterSignature(filters={},page=pedidosPage,pageSize=pedidosPageSize){
+ return JSON.stringify({search:normalizeOrderFilterValue(filters.search),status:normalizeOrderFilterValue(filters.status),fromDate:String(filters.fromDate||''),toDate:String(filters.toDate||''),city:normalizeOrderFilterValue(filters.city),payment:normalizeOrderFilterValue(filters.payment),page:Number(page)||1,pageSize:Number(pageSize)||20});
+}
+function buildAdminOrdersPageRequest(filters={},page=1,pageSize=20){
+ const safeDate=value=>/^\d{4}-\d{2}-\d{2}$/.test(String(value||''))?String(value):null;
+ return {p_search:String(filters.search??'').trim(),p_status:String(filters.status??''),p_from_date:safeDate(filters.fromDate),p_to_date:safeDate(filters.toDate),p_city:normalizeOrderFilterValue(filters.city),p_payment:normalizeOrderFilterValue(filters.payment),p_page:Math.max(1,Math.floor(Number(page)||1)),p_page_size:[20,50,100].includes(Number(pageSize))?Number(pageSize):20};
+}
+function normalizeAdminOrdersPagePayload(value,filtersKey=''){
+ const response=Array.isArray(value)?value[0]:value;
+ const fail=(message,code='ORDERS_PAGE_RESPONSE_INVALID')=>{const error=new Error(message);error.code=code;throw error};
+ if(!response||response.success!==true||!Array.isArray(response.rows))fail(String(response?.message||'La respuesta paginada de pedidos no es válida.'),String(response?.code||'ORDERS_PAGE_RESPONSE_INVALID'));
+ const toCount=value=>{if(typeof value!=='number'&&!(typeof value==='string'&&/^\d+$/.test(value)))return NaN;const number=Number(value);return Number.isSafeInteger(number)&&number>=0?number:NaN;};
+ const total=toCount(response.total),page=toCount(response.page),pageSize=toCount(response.page_size),totalPages=toCount(response.total_pages);
+ const validCount=value=>Number.isSafeInteger(value)&&value>=0;
+ if(!validCount(total)||!validCount(page)||!validCount(pageSize)||!validCount(totalPages)||![20,50,100].includes(pageSize)||page<1||totalPages!==Math.max(1,Math.ceil(total/pageSize))||page>totalPages||response.rows.length>pageSize||(total>0&&response.rows.length===0)||response.rows.some(row=>!row||typeof row.id!=='string'||!String(row.status||'').trim()))fail('Los metadatos de la página de pedidos están incompletos o fuera de rango.');
+ const rawCounts=response.counts||{};
+ const counts={total:toCount(rawCounts.total),pending:toCount(rawCounts.pending),confirmed:toCount(rawCounts.confirmed),delivered:toCount(rawCounts.delivered)};
+ if(!Object.values(counts).every(validCount)||counts.pending+counts.confirmed+counts.delivered>counts.total)fail('Los conteos globales de pedidos no son válidos.');
+ const normalizeFacets=(items,limit)=>{
+  if(!Array.isArray(items)||items.length>limit||items.some(item=>!item||typeof item.value!=='string'||typeof item.label!=='string'))fail('Las opciones de filtro de pedidos no son válidas.');
+  const seen=new Set();
+  return items.filter(item=>item&&typeof item.value==='string'&&typeof item.label==='string').map(item=>({value:normalizeOrderFilterValue(item.value),label:String(item.label).trim()})).filter(item=>item.value&&item.label&&!seen.has(item.value)&&seen.add(item.value));
+ };
+ if(typeof response.cities_truncated!=='boolean'||typeof response.payments_truncated!=='boolean')fail('Las marcas de facetas no son válidas.');
+ return {rows:response.rows,total,page,pageSize,totalPages,counts,cities:normalizeFacets(response.cities,200),payments:normalizeFacets(response.payments,50),citiesTruncated:response.cities_truncated,paymentsTruncated:response.payments_truncated,filtersKey};
+}
+function isMissingAdminOrdersPageRpc(error){
+ const code=String(error?.code||''),message=String(error?.message||error||''),namesRpc=message.toLowerCase().includes('admin_list_web_orders_page_v1');
+ return namesRpc&&(code==='PGRST202'||(code==='42883'&&/does not exist|undefined function|could not find/i.test(message))||/could not find the function|function .* does not exist|schema cache/i.test(message));
+}
+async function verifyAdminForLegacyOrdersFallback(authEpoch,expectedUserId){
+ if(!sb||!expectedUserId||authEpoch!==adminAuthEpoch||!adminSessionAuthorized||adminSessionUserId!==expectedUserId)return false;
+ const {data:userData,error:userError}=await sb.auth.getUser();
+ if(userError||userData?.user?.id!==expectedUserId||authEpoch!==adminAuthEpoch||!adminSessionAuthorized||adminSessionUserId!==expectedUserId)return false;
+ const {data:isAdmin,error:adminError}=await sb.rpc('is_store_admin');
+ if(adminError||isAdmin!==true||authEpoch!==adminAuthEpoch||!adminSessionAuthorized||adminSessionUserId!==expectedUserId)return false;
+ if(sb.auth.mfa?.getAuthenticatorAssuranceLevel){
+  const {data:assurance,error}=await sb.auth.mfa.getAuthenticatorAssuranceLevel();
+  if(error||!assurance||assurance.nextLevel==='aal2'&&assurance.currentLevel!=='aal2')return false;
+ }
+ return authEpoch===adminAuthEpoch&&adminSessionAuthorized&&adminSessionUserId===expectedUserId;
+}
 async function cargarPedidos(){
-  if(!sb||cargarPedidosBusy||!adminSessionAuthorized)return;
+  if(!sb||!adminSessionAuthorized)return;
+  if(ordersSearchDebounce!==null){clearTimeout(ordersSearchDebounce);ordersSearchDebounce=null;}
+  const requestId=++ordersLoadSequence;
   const authEpoch=adminAuthEpoch;
+  const expectedUserId=adminSessionUserId;
+  const filters=readAdminOrdersFilters();
+  const filtersKey=adminOrdersFilterSignature(filters);
+  const params=buildAdminOrdersPageRequest(filters,pedidosPage,pedidosPageSize);
   cargarPedidosBusy=true;
-  renderDashboardPeriod();
+  pedidosLoadError='';delete moduleLoadErrors.orders;
   const button=$("refreshOrdersBtn");
-  const originalText=button?.textContent||'↻ Actualizar pedidos';
-  if(button){button.disabled=true;button.textContent='⏳ Actualizando…'}
+  if(button){if(!button.dataset.ordersOriginalText)button.dataset.ordersOriginalText=button.textContent||'↻ Actualizar pedidos';button.disabled=true;button.textContent='⏳ Consultando…'}
   try{
-    const {data,error}=await fetchAllTableRows("web_orders","created_at",false);
-    if(authEpoch!==adminAuthEpoch||!adminSessionAuthorized)return;
-    if(error){
-      console.error("Error cargando pedidos:",error);
-      pedidosLoadError=describeAdminTableError('web_orders',error);moduleLoadErrors.orders=pedidosLoadError;
-      toast("No se pudieron actualizar los pedidos. Se conserva la lista anterior.");
-      renderPedidos();
+    renderDashboardPeriod();renderPedidos();
+    const {data,error}=await sb.rpc('admin_list_web_orders_page_v1',params);
+    if(authEpoch!==adminAuthEpoch||requestId!==ordersLoadSequence||!adminSessionAuthorized)return;
+    if(error&&isMissingAdminOrdersPageRpc(error)){
+      const authorizedBeforeFallback=await verifyAdminForLegacyOrdersFallback(authEpoch,expectedUserId);
+      if(authEpoch!==adminAuthEpoch||requestId!==ordersLoadSequence||!adminSessionAuthorized)return;
+      if(!authorizedBeforeFallback){lockAdminPanel('No se pudo revalidar la autorización de pedidos. Inicia sesión de nuevo.');return}
+      const legacy=await fetchAllTableRows('web_orders','created_at',false,'id,customer_name,customer_phone,customer_email,customer_city,customer_address,customer_neighborhood,payment_method,subtotal,shipping,total,items,status,created_at');
+      if(authEpoch!==adminAuthEpoch||requestId!==ordersLoadSequence||!adminSessionAuthorized)return;
+      if(legacy.error)throw legacy.error;
+      const authorizedAfterFallback=await verifyAdminForLegacyOrdersFallback(authEpoch,expectedUserId);
+      if(authEpoch!==adminAuthEpoch||requestId!==ordersLoadSequence||!adminSessionAuthorized)return;
+      if(!authorizedAfterFallback){lockAdminPanel('La autorización cambió durante la consulta de pedidos. Inicia sesión de nuevo.');return}
+      ordersServerPageMode=false;ordersLegacyFallbackMode=true;ordersPageSnapshot=null;ordersFacetOptions={cities:[],payments:[],citiesTruncated:false,paymentsTruncated:false};
+      pedidos=legacy.data||[];pedidosLoadError='';ordersFacetOptionsSignature='';
+      adminDeferredModuleLoaded.orders=true;delete moduleLoadErrors.orders;setOrdersUpdatedAt();renderPedidos();
       return;
     }
-    pedidos=data||[];
+    if(error)throw error;
+    const response=Array.isArray(data)?data[0]:data;
+    if(response?.success===false&&response.code==='ORDERS_PAGE_UNAUTHORIZED'){
+      lockAdminPanel('Tu cuenta dejó de tener autorización administrativa. Vuelve a ingresar.');
+      void sb.auth.signOut({scope:'local'}).catch(()=>{});
+      return;
+    }
+    const snapshot=normalizeAdminOrdersPagePayload(response,filtersKey);
+    snapshot.filtersKey=adminOrdersFilterSignature(filters,snapshot.page,snapshot.pageSize);
+    ordersServerPageMode=true;ordersLegacyFallbackMode=false;ordersPageSnapshot=snapshot;
+    ordersFacetOptions={cities:snapshot.cities,payments:snapshot.payments,citiesTruncated:snapshot.citiesTruncated,paymentsTruncated:snapshot.paymentsTruncated};
+    pedidos=snapshot.rows;pedidosPage=snapshot.page;pedidosPageSize=snapshot.pageSize;
     pedidosLoadError='';ordersFacetOptionsSignature='';
     adminDeferredModuleLoaded.orders=true;delete moduleLoadErrors.orders;
     setOrdersUpdatedAt();
     renderPedidos();
   }catch(fetchError){
-    if(authEpoch!==adminAuthEpoch||!adminSessionAuthorized)return;
-    console.error("Error inesperado actualizando pedidos:",fetchError);
+    if(authEpoch!==adminAuthEpoch||requestId!==ordersLoadSequence||!adminSessionAuthorized)return;
     pedidosLoadError=describeAdminTableError('web_orders',fetchError);moduleLoadErrors.orders=pedidosLoadError;
     toast("No se pudieron actualizar los pedidos. Se conserva la lista anterior.");
     renderPedidos();
   }finally{
-    cargarPedidosBusy=false;
-    if(button){button.disabled=false;button.textContent=originalText}
-    if(authEpoch===adminAuthEpoch)renderDashboardPeriod();
+    if(requestId===ordersLoadSequence){
+      cargarPedidosBusy=false;
+      if(button){button.disabled=false;button.textContent=button.dataset.ordersOriginalText||'↻ Actualizar pedidos';delete button.dataset.ordersOriginalText;}
+      if(authEpoch===adminAuthEpoch)renderDashboardPeriod();
+    }
   }
 }
 
@@ -2086,6 +2166,7 @@ async function cambiarEstadoPedido(id,status){
     if(!result?.success){alert(result?.message||'No se pudo actualizar el pedido.');if(['ORDER_STATUS_CONFLICT','ORDER_STATUS_TRANSITION_INVALID','ORDER_NOT_FOUND'].includes(result?.code))await cargarPedidos();else renderPedidos();return}
     toast(result.message||('Pedido actualizado: '+pedidoEstadoLabel(status)));
     notifyPublicCatalogChanged();void cargarTodo().catch(error=>console.error("No se pudo actualizar el administrador tras cambiar pedido:",error));
+    if(ordersServerPageMode||ordersLegacyFallbackMode)void cargarPedidos();
   }catch(error){alert('No se pudo actualizar el pedido: '+(error.message||error))}
   finally{if(select)select.disabled=false}
 }
@@ -2139,54 +2220,77 @@ function paginateAdminOrders(rows,page,pageSize){
 }
 function syncOrdersFilterOptions(){
   const citySelect=$('ordersCityFilter'),paymentSelect=$('ordersPaymentFilter');
-  const makeOptions=key=>{
+  const makeOptions=(key,serverOptions)=>{
     const values=new Map();
-    pedidos.forEach(row=>{
-      const label=String(row?.[key]??'').trim(),value=normalizeOrderFilterValue(label);
-      if(value&&!values.has(value))values.set(value,label);
-    });
+    if(ordersServerPageMode)(serverOptions||[]).forEach(item=>{const value=normalizeOrderFilterValue(item?.value),label=String(item?.label??'').trim();if(value&&!values.has(value))values.set(value,label||value)});
+    else pedidos.forEach(row=>{const label=String(row?.[key]??'').trim(),value=normalizeOrderFilterValue(label);if(value&&!values.has(value))values.set(value,label)});
     return [...values.entries()].sort((a,b)=>a[0].localeCompare(b[0],'es'));
   };
-  const cities=makeOptions('customer_city'),payments=makeOptions('payment_method');
-  const signature=JSON.stringify({cities,payments});
-  if(signature===ordersFacetOptionsSignature)return;
   const selectedCity=citySelect?.value||'',selectedPayment=paymentSelect?.value||'';
+  let cities=makeOptions('customer_city',ordersFacetOptions.cities),payments=makeOptions('payment_method',ordersFacetOptions.payments);
+  if(ordersServerPageMode&&selectedCity&&!cities.some(([value])=>value===selectedCity))cities.push([selectedCity,selectedCity]);
+  if(ordersServerPageMode&&selectedPayment&&!payments.some(([value])=>value===selectedPayment))payments.push([selectedPayment,selectedPayment]);
+  cities.sort((a,b)=>a[0].localeCompare(b[0],'es'));payments.sort((a,b)=>a[0].localeCompare(b[0],'es'));
+  const signature=JSON.stringify({cities,payments,citiesTruncated:ordersFacetOptions.citiesTruncated,paymentsTruncated:ordersFacetOptions.paymentsTruncated,server:ordersServerPageMode});
+  if(signature===ordersFacetOptionsSignature)return;
   if(citySelect){citySelect.innerHTML='<option value="">Todas las ciudades</option>'+cities.map(([value,label])=>`<option value="${esc(value)}">${esc(label)}</option>`).join('');citySelect.value=cities.some(([value])=>value===selectedCity)?selectedCity:'';}
   if(paymentSelect){paymentSelect.innerHTML='<option value="">Todos los métodos</option>'+payments.map(([value,label])=>`<option value="${esc(value)}">${esc(label)}</option>`).join('');paymentSelect.value=payments.some(([value])=>value===selectedPayment)?selectedPayment:'';}
   ordersFacetOptionsSignature=signature;
 }
-function cambiarFiltroPedidos(){pedidosPage=1;renderPedidos();}
+function getAdminOrdersGlobalCounts(){
+ if(ordersServerPageMode&&ordersPageSnapshot?.counts)return ordersPageSnapshot.counts;
+ return {total:pedidos.length,pending:pedidos.filter(p=>pedidoEstado(p)==='pendiente').length,confirmed:pedidos.filter(p=>pedidoEstado(p)==='confirmado').length,delivered:pedidos.filter(p=>pedidoEstado(p)==='entregado').length};
+}
+function cambiarFiltroPedidos(debounceSearch=false){
+ pedidosPage=1;
+ const shouldQuery=ordersServerPageMode||!adminDeferredModuleLoaded.orders;
+ if(!shouldQuery){renderPedidos();return}
+ if(ordersSearchDebounce!==null){clearTimeout(ordersSearchDebounce);ordersSearchDebounce=null;}
+  if(debounceSearch){renderPedidos();ordersSearchDebounce=setTimeout(()=>{ordersSearchDebounce=null;void cargarPedidos();},350);return;}
+ void cargarPedidos();
+}
 function limpiarFiltrosPedidos(){['buscarPedido','filtroPedidoEstado','ordersFromDate','ordersToDate','ordersCityFilter','ordersPaymentFilter'].forEach(id=>{const input=$(id);if(input)input.value='';});cambiarFiltroPedidos();}
-function cambiarPaginaPedidos(page){pedidosPage=Number(page)||1;renderPedidos();}
-function cambiarTamanoPaginaPedidos(value){const size=Number(value);if([20,50,100].includes(size)){pedidosPageSize=size;pedidosPage=1;renderPedidos();}}
+function cambiarPaginaPedidos(page){pedidosPage=Number(page)||1;if(ordersServerPageMode)void cargarPedidos();else renderPedidos();}
+function cambiarTamanoPaginaPedidos(value){const size=Number(value);if([20,50,100].includes(size)){pedidosPageSize=size;pedidosPage=1;if(ordersServerPageMode)void cargarPedidos();else renderPedidos();}}
 
 function renderPedidos(){
   syncOrdersFilterOptions();
-  const arr=filterAdminOrders(pedidos,{
-    search:$('buscarPedido')?.value||'',status:$('filtroPedidoEstado')?.value||'',
-    fromDate:$('ordersFromDate')?.value||'',toDate:$('ordersToDate')?.value||'',
-    city:$('ordersCityFilter')?.value||'',payment:$('ordersPaymentFilter')?.value||''
-  });
-  const pageData=paginateAdminOrders(arr,pedidosPage,pedidosPageSize);pedidosPage=pageData.page;
+  const filters=readAdminOrdersFilters(),filtersKey=adminOrdersFilterSignature(filters,pedidosPage,pedidosPageSize);
+  const serverSnapshot=ordersServerPageMode&&ordersPageSnapshot?.filtersKey===filtersKey?ordersPageSnapshot:null;
+  let pageData;
+  if(ordersServerPageMode){
+    const snapshot=serverSnapshot;
+    pageData=snapshot?{items:snapshot.rows,page:snapshot.page,pageSize:snapshot.pageSize,total:snapshot.total,totalPages:snapshot.totalPages,start:snapshot.total?(snapshot.page-1)*snapshot.pageSize+1:0,end:snapshot.total?(snapshot.page-1)*snapshot.pageSize+snapshot.rows.length:0}:{items:[],page:pedidosPage,pageSize:pedidosPageSize,total:0,totalPages:1,start:0,end:0};
+  }else{
+    const arr=filterAdminOrders(pedidos,filters);
+    pageData=paginateAdminOrders(arr,pedidosPage,pedidosPageSize);pedidosPage=pageData.page;
+  }
 
-  const pending=pedidos.filter(p=>pedidoEstado(p)==="pendiente").length;
-  const confirmed=pedidos.filter(p=>pedidoEstado(p)==="confirmado").length;
-  const delivered=pedidos.filter(p=>pedidoEstado(p)==="entregado").length;
+  const counts=getAdminOrdersGlobalCounts(),pending=counts.pending,confirmed=counts.confirmed,delivered=counts.delivered;
   const loadError=String(pedidosLoadError||moduleLoadErrors.orders||'');
-  const countsAvailable=adminDeferredModuleLoaded.orders||pedidos.length>0;
-  if($("ordersTotal"))$("ordersTotal").textContent=loadError&&!countsAvailable?'—':pedidos.length;
+  const countsAvailable=ordersServerPageMode?Boolean(ordersPageSnapshot):adminDeferredModuleLoaded.orders||pedidos.length>0;
+  if($("ordersTotal"))$("ordersTotal").textContent=loadError&&!countsAvailable?'—':counts.total;
   if($("ordersPending"))$("ordersPending").textContent=loadError&&!countsAvailable?'—':pending;
   if($("ordersConfirmed"))$("ordersConfirmed").textContent=loadError&&!countsAvailable?'—':confirmed;
   if($("ordersDelivered"))$("ordersDelivered").textContent=loadError&&!countsAvailable?'—':delivered;
 
   const box=$("listaPedidos");if(!box)return;
   const loadStatus=$('ordersLoadStatus');
-  if(loadStatus){loadStatus.hidden=!loadError;loadStatus.textContent=loadError?(countsAvailable?'No se pudo actualizar la lista. Se conserva la última carga disponible. ':'No se pudieron cargar los pedidos. ')+loadError:'';}
+  if(loadStatus){loadStatus.hidden=!loadError;loadStatus.textContent=loadError?(ordersServerPageMode&&ordersPageSnapshot&&!serverSnapshot?'Falló la consulta. La última página pertenece a filtros anteriores y no se muestra. ':countsAvailable?'No se pudo actualizar la lista. Se conserva el último snapshot válido. ':'No se pudieron cargar los pedidos. ')+loadError:'';}
   const summary=$('ordersResultsSummary');
-  if(summary)summary.textContent=loadError&&!countsAvailable?'Sin datos disponibles por un error de consulta.':!countsAvailable?'Los pedidos aún no se han cargado.':pageData.total?`Mostrando ${pageData.start}–${pageData.end} de ${pageData.total} coincidencia(s) (${pedidos.length} pedidos cargados) · Página ${pageData.page} de ${pageData.totalPages}.`:`0 coincidencias (${pedidos.length} pedidos cargados).`;
+  const ordersFacetNotice=$('ordersFacetNotice');
+  if(ordersFacetNotice){const limited=[];if(ordersServerPageMode&&ordersPageSnapshot?.citiesTruncated)limited.push('ciudades');if(ordersServerPageMode&&ordersPageSnapshot?.paymentsTruncated)limited.push('métodos de pago');ordersFacetNotice.hidden=!limited.length;ordersFacetNotice.textContent=limited.length?'Se muestran opciones limitadas de '+limited.join(' y ')+'. Para otros valores, usa la búsqueda de pedidos.':'';}
+  if(summary){
+    if(ordersServerPageMode&&!serverSnapshot)summary.textContent=cargarPedidosBusy?'Consultando pedidos en Supabase para estos filtros…':loadError?'No se muestran filas porque la consulta actual falló.':'La última página corresponde a otro filtro; consulta los resultados actualizados.';
+    else if(loadError&&!countsAvailable)summary.textContent='Sin datos disponibles por un error de consulta.';
+    else if(!countsAvailable)summary.textContent='Los pedidos aún no se han cargado.';
+    else if(loadError)summary.textContent='No se pudo actualizar; se conserva el último snapshot válido. '+(pageData.total?`Mostrando ${pageData.start}–${pageData.end} de ${pageData.total} coincidencia(s).`:'');
+    else if(pageData.total)summary.textContent=`Mostrando ${pageData.start}–${pageData.end} de ${pageData.total} coincidencia(s)${ordersServerPageMode?` · Página ${pageData.page} de ${pageData.totalPages} en servidor.`:` (${pedidos.length} pedidos cargados) · Página ${pageData.page} de ${pageData.totalPages}.`}`;
+    else summary.textContent=ordersServerPageMode?`0 coincidencias · ${counts.total} pedido(s) en total.`:`0 coincidencias (${pedidos.length} pedidos cargados).`;
+  }
   const cards=pageData.items.map(p=>{
     const status=pedidoEstado(p);
-    const created=p.created_at?new Date(p.created_at).toLocaleString("es-CO"):"";
+    const created=p.created_at?new Date(p.created_at).toLocaleString("es-CO",{timeZone:"America/Bogota"}):"";
     const total=Number(p.total)||0;
     const shipping=Number(p.shipping)||0;
     const subtotal=Number(p.subtotal)||0;
@@ -2217,7 +2321,9 @@ function renderPedidos(){
       </div>
     </div>`;
   }).join('');
-  const emptyMessage=loadError&&!countsAvailable?'No se muestran pedidos porque falló la consulta.':!countsAvailable?'Cargando pedidos…':!pedidos.length?'No hay pedidos registrados.':'No hay pedidos que coincidan con estos filtros.';
+  const emptyMessage=ordersServerPageMode
+    ?serverSnapshot?(pageData.total===0?(counts.total===0?'No hay pedidos registrados.':'No hay pedidos que coincidan con estos filtros.'):'No hay filas disponibles para esta página.'):(loadError?'No se muestran filas para evitar presentar resultados de otra consulta.':'Consultando pedidos…')
+    :loadError&&!countsAvailable?'No se muestran pedidos porque falló la consulta.':!countsAvailable?'Cargando pedidos…':!pedidos.length?'No hay pedidos registrados.':'No hay pedidos que coincidan con estos filtros.';
   const pagination=pageData.total?`<nav class="orderPagination" aria-label="Paginación de pedidos"><span class="muted">${pageData.start}–${pageData.end} de ${pageData.total}</span><div class="orderPaginationControls"><label class="orderFilterField" style="flex-direction:row;align-items:center;gap:6px">Por página<select aria-label="Pedidos por página" onchange="cambiarTamanoPaginaPedidos(this.value)"><option value="20" ${pageData.pageSize===20?'selected':''}>20</option><option value="50" ${pageData.pageSize===50?'selected':''}>50</option><option value="100" ${pageData.pageSize===100?'selected':''}>100</option></select></label><button type="button" class="softbtn" data-orders-page="${pageData.page-1}" aria-label="Página anterior" ${pageData.page<=1?'disabled':''}>Anterior</button><span aria-current="page">${pageData.page} / ${pageData.totalPages}</span><button type="button" class="softbtn" data-orders-page="${pageData.page+1}" aria-label="Página siguiente" ${pageData.page>=pageData.totalPages?'disabled':''}>Siguiente</button></div></nav>`:'';
   box.innerHTML=(cards||`<div class="empty">${esc(emptyMessage)}</div>`)+pagination;
 }
@@ -3039,10 +3145,12 @@ function renderDashboardPeriod(){
  salesStatus.textContent=core.busy?'Consultando ventas e inventario…':core.error?core.error+' Última lectura válida: '+stamp(core.updatedAt):!core.loaded?'Ventas e inventario todavía no consultados.':`Fuente: sales no archivadas · ${summary.fromDate} a ${summary.toDate} (Colombia) · Lectura: ${stamp(core.updatedAt)}.${summary.count?'':' Sin registros válidos en el periodo.'}${summary.invalidSales?' '+summary.invalidSales+' registro(s) con datos inválidos excluidos; resumen parcial.':''}`;
  $('dashboardStockCounts').textContent=salesKnown?`${summary.low} / ${summary.out}`:'—';
  $('dashboardInventoryStatus').textContent=!salesKnown?'Inventario no disponible hasta una lectura válida.':`Fuente: get_public_catalog con reservas; stock bajo: 1–2 unidades, agotado: 0.${summary.unverified?' '+summary.unverified+' producto(s) sin verificar, excluidos.':''}${publicAvailabilityWarning?' '+publicAvailabilityWarning:''}`;
- const ordersKnown=adminDeferredModuleLoaded.orders&&!pedidosLoadError&&!moduleLoadErrors.orders&&!cargarPedidosBusy;
- $('dashboardCodPending').textContent=ordersKnown?String(pedidos.filter(p=>pedidoEstado(p)==='pendiente').length):'—';
+ const ordersCounts=getAdminOrdersGlobalCounts();
+ const ordersSnapshotLoaded=ordersServerPageMode?Boolean(ordersPageSnapshot):adminDeferredModuleLoaded.orders;
+ const ordersKnown=ordersSnapshotLoaded&&!pedidosLoadError&&!moduleLoadErrors.orders&&!cargarPedidosBusy;
+ $('dashboardCodPending').textContent=ordersKnown?String(ordersCounts.pending):'—';
  $('dashboardOrdersStatus').className=pedidosLoadError||moduleLoadErrors.orders?'status err':'status';
- $('dashboardOrdersStatus').textContent=cargarPedidosBusy?'Consultando snapshot COD…':pedidosLoadError||moduleLoadErrors.orders?'No se pudo actualizar COD; la cifra anterior no se considera vigente. Última lectura: '+stamp(dashboardOrdersUpdatedAt):!adminDeferredModuleLoaded.orders?'COD no consultado. Pulsa Consultar para obtener el snapshot.':`Fuente: web_orders, estados comerciales; todos los pedidos cargados, no solo el periodo. Lectura: ${stamp(dashboardOrdersUpdatedAt)}. Paginación visual, no conciliación financiera.`;
+ $('dashboardOrdersStatus').textContent=cargarPedidosBusy?'Consultando snapshot COD…':pedidosLoadError||moduleLoadErrors.orders?'No se pudo actualizar COD; la cifra anterior no se considera vigente. Última lectura: '+stamp(dashboardOrdersUpdatedAt):!ordersSnapshotLoaded?'COD no consultado. Pulsa Consultar para obtener el snapshot.':ordersServerPageMode?`Fuente: web_orders; conteos globales y lista paginada en servidor. Lectura: ${stamp(dashboardOrdersUpdatedAt)}. No es conciliación financiera.`:`Fuente: web_orders, estados comerciales; todos los pedidos cargados. Lectura: ${stamp(dashboardOrdersUpdatedAt)}. Paginación visual, no conciliación financiera.`;
  const wompi=dashboardWompiSnapshot;
  $('dashboardWompiReview').textContent=wompi.loaded&&!wompi.error&&!wompi.busy?(wompi.count===50?'50 o más':String(wompi.count)):'—';
  $('dashboardWompiStatus').className=wompi.error?'status err':'status';

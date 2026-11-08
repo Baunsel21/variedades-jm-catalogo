@@ -19,10 +19,10 @@ const ctx = vm.createContext({
   dashboardCoreSnapshot: {loaded:false,busy:false,error:'',updatedAt:null},
   dashboardOrdersUpdatedAt: null,
   dashboardWompiSnapshot: {loaded:false,busy:false,error:'',count:0,updatedAt:null},
-  adminDeferredModuleLoaded: {orders:false},
+  adminDeferredModuleLoaded: {orders:false},ordersServerPageMode:false,ordersPageSnapshot:null,
   moduleLoadErrors: {}, pedidosLoadError:'', cargarPedidosBusy:false, publicAvailabilityWarning:''
 });
-vm.runInContext(['orderDateKeyColombia','summarizeDashboardPeriod','renderDashboardPeriod'].map(extract).join('\n'), ctx);
+vm.runInContext(['orderDateKeyColombia','summarizeDashboardPeriod','getAdminOrdersGlobalCounts','renderDashboardPeriod'].map(extract).join('\n'), ctx);
 const fixture = [
   {sale_date:'2026-11-01',quantity:2,sale_price:100},
   {sale_date:'2026-11-02',quantity:3,sale_price:200},
@@ -70,6 +70,10 @@ assert.equal(nodes.dashboardSaleCount.textContent,'0','Vacío confirmado es dist
 assert.equal(nodes.dashboardAverage.textContent,'—');
 assert.equal(nodes.dashboardCodPending.textContent,'1');
 assert.equal(nodes.dashboardWompiReview.textContent,'50 o más','No presenta un corte de 50 filas como conteo exhaustivo');
+ctx.ordersServerPageMode=true;ctx.ordersPageSnapshot={counts:{total:500,pending:18,confirmed:200,delivered:250}};ctx.pedidos=[{status:'pendiente'}];
+ctx.renderDashboardPeriod();
+assert.equal(nodes.dashboardCodPending.textContent,'18','El KPI COD usa conteos globales del RPC, no el tamaño de la página cargada');
+assert.match(nodes.dashboardOrdersStatus.textContent,/conteos globales y lista paginada en servidor/);
 ctx.pedidosLoadError='red';ctx.dashboardWompiSnapshot.error='red';ctx.dashboardCoreSnapshot.error='red';
 ctx.renderDashboardPeriod();
 for(const id of ['dashboardRevenue','dashboardCodPending','dashboardWompiReview'])assert.equal(nodes[id].textContent,'—','Un error no cuenta como cero ni revive el snapshot como vigente');
