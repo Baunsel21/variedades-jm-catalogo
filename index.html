@@ -4180,17 +4180,24 @@ async function payWithWompi(payload){
 
 let contraEntregaInProgress=false;
 const COD_ORDER_DRAFT_KEY='jm_cod_order_draft_v1';
-function getCODOrderReference(payload,items){
- const fingerprint=JSON.stringify({
-   customer:[payload.name,payload.cedula,payload.phone,payload.email,payload.city,payload.address,payload.neighborhood],
-   items:items.map(x=>({id:String(x.id),qty:Number(x.qty)||0,color:String(x.color||''),size:String(x.size||'')}))
+function getCODOrderFingerprint(payload,items){
+ return JSON.stringify({
+   customer:[payload.name,payload.cedula,payload.phone,payload.email,payload.city,payload.address,payload.neighborhood]
+    .map(value=>String(value||'').trim().toLocaleLowerCase('es')),
+   // Use the same canonical variant rules as inventory reservations so “Única”,
+   // “unica”, empty values and reordered lines remain the same cart.
+   items:normalizeReservationItems(items)
  });
+}
+function getCODOrderReference(payload,items){
+ const fingerprint=getCODOrderFingerprint(payload,items);
  let saved=null;
  try{saved=JSON.parse(localStorage.getItem(COD_ORDER_DRAFT_KEY)||'null')}catch{}
  // Keep the same idempotency reference until the server confirms the order. If a
  // previous request succeeded but its response was lost, changing the cart/address
  // must not silently create a second order and strand the earlier inventory hold.
- if(saved?.reference)return saved.reference;
+ if(saved?.reference&&saved?.fingerprint===fingerprint)return saved.reference;
+ if(saved?.reference)try{localStorage.removeItem(COD_ORDER_DRAFT_KEY)}catch{}
  const uuid=crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+'-'+Math.random().toString(36).slice(2);
  const reference='JMCODCLIENT-'+String(uuid).replace(/[^a-zA-Z0-9-]/g,'').toUpperCase();
  localStorage.setItem(COD_ORDER_DRAFT_KEY,JSON.stringify({reference,fingerprint}));
@@ -4217,6 +4224,13 @@ async function saveContraEntregaOrder(payload){
  let clientReference='';
  try{
    const checkoutItems=getCheckoutItems();
+   // If a stale contraentrega draft belongs to another cart, release only its
+   // old hold before creating the new idempotency reference.
+   const savedCOD=(()=>{try{return JSON.parse(localStorage.getItem(COD_ORDER_DRAFT_KEY)||'null')}catch{return null}})();
+   if(savedCOD?.reference&&savedCOD.fingerprint!==getCODOrderFingerprint(payload,checkoutItems)){
+     try{await releaseInventoryReservation(savedCOD.reference)}catch(error){console.warn('No se pudo liberar la reserva COD anterior; el servidor la dejará vencer.',error)}
+     clearCODOrderReference(savedCOD.reference);
+   }
    clientReference=getCODOrderReference(payload,checkoutItems);
    // El servidor vuelve a leer precio/código/nombre, valida que la ciudad sea Cali y reserva las
    // variantes de forma atómica. El navegador ya no inserta pedidos COD directo.
