@@ -250,16 +250,22 @@ try{
 		 assert.ok(admin.includes("sb.rpc('admin_update_web_order_status_secure_v2'")&&admin.includes('p_expected_status:expectedStatus')&&admin.includes('data-current-status='),'El panel envía el estado esperado y maneja concurrencia');
 	 assert.ok(codTest.includes('ORDER_STATUS_TRANSITION_INVALID')&&codTest.includes('ORDER_STATUS_CONFLICT')&&codTest.includes('admin_cod_direct_writes_revoked'),'Regresión COD cubre matriz, carrera optimista y ACL');
 		for(const key of [
-	  "const WOMPI_PENDING_REFERENCE_KEY='jm_wompi_pending_reference_v5';",
-  "const WOMPI_PENDING_TIME_KEY='jm_wompi_pending_time_v5';",
-  "const WOMPI_CART_KEY='jm_wompi_cart_v5';",
-  "const WOMPI_RESERVATION_TIME_KEY='jm_wompi_reservation_time_v5';",
-  "const WOMPI_RESERVATION_REFERENCE_KEY='jm_wompi_reservation_reference_v6';",
-  "const WOMPI_RESERVATION_ITEMS_KEY='jm_wompi_reservation_items_v2';",
-  "const WOMPI_RESERVATIONS_KEY='jm_wompi_reservations_v3';",
-	  "const COD_ORDER_DRAFT_KEY='jm_cod_order_draft_v1';"
-	 ])assert.ok(catalog.includes(key),`Clave de carrito/reserva conservada: ${key}`);
-	 const promoCalendarMigration=read('supabase/migrations/20261108090000_storefront_combo_calendar_priority.sql');
+		 "const WOMPI_PENDING_REFERENCE_KEY='jm_wompi_pending_reference_v5';",
+		 "const WOMPI_PENDING_TIME_KEY='jm_wompi_pending_time_v5';",
+		 "const WOMPI_CART_KEY='jm_wompi_cart_v5';",
+		 "const WOMPI_RESERVATION_TIME_KEY='jm_wompi_reservation_time_v5';",
+		 "const WOMPI_RESERVATION_REFERENCE_KEY='jm_wompi_reservation_reference_v6';",
+		 "const WOMPI_RESERVATION_ITEMS_KEY='jm_wompi_reservation_items_v2';",
+		 "const WOMPI_RESERVATIONS_KEY='jm_wompi_reservations_v3';",
+		 "const COD_ORDER_DRAFT_KEY='jm_cod_order_draft_v1';"
+		])assert.ok(catalog.includes(key),`Clave de carrito/reserva conservada: ${key}`);
+		assert.ok(catalog.includes('function reservationTimestampIsActive(startedAt,now=Date.now())')&&catalog.includes('now>=started-60000')&&catalog.includes('now-started<=WOMPI_RESERVATION_TTL'),'Timestamp futuro fuera de tolerancia nunca extiende el TTL local');
+		assert.ok(catalog.includes('if(!ref||!reservationTimestampIsActive(time))'),'Referencias pending/active comparten guarda de vigencia');
+		const checkoutConfirmation=catalog.slice(catalog.indexOf('async function confirmCheckout(){'),catalog.indexOf("document.addEventListener('keydown'",catalog.indexOf('async function confirmCheckout(){')));
+		assert.ok(checkoutConfirmation.indexOf('requestCheckoutQuote(couponCode,checkoutItems)')<checkoutConfirmation.indexOf('saveContraEntregaOrder(payload)')&&checkoutConfirmation.indexOf('requestCheckoutQuote(couponCode,checkoutItems)')<checkoutConfirmation.indexOf('payWithWompi(payload)'),'Quote vigente antecede side effects COD/Wompi');
+		const wompiStart=catalog.indexOf('async function payWithWompi(payload){'),wompiCheckout=catalog.slice(wompiStart,catalog.indexOf('async function saveContraEntregaOrder',wompiStart));
+		assert.ok(wompiCheckout.indexOf('requestCheckoutQuote(couponCode,checkoutItems)')<wompiCheckout.indexOf('saveReservationDraft(reservationReference,checkoutItems)')&&wompiCheckout.indexOf('requestCheckoutQuote(couponCode,checkoutItems)')<wompiCheckout.indexOf('fetch(WOMPI_SIGNATURE_ENDPOINT'),'Wompi recotiza antes de reservar o llamar al checkout');
+		const promoCalendarMigration=read('supabase/migrations/20261108090000_storefront_combo_calendar_priority.sql');
 	 const promoCalendarTest=read('tests/promotion_priority_regression.sql');
 	 assert.ok(promoCalendarMigration.includes('public.storefront_shipping_rule_destinations')&&promoCalendarMigration.includes('d.destination_key=v_normalized_city')&&promoCalendarMigration.includes('normalize_storefront_delivery_city')&&promoCalendarMigration.includes("v_destination_status:='matched_'||v_shipping_rule_scope")&&promoCalendarMigration.includes('ORDER BY CASE WHEN r.scope=\'city\' THEN 0 ELSE 1 END,r.priority DESC,r.id'),'Calendario redefine la cotización conservando el resolvedor city/zone');
 	 assert.ok(promoCalendarMigration.includes('ADD COLUMN IF NOT EXISTS priority integer NOT NULL DEFAULT 0')&&promoCalendarMigration.includes("time_zone text NOT NULL DEFAULT 'America/Bogota'"),'Calendario añade prioridad/timezone con defaults compatibles');

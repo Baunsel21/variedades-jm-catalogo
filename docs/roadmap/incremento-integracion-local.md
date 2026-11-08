@@ -34,6 +34,12 @@ Se reutilizó el slice `da8d811` de `feature/catalog-discovery-favorites`, no un
 
 Las claves Wompi/COD/carrito y el TTL de 10 minutos permanecen intactos. Se incluyen localmente la migración mínima de `get_public_catalog_created_at` y su regresión SQL; si no está instalada o faltan fechas, el orden por novedad no se anuncia como disponible.
 
+### Carrito y reservas — endurecimiento acotado
+
+`index.html` unifica la vigencia local de las referencias con helper que mantiene inclusivo el límite exacto de diez minutos, admite hasta 60 segundos de desfase futuro de reloj y descarta punteros pendientes/activos más allá de ese margen. La lectura/restauración no cambia el `startedAt`; `savePendingWompiReference` conserva la hora de inicio al reintentar. Se mantienen las claves históricas `jm_wompi_*` y `jm_cod_order_draft_v1`. `tests/cart_recovery_regression.mjs` ejecuta las funciones reales con reloj y almacenamiento sintéticos, y comprueba además que el resumen usa el precio de catálogo actual y que COD/Wompi cotizan antes de crear pedido/reserva o abrir el checkout del proveedor.
+
+Esto no termina la recuperación avanzada: no hay coordinación entre dispositivos ni prueba concurrente de reutilización en staging, y aún falta comunicar explícitamente cuando precio/stock cambió o cuando un producto guardado ya no está en el catálogo. No se cambió el TTL, las RPC, el payload financiero ni las reservas servidor.
+
 ### Dashboard y datos
 
 Inicio incorpora Hoy, últimos siete días incluidos hoy y mes calendario hasta hoy, en Colombia. El mes comienza el día 1 local, no es un rango móvil de 30 días. Ingresos/promedio se calculan sobre registros no archivados de `sales`, no pedidos ni una contabilidad conciliada. Se excluyen fechas/importes inválidos indicando resumen parcial. Stock bajo y agotado incluyen solo disponibilidad verificada. Pendientes COD y casos Wompi se consultan explícitamente, separados, con fecha/fuente/estado y límite de hasta 50 casos Wompi (50 se expresa como “50 o más”).
@@ -68,7 +74,7 @@ SQL local: `supabase/migrations/20261108080000_public_catalog_sort_metadata.sql`
 
 Rollout manual pendiente: `docs/deployment/restrict_legacy_admin_order_status_after_frontend.sql` (no es migración automática ni se ejecutó).
 
-Regresiones independientes: `tests/admin_account_security_regression.mjs`, `tests/admin_clients_privacy_regression.mjs`, `tests/admin_client_history_regression.mjs`, `tests/admin_orders_server_pagination_regression.mjs`, `tests/dashboard_availability_regression.mjs`, `tests/dashboard_period_regression.mjs`, `tests/phase1_quote_parity_regression.mjs`, `tests/catalog_discovery_regression.mjs`, `tests/fase7_csv_preview.mjs`, `tests/admin_csv_preview_regression.mjs`.
+Regresiones independientes: `tests/admin_account_security_regression.mjs`, `tests/admin_clients_privacy_regression.mjs`, `tests/admin_client_history_regression.mjs`, `tests/admin_orders_server_pagination_regression.mjs`, `tests/dashboard_availability_regression.mjs`, `tests/dashboard_period_regression.mjs`, `tests/admin_dashboard_month_regression.mjs`, `tests/phase1_quote_parity_regression.mjs`, `tests/catalog_discovery_regression.mjs`, `tests/cart_recovery_regression.mjs`, `tests/fase7_csv_preview.mjs`, `tests/admin_csv_preview_regression.mjs`, `tests/cod_notice_regression.mjs`, `tests/admin_cod_notice_regression.mjs`.
 
 Documentación: este informe, `TODO-mejoras.md`, `fase-3-descubrimiento-catalogo.md`, `fase-5-modelo-pedidos.md`, `fase-6-pedidos-filtros-paginacion.md`, `fase-6-s2-paginacion-server-side.md` y `fase-7-trazabilidad-importacion-backup.md`.
 
@@ -86,6 +92,7 @@ node tests/dashboard_period_regression.mjs
 node tests/admin_dashboard_month_regression.mjs
 node tests/phase1_quote_parity_regression.mjs
 node tests/catalog_discovery_regression.mjs
+node tests/cart_recovery_regression.mjs
 node tests/fase7_csv_preview.mjs
 node tests/admin_csv_preview_regression.mjs
 node tests/cod_notice_regression.mjs
@@ -106,6 +113,8 @@ Una revisión independiente read-only de `fetchTablePage`, `renderClientes`, `to
 **Mensaje COD — cierre local:** PASARON `cod_notice_regression.mjs`, `admin_cod_notice_regression.mjs`, `admin_account_security_regression.mjs`, `admin_orders_server_pagination_regression.mjs`, `dashboard_period_regression.mjs`, `phase1_quote_parity_regression.mjs`, `scripts/validate.mjs` y whitespace. El helper y tests pasaron `node --check`; JavaScript inline se comprobó como JavaScript y JSON-LD como JSON. `pglast` aceptó migración 16/4 y test 3/1. La revisión independiente encontró trim Unicode diferente en SQL y una carrera de frescura del aviso: ambos quedaron corregidos con fixtures específicos. ACL PUBLIC en la nueva regresión se verifica como grantee=0, no nombre de rol. No hubo autenticación real, lecturas de negocio, escritura remota ni ejecución del test SQL en esta continuación.
 
 **Resumen mensual — incremento separado:** añade solo la opción del selector y el inicio del mes en `summarizeDashboardPeriod`, sin consultas ni escrituras nuevas. Archivos: `admin.html`, `tests/admin_dashboard_month_regression.mjs`, backlog y este informe. PASARON el test mensual (medianoche Colombia, cambio de año, febrero bisiesto, futuro/mes anterior excluidos, importes inválidos y paridad día/semana), `dashboard_period_regression.mjs`, `scripts/validate.mjs` y whitespace. La cifra conserva la etiqueta de registros de `sales` y no equivale a ventas cobradas/conciliadas por medio de pago. No implementa aún exportación XLSX ni reportes canónicos entre canales.
+
+**Carrito — endurecimiento separado:** PASÓ `node tests/cart_recovery_regression.mjs`. La prueba cubre 10 minutos exactos y expiración posterior, timestamps futuros, limpieza de punteros vencidos, reintento sin renovar el reloj, restauración con precio actual de catálogo y cotización antes de side effects COD/Wompi. No se llamó a Supabase ni se tocaron referencias/reservas reales; la recuperación avanzada sigue abierta.
 
 ## Pendientes de lanzamiento y fases abiertas
 

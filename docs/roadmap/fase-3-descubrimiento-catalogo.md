@@ -11,6 +11,7 @@
 - La ficha tiene control de favorito y actualiza el enlace contextual de WhatsApp con producto, código, precio, variante seleccionada y URL directa.
 - Si falla una imagen, la tarjeta o la ficha presenta un fallback accesible; al seleccionar una imagen válida el fallback desaparece.
 - Se conservan «Comprar ahora», selección de variantes, catálogo de combos, cupones, checkout, cotización, reservas, city/zone shipping y sus contratos existentes. También se preservan el TTL de reservas de 10 minutos y las claves `WOMPI_*`, `COD_ORDER_DRAFT_KEY` y `WOMPI_CART_KEY`.
+- Se unifica la vigencia local de referencias pendientes/reservas: conserva el borde exacto de 10 minutos y admite hasta 60 segundos de desfase de reloj, pero descarta timestamps futuros más alejados para que un puntero obsoleto/manipulado no vuelva a abrir checkout. El reintento usa el `startedAt` original. No crea claves nuevas ni renueva reservas.
 
 La función instalada `get_public_catalog()` no devuelve `created_at`, aunque la tabla `products` sí lo tiene. La implementación espera la RPC independiente `get_public_catalog_created_at()` para ordenar por novedad; esta tarea no aplica migraciones ni cambia datos compartidos.
 
@@ -18,7 +19,7 @@ Revisión de contrato read-only: `get_public_catalog()` es `SECURITY DEFINER` y 
 
 ## Pendiente para completar la fase
 
-Siguen pendientes las etiquetas administrables de destacado/nuevo/oferta/últimas unidades, el filtro de ofertas y su relación con datos y stock del servidor. No se infieren ofertas desde precios o costos. La recuperación del carrito permanece pendiente para no alterar reservas vigentes ni crear referencias duplicadas. La galería, guía y contenido relacionado existentes se conservan, pero no se considera una nueva verificación de despliegue.
+Siguen pendientes las etiquetas administrables de destacado/nuevo/oferta/últimas unidades, el filtro de ofertas y su relación con datos y stock del servidor. No se infieren ofertas desde precios o costos. La recuperación avanzada del carrito (resolver visualmente precio/stock cambiado, coordinar entre dispositivos y demostrar concurrencia de reutilización) permanece abierta. Este slice solo verifica localmente que el resumen usa el precio del producto actual, que la confirmación recotiza antes de pedido/reserva/pago y que leer/reintentar/restaurar no extiende el `startedAt`. La galería, guía y contenido relacionado existentes se conservan, pero no se considera una nueva verificación de despliegue.
 
 Antes de habilitar «Más recientes» en un entorno compartido, aplicar y verificar la migración/RPC correspondiente en un entorno aislado y mantener sus pruebas fuera de producción.
 
@@ -28,8 +29,9 @@ Se ejecutó:
 
 ```text
 node tests/catalog_discovery_regression.mjs
+node tests/cart_recovery_regression.mjs
 ```
 
-La regresión es independiente y usa una VM real de Node con fixtures de variantes/stock: comprueba filtros de precio/color/talla/disponibilidad, persistencia ID-only en `localStorage`, aislamiento de claves de compra y round-trip de filtros en el URL. También compila con el parser real de Node los scripts inline ejecutables del HTML. El resultado fue `catalog_discovery_regression: OK`.
+`catalog_discovery_regression.mjs` es independiente y usa una VM real de Node con fixtures de variantes/stock: comprueba filtros de precio/color/talla/disponibilidad, persistencia ID-only en `localStorage`, aislamiento de claves de compra y round-trip de filtros en el URL. `cart_recovery_regression.mjs` ejecuta helpers reales de reserva con reloj/localStorage sintéticos: TTL, desfase futuro, no renovación, precio del catálogo y orden de cotización. También compila con el parser real de Node los scripts inline ejecutables del HTML.
 
 En el cierre de integración también pasaron `node scripts/validate.mjs` y `git diff --check`. Se agregó el fixture de color+talla cruzados: debe existir una misma variante compatible, no stock separado de dos variantes distintas. La migración/SQL de metadata se incluyó localmente y se analizó con `pglast`, sin ejecutarla. No se ejecutaron pagos, navegador ni SQL, no se aplicó ninguna migración ni se editaron datos remotos; el sitio no está desplegado y la rama no está fusionada. La fase no debe declararse completa.

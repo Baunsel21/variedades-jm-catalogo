@@ -2239,6 +2239,10 @@ const WOMPI_RESERVATION_ITEMS_KEY='jm_wompi_reservation_items_v2';
 // Cada reserva conserva su propio reloj de 10 minutos y no reemplaza las demás.
 const WOMPI_RESERVATIONS_KEY='jm_wompi_reservations_v3';
 const WOMPI_RESERVATION_TTL=10*60*1000;
+function reservationTimestampIsActive(startedAt,now=Date.now()){
+ const started=Number(startedAt);
+ return Number.isFinite(started)&&started>0&&Number.isFinite(now)&&now-started<=WOMPI_RESERVATION_TTL&&now>=started-60000;
+}
 
 function normalizeReservationItems(items){
  const grouped=new Map();
@@ -2284,7 +2288,7 @@ function getReservationRegistry(){
    importedLegacy=true;
  }
  const now=Date.now();
- const active=records.filter(r=>now-Number(r.startedAt)<=WOMPI_RESERVATION_TTL&&now>=Number(r.startedAt)-60000);
+ const active=records.filter(r=>reservationTimestampIsActive(r.startedAt,now));
  if(importedLegacy||active.length!==records.length){
    try{saveReservationRegistry(active)}catch(e){console.warn('No se pudo actualizar el registro local de reservas.',e)}
  }
@@ -2334,7 +2338,7 @@ function hasActiveLocalReservation(){return getReservationRegistry().length>0}
 function getPendingWompiReference(){
  const ref=localStorage.getItem(WOMPI_PENDING_REFERENCE_KEY)||'';
  const time=Number(localStorage.getItem(WOMPI_PENDING_TIME_KEY)||0);
- if(!ref||!time||Date.now()-time>WOMPI_RESERVATION_TTL){
+ if(!ref||!reservationTimestampIsActive(time)){
    localStorage.removeItem(WOMPI_PENDING_REFERENCE_KEY);
    localStorage.removeItem(WOMPI_PENDING_TIME_KEY);
    return '';
@@ -2357,12 +2361,8 @@ function savePendingWompiReference(ref){
 function getActiveReservationReference(){
  const ref=localStorage.getItem(WOMPI_RESERVATION_REFERENCE_KEY)||'';
  const time=Number(localStorage.getItem(WOMPI_RESERVATION_TIME_KEY)||0);
- if(!ref||!time||Date.now()-time>WOMPI_RESERVATION_TTL){
-   if(ref){
-     localStorage.removeItem(WOMPI_RESERVATION_REFERENCE_KEY);
-     localStorage.removeItem(WOMPI_RESERVATION_ITEMS_KEY);
-     localStorage.removeItem(WOMPI_RESERVATION_TIME_KEY);
-   }
+ if(!ref||!reservationTimestampIsActive(time)){
+   if(ref)clearPendingWompiReference();
    return '';
  }
  return ref;
