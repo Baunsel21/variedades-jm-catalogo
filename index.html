@@ -4050,7 +4050,7 @@ async function payWithWompi(payload){
     body:JSON.stringify(payload)
    });
    data=await response.json().catch(()=>({}));
-   if(response.status===409&&['WOMPI_REFERENCE_TERMINAL','WOMPI_ACTIVE_RESERVATION'].includes(data?.code)&&preparationAttempt===0){
+   if(response.status===409&&['WOMPI_REFERENCE_TERMINAL','WOMPI_ACTIVE_RESERVATION','WOMPI_REFERENCE_STALE'].includes(data?.code)&&preparationAttempt===0){
     const expiredReference=paymentReference;
     if(expiredReference)forgetReservationRecord(expiredReference);
     const reusedReference=data?.code==='WOMPI_ACTIVE_RESERVATION'?String(data.existingReference||''):'';

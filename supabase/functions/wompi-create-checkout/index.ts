@@ -307,6 +307,25 @@ Deno.serve(async (req: Request): Promise<Response> => {
             error: "El intento anterior terminó sin aprobarse y su reserva se liberó. Se preparará un intento nuevo sin reutilizar esa referencia.",
           }, 409);
         }
+        if (pendingAndUnlinked) {
+          // A stale browser can send a pending reference whose stored order no
+          // longer matches the current checkout after back/reload. Release only
+          // this old hold and let the client retry once with a fresh reference;
+          // never keep the buyer blocked and never stack two active holds.
+          const releaseResponse = await fetch(`${supabaseUrl}/rest/v1/rpc/release_inventory_reservation`, {
+            method: "POST",
+            headers: supabaseHeaders(serviceRoleKey),
+            body: JSON.stringify({ p_reference: reference }),
+          });
+          if (!releaseResponse.ok) {
+            return json({ error: "La referencia anterior no coincide con este carrito y no se pudo liberar de forma segura. Espera a que venza su reserva." }, 502);
+          }
+          return json({
+            code: "WOMPI_REFERENCE_STALE",
+            canRetryWithNewReference: true,
+            error: "La referencia anterior estaba asociada a otro carrito. Su reserva se liberó y se preparará el mismo pedido con una referencia nueva.",
+          }, 409);
+        }
         return json({ error: "Esta referencia ya corresponde a otro intento, a una transacción vinculada, a otro comprador o a un total distinto. No se reutilizó el pedido anterior." }, 409);
       }
     }
