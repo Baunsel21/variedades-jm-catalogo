@@ -381,6 +381,12 @@ body{background:linear-gradient(180deg,#fffaf0 0%,#fff6e6 55%,#f8ecd7 100%);colo
 .productDetailBox{width:min(96vw,900px);max-height:94vh;grid-template-columns:minmax(0,1.15fr) minmax(280px,.85fr);gap:18px;padding:18px}
 .detailImageWrap{min-height:560px;max-height:78vh;background:#f4efe9;position:relative}
 .detailImage{width:100%;height:100%;max-height:78vh;object-fit:contain;cursor:zoom-in}
+.imageLoadFallback{width:100%;height:100%;min-height:220px;box-sizing:border-box;padding:24px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:#65554c;text-align:center}
+.imageLoadFallback[hidden],#productDetailModal .detailImage[hidden],.galleryMain[hidden]{display:none!important}
+.imageLoadFallbackIcon{font-size:42px;color:#8c6e62;line-height:1}
+.detailThumb .noimg{width:100%;height:100%;display:grid;place-items:center;font-size:22px}
+.detailThumb img[hidden],.photo img[hidden]{display:none!important}
+.photoImageFallback{position:absolute;inset:0;z-index:0;display:grid;place-items:center;background:#111113;pointer-events:none}
 .detailGalleryThumbs{display:flex;gap:8px;overflow-x:auto;padding:9px 2px 2px;scrollbar-width:thin}
 .detailThumb{width:68px;height:82px;flex:0 0 auto;border:2px solid transparent;border-radius:9px;overflow:hidden;background:#eee;cursor:pointer;padding:0}
 .detailThumb.active{border-color:#a75f58}
@@ -1886,7 +1892,13 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
     </header>
     <button class="detailClose" type="button" onclick="closeProductDetail()" aria-label="Cerrar detalle del producto">×</button>
     <div class="productDetailMain">
-      <div class="detailGalleryColumn"><div id="detailImageWrap" class="detailImageWrap"><img id="detailImage" class="detailImage" alt="Producto" role="button" tabindex="0" aria-haspopup="dialog" aria-label="Ampliar galería del producto" onclick="openDetailGallery(event)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openDetailGallery(event)}" decoding="async"></div><div id="detailGalleryThumbs" class="detailGalleryThumbs"></div></div>
+      <div class="detailGalleryColumn">
+        <div id="detailImageWrap" class="detailImageWrap">
+          <img id="detailImage" class="detailImage" alt="Producto" role="button" tabindex="0" aria-haspopup="dialog" aria-label="Ampliar galería del producto" onclick="openDetailGallery(event)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openDetailGallery(event)}" onload="clearImageFallback(this,'detailImageFallback')" onerror="showImageFallback(this,'detailImageFallback')" decoding="async">
+          <div id="detailImageFallback" class="imageLoadFallback" role="status" aria-live="polite" hidden><span class="imageLoadFallbackIcon" aria-hidden="true">▧</span><strong>Imagen no disponible</strong><span data-image-fallback-message>No se pudo cargar la imagen del producto.</span></div>
+        </div>
+        <div id="detailGalleryThumbs" class="detailGalleryThumbs"></div>
+      </div>
       <div class="detailInfo">
         <div id="detailName" class="detailName"></div>
         <div id="detailPrice" class="detailPrice"></div>
@@ -1915,7 +1927,18 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
       </a>
     </section>
   </div>
-</div><div id="galleryModal" class="galleryModal" role="dialog" aria-modal="true" aria-label="Galería ampliada" aria-describedby="galleryInfo" aria-hidden="true" tabindex="-1" onclick="closeGallery(event)"><div class="galleryBox"><button id="galleryClose" class="galleryClose" type="button" aria-label="Cerrar galería" title="Cerrar galería" onclick="closeGallery()">×</button><button id="galleryPrev" class="galleryNav galleryPrev" type="button" aria-label="Imagen anterior" onclick="galleryMove(-1,event)">‹</button><img id="galleryMain" class="galleryMain" alt="Imagen del producto" decoding="async"><button id="galleryNext" class="galleryNav galleryNext" type="button" aria-label="Imagen siguiente" onclick="galleryMove(1,event)">›</button><div id="galleryInfo" class="galleryInfo" role="status" aria-live="polite" aria-atomic="true"></div></div></div><a class="waHelpFloat" href="https://wa.me/573025469983?text=Hola%2C%20necesito%20asesor%C3%ADa%20sobre%20un%20producto." target="_blank" rel="noopener noreferrer" aria-label="Contactar asesoramiento por WhatsApp">
+ </div>
+<div id="galleryModal" class="galleryModal" role="dialog" aria-modal="true" aria-label="Galería ampliada" aria-describedby="galleryInfo" aria-hidden="true" tabindex="-1" onclick="closeGallery(event)">
+  <div class="galleryBox">
+    <button id="galleryClose" class="galleryClose" type="button" aria-label="Cerrar galería" title="Cerrar galería" onclick="closeGallery()">×</button>
+    <button id="galleryPrev" class="galleryNav galleryPrev" type="button" aria-label="Imagen anterior" onclick="galleryMove(-1,event)">‹</button>
+    <img id="galleryMain" class="galleryMain" alt="Imagen del producto" onload="clearImageFallback(this,'galleryImageFallback')" onerror="showImageFallback(this,'galleryImageFallback')" decoding="async">
+    <div id="galleryImageFallback" class="imageLoadFallback" role="status" aria-live="polite" hidden><span class="imageLoadFallbackIcon" aria-hidden="true">▧</span><strong>Imagen no disponible</strong><span data-image-fallback-message>No se pudo cargar la imagen ampliada.</span></div>
+    <button id="galleryNext" class="galleryNav galleryNext" type="button" aria-label="Imagen siguiente" onclick="galleryMove(1,event)">›</button>
+    <div id="galleryInfo" class="galleryInfo" role="status" aria-live="polite" aria-atomic="true"></div>
+  </div>
+</div>
+<a class="waHelpFloat" href="https://wa.me/573025469983?text=Hola%2C%20necesito%20asesor%C3%ADa%20sobre%20un%20producto." target="_blank" rel="noopener noreferrer" aria-label="Contactar asesoramiento por WhatsApp">
   <span class="waHelpLabel"><b>Asesoramiento</b></span><span class="waHelpIcon" aria-hidden="true">●</span>
 </a>
 <div id="toast" class="toast"></div>
@@ -2245,9 +2268,15 @@ function publicImage(path){
 }
 function productImages(p){const a=Array.isArray(p.image_paths)?p.image_paths.filter(Boolean):[];if(!a.length&&p.image_url)a.push(p.image_url);return a.map(publicImage).filter(Boolean)}
 
+function showImageFallback(image,fallbackId){if(image)image.hidden=true;const fallback=$(fallbackId);if(!fallback)return;fallback.hidden=false;const message=fallback.querySelector('[data-image-fallback-message]');if(message){const alt=String(image?.alt||'').trim();message.textContent=alt?`No se pudo cargar la imagen de ${alt}.`:'No se pudo cargar la imagen del producto.'}}
+function clearImageFallback(image,fallbackId){if(image)image.hidden=false;const fallback=$(fallbackId);if(fallback)fallback.hidden=true}
+function replaceWithImageFallback(image){if(!image||typeof image.replaceWith!=='function')return;const fallback=document.createElement('div');fallback.className='noimg';fallback.setAttribute('role','img');fallback.setAttribute('aria-label','Imagen no disponible');fallback.textContent='▧';image.replaceWith(fallback)}
+function showCardImageFallback(image){if(!image)return;image.hidden=true;const photo=image.closest('.photo');if(!photo)return;let fallback=photo.querySelector('.photoImageFallback');if(!fallback){fallback=document.createElement('div');fallback.className='noimg photoImageFallback';fallback.setAttribute('role','img');fallback.setAttribute('aria-label','Imagen no disponible');fallback.textContent='▧';photo.append(fallback)}}
+function clearCardImageFallback(image){if(!image)return;image.hidden=false;const fallback=image.closest('.photo')?.querySelector('.photoImageFallback');fallback?.remove()}
 function setPhotoImage(el,src){
  const img=el?.querySelector('img');
  if(!img||!src)return;
+ clearCardImageFallback(img);
  img.src=src;
  img.removeAttribute('data-src');
  // Transición breve (140 ms); no añade intervalos ni llamadas a Supabase.
@@ -2754,7 +2783,7 @@ function openProductDetail(id,event,options={}){
  const firstColor=colors.find(c=>colorStock(p,c)>0)||colors[0]||'';
  const firstSize=sizes.find(sz=>variantStock(p,firstColor,sz)>0)||sizes[0]||'';
  const image=variantImageUrl(p,firstColor)||(imgs[0]||'');
- const detailMainImage=$('detailImage');detailMainImage.loading='eager';detailMainImage.fetchPriority='high';detailMainImage.decoding='async';detailMainImage.src=image;
+ const detailMainImage=$('detailImage');detailMainImage.alt=String(p.name||'Producto');detailMainImage.loading='eager';detailMainImage.fetchPriority='high';detailMainImage.decoding='async';detailMainImage.src=image;
  renderDetailGallery(p,image);
  $('detailVariants').innerHTML=`<div class="detailCard" data-product-id="${esc(p.id)}">${renderDetailVariants(p,firstColor,firstSize)}</div>`;
  updateDetailVariantAvailability();
@@ -3186,7 +3215,7 @@ function updateDetailDescription(p){
  const accordion=(title,content,cls='')=>`<details class="detailAccordion ${cls}" data-detail-section="${esc(title)}"><summary>${esc(title)}<span class="detailAccordionChevron" aria-hidden="true">⌄</span></summary><div class="detailAccordionBody">${content}</div></details>`;
  const descriptionSection=description?accordion('Información del producto',`<p class="detailLongText">${esc(description)}</p>`,'detailDescriptionAccordion'):'';
  const guideImageUrl=sizeGuideImage?publicImage(sizeGuideImage):'';
- const guideImageMarkup=guideImageUrl?`<figure class="detailSizeGuideFigure"><img class="detailSizeGuideImage" src="${esc(guideImageUrl)}" alt="Guía de tallas${p.name?` de ${esc(p.name)}`:''}" loading="lazy" decoding="async" role="button" tabindex="0" aria-label="Ampliar guía de tallas" title="Toca para ampliar" onclick="openSizeGuideZoom(this,event)" onkeydown="if(event.key==='Enter'||event.key===' '){openSizeGuideZoom(this,event)}" onerror="this.style.display='none'"></figure>`:'';
+ const guideImageMarkup=guideImageUrl?`<figure class="detailSizeGuideFigure"><img class="detailSizeGuideImage" src="${esc(guideImageUrl)}" alt="Guía de tallas${p.name?` de ${esc(p.name)}`:''}" loading="lazy" decoding="async" role="button" tabindex="0" aria-label="Ampliar guía de tallas" title="Toca para ampliar" onclick="openSizeGuideZoom(this,event)" onkeydown="if(event.key==='Enter'||event.key===' '){openSizeGuideZoom(this,event)}" onerror="replaceWithImageFallback(this)"></figure>`:'';
  const guideTextMarkup=sizeGuide?`<p class="detailLongText ${guideImageUrl?'detailSizeGuideTextAfterImage':''}">${esc(sizeGuide)}</p>`:'';
  const sizeGuideSection=(guideImageUrl||sizeGuide)?accordion('Guía de tallas',`${guideImageMarkup}${guideTextMarkup}`,'detailSizeGuideAccordion'):'';
  const deliverySection=accordion('Tiempo de entrega',`<p class="detailLongText">${esc(deliveryText)}</p>`,'detailDeliveryAccordion');
@@ -3225,7 +3254,7 @@ function renderDetailGallery(p,activeUrl){
  const activeKey=normalizeImageUrl(activeUrl);
  // Store dynamic image URLs in an escaped data attribute, not inside inline JavaScript.
  // This also handles valid URLs containing apostrophes without breaking the click handler.
- box.innerHTML=imgs.map((u,i)=>{const active=normalizeImageUrl(u)===activeKey;return `<button type="button" class="detailThumb ${active?'active':''}" data-detail-image-url="${esc(u)}" aria-label="Ver foto ${i+1} de ${esc(p.name||'producto')}" aria-pressed="${active?'true':'false'}"><img src="${esc(u)}" alt="Foto ${i+1}" loading="lazy" decoding="async" draggable="false"></button>`}).join('');
+ box.innerHTML=imgs.map((u,i)=>{const active=normalizeImageUrl(u)===activeKey;return `<button type="button" class="detailThumb ${active?'active':''}" data-detail-image-url="${esc(u)}" aria-label="Ver foto ${i+1} de ${esc(p.name||'producto')}" aria-pressed="${active?'true':'false'}"><img src="${esc(u)}" alt="Foto ${i+1}" loading="lazy" decoding="async" draggable="false" onerror="replaceWithImageFallback(this)"></button>`}).join('');
  box.querySelectorAll('button[data-detail-image-url]').forEach(button=>{
   button.addEventListener('click',event=>selectDetailImage(button.dataset.detailImageUrl||'',event));
  });
@@ -3338,6 +3367,7 @@ function detailSelectColor(btn,event){
    if(first){const b=[...box.querySelectorAll('.sizeOption')].find(x=>normalizeText(x.dataset.value)===normalizeText(first));if(b){b.classList.add('active');b.setAttribute('aria-pressed','true')}size=first}else size='';
  }
  const image=variantImageUrl(detailProduct,color)||(productImages(detailProduct)[0]||'');
+ $('detailImage').alt=String(detailProduct?.name||'Producto');
  $('detailImage').src=image;
  renderDetailGallery(detailProduct,image);
  box.innerHTML=renderDetailVariants(detailProduct,color,size);
@@ -3706,7 +3736,7 @@ function render(){
    const ok=variantTotal>0 || reservedForThisSession;
    const blocked=!ok && !hasOwnActiveReservationForProduct(p.id);
    const key='photo_'+p.id;
-return `<article class="card ${blocked?'inventoryUnavailable':''}" data-product-id="${esc(p.id)}" aria-disabled="${blocked?'true':'false'}" onclick="openProductDetail('${esc(p.id)}',event)">${blocked?'<div class="inventoryLock">🔒 RESERVADO / AGOTADO</div>':''}<div class="photo photoSwipe" data-photo="${esc(key)}" data-index="0" onpointerdown="photoTouchStart(event)" onpointermove="photoTouchMove(event)" onpointerup="photoTouchEnd(event)" onpointercancel="photoTouchEnd(event)" onclick="photoClickGuard(event)" onpointerenter="photoHover(event)" onpointerleave="photoHoverLeave(event)">${imgs.length?`<img data-src="${esc(imgs[0])}" alt="${esc(p.name)}" loading="lazy" decoding="async" onerror="this.style.display='none'">${imgs.length>1?``:''}`:'<div class="noimg">📦</div>'}</div><div class="body"><div class="catalogCardTitle"><div class="name">${esc(p.name)}</div><button class="productFavoriteButton" type="button" data-favorite-id="${esc(p.id)}" aria-pressed="${isCatalogFavorite(p.id)}" aria-label="${isCatalogFavorite(p.id)?'Quitar':'Añadir'} ${esc(p.name)} ${isCatalogFavorite(p.id)?'de':'a'} favoritos" onclick="toggleCatalogFavorite(event,this)"><span aria-hidden="true">${isCatalogFavorite(p.id)?'♥':'♡'}</span></button></div>${catalogProductReferenceMarkup(p)}<div class="price">${money(p.sale_price)}</div>${renderVariantOptions(p)}</div></article>`
+return `<article class="card ${blocked?'inventoryUnavailable':''}" data-product-id="${esc(p.id)}" aria-disabled="${blocked?'true':'false'}" onclick="openProductDetail('${esc(p.id)}',event)">${blocked?'<div class="inventoryLock">🔒 RESERVADO / AGOTADO</div>':''}<div class="photo photoSwipe" data-photo="${esc(key)}" data-index="0" onpointerdown="photoTouchStart(event)" onpointermove="photoTouchMove(event)" onpointerup="photoTouchEnd(event)" onpointercancel="photoTouchEnd(event)" onclick="photoClickGuard(event)" onpointerenter="photoHover(event)" onpointerleave="photoHoverLeave(event)">${imgs.length?`<img data-src="${esc(imgs[0])}" alt="${esc(p.name)}" loading="lazy" decoding="async" onerror="showCardImageFallback(this)" onload="clearCardImageFallback(this)">${imgs.length>1?``:''}`:'<div class="noimg">📦</div>'}</div><div class="body"><div class="catalogCardTitle"><div class="name">${esc(p.name)}</div><button class="productFavoriteButton" type="button" data-favorite-id="${esc(p.id)}" aria-pressed="${isCatalogFavorite(p.id)}" aria-label="${isCatalogFavorite(p.id)?'Quitar':'Añadir'} ${esc(p.name)} ${isCatalogFavorite(p.id)?'de':'a'} favoritos" onclick="toggleCatalogFavorite(event,this)"><span aria-hidden="true">${isCatalogFavorite(p.id)?'♥':'♡'}</span></button></div>${catalogProductReferenceMarkup(p)}<div class="price">${money(p.sale_price)}</div>${renderVariantOptions(p)}</div></article>`
  }).join(''):'<div class="empty">No encontramos productos con esos filtros.</div>';
  document.querySelectorAll('#grid .card').forEach(card=>{const p=productos.find(x=>String(x.id)===String(card.dataset.productId));if(p)updateVariantAvailability(card,p)});
  activateCatalogLazyImages();

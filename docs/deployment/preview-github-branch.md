@@ -24,3 +24,8 @@ El botón `Compartir` crea un enlace limpio con el rango de precio y la disponib
 El panel de preview incorpora recuperación de cuenta, cambio de contraseña y cierre de sesiones junto con guards para descartar resultados tardíos de otra sesión; la sección es solo visible, porque el mock bloquea Auth y escrituras reales. El cambio no valida configuración productiva de redirect/SMTP ni MFA/AAL2 real.
 
 La ficha del catálogo expone el zoom de imágenes como dialog accesible: trigger por teclado, botones con nombres accesibles, contador anunciado, Escape/flechas, ciclo de foco y retorno al control que abrió la galería. Regresión: `node tests/catalog_gallery_accessibility_regression.mjs`. La galería conserva sus imágenes, swipe y navegación existentes; no consulta ni modifica backend.
+
+
+## Fallback de imágenes fallidas
+
+Cuando no carga una imagen, la ficha y el zoom sustituyen el icono de error por un mensaje accesible que identifica el producto; las tarjetas conservan sus controles de carrusel y muestran un placeholder local, y los thumbnails/guía también evitan el icono roto. La falla de red no cambia URLs ni datos de producto. Regresión: `node tests/catalog_image_fallback_regression.mjs`.
