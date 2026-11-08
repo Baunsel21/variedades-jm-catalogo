@@ -1,6 +1,6 @@
 # Fase 2 — Tarifas por ciudad y zona
 
-**Estado:** implementación preparada en la rama `feature/roadmap-city-shipping`; pendiente de validación en un proyecto Supabase aislado. No fusionada, publicada ni aplicada a la base activa. Fecha: 7 de noviembre de 2026.
+**Estado:** [PR #11 en borrador](https://github.com/Baunsel21/variedades-jm-catalogo/pull/11), rama `feature/roadmap-city-shipping`; pendiente de validación en un proyecto Supabase aislado. No fusionada, publicada ni aplicada a la base activa. Fecha: 7 de noviembre de 2026.
 
 ## Cambios preparados
 
