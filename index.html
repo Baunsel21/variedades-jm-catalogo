@@ -556,6 +556,7 @@ body{background:linear-gradient(180deg,#fffaf0 0%,#fff6e6 55%,#f8ecd7 100%);colo
 .filterField select{min-width:0;width:100%;background:#fff;color:#393138;border:1px solid #e5dce1;border-radius:8px;padding:9px;font-size:12px}
 .filterCategoryField{grid-column:1/-1;min-width:0}
 .filterPriceOrderField{grid-column:1;min-width:0}
+.filterAvailabilityField{grid-column:1;min-width:0}
 .filterColorField{grid-column:2;min-width:0}
 .filterSizeField{grid-column:2;min-width:0}
 .filterFieldTitle{font-size:11px;font-weight:800;color:#766a71}
@@ -1688,6 +1689,13 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
           <option value="price_asc">Precio menor → mayor</option>
           <option value="price_desc">Precio mayor → menor</option>
           <option value="stock_desc">Mayor stock</option>
+        </select>
+      </label>
+      <label class="filterField filterAvailabilityField" for="catalogAvailabilityFilter">Disponibilidad
+        <select id="catalogAvailabilityFilter" onchange="setCatalogAvailabilityFilter(this.value)" aria-label="Filtrar por disponibilidad">
+          <option value="available" selected>Disponibles</option>
+          <option value="all">Todos</option>
+          <option value="sold_out">Agotados</option>
         </select>
       </label>
       <div class="filterField filterColorField">
@@ -3420,6 +3428,7 @@ function populateFilterCategory(cats){
  f.innerHTML='<option value="">Todas las categorías</option>'+(cats||[]).map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('');
  f.value=current;
 }
+let catalogAvailabilityFilter='available';
 let selectedCatalogColors=new Set();
 let selectedCatalogColorNames=new Map();
 let filterColorOptionsSignature='';
@@ -3586,6 +3595,18 @@ function productMatchesCatalogVariantFilters(p,colors,sizes){
  if(chosenSizes.size)return availableCatalogSizesForProduct(p).some(size=>chosenSizes.has(catalogSizeFilterKey(size)));
  return true;
 }
+function catalogProductMatchesAvailability(p,filter=catalogAvailabilityFilter){
+ const stock=productStockTotal(p);
+ if(filter==='all')return true;
+ if(filter==='sold_out')return stock<=0;
+ return stock>0;
+}
+function setCatalogAvailabilityFilter(value){
+ const next=['available','all','sold_out'].includes(value)?value:'available';
+ catalogAvailabilityFilter=next;
+ const select=$('catalogAvailabilityFilter');if(select&&select.value!==next)select.value=next;
+ render();
+}
 
 function toggleFilterPanel(force){
  // Los filtros viven directamente dentro del menú lateral; no necesitan un segundo botón "Filtrar".
@@ -3614,6 +3635,8 @@ function clearCatalogFilters(){
  $('category').value='';
  if($('filterCategory'))$('filterCategory').value='';
  if($('sort'))$('sort').value='recent';
+ catalogAvailabilityFilter='available';
+ if($('catalogAvailabilityFilter'))$('catalogAvailabilityFilter').value='available';
  $('search').value='';
  selectedCatalogColors.clear();
  selectedCatalogColorNames.clear();
@@ -3645,7 +3668,7 @@ function render(){
  let arr=productos.filter(p=>{
  const text=normalizeText((p.code||'')+' '+(p.name||'')+' '+(p.category||''));
  // El stock por variante prevalece sobre quantity cuando hay combinaciones configuradas.
- if(productStockTotal(p)<=0)return false;
+ if(!catalogProductMatchesAvailability(p,catalogAvailabilityFilter))return false;
  if(catalogFavoritesOnly&&!favoriteProductIds.has(String(p.id)))return false;
  if(!catalogProductMatchesPriceRange(p,priceRange))return false;
  if(!text.includes(q)||(cat&&p.category!==cat))return false;

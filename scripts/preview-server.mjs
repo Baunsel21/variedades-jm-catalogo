@@ -30,6 +30,13 @@ export const DEMO_PRODUCTS = Object.freeze([
     description: 'Producto ficticio para revisar el catálogo. No está disponible para compra.',
     size_guide: 'Guía ficticia: talla S/M', size_guide_image: '', image_paths: [], image_url: '',
   },
+  {
+    id: 'preview-agotado-004', name: 'Producto agotado de muestra', code: 'DEMO-004', category: 'CAMISONES',
+    sale_price: 32000, price: 32000, quantity: 0, colors: ['Negro'], sizes: ['S'],
+    variants: [{ color: 'Negro', size: 'S', stock: 0 }],
+    description: 'Producto ficticio sin unidades, disponible solo para probar el filtro de agotados. Nunca puede comprarse.',
+    size_guide: 'Guía ficticia: talla S', size_guide_image: '', image_paths: [], image_url: '',
+  },
 ]);
 
 export const PREVIEW_CLIENT_SCRIPT = String.raw`(()=>{
