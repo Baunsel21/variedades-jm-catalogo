@@ -512,6 +512,23 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
             </div>
             <div id="shippingSettingsStatus" class="status" role="status" aria-live="polite" style="margin-top:10px">Cargando configuración de envíos…</div>
             <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><button id="saveStorefrontShippingSettingsBtn" class="primary" type="button" onclick="saveStorefrontShippingSettings()" disabled>💾 Guardar tarifas</button><button id="refreshStorefrontShippingSettingsBtn" class="softbtn" type="button" onclick="loadStorefrontShippingSettingsAdmin(true)">↻ Recargar tarifas</button></div>
+            <div id="storefrontCityShippingRulesBox" style="margin-top:16px;padding:14px;border:1px solid #e6eaf0;border-radius:14px">
+              <div class="rowBetween" style="align-items:flex-start;gap:12px;flex-wrap:wrap"><div style="flex:1;min-width:220px"><h4 style="margin:0 0 6px">Reglas por ciudad o zona</h4><p class="muted" style="margin:0">Una regla específica reemplaza la tarifa general para sus destinos. Sin regla se usa la tarifa general; Cali y sus alias permanecen gratis. Estas reglas no alteran pedidos ni reservas existentes y no cambian qué ciudades tienen contraentrega.</p></div></div>
+              <input id="shippingRuleEditId" type="hidden" value="">
+              <div class="promoAdminGrid" style="grid-template-columns:repeat(auto-fit,minmax(210px,1fr));margin-top:12px">
+                <label>Tipo de regla<select id="shippingRuleScope" disabled><option value="city">Ciudad o alias</option><option value="zone">Zona de varias ciudades</option></select></label>
+                <label>Nombre visible<input id="shippingRuleName" maxlength="80" placeholder="Ej. Bogotá o Eje Cafetero" disabled></label>
+                <label>Destinos (uno por línea)<textarea id="shippingRuleDestinations" rows="3" maxlength="4000" placeholder="Bogotá&#10;Santa Fe de Bogotá" disabled></textarea><small>Usa alias en la regla de ciudad o varias ciudades en una zona. Máximo 50.</small></label>
+                <label>Prioridad de zona<input id="shippingRulePriority" type="number" min="0" max="1000" step="1" value="0" disabled><small>Si una ciudad coincide con varias zonas, gana la prioridad mayor. La regla de ciudad siempre prevalece.</small></label>
+                <label>Tarifa de envío (COP)<input id="shippingRuleCost" type="number" min="0" max="5000000" step="1" inputmode="numeric" value="15000" disabled></label>
+                <label class="promoToggleRow"><input id="shippingRuleThresholdEnabled" type="checkbox" checked disabled> Activar envío gratis por mínimo</label>
+                <label>Mínimo de la regla (COP)<input id="shippingRuleThreshold" type="number" min="1" max="50000000" step="1" inputmode="numeric" value="130000" disabled><small>Se calcula después de descuentos. Desactívalo para no ofrecer mínimo en esta regla.</small></label>
+                <label class="promoToggleRow"><input id="shippingRuleEnabled" type="checkbox" checked disabled> Regla activa</label>
+              </div>
+              <div id="shippingRulesAdminStatus" class="status" role="status" aria-live="polite" style="margin-top:10px">Las reglas por destino se consultarán al abrir Configuración.</div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button id="saveStorefrontShippingRuleBtn" class="primary" type="button" onclick="saveStorefrontShippingRule()" disabled>💾 Guardar regla</button><button id="resetStorefrontShippingRuleBtn" class="softbtn" type="button" onclick="resetStorefrontShippingRuleForm()" disabled>＋ Nueva regla</button><button id="refreshStorefrontShippingRulesBtn" class="softbtn" type="button" onclick="loadStorefrontShippingRulesAdmin(true)">↻ Recargar reglas</button></div>
+              <div id="storefrontShippingRulesAdminList" style="margin-top:12px"></div>
+            </div>
             <p class="paymentSettingsHelp" style="margin-bottom:0">El catálogo, contraentrega y Wompi usan una sola cotización de Supabase. Los pedidos existentes conservan el envío que se calculó cuando fueron creados.</p>
           </div>
           <div class="box" style="grid-column:1/-1" id="wompiReconciliationBox">
@@ -1051,6 +1068,160 @@ document.addEventListener('change',event=>{
  if(event.target?.id==='shippingFreeThresholdEnabled')updateStorefrontShippingAdminForm();
 });
 
+let storefrontShippingRulesAdmin=[];
+let storefrontShippingRulesAdminLoaded=false;
+let storefrontShippingRuleSaving=false;
+function setStorefrontShippingRulesAdminStatus(message,kind=''){
+ const el=$('shippingRulesAdminStatus');if(!el)return;
+ el.className='status'+(kind?' '+kind:'');el.textContent=message;
+}
+function normalizeStorefrontShippingDestinationAdmin(value){
+ return String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLocaleLowerCase('es-CO').replace(/[,.]+/g,' ').replace(/\s+/g,' ').trim();
+}
+function readStorefrontShippingRuleAdminForm(){
+ const destinations=String($('shippingRuleDestinations')?.value||'').split(/[\r\n;]+/).map(value=>value.trim()).filter(Boolean);
+ const costRaw=String($('shippingRuleCost')?.value??'').trim();
+ const thresholdRaw=String($('shippingRuleThreshold')?.value??'').trim();
+ const thresholdEnabled=!!$('shippingRuleThresholdEnabled')?.checked;
+ const priorityRaw=String($('shippingRulePriority')?.value??'').trim();
+ return {
+  id:String($('shippingRuleEditId')?.value||''),scope:String($('shippingRuleScope')?.value||'city'),
+  name:String($('shippingRuleName')?.value||'').trim(),destinations,
+  fee:costRaw===''?NaN:Number(costRaw),threshold:thresholdEnabled?(thresholdRaw===''?NaN:Number(thresholdRaw)):null,
+  priority:priorityRaw===''?NaN:Number(priorityRaw),enabled:!!$('shippingRuleEnabled')?.checked
+ };
+}
+function updateStorefrontShippingRuleAdminForm(){
+ const value=readStorefrontShippingRuleAdminForm();
+ const ids=['shippingRuleScope','shippingRuleName','shippingRuleDestinations','shippingRulePriority','shippingRuleCost','shippingRuleThresholdEnabled','shippingRuleEnabled'];
+ ids.forEach(id=>{const el=$(id);if(el)el.disabled=!storefrontShippingRulesAdminLoaded||storefrontShippingRuleSaving});
+ const thresholdInput=$('shippingRuleThreshold');
+ if(thresholdInput)thresholdInput.disabled=!storefrontShippingRulesAdminLoaded||storefrontShippingRuleSaving||!$('shippingRuleThresholdEnabled')?.checked;
+ const keys=value.destinations.map(normalizeStorefrontShippingDestinationAdmin);
+ const uniqueKeys=new Set(keys);
+ const hasCali=keys.some(key=>['cali','santiago de cali','cali valle del cauca'].includes(key));
+ const valid=!!value.name&&value.name.length<=80&&['city','zone'].includes(value.scope)&&
+  value.destinations.length>=1&&value.destinations.length<=50&&(value.scope!=='zone'||value.destinations.length>=2)&&
+  keys.every(key=>key.length>=1&&key.length<=80)&&uniqueKeys.size===keys.length&&!hasCali&&
+  Number.isSafeInteger(value.fee)&&value.fee>=0&&value.fee<=5000000&&
+  (value.threshold===null||(Number.isSafeInteger(value.threshold)&&value.threshold>=1&&value.threshold<=50000000))&&
+  Number.isSafeInteger(value.priority)&&value.priority>=0&&value.priority<=1000;
+ const save=$('saveStorefrontShippingRuleBtn');if(save){save.disabled=!storefrontShippingRulesAdminLoaded||storefrontShippingRuleSaving||!valid;save.textContent=value.id?'💾 Guardar cambios':'💾 Guardar regla'}
+ const reset=$('resetStorefrontShippingRuleBtn');if(reset)reset.disabled=!storefrontShippingRulesAdminLoaded||storefrontShippingRuleSaving;
+ const refresh=$('refreshStorefrontShippingRulesBtn');if(refresh)refresh.disabled=storefrontShippingRuleSaving;
+}
+function renderStorefrontShippingRulesAdmin(){
+ const host=$('storefrontShippingRulesAdminList');if(!host)return;
+ if(!storefrontShippingRulesAdminLoaded){host.innerHTML='<div class="alert">Las reglas se habilitan cuando la migración de tarifas por ciudad/zona esté instalada.</div>';return}
+ if(!storefrontShippingRulesAdmin.length){host.innerHTML='<div class="empty">No hay reglas específicas; todos los destinos usan la tarifa general.</div>';return}
+ host.innerHTML=storefrontShippingRulesAdmin.map(rule=>{
+  const destinations=Array.isArray(rule.destinations)?rule.destinations.join(' · '):'';
+  const threshold=rule.free_shipping_threshold==null?'Sin mínimo de envío gratis':`Gratis desde ${money(Number(rule.free_shipping_threshold))}`;
+  const kind=rule.scope==='zone'?'Zona':'Ciudad';
+  return `<article class="listItem"><div class="rowBetween" style="align-items:flex-start;gap:12px;flex-wrap:wrap"><div style="flex:1;min-width:220px"><b>${esc(rule.name)}</b><div class="muted" style="margin-top:4px">${esc(kind)} · ${esc(destinations)}</div><small class="muted">Tarifa: ${money(Number(rule.shipping_cost))} · ${esc(threshold)} · Prioridad ${Number(rule.priority)||0} · ${rule.enabled?'Activa':'Inactiva'}</small></div><div style="display:flex;gap:6px;flex-wrap:wrap"><button class="action" type="button" data-shipping-rule-edit="${esc(rule.id)}">✏️ Editar</button><button class="action" type="button" data-shipping-rule-toggle="${esc(rule.id)}">${rule.enabled?'Desactivar':'Activar'}</button></div></div></article>`
+ }).join('');
+ host.querySelectorAll('[data-shipping-rule-edit]').forEach(button=>button.addEventListener('click',()=>editStorefrontShippingRule(button.dataset.shippingRuleEdit)));
+ host.querySelectorAll('[data-shipping-rule-toggle]').forEach(button=>button.addEventListener('click',()=>toggleStorefrontShippingRule(button.dataset.shippingRuleToggle)));
+}
+function resetStorefrontShippingRuleForm(){
+ $('shippingRuleEditId').value='';$('shippingRuleScope').value='city';$('shippingRuleName').value='';$('shippingRuleDestinations').value='';
+ $('shippingRulePriority').value='0';$('shippingRuleCost').value='15000';$('shippingRuleThresholdEnabled').checked=true;
+ $('shippingRuleThreshold').value='130000';$('shippingRuleEnabled').checked=true;
+ updateStorefrontShippingRuleAdminForm();
+}
+function editStorefrontShippingRule(id){
+ const rule=storefrontShippingRulesAdmin.find(item=>String(item.id)===String(id));if(!rule)return;
+ $('shippingRuleEditId').value=String(rule.id);$('shippingRuleScope').value=String(rule.scope||'city');$('shippingRuleName').value=String(rule.name||'');
+ $('shippingRuleDestinations').value=(Array.isArray(rule.destinations)?rule.destinations:[]).join('\n');
+ $('shippingRulePriority').value=String(Number(rule.priority)||0);$('shippingRuleCost').value=String(Number(rule.shipping_cost)||0);
+ $('shippingRuleThresholdEnabled').checked=rule.free_shipping_threshold!=null;
+ $('shippingRuleThreshold').value=rule.free_shipping_threshold==null?'':String(rule.free_shipping_threshold);
+ $('shippingRuleEnabled').checked=rule.enabled===true;
+ updateStorefrontShippingRuleAdminForm();
+ $('shippingRuleName').focus({preventScroll:true});
+}
+function validateStorefrontShippingRuleForm(value){
+ const keys=value.destinations.map(normalizeStorefrontShippingDestinationAdmin);
+ if(!value.name||value.name.length>80)throw new Error('El nombre de la regla debe tener entre 1 y 80 caracteres.');
+ if(!['city','zone'].includes(value.scope))throw new Error('Selecciona ciudad o zona.');
+ if(!value.destinations.length||value.destinations.length>50||(value.scope==='zone'&&value.destinations.length<2))throw new Error('Indica entre 1 y 50 destinos; una zona requiere al menos dos.');
+ if(keys.some(key=>!key||key.length>80)||new Set(keys).size!==keys.length)throw new Error('Revisa destinos vacíos o duplicados después de normalizarlos.');
+ if(keys.some(key=>['cali','santiago de cali','cali valle del cauca'].includes(key)))throw new Error('Cali y sus alias mantienen envío gratis y no admiten una tarifa personalizada.');
+ if(!Number.isSafeInteger(value.fee)||value.fee<0||value.fee>5000000)throw new Error('La tarifa debe estar entre $0 y $5.000.000.');
+ if(value.threshold!==null&&(!Number.isSafeInteger(value.threshold)||value.threshold<1||value.threshold>50000000))throw new Error('El mínimo debe estar entre $1 y $50.000.000 o quedar desactivado.');
+ if(!Number.isSafeInteger(value.priority)||value.priority<0||value.priority>1000)throw new Error('La prioridad debe estar entre 0 y 1.000.');
+}
+async function loadStorefrontShippingRulesAdmin(force=false){
+ if(!sb)return false;
+ if(storefrontShippingRulesAdminLoaded&&!force)return true;
+ storefrontShippingRulesAdminLoaded=false;updateStorefrontShippingRuleAdminForm();
+ const refresh=$('refreshStorefrontShippingRulesBtn');if(refresh)refresh.disabled=true;
+ setStorefrontShippingRulesAdminStatus('Cargando reglas de ciudad y zona…');
+ try{
+  const {data,error}=await sb.rpc('admin_list_storefront_shipping_rules');if(error)throw error;
+  if(!Array.isArray(data))throw new Error('Supabase no devolvió una lista de reglas.');
+  storefrontShippingRulesAdmin=data.map(row=>{
+   const fee=Number(row?.shipping_cost),threshold=row?.free_shipping_threshold==null?null:Number(row.free_shipping_threshold),priority=Number(row?.priority);
+   if(!row?.id||!['city','zone'].includes(String(row.scope))||!String(row.name||'').trim()||
+      !Number.isSafeInteger(fee)||fee<0||fee>5000000||(threshold!==null&&(!Number.isSafeInteger(threshold)||threshold<1||threshold>50000000))||
+      !Number.isSafeInteger(priority)||priority<0||priority>1000||typeof row.enabled!=='boolean'||!Array.isArray(row.destinations))throw new Error('Una regla devuelta por Supabase está incompleta.');
+   return {id:String(row.id),scope:String(row.scope),name:String(row.name),priority,shipping_cost:fee,free_shipping_threshold:threshold,enabled:row.enabled,destinations:row.destinations.map(String),updated_at:row.updated_at||null};
+  });
+  storefrontShippingRulesAdminLoaded=true;renderStorefrontShippingRulesAdmin();
+  setStorefrontShippingRulesAdminStatus(`${storefrontShippingRulesAdmin.length} regla(s) cargadas. Las ciudades sin regla usan la tarifa general.`,'ok');
+  return true;
+ }catch(error){
+  storefrontShippingRulesAdmin=[];renderStorefrontShippingRulesAdmin();
+  setStorefrontShippingRulesAdminStatus('No se pudieron cargar las reglas. Verifica que la migración de tarifas por ciudad/zona esté instalada y que tu cuenta tenga permisos de administrador. Detalle: '+String(error?.message||error),'err');
+  return false;
+ }finally{
+  updateStorefrontShippingRuleAdminForm();if(refresh)refresh.disabled=false;
+ }
+}
+async function saveStorefrontShippingRule(){
+ if(!storefrontShippingRulesAdminLoaded||storefrontShippingRuleSaving)return setStorefrontShippingRulesAdminStatus('Primero carga las reglas desde Supabase.','err');
+ const value=readStorefrontShippingRuleAdminForm();
+ try{validateStorefrontShippingRuleForm(value)}catch(error){setStorefrontShippingRulesAdminStatus(error.message,'err');return}
+ storefrontShippingRuleSaving=true;updateStorefrontShippingRuleAdminForm();
+ setStorefrontShippingRulesAdminStatus('Guardando regla…');
+ try{
+  const {data,error}=await sb.rpc('admin_save_storefront_shipping_rule',{
+   p_rule_id:value.id||null,p_scope:value.scope,p_name:value.name,p_destinations:value.destinations,
+   p_shipping_cost:value.fee,p_free_shipping_threshold:value.threshold,p_priority:value.priority,p_enabled:value.enabled
+  });
+  if(error)throw error;const row=Array.isArray(data)?data[0]:data;
+  if(row?.success!==true)throw new Error(row?.message||'Supabase no confirmó el guardado.');
+  await loadStorefrontShippingRulesAdmin(true);resetStorefrontShippingRuleForm();
+  setStorefrontShippingRulesAdminStatus(row.message||'Regla guardada.','ok');
+  notifyPublicCatalogChanged('shipping-rules-changed');toast('Regla de envío guardada');
+ }catch(error){setStorefrontShippingRulesAdminStatus('No se guardó la regla. '+String(error?.message||error),'err')}
+ finally{storefrontShippingRuleSaving=false;updateStorefrontShippingRuleAdminForm()}
+}
+async function toggleStorefrontShippingRule(id){
+ if(!storefrontShippingRulesAdminLoaded||storefrontShippingRuleSaving)return;
+ const rule=storefrontShippingRulesAdmin.find(item=>String(item.id)===String(id));if(!rule)return;
+ const enabled=!rule.enabled;
+ if(!enabled&&!confirm(`¿Desactivar la regla “${rule.name}”? Los destinos volverán a usar otra regla coincidente o la tarifa general; los pedidos existentes no cambian.`))return;
+ storefrontShippingRuleSaving=true;updateStorefrontShippingRuleAdminForm();
+ try{
+  const {data,error}=await sb.rpc('admin_save_storefront_shipping_rule',{
+   p_rule_id:rule.id,p_scope:rule.scope,p_name:rule.name,p_destinations:rule.destinations,
+   p_shipping_cost:Number(rule.shipping_cost),p_free_shipping_threshold:rule.free_shipping_threshold==null?null:Number(rule.free_shipping_threshold),
+   p_priority:Number(rule.priority)||0,p_enabled:enabled
+  });
+  if(error)throw error;const row=Array.isArray(data)?data[0]:data;if(row?.success!==true)throw new Error(row?.message||'Supabase no confirmó el cambio.');
+  await loadStorefrontShippingRulesAdmin(true);notifyPublicCatalogChanged('shipping-rules-changed');
+  setStorefrontShippingRulesAdminStatus(enabled?'Regla activada.':'Regla desactivada; los pedidos existentes conservan sus importes.','ok');toast(enabled?'Regla activada':'Regla desactivada');
+ }catch(error){setStorefrontShippingRulesAdminStatus('No se cambió el estado de la regla. '+String(error?.message||error),'err')}
+ finally{storefrontShippingRuleSaving=false;updateStorefrontShippingRuleAdminForm()}
+}
+document.addEventListener('input',event=>{
+ if(['shippingRuleName','shippingRuleDestinations','shippingRulePriority','shippingRuleCost','shippingRuleThreshold'].includes(event.target?.id))updateStorefrontShippingRuleAdminForm();
+});
+document.addEventListener('change',event=>{
+ if(['shippingRuleScope','shippingRuleThresholdEnabled','shippingRuleEnabled'].includes(event.target?.id))updateStorefrontShippingRuleAdminForm();
+});
+
 async function loadWompiReconciliation(showStatus=true){
  const status=$('wompiReconciliationStatus'),list=$('wompiReconciliationList'),button=$('refreshWompiReconciliationBtn');
  if(button)button.disabled=true;
@@ -1233,6 +1404,7 @@ function show(id,btn){
    void loadWompiReconciliation(false);
    if(!codCitiesSettingsLoaded)void loadCODCitiesSettingsAdmin();
    if(!storefrontShippingAdminLoaded)void loadStorefrontShippingSettingsAdmin(false);
+   if(!storefrontShippingRulesAdminLoaded)void loadStorefrontShippingRulesAdmin(false);
    if(!seasonalPromoSettingsLoaded)void loadSeasonalPromoSettingsAdmin();
    void loadStorefrontProductCombosAdmin();
  }
