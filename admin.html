@@ -283,7 +283,8 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
     <div class="loginBrand"><div class="logo">✦</div><h2>Variedades JM</h2><p class="muted">Tu negocio, organizado en un solo lugar.</p></div>
     <div class="field"><label>Correo<input id="email" type="email" placeholder="correo@ejemplo.com"></label></div>
     <div class="field"><label>Contraseña<input id="password" type="password" placeholder="Tu contraseña"></label></div>
-    <div style="display:flex;gap:8px;margin-top:14px"><button class="primary" style="flex:1" onclick="login()">Entrar</button><button class="softbtn" onclick="signup()">Crear cuenta</button></div>
+    <div style="display:flex;gap:8px;margin-top:14px"><button class="primary" style="flex:1" onclick="login()">Entrar</button></div>
+    <p class="muted" style="font-size:12px;margin:10px 0 0">Solo pueden entrar usuarios autorizados por el administrador de la tienda.</p>
     <div id="loginMsg"></div>
   </div>
 </div>
@@ -1010,9 +1011,15 @@ async function signup(){
 }
 async function logout(){await sb.auth.signOut();location.reload()}
 async function startApp(){
- $("loginScreen").classList.add("hidden");$("app").classList.remove("hidden");
- startAdminCatalogRealtime();
- const {data:{user}}=await sb.auth.getUser();$("accountEmail").textContent=user?.email||"Cuenta de negocio";
+ try{
+  const {data:{user},error:userError}=await sb.auth.getUser();
+  if(userError||!user)throw userError||new Error('No se pudo confirmar la sesión.');
+  const {data:isAdmin,error:adminError}=await sb.rpc('is_store_admin');
+  if(adminError)throw adminError;
+  if(isAdmin!==true){await sb.auth.signOut();loginMsg('Esta cuenta no está autorizada para entrar al panel administrativo.');return}
+  $("loginScreen").classList.add("hidden");$("app").classList.remove("hidden");
+  startAdminCatalogRealtime();
+  $("accountEmail").textContent=user.email||"Cuenta de negocio";
  const meta=user?.user_metadata||{};
  if(meta.jm_brand_name)brandName=meta.jm_brand_name;
  if(meta.jm_brand_icon_path){
@@ -1027,7 +1034,12 @@ async function startApp(){
    brandIcon=publicWorkerImage(brandIcon);
  }
  localStorage.setItem("jm_brand_name",brandName);localStorage.setItem("jm_brand_icon",brandIcon);localStorage.setItem("jm_brand_icon_path",brandIconPath);applyBrand();
- $("vFecha").value=new Date().toISOString().slice(0,10);$("gFecha").value=new Date().toISOString().slice(0,10);setDateText();await cargarTodo();setInventoryMode(inventoryMode,false);
+  $("vFecha").value=new Date().toISOString().slice(0,10);$("gFecha").value=new Date().toISOString().slice(0,10);setDateText();await cargarTodo();setInventoryMode(inventoryMode,false);
+ }catch(error){
+  console.error('No se pudo iniciar el panel administrativo:',error);
+  $("app").classList.add("hidden");$("loginScreen").classList.remove("hidden");
+  loginMsg('No se pudo validar tu autorización. Comprueba la conexión y vuelve a intentarlo.');
+ }
 }
 function setDateText(){const d=new Date();$("todayText").textContent=d.toLocaleDateString("es-CO",{weekday:"long",day:"numeric",month:"long",year:"numeric"})}
 function show(id,btn){
@@ -1086,7 +1098,10 @@ async function fetchTablePage(table,from,pageSize,orderColumn,ascending){
  let lastError=null;
  for(let i=0;i<attempts.length;i++){
    const plan=attempts[i];
-   let query=sb.from(table).select('*');
+   const selectColumns=table==='web_orders'
+    ? 'id,customer_name,customer_phone,customer_email,customer_city,customer_address,customer_neighborhood,note,payment_method,subtotal,shipping,total,items,status,created_at,client_reference,inventory_reference,inventory_state,discount_total'
+    : '*';
+   let query=sb.from(table).select(selectColumns);
    if(table==='sales')query=query.is('archived_at',null);
    if(plan.primary)query=query.order(plan.primary,{ascending});
    if(plan.secondary)query=query.order(plan.secondary,{ascending:true});
@@ -1271,6 +1286,16 @@ function pedidoEstadoBadge(status){
   const cls=(s==="entregado"||s==="confirmado")?"ok":(s==="rechazado"||s==="devuelto")?"out":"low";
   return `<span class="badge ${cls}">${esc(pedidoEstadoLabel(status))}</span>`;
 }
+function estadosPedidoPermitidos(status){
+ const s=pedidoEstado({status});
+ if(s==='pendiente')return ['pendiente','confirmado','rechazado'];
+ if(s==='confirmado')return ['confirmado','enviado','rechazado','devuelto'];
+ if(s==='enviado')return ['enviado','entregado','devuelto'];
+ if(s==='entregado')return ['entregado','devuelto'];
+ if(s==='rechazado')return ['rechazado'];
+ if(s==='devuelto')return ['devuelto'];
+ return [s||'pendiente'];
+}
 
 function pedidoItemsText(items){
   let arr=items;
@@ -1335,7 +1360,7 @@ function renderPedidos(){
   const arr=pedidos.filter(p=>{
     const texto=[
       p.customer_name,p.customer_phone,p.customer_email,p.customer_city,
-      p.customer_address,p.customer_cedula,p.payment_method,p.status,p.id
+      p.customer_address,p.payment_method,p.status,p.id
     ].map(x=>String(x??"")).join(" ").toLowerCase();
     return texto.includes(q)&&(!filtro||pedidoEstado(p)===filtro);
   });
@@ -1356,13 +1381,13 @@ function renderPedidos(){
     const shipping=Number(p.shipping)||0;
     const subtotal=Number(p.subtotal)||0;
     const pay=p.payment_method||"—";
-    const disableConfirm=status==="confirmado"||status==="enviado"||status==="entregado"||status==="rechazado"||status==="devuelto";
+    const allowedStatuses=estadosPedidoPermitidos(status);
     return `<div class="orderCard">
       <div class="orderHead">
         <div>
           <div class="orderCustomer">👤 ${esc(p.customer_name||"Sin nombre")}</div>
           <div class="orderMeta">🆔 Pedido: ${esc(String(p.id||"").slice(0,8))} • ${esc(created)}</div>
-          <div class="orderMeta">📱 ${esc(p.customer_phone||"Sin teléfono")} • 🪪 ${esc(p.customer_cedula||"Sin cédula")} • 📧 ${esc(p.customer_email||"Sin correo")}</div>
+          <div class="orderMeta">📱 ${esc(p.customer_phone||"Sin teléfono")} • 📧 ${esc(p.customer_email||"Sin correo")}</div>
           <div class="orderMeta">📍 ${esc(p.customer_city||"")} — ${esc(p.customer_address||"")}${p.customer_neighborhood?` • ${esc(p.customer_neighborhood)}`:""}</div>
         </div>
         <div>${pedidoEstadoBadge(status)}</div>
@@ -1377,7 +1402,7 @@ function renderPedidos(){
         ${status==="pendiente"?`<button type="button" class="dangerbtn" data-order-action="reject" data-order-id="${esc(p.id)}">❌ Rechazar</button>`:""}
         ${p.customer_phone?`<button type="button" class="action" data-order-action="whatsapp" data-phone="${esc(p.customer_phone)}" data-name="${esc(p.customer_name||"")}">💬 WhatsApp</button>`:""}
         <select class="orderStatusSelect" data-order-id="${esc(p.id)}" aria-label="Cambiar estado del pedido ${esc(String(p.id||'').slice(0,8))}">
-          ${["pendiente","confirmado","enviado","entregado","rechazado","devuelto"].map(s=>`<option value="${s}" ${s===status?"selected":""}>${pedidoEstadoLabel(s)}</option>`).join("")}
+          ${allowedStatuses.map(s=>`<option value="${s}" ${s===status?"selected":""}>${pedidoEstadoLabel(s)}</option>`).join("")}
         </select>
       </div>
     </div>`;
