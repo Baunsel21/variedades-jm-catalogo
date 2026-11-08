@@ -4027,9 +4027,10 @@ async function payWithWompi(payload){
     if(authState?.session?.access_token)functionHeaders.Authorization='Bearer '+authState.session.access_token;
   }catch(sessionError){console.warn('No se pudo recuperar una sesión opcional para preparar el pago.',sessionError)}
   // Si el intento anterior terminó como DECLINED/VOIDED/ERROR, la Edge Function
-  // libera esa referencia y responde WOMPI_REFERENCE_TERMINAL. En ese caso no
-  // debemos dejar al comprador bloqueado: generar una referencia nueva y repetir
-  // una sola vez la preparación, sin reenviar ningún cobro ya aprobado.
+  // libera esa referencia y responde WOMPI_REFERENCE_TERMINAL. Si otra pestaña
+  // ya creó una reserva para el mismo teléfono y carrito, responde
+  // WOMPI_ACTIVE_RESERVATION. En ambos casos se reintenta una sola vez con una
+  // referencia segura, sin duplicar reservas ni reenviar un cobro aprobado.
   let response,data;
   for(let preparationAttempt=0;preparationAttempt<2;preparationAttempt++){
    response=await fetch(WOMPI_SIGNATURE_ENDPOINT,{
@@ -4038,13 +4039,18 @@ async function payWithWompi(payload){
     body:JSON.stringify(payload)
    });
    data=await response.json().catch(()=>({}));
-   if(response.status===409&&data?.code==='WOMPI_REFERENCE_TERMINAL'&&preparationAttempt===0){
+   if(response.status===409&&['WOMPI_REFERENCE_TERMINAL','WOMPI_ACTIVE_RESERVATION'].includes(data?.code)&&preparationAttempt===0){
     const expiredReference=paymentReference;
     if(expiredReference)forgetReservationRecord(expiredReference);
-    reservationReference=generateReservationReference();
+    const reusedReference=data?.code==='WOMPI_ACTIVE_RESERVATION'?String(data.existingReference||''):'';
+    reservationReference=reusedReference||generateReservationReference();
     paymentReference=reservationReference;
-    createdReservation=true;
-    saveReservationDraft(reservationReference,checkoutItems);
+    createdReservation=!reusedReference;
+    if(reusedReference){
+     const expiresAt=Date.parse(String(data.expiresAt||''));
+     const startedAt=Number.isFinite(expiresAt)?expiresAt-WOMPI_RESERVATION_TTL:Date.now();
+     saveReservationRecord(reservationReference,checkoutItems,startedAt);
+    }else saveReservationDraft(reservationReference,checkoutItems);
     saveActiveReservationReference(reservationReference);
     saveActiveReservationItems(checkoutItems);
     payload.reference=paymentReference;
