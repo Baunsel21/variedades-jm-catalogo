@@ -1752,7 +1752,7 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
   <label>Desde <input id="catalogPriceMin" type="number" min="0" step="1000" inputmode="numeric" placeholder="Mínimo" aria-label="Precio mínimo en pesos colombianos" oninput="render()"></label>
   <label>Hasta <input id="catalogPriceMax" type="number" min="0" step="1000" inputmode="numeric" placeholder="Máximo" aria-label="Precio máximo en pesos colombianos" oninput="render()"></label>
   <button type="button" onclick="clearCatalogPriceFilter()" aria-label="Limpiar filtro de precio">Limpiar</button>
-  <button type="button" onclick="copyCatalogPriceFilterLink()" aria-label="Copiar enlace de filtros públicos (precio y disponibilidad)">Compartir</button>
+  <button type="button" onclick="copyCatalogPriceFilterLink()" aria-label="Copiar enlace de filtros públicos (precio, disponibilidad y orden)">Compartir</button>
   <span id="catalogPriceFilterStatus" class="catalogPriceFilterStatus" role="status" aria-live="polite"></span>
 </div>
 <div class="catalogCountLine"><button id="favoritesOnlyToggle" class="favoritesFilterButton" type="button" aria-pressed="false" onclick="toggleFavoriteFilter()"><span aria-hidden="true">♡</span> Favoritos <span id="favoriteProductCount">0</span></button><span id="count" class="count">Cargando catálogo…</span></div>
@@ -3830,9 +3830,12 @@ function buildCatalogPriceFilterUrl(range){
  if(range.min!==null)url.searchParams.set('min_price',String(range.min));
  if(range.max!==null)url.searchParams.set('max_price',String(range.max));
  if(['all','sold_out'].includes(catalogAvailabilityFilter))url.searchParams.set('availability',catalogAvailabilityFilter);
+ const sort=catalogShareSortValue($('sort')?.value||'recent');
+ if(sort&&sort!=='recent')url.searchParams.set('sort',sort);
  url.hash='catalogo';
  return url.href;
 }
+function catalogShareSortValue(value){return ['recent','best_selling','name_asc','price_asc','price_desc','stock_desc'].includes(value)?value:null}
 function restoreCatalogPriceFilterFromUrl(){
  try{
   const params=new URLSearchParams(window.location.search);
@@ -3849,6 +3852,8 @@ function restoreCatalogPriceFilterFromUrl(){
    catalogAvailabilityFilter=availability;
    const select=$('catalogAvailabilityFilter');if(select)select.value=availability;
   }
+  const sort=catalogShareSortValue(params.get('sort'));
+  if(sort){const select=$('sort');if(select)select.value=sort}
  }catch{}
 }
 function syncCatalogPriceFilterUrlState(range){
@@ -3860,6 +3865,9 @@ function syncCatalogPriceFilterUrlState(range){
   else url.searchParams.delete('max_price');
   if(['all','sold_out'].includes(catalogAvailabilityFilter))url.searchParams.set('availability',catalogAvailabilityFilter);
   else url.searchParams.delete('availability');
+  const sort=catalogShareSortValue($('sort')?.value||'recent');
+  if(sort&&sort!=='recent')url.searchParams.set('sort',sort);
+  else url.searchParams.delete('sort');
   const next=url.pathname+(url.search?url.search:'')+(url.hash||'');
   const current=window.location.pathname+window.location.search+window.location.hash;
   if(next!==current)window.history.replaceState(window.history.state??null,'',next);
@@ -3871,7 +3879,7 @@ async function copyCatalogPriceFilterLink(){
  const url=buildCatalogPriceFilterUrl(range);
  try{
   await navigator.clipboard.writeText(url);
-  showToast('Enlace copiado; solo contiene filtros públicos de precio y disponibilidad.');
+  showToast('Enlace copiado; solo contiene precio, disponibilidad y orden públicos.');
  }catch{
   showToast(`No se pudo copiar. Enlace limpio: ${url}`);
  }

@@ -34,3 +34,8 @@ Cuando no carga una imagen, la ficha y el zoom sustituyen el icono de error por 
 ## Orden por precio con valores desconocidos
 
 Los órdenes «Precio menor → mayor» y «Precio mayor → menor» clasifican solo valores numéricos no negativos como precios conocidos. Los precios ausentes, vacíos, inválidos o negativos quedan al final en ambos sentidos; los empates se ordenan por nombre. El comparador no muta productos ni consulta servicios. Regresión: `node tests/catalog_price_sort_regression.mjs`.
+
+
+## Orden en enlaces públicos
+
+El enlace limpio también conserva los órdenes permitidos del catálogo (`recent`, ventas, nombre, precio y stock), restaura el selector antes del render y omite el orden predeterminado. Sigue excluyendo búsqueda, favoritos, carrito, tracking y otros parámetros no permitidos; no contacta backend. Regresión: `node tests/catalog_price_share_url_regression.mjs`.
