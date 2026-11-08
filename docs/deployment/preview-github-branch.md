@@ -12,3 +12,6 @@ Cotización, reservas, pedidos COD, Wompi/PSE, tracking y cambios de inventario 
 ## Avance de catálogo: disponibilidad
 
 El filtro client-side ofrece `Disponibles` (predeterminado, conserva el comportamiento existente), `Todos` y `Agotados`. El fixture `DEMO-004` representa un producto con cantidad y stock por variante en cero para verificar la opción de agotados; sigue siendo imposible comprarlo y no representa inventario real. Este sub-slice de Fase 3 no completa el filtro combinado del backlog.
+
+
+El botón `Compartir` crea un enlace limpio con el rango de precio y la disponibilidad pública elegida; omite búsqueda, favoritos, datos personales y parámetros de tracking. La disponibilidad predeterminada (`available`) no se agrega a la URL. Este avance no completa aún la compartición de color/talla ni ofertas del ítem de Fase 3.
