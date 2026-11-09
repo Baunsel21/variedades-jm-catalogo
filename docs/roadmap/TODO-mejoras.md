@@ -51,6 +51,8 @@ Cada criterio se conserva hasta que exista evidencia en código, Supabase y prue
 
 ## Fase 6: Dashboard, clientes y logística
 
+> Avance parcial: filtros/paginación visual de pedidos `web_orders` portados a una rama aislada desde `main`; la copia propuesta excluye checkout/cupons de la base original de PR #15. PR #15 sigue DRAFT sobre PR #14; el slice aislado aún no está publicado. Prueba `scripts/validate.mjs` y Chromium sintético desktop/móvil/error PASS. No integra Wompi/`orders` ni toca estados logísticos; dashboard completo, clientes, logística/notificaciones y paginación server-side siguen abiertos.
+
 - [ ] Dashboard muestra ventas por día/semana, pedidos pendientes, ventas/valor promedio, alertas de inventario bajo, agotados y pagos con revisión pendiente, indicando fecha/fuente y estados de carga/error.
   - Avance parcial publicado en PR #46 / `main@bcc0c0d6`: ingresos brutos del día y últimos 7 días para ventas de mostrador, sumando `sales` por `sale_date`; muestra rango, líneas y unidades, y excluye pedidos web. No representa tickets/promedio, pedidos pendientes ni revisión de pagos; el criterio global permanece abierto.
 - [ ] Los filtros de pedido incluyen periodo, estado, ciudad y pago; listas usan paginación, conservan conteos correctos y nunca presentan error de consulta como “sin pedidos”.
