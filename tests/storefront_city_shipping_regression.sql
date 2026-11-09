@@ -18,6 +18,8 @@ DECLARE
   v_order_id uuid;
   v_retry_order_id uuid;
   v_order_count integer;
+  v_order_snapshot jsonb;
+  v_reservation_snapshot jsonb;
   v_tag text:=replace(gen_random_uuid()::text,'-','');
   v_original_fee bigint;
   v_original_threshold bigint;
@@ -49,7 +51,11 @@ BEGIN
      OR has_function_privilege('public','public.admin_save_storefront_shipping_rule(uuid,text,text,text[],bigint,bigint,integer,boolean)','EXECUTE') IS DISTINCT FROM false
      OR has_function_privilege('service_role','public.admin_save_storefront_shipping_rule(uuid,text,text,text[],bigint,bigint,integer,boolean)','EXECUTE') IS DISTINCT FROM false
      OR has_function_privilege('anon','public.admin_save_storefront_shipping_rule(uuid,text,text,text[],bigint,bigint,integer,boolean)','EXECUTE') IS DISTINCT FROM false
-     OR has_function_privilege('authenticated','public.admin_save_storefront_shipping_rule(uuid,text,text,text[],bigint,bigint,integer,boolean)','EXECUTE') IS DISTINCT FROM true THEN
+     OR has_function_privilege('authenticated','public.admin_save_storefront_shipping_rule(uuid,text,text,text[],bigint,bigint,integer,boolean)','EXECUTE') IS DISTINCT FROM true
+     OR has_function_privilege('public','public.admin_delete_storefront_shipping_rule(uuid)','EXECUTE') IS DISTINCT FROM false
+     OR has_function_privilege('anon','public.admin_delete_storefront_shipping_rule(uuid)','EXECUTE') IS DISTINCT FROM false
+     OR has_function_privilege('service_role','public.admin_delete_storefront_shipping_rule(uuid)','EXECUTE') IS DISTINCT FROM false
+     OR has_function_privilege('authenticated','public.admin_delete_storefront_shipping_rule(uuid)','EXECUTE') IS DISTINCT FROM true THEN
     RAISE EXCEPTION 'TEST FAILED: grants de lectura pública y administración de reglas no son mínimos';
   END IF;
   IF has_table_privilege('anon','public.storefront_shipping_rules','SELECT') IS DISTINCT FROM false
@@ -70,6 +76,12 @@ BEGIN
     RAISE EXCEPTION 'TEST FAILED: un usuario ajeno pudo guardar una regla de envío';
   EXCEPTION WHEN insufficient_privilege THEN
     RAISE NOTICE 'PASS: el RPC de reglas rechaza un uid no administrador.';
+  END;
+  BEGIN
+    PERFORM public.admin_delete_storefront_shipping_rule(gen_random_uuid());
+    RAISE EXCEPTION 'TEST FAILED: un usuario ajeno pudo eliminar una regla de envío';
+  EXCEPTION WHEN insufficient_privilege THEN
+    RAISE NOTICE 'PASS: el RPC de eliminación rechaza un uid no administrador.';
   END;
   PERFORM set_config('request.jwt.claim.sub',v_admin::text,true);
   PERFORM set_config('request.jwt.claims',jsonb_build_object('sub',v_admin,'role','authenticated')::text,true);
@@ -157,6 +169,9 @@ BEGIN
     IF v_inventory_reference IS NULL THEN RAISE EXCEPTION 'TEST FAILED: el pedido COD sintético no registró reserva'; END IF;
     SELECT count(*) INTO v_reservation_count FROM public.inventory_reservations WHERE reference=v_inventory_reference LIMIT 1;
     IF v_reservation_count IS DISTINCT FROM 1 THEN RAISE EXCEPTION 'TEST FAILED: el reintento COD duplicó la reserva (% filas)',v_reservation_count; END IF;
+    SELECT to_jsonb(o) INTO v_order_snapshot FROM public.web_orders o WHERE id=v_order_id LIMIT 1;
+    SELECT to_jsonb(r) INTO v_reservation_snapshot FROM public.inventory_reservations r WHERE reference=v_inventory_reference LIMIT 1;
+    IF v_order_snapshot IS NULL OR v_reservation_snapshot IS NULL THEN RAISE EXCEPTION 'TEST FAILED: no se pudieron capturar los históricos COD sintéticos'; END IF;
 
     -- La zona se aplica a otro miembro y usa su umbral exacto después del subtotal.
     SELECT public.get_storefront_cart_quote(
@@ -252,11 +267,28 @@ BEGIN
       RAISE NOTICE 'PASS: tarifa custom para Cali rechazada.';
     END;
 
+    v_result:=public.admin_delete_storefront_shipping_rule(v_unicode_rule_id);
+    IF v_result->>'success' IS DISTINCT FROM 'true' THEN RAISE EXCEPTION 'No se eliminó la regla sintética: %',v_result; END IF;
+    IF EXISTS(SELECT 1 FROM public.storefront_shipping_rule_destinations WHERE rule_id=v_unicode_rule_id LIMIT 1) THEN
+      RAISE EXCEPTION 'TEST FAILED: delete de regla no eliminó sus destinos asociados';
+    END IF;
+    v_result:=public.admin_delete_storefront_shipping_rule(v_city_rule_id);
+    IF v_result->>'success' IS DISTINCT FROM 'true' THEN RAISE EXCEPTION 'No se eliminó la regla usada por COD: %',v_result; END IF;
+    IF EXISTS(SELECT 1 FROM public.storefront_shipping_rule_destinations WHERE rule_id=v_city_rule_id LIMIT 1) THEN
+      RAISE EXCEPTION 'TEST FAILED: delete de regla COD no eliminó sus destinos asociados';
+    END IF;
+    IF (SELECT to_jsonb(o) FROM public.web_orders o WHERE id=v_order_id LIMIT 1) IS DISTINCT FROM v_order_snapshot THEN
+      RAISE EXCEPTION 'TEST FAILED: eliminar la regla cambió el pedido COD histórico';
+    END IF;
+    IF (SELECT to_jsonb(r) FROM public.inventory_reservations r WHERE reference=v_inventory_reference LIMIT 1) IS DISTINCT FROM v_reservation_snapshot THEN
+      RAISE EXCEPTION 'TEST FAILED: eliminar la regla cambió la reserva histórica';
+    END IF;
+
     RAISE EXCEPTION USING ERRCODE='ZX701',MESSAGE='ROLLBACK_CITY_SHIPPING_TEST';
   EXCEPTION
     WHEN SQLSTATE 'ZX701' THEN
       IF SQLERRM<>'ROLLBACK_CITY_SHIPPING_TEST' THEN RAISE; END IF;
-      RAISE NOTICE 'PASS: reglas por ciudad/zona, precedencia, normalización, Cali, fallback y validaciones.';
+      RAISE NOTICE 'PASS: reglas por ciudad/zona, autorización/delete/cascade, históricos COD, precedencia, normalización, Cali, fallback y validaciones.';
   END;
 
   IF EXISTS(SELECT 1 FROM public.products WHERE id=v_product_id LIMIT 1) THEN

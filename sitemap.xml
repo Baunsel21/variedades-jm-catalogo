@@ -5,4 +5,10 @@
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
   </url>
+  <url>
+    <loc>https://sirevya.com.co/politica-privacidad.html</loc>
+  </url>
+  <url>
+    <loc>https://sirevya.com.co/preguntas-frecuentes.html</loc>
+  </url>
 </urlset>

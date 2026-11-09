@@ -3,6 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#e7193f">
+<link rel="manifest" href="/manifest.webmanifest">
 <link rel="preconnect" href="https://hnlbbtnfmbnbkcgegufa.supabase.co" crossorigin>
 <link rel="dns-prefetch" href="//hnlbbtnfmbnbkcgegufa.supabase.co">
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
@@ -381,6 +383,12 @@ body{background:linear-gradient(180deg,#fffaf0 0%,#fff6e6 55%,#f8ecd7 100%);colo
 .productDetailBox{width:min(96vw,900px);max-height:94vh;grid-template-columns:minmax(0,1.15fr) minmax(280px,.85fr);gap:18px;padding:18px}
 .detailImageWrap{min-height:560px;max-height:78vh;background:#f4efe9;position:relative}
 .detailImage{width:100%;height:100%;max-height:78vh;object-fit:contain;cursor:zoom-in}
+.imageLoadFallback{width:100%;height:100%;min-height:220px;box-sizing:border-box;padding:24px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:#65554c;text-align:center}
+.imageLoadFallback[hidden],#productDetailModal .detailImage[hidden],.galleryMain[hidden]{display:none!important}
+.imageLoadFallbackIcon{font-size:42px;color:#8c6e62;line-height:1}
+.detailThumb .noimg{width:100%;height:100%;display:grid;place-items:center;font-size:22px}
+.detailThumb img[hidden],.photo img[hidden]{display:none!important}
+.photoImageFallback{position:absolute;inset:0;z-index:0;display:grid;place-items:center;background:#111113;pointer-events:none}
 .detailGalleryThumbs{display:flex;gap:8px;overflow-x:auto;padding:9px 2px 2px;scrollbar-width:thin}
 .detailThumb{width:68px;height:82px;flex:0 0 auto;border:2px solid transparent;border-radius:9px;overflow:hidden;background:#eee;cursor:pointer;padding:0}
 .detailThumb.active{border-color:#a75f58}
@@ -465,6 +473,8 @@ body{background:linear-gradient(180deg,#fffaf0 0%,#fff6e6 55%,#f8ecd7 100%);colo
 }
 .detailPurchaseActions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:18px}
 .detailAdd,.detailBuyNow{margin-top:0!important;width:100%;padding:14px;border-radius:13px;font-weight:950;font-size:16px;border:0;cursor:pointer}
+.detailShare{grid-column:1/-1;width:100%;padding:10px 14px;border:1px solid #d8c8c1;border-radius:11px;background:#fffaf5;color:#6f2538;font-weight:850;cursor:pointer}
+.detailShare:hover{background:#fff1eb}
 .detailAdd{background:linear-gradient(135deg,#e7193f,#a60d2a);color:#fff}
 .detailBuyNow{background:#fff;border:2px solid #d9163b;color:#b30f2e}
 .detailBuyNow:hover{background:#fff4f6}
@@ -534,6 +544,9 @@ body{background:linear-gradient(180deg,#fffaf0 0%,#fff6e6 55%,#f8ecd7 100%);colo
 .privacyUpdated{font-size:12px;color:#8b7a6c;margin-bottom:16px}
 .privacyBox h3{margin:18px 0 6px;color:#8f1630}
 .privacyBox p,.privacyBox li{font-size:14px}
+.privacyPageLink,.checkoutPrivacyNote{font-size:12px;color:#746b70}
+.privacyPageLink a,.checkoutPrivacyNote a{color:#8f1630;font-weight:700;text-decoration:underline;text-underline-offset:2px}
+.checkoutPrivacyNote{margin:-7px 0 14px}
 
 
 
@@ -556,7 +569,9 @@ body{background:linear-gradient(180deg,#fffaf0 0%,#fff6e6 55%,#f8ecd7 100%);colo
 .filterField select{min-width:0;width:100%;background:#fff;color:#393138;border:1px solid #e5dce1;border-radius:8px;padding:9px;font-size:12px}
 .filterCategoryField{grid-column:1/-1;min-width:0}
 .filterPriceOrderField{grid-column:1;min-width:0}
+.filterAvailabilityField{grid-column:1;min-width:0}
 .filterColorField{grid-column:2;min-width:0}
+.filterSizeField{grid-column:2;min-width:0}
 .filterFieldTitle{font-size:11px;font-weight:800;color:#766a71}
 .filterColorOptions{display:flex;flex-wrap:wrap;align-items:center;gap:7px;min-width:0}
 .filterColorOption{position:relative;display:inline-flex;align-items:center;gap:7px;min-height:34px;padding:6px 10px;border:1px solid #e9e1e5;border-radius:999px;background:#fff;color:#494047;font-size:12px;font-weight:650;cursor:pointer;transition:background .16s ease,border-color .16s ease,box-shadow .16s ease;user-select:none;-webkit-tap-highlight-color:transparent}
@@ -581,6 +596,7 @@ body{background:linear-gradient(180deg,#fffaf0 0%,#fff6e6 55%,#f8ecd7 100%);colo
  .filterCategoryField{grid-column:1/-1}
  .filterPriceOrderField{grid-column:1}
  .filterColorField{grid-column:2;min-width:0}
+ .filterSizeField{grid-column:2;min-width:0}
  .filterField{font-size:10px}
  .filterField select{font-size:11px;padding:8px 5px}
  .filterColorOptions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px}
@@ -1412,10 +1428,23 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
 .detailHeaderWordmark{display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;gap:3px!important;min-width:0!important;text-align:center!important;color:#28231f!important;line-height:1!important}
 .detailHeaderWordmark strong{font-family:Georgia,'Times New Roman',serif!important;font-weight:500!important;font-size:clamp(28px,4vw,40px)!important;letter-spacing:-.03em!important}
 .detailHeaderWordmark small{font-size:8px!important;letter-spacing:1.15px!important;text-transform:uppercase!important;color:#756c62!important;white-space:nowrap!important}
-/* No hay controles de filtro encima de los productos. La búsqueda y el contador permanecen compactos. */
+/* Favoritos de catálogo: estado local del navegador, separado del carrito y de la cuenta. */
 .marketplaceToolbar{display:none!important}
-.catalogCountLine{display:flex!important;justify-content:flex-end!important;align-items:center!important;min-height:22px!important;margin:0 12px 5px!important;padding:0 2px!important;background:transparent!important}
+.catalogCountLine{display:flex!important;justify-content:space-between!important;align-items:center!important;min-height:32px!important;margin:0 12px 5px!important;padding:0 2px!important;background:transparent!important}
 .catalogCountLine .count{display:block!important;margin:0!important;padding:3px 0!important;color:#8b8178!important;font-size:11px!important;text-align:right!important}
+.favoritesFilterButton{display:inline-flex!important;align-items:center!important;gap:5px!important;min-height:30px!important;padding:5px 10px!important;border:1px solid #ead8da!important;border-radius:999px!important;background:#fff!important;color:#7b1730!important;font-size:12px!important;font-weight:700!important;cursor:pointer!important}
+.favoritesFilterButton[aria-pressed="true"]{background:#7b1730!important;color:#fff!important;border-color:#7b1730!important}
+.catalogPriceFilters{display:flex!important;flex-wrap:wrap!important;align-items:center!important;gap:7px!important;margin:3px 12px 5px!important;padding:0 2px!important;color:#756c62!important;font-size:11px!important}
+.catalogPriceFilterTitle{font-weight:700!important;color:#514943!important}
+.catalogPriceFilters label{display:inline-flex!important;align-items:center!important;gap:4px!important}
+.catalogPriceFilters input{width:88px!important;min-height:30px!important;padding:5px 7px!important;border:1px solid #e6ded6!important;border-radius:8px!important;background:#fff!important;color:#28231f!important;font:inherit!important}
+.catalogPriceFilters button{min-height:30px!important;padding:5px 9px!important;border:1px solid #ead8da!important;border-radius:999px!important;background:#fff!important;color:#7b1730!important;font:inherit!important;cursor:pointer!important}
+.catalogPriceFilterStatus{flex:1 0 100%!important;min-height:14px!important;color:#9b3150!important;font-size:11px!important}
+.catalogCardTitle{display:flex!important;align-items:center!important;gap:8px!important;min-width:0!important}
+.catalogCardTitle .name{flex:1 1 auto!important;min-width:0!important}
+.productReference{display:block!important;margin-top:2px!important;color:#8b8178!important;font-size:10px!important;line-height:1.25!important;overflow-wrap:anywhere!important}
+.productFavoriteButton{display:inline-flex!important;flex:0 0 34px!important;align-items:center!important;justify-content:center!important;width:34px!important;height:34px!important;padding:0!important;border:1px solid #ead8da!important;border-radius:50%!important;background:#fff!important;color:#7b1730!important;font-size:20px!important;line-height:1!important;cursor:pointer!important}
+.productFavoriteButton[aria-pressed="true"]{background:#7b1730!important;color:#fff!important;border-color:#7b1730!important}
 /* Menú lateral: logo al principio y controles de categoría, orden y color disponibles directamente. */
 .mobileMenu{z-index:650!important}
 .mobileMenuPanel{width:min(88vw,380px)!important;max-width:380px!important;background:#fff!important;color:#302b27!important}
@@ -1431,6 +1460,7 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
 .mobileMenuFilterSection .filterCategoryField{grid-column:1/-1!important;min-width:0!important}
 .mobileMenuFilterSection .filterSortField{grid-column:1!important;min-width:0!important}
 .mobileMenuFilterSection .filterColorField{grid-column:2!important;min-width:0!important}
+.mobileMenuFilterSection .filterSizeField{grid-column:2!important;min-width:0!important}
 .mobileMenuFilterSection .filterField{gap:5px!important;font-size:11px!important;color:#756a63!important}
 .mobileMenuFilterSection .filterField select{width:100%!important;min-width:0!important;max-width:100%!important;padding:9px 6px!important;border:1px solid #e5ded7!important;border-radius:9px!important;background:#fff!important;color:#302b27!important;font-size:11px!important}
 .mobileMenuFilterSection .filterFieldTitle{font-size:11px!important;color:#756a63!important}
@@ -1445,6 +1475,7 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
 .filterColorDropdown[aria-expanded="true"] .filterColorChevron{transform:rotate(180deg)}
 .filterColorDropdownPanel{margin-top:5px;padding:7px;border:1px solid #eee5e9;border-radius:10px;background:#fff;max-height:200px;overflow-y:auto;overscroll-behavior:contain}
 #filterColorDropdownPanel[hidden]{display:none!important}
+#filterSizeDropdownPanel[hidden]{display:none!important}
 .mobileMenuFilterSection .filterColorOptions{display:flex!important;flex-direction:column!important;align-items:stretch!important;flex-wrap:nowrap!important;gap:4px!important;width:100%!important}
 .mobileMenuFilterSection .filterColorHelp{font-size:9px!important;line-height:1.35!important;color:#8b8178!important;margin-top:6px!important}
 .mobileMenuFilterSection .filterClear{grid-column:1/-1!important;justify-self:start!important;margin-top:3px!important;border-radius:9px!important;background:#fff!important;border-color:#e6dce0!important;color:#7b1730!important}
@@ -1646,7 +1677,7 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
     <button class="iconBtn cartTop" type="button" aria-label="Abrir carrito" title="Carrito" onclick="toggleCart()"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h14l1 13H4L5 8Z"></path><path d="M8 8V6a4 4 0 0 1 8 0v2"></path></svg><span id="cartBadge" class="cartBadge">0</span></button>
   </div>
 </div></header>
-<div class="jmTicker"><div class="jmTickerTrack"><span>♥ Envío gratis en Cali</span><span>✦ Compra segura</span><span>♛ La mejor calidad</span><span>♥ Tu estilo, nuestra pasión</span><span data-shipping-policy>✦ Consulta las condiciones de envío vigentes</span><span>♛ Nuevos productos</span><span>♥ Envío gratis en Cali</span><span>✦ Compra segura</span></div></div>
+<div class="jmTicker"><div class="jmTickerTrack"><span>♥ Tarifas según ciudad</span><span>✦ Compra segura</span><span>♛ La mejor calidad</span><span>♥ Tu estilo, nuestra pasión</span><span data-shipping-policy>✦ Consulta las condiciones de envío vigentes</span><span>♛ Nuevos productos</span><span>♥ Tarifas según ciudad</span><span>✦ Compra segura</span></div></div>
 <div id="mobileMenu" class="mobileMenu" aria-hidden="true" onclick="closeMobileMenu(event)">
   <div class="mobileMenuPanel">
     <div class="mobileMenuHead">
@@ -1673,6 +1704,13 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
           <option value="stock_desc">Mayor stock</option>
         </select>
       </label>
+      <label class="filterField filterAvailabilityField" for="catalogAvailabilityFilter">Disponibilidad
+        <select id="catalogAvailabilityFilter" onchange="setCatalogAvailabilityFilter(this.value)" aria-label="Filtrar por disponibilidad">
+          <option value="available" selected>Disponibles</option>
+          <option value="all">Todos</option>
+          <option value="sold_out">Agotados</option>
+        </select>
+      </label>
       <div class="filterField filterColorField">
         <span class="filterFieldTitle">Filtrar por color</span>
         <button id="filterColorToggle" class="filterColorDropdown" type="button" aria-expanded="false" aria-controls="filterColorDropdownPanel" onclick="toggleColorFilterOptions()">
@@ -1685,6 +1723,18 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
           <small class="filterColorHelp">Marca uno o varios tonos. Solo verás productos con stock en esos colores.</small>
         </div>
       </div>
+      <div class="filterField filterSizeField">
+        <span class="filterFieldTitle">Filtrar por talla</span>
+        <button id="filterSizeToggle" class="filterColorDropdown filterSizeDropdown" type="button" aria-expanded="false" aria-controls="filterSizeDropdownPanel" onclick="toggleSizeFilterOptions()">
+          <span id="filterSizeSummary">Todas las tallas</span><span class="filterColorChevron" aria-hidden="true">⌄</span>
+        </button>
+        <div id="filterSizeDropdownPanel" class="filterColorDropdownPanel filterSizeDropdownPanel" hidden>
+          <div id="filterSizeOptions" class="filterColorOptions filterSizeOptions" role="group" aria-label="Seleccionar tallas disponibles">
+            <span class="filterColorEmpty">Cargando tallas disponibles…</span>
+          </div>
+          <small class="filterColorHelp">Solo se muestran tallas con stock. Si combinas color y talla, deben coincidir en la misma variante.</small>
+        </div>
+      </div>
       <button class="filterClear" type="button" onclick="clearCatalogFilters()">Limpiar filtros</button>
     </div>
     <div class="mobileMenuLabel">Categorías activas</div>
@@ -1693,7 +1743,7 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
   </div>
 </div>
 <main id="inicio" class="wrap">
-<section class="benefits"><div class="benefit"><div class="benefitIcon">📍</div><div><b>Cali</b><small>$0 de envío</small></div></div><div class="benefit"><div class="benefitIcon">🎁</div><div><b>Otras ciudades</b><small>Consulta tarifas en el carrito</small></div></div><div class="benefit"><div class="benefitIcon">🛡️</div><div><b>Compra segura</b><small>Contra entrega o pago online</small></div></div></section>
+<section class="benefits"><div class="benefit"><div class="benefitIcon">📍</div><div><b>Cali</b><small>Tarifa pendiente de verificación</small></div></div><div class="benefit"><div class="benefitIcon">🎁</div><div><b>Otras ciudades</b><small>Consulta tarifas en el carrito</small></div></div><div class="benefit"><div class="benefitIcon">🛡️</div><div><b>Compra segura</b><small>Contra entrega o pago online</small></div></div></section>
 <div id="error" class="error"></div>
 
 
@@ -1704,8 +1754,16 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
 <div class="catalogSearchRow" id="catalogSearchRow">
   <input id="search" class="search" placeholder="Buscar productos..." oninput="handleSearchInput()" aria-label="Buscar productos">
 </div>
-<div class="catalogCountLine"><span id="count" class="count">Cargando catálogo…</span></div>
-<section id="cartBar" class="cartBar" aria-hidden="true" onclick="if(event.target===this)hideCart()"><div class="cartPanel" role="dialog" aria-modal="true" aria-labelledby="cartDrawerTitle"><div class="cartDrawerBody"><div class="cartHead"><div><div id="cartDrawerTitle" class="cartTitle">Tu carrito</div><div id="cartSummary" class="cartSummary">0 productos</div></div><button class="cartClose" type="button" onclick="hideCart()" aria-label="Cerrar carrito">×</button></div><div class="cartShippingBox" aria-live="polite"><div id="cartShippingMessage" class="cartShippingMessage">Cali tiene envío gratis; consulta la tarifa vigente en el checkout.</div><div class="cartShippingTrack" role="progressbar" aria-label="Progreso para envío gratis fuera de Cali" aria-valuemin="0" aria-valuemax="1" aria-valuenow="0"><div id="cartShippingFill" class="cartShippingFill"></div><span id="cartShippingTruck" class="cartShippingTruck" aria-hidden="true">🚚</span></div><div class="cartShippingFoot"><span>Tarifas vigentes según ciudad y subtotal</span><span id="cartShippingPercent">0%</span></div><div class="cartShippingLocalNote">🚚 Envío gratis a Cali también</div></div><div id="cartItems" class="cartItems"></div><div class="cartFooter"><div class="cartFooterTotal"><span>Total estimado</span><strong id="cartDrawerTotal">$0</strong></div><div id="cartDiscountLine" class="cartDiscountSummary" hidden></div><p class="cartFooterNote">El envío se confirma según tu ciudad en el siguiente paso.</p><button id="cartSend" class="cartSend" type="button" onclick="sendCart()">Pagar pedido</button></div></div></div></section>
+<div class="catalogPriceFilters" aria-label="Filtrar productos por precio">
+  <span class="catalogPriceFilterTitle">Precio (COP)</span>
+  <label>Desde <input id="catalogPriceMin" type="number" min="0" step="1000" inputmode="numeric" placeholder="Mínimo" aria-label="Precio mínimo en pesos colombianos" oninput="render()"></label>
+  <label>Hasta <input id="catalogPriceMax" type="number" min="0" step="1000" inputmode="numeric" placeholder="Máximo" aria-label="Precio máximo en pesos colombianos" oninput="render()"></label>
+  <button type="button" onclick="clearCatalogPriceFilter()" aria-label="Limpiar filtro de precio">Limpiar</button>
+  <button type="button" onclick="copyCatalogPriceFilterLink()" aria-label="Copiar enlace de filtros públicos del catálogo">Compartir</button>
+  <span id="catalogPriceFilterStatus" class="catalogPriceFilterStatus" role="status" aria-live="polite"></span>
+</div>
+<div class="catalogCountLine"><button id="favoritesOnlyToggle" class="favoritesFilterButton" type="button" aria-pressed="false" onclick="toggleFavoriteFilter()"><span aria-hidden="true">♡</span> Favoritos <span id="favoriteProductCount">0</span></button><span id="count" class="count">Cargando catálogo…</span></div>
+<section id="cartBar" class="cartBar" aria-hidden="true" onclick="if(event.target===this)hideCart()"><div class="cartPanel" role="dialog" aria-modal="true" aria-labelledby="cartDrawerTitle"><div class="cartDrawerBody"><div class="cartHead"><div><div id="cartDrawerTitle" class="cartTitle">Tu carrito</div><div id="cartSummary" class="cartSummary">0 productos</div></div><button class="cartClose" type="button" onclick="hideCart()" aria-label="Cerrar carrito">×</button></div><div class="cartShippingBox" aria-live="polite"><div id="cartShippingMessage" class="cartShippingMessage">Consultando la tarifa vigente de envío…</div><div class="cartShippingTrack" style="display:none" hidden aria-hidden="true" role="progressbar" aria-label="Progreso para envío gratis fuera de Cali" aria-valuemin="0" aria-valuemax="1" aria-valuenow="0"><div id="cartShippingFill" class="cartShippingFill"></div><span id="cartShippingTruck" class="cartShippingTruck" aria-hidden="true">🚚</span></div><div class="cartShippingFoot"><span>La tarifa se confirma al seleccionar una ciudad</span><span id="cartShippingPercent">—</span></div><div class="cartShippingLocalNote" hidden>🚚 Envío gratis a Cali también</div></div><div id="cartItems" class="cartItems"></div><div class="cartFooter"><div class="cartFooterTotal"><span>Total estimado</span><strong id="cartDrawerTotal">$0</strong></div><div id="cartDiscountLine" class="cartDiscountSummary" hidden></div><p class="cartFooterNote">El envío se confirma según tu ciudad en el siguiente paso.</p><button id="cartSend" class="cartSend" type="button" onclick="sendCart()">Pagar pedido</button></div></div></div></section>
 <section id="storefrontComboCatalogSection" class="storefrontComboCatalogSection" hidden aria-labelledby="storefrontComboCatalogTitle">
   <div id="storefrontComboCatalogIntro" class="storefrontComboCatalogIntro">
     <span class="storefrontComboEyebrow">SIREVYA · COMPLETA TU ESTILO</span>
@@ -1717,7 +1775,7 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
 <section id="grid" class="grid"><div class="loading">Cargando catálogo...</div></section>
 
 </main>
-<footer class="footer" id="contactanos"><div class="footerFeatures"><div class="footerFeature"><b>🚚 Envíos</b>Envíos a toda Colombia</div><div class="footerFeature"><b>💳 Pagos</b>Múltiples medios de pago</div><div class="footerFeature"><b>🛡️ Compra segura</b>Tu compra protegida</div><div class="footerFeature"><b>🎧 Atención</b>Soporte personalizado</div></div><div class="footerBrand">Sirevya</div><div class="footerSub">TU ESTILO, NUESTRA PASIÓN ♥</div><div class="contactInfo"><b>📞 Contáctanos</b><a href="tel:+573025469983">+57 302 546 9983</a><a href="mailto:sirevya99@gmail.com">sirevya99@gmail.com</a></div><div style="margin-top:24px;color:#777;font-size:12px">Catálogo actualizado desde el inventario · © Sirevya</div><div class="footerPolicyLinks"><button type="button" class="footerPolicyLink" onclick="openPrivacy(event)">Política de privacidad y datos personales</button></div></footer>
+<footer class="footer" id="contactanos"><div class="footerFeatures"><div class="footerFeature"><b>🚚 Envíos</b>Envíos a toda Colombia</div><div class="footerFeature"><b>💳 Pagos</b>Múltiples medios de pago</div><div class="footerFeature"><b>🛡️ Compra segura</b>Tu compra protegida</div><div class="footerFeature"><b>🎧 Atención</b>Soporte personalizado</div></div><div class="footerBrand">Sirevya</div><div class="footerSub">TU ESTILO, NUESTRA PASIÓN ♥</div><div class="contactInfo"><b>📞 Contáctanos</b><a href="tel:+573025469983">+57 302 546 9983</a><a href="mailto:sirevya99@gmail.com">sirevya99@gmail.com</a></div><div style="margin-top:24px;color:#777;font-size:12px">Catálogo actualizado desde el inventario · © Sirevya</div><div class="footerPolicyLinks"><button type="button" class="footerPolicyLink" onclick="openPrivacy(event)">Política de privacidad y datos personales</button><a class="footerPolicyLink" href="/preguntas-frecuentes.html">Preguntas frecuentes</a></div></footer>
 
 
 <div id="seasonalPromoOverlay" class="sirevyaPromoOverlay" hidden aria-hidden="true" onclick="handleSeasonalPromoBackdrop(event)">
@@ -1736,7 +1794,8 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
 <div id="checkoutModal" class="checkoutModal" onclick="closeCheckout(event)">
   <div class="checkoutBox">
     <div class="checkoutHead"><div class="checkoutTitle">📦 Finalizar pedido</div><button class="checkoutClose" type="button" onclick="closeCheckout()">×</button></div>
-    <p id="checkoutPaymentNote" class="checkoutNote">Las tarifas de envío vigentes se calculan según tu ciudad y el subtotal. Los pagos en línea se procesan de forma segura con Wompi. Puedes elegir PSE, tarjeta, Nequi o Bancolombia.</p>
+    <p id="checkoutPaymentNote" class="checkoutNote">La tarifa se confirma al verificar la configuración vigente y seleccionar tu ciudad. Los pagos en línea se procesan de forma segura con Wompi. Puedes elegir PSE, tarjeta, Nequi o Bancolombia.</p>
+    <p class="checkoutPrivacyNote">Consulta la <a href="/politica-privacidad.html">Política de Tratamiento de Datos Personales</a> y las <a href="/preguntas-frecuentes.html">preguntas frecuentes</a>.</p>
     <div id="checkoutValidationSummary" class="checkoutValidationSummary" role="alert" aria-live="assertive" hidden></div>
     <div class="checkoutGrid">
       <label for="customerName">Nombre completo *</label><input id="customerName" type="text" autocomplete="name" placeholder="Tu nombre" required aria-describedby="checkoutErrorCustomerName"><small id="checkoutErrorCustomerName" class="checkoutFieldError"></small>
@@ -1750,7 +1809,7 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
       <div id="customerCityOtherWrap" hidden><label for="customerCityOther">Escribe tu ciudad *</label><input id="customerCityOther" type="text" maxlength="80" autocomplete="address-level2" placeholder="Nombre de tu ciudad" aria-describedby="checkoutErrorCustomerCityOther" oninput="updateShipping()"><small id="checkoutErrorCustomerCityOther" class="checkoutFieldError"></small></div>
       <label for="customerAddress">Dirección *</label><input id="customerAddress" type="text" autocomplete="street-address" placeholder="Calle, carrera, número, etc." required aria-describedby="checkoutErrorCustomerAddress"><small id="checkoutErrorCustomerAddress" class="checkoutFieldError"></small>
       <label for="customerNeighborhood">Barrio / referencia *</label><input id="customerNeighborhood" type="text" placeholder="Barrio, conjunto o referencia" required aria-describedby="checkoutErrorCustomerNeighborhood"><small id="checkoutErrorCustomerNeighborhood" class="checkoutFieldError"></small>
-      <div class="shippingBox"><div class="shippingLine"><span>🚚 Envío</span><span id="shippingValue">Selecciona una ciudad</span></div><div id="shippingNote" class="shippingSmall">Las tarifas y beneficios de envío se calculan con la configuración vigente.</div></div>
+      <div class="shippingBox"><div class="shippingLine"><span>🚚 Envío</span><span id="shippingValue">Selecciona una ciudad</span></div><div id="shippingNote" class="shippingSmall">La tarifa se confirma al verificar la configuración vigente.</div></div>
       <label>Forma de pago</label>
       <div class="paymentOptions">
         <label class="paymentOption onlinePaymentOption"><input type="radio" name="paymentMethod" value="PSE" checked> 🏦 <span><b>Pago en línea · PSE o Nequi</b><small>Continuar a Wompi para elegir el medio disponible.</small></span></label>
@@ -1762,7 +1821,7 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
         <div id="checkoutSummaryItems" class="checkoutSummaryItems"></div>
         <div class="checkoutSummaryFoot">Verifica producto, talla y color antes de confirmar el pedido.</div>
       </section>
-<div class="checkoutTotal"><span>Total</span><span id="checkoutTotal">$0</span></div>
+<div class="checkoutTotal"><span>Total</span><span id="checkoutTotal">Por verificar</span></div>
       <div class="checkoutActions"><button class="checkoutCancel" type="button" onclick="closeCheckout()">Cancelar</button><button id="checkoutConfirmBtn" class="checkoutConfirm" type="button" onclick="confirmCheckout()">✅ Confirmar pedido</button></div>
     </div>
   </div>
@@ -1785,6 +1844,7 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
   <div class="privacyBox">
     <div class="privacyHead"><div class="privacyTitle">🔒 Política de Tratamiento de Datos Personales</div><button class="privacyClose" type="button" onclick="closePrivacy()" aria-label="Cerrar">×</button></div>
     <div class="privacyUpdated">Última actualización: 7 de octubre de 2026</div>
+    <p class="privacyPageLink"><a href="/politica-privacidad.html">Ver esta política como página independiente</a> · <a href="/preguntas-frecuentes.html">Preguntas frecuentes</a></p>
     <p>En Sirevya nos comprometemos a proteger los datos personales de nuestros clientes y a utilizarlos únicamente para las finalidades informadas en esta política, de conformidad con la normativa colombiana aplicable sobre protección de datos personales.</p>
 
     <h3>1. Responsable del tratamiento</h3>
@@ -1841,17 +1901,23 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
     </header>
     <button class="detailClose" type="button" onclick="closeProductDetail()" aria-label="Cerrar detalle del producto">×</button>
     <div class="productDetailMain">
-      <div class="detailGalleryColumn"><div id="detailImageWrap" class="detailImageWrap"><img id="detailImage" class="detailImage" alt="Producto" onclick="openDetailGallery(event)" decoding="async"></div><div id="detailGalleryThumbs" class="detailGalleryThumbs"></div></div>
+      <div class="detailGalleryColumn">
+        <div id="detailImageWrap" class="detailImageWrap">
+          <img id="detailImage" class="detailImage" alt="Producto" role="button" tabindex="0" aria-haspopup="dialog" aria-label="Ampliar galería del producto" onclick="openDetailGallery(event)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openDetailGallery(event)}" onload="clearImageFallback(this,'detailImageFallback')" onerror="showImageFallback(this,'detailImageFallback')" decoding="async">
+          <div id="detailImageFallback" class="imageLoadFallback" role="status" aria-live="polite" hidden><span class="imageLoadFallbackIcon" aria-hidden="true">▧</span><strong>Imagen no disponible</strong><span data-image-fallback-message>No se pudo cargar la imagen del producto.</span></div>
+        </div>
+        <div id="detailGalleryThumbs" class="detailGalleryThumbs"></div>
+      </div>
       <div class="detailInfo">
         <div id="detailName" class="detailName"></div>
         <div id="detailPrice" class="detailPrice"></div>
         <div id="detailStockNotice" class="detailStockNotice" hidden></div>
         <div id="detailVariants" class="detailVariants"></div>
-        <div class="detailPurchaseActions"><button id="detailAdd" class="detailAdd" type="button" onclick="detailAddToCart(event)">🛒 Agregar al carrito</button><button id="detailBuyNow" class="detailBuyNow" type="button" onclick="detailBuyNow(event)">⚡ Comprar ahora</button></div>
+        <div class="detailPurchaseActions"><button id="detailAdd" class="detailAdd" type="button" onclick="detailAddToCart(event)">🛒 Agregar al carrito</button><button id="detailBuyNow" class="detailBuyNow" type="button" onclick="detailBuyNow(event)">⚡ Comprar ahora</button><button id="detailShare" class="detailShare" type="button" onclick="shareCurrentProductLink()" aria-label="Copiar enlace de este producto">Compartir producto</button></div>
         <section class="detailShippingBenefits" aria-label="Información de envíos">
           <div class="detailShippingHeadline"><span aria-hidden="true">✈</span><div><b>Envíos a toda Colombia</b><small>Tu estilo llega hasta tu ciudad.</small></div></div>
-          <div class="detailShippingRule"><span class="detailShippingIcon" aria-hidden="true">♥</span><div><b>Envío gratis en Cali</b><small>Sin costo de envío en Cali.</small></div></div>
-          <div class="detailShippingRule"><span class="detailShippingIcon" aria-hidden="true">🚚</span><div><b>Envío gratis según ciudad y compra</b><small>Cali es gratis; consulta el valor vigente de envío en el carrito.</small></div></div>
+          <div class="detailShippingRule"><span class="detailShippingIcon" aria-hidden="true">♥</span><div><b>Tarifa de envío en Cali</b><small>Se confirma al verificar la configuración vigente.</small></div></div>
+          <div class="detailShippingRule"><span class="detailShippingIcon" aria-hidden="true">🚚</span><div><b>Envíos según ciudad y compra</b><small>Consulta el valor vigente en el carrito.</small></div></div>
         </section>
       </div>
     </div>
@@ -1870,7 +1936,18 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
       </a>
     </section>
   </div>
-</div><div id="galleryModal" class="galleryModal" onclick="closeGallery(event)"><div class="galleryBox"><button class="galleryClose" type="button" onclick="closeGallery()">×</button><button id="galleryPrev" class="galleryNav galleryPrev" type="button" onclick="galleryMove(-1,event)">‹</button><img id="galleryMain" class="galleryMain" alt="Imagen del producto" decoding="async"><button id="galleryNext" class="galleryNav galleryNext" type="button" onclick="galleryMove(1,event)">›</button><div id="galleryInfo" class="galleryInfo"></div></div></div><a class="waHelpFloat" href="https://wa.me/573025469983?text=Hola%2C%20necesito%20asesor%C3%ADa%20sobre%20un%20producto." target="_blank" rel="noopener noreferrer" aria-label="Contactar asesoramiento por WhatsApp">
+ </div>
+<div id="galleryModal" class="galleryModal" role="dialog" aria-modal="true" aria-label="Galería ampliada" aria-describedby="galleryInfo" aria-hidden="true" tabindex="-1" onclick="closeGallery(event)">
+  <div class="galleryBox">
+    <button id="galleryClose" class="galleryClose" type="button" aria-label="Cerrar galería" title="Cerrar galería" onclick="closeGallery()">×</button>
+    <button id="galleryPrev" class="galleryNav galleryPrev" type="button" aria-label="Imagen anterior" onclick="galleryMove(-1,event)">‹</button>
+    <img id="galleryMain" class="galleryMain" alt="Imagen del producto" onload="clearImageFallback(this,'galleryImageFallback')" onerror="showImageFallback(this,'galleryImageFallback')" decoding="async">
+    <div id="galleryImageFallback" class="imageLoadFallback" role="status" aria-live="polite" hidden><span class="imageLoadFallbackIcon" aria-hidden="true">▧</span><strong>Imagen no disponible</strong><span data-image-fallback-message>No se pudo cargar la imagen ampliada.</span></div>
+    <button id="galleryNext" class="galleryNav galleryNext" type="button" aria-label="Imagen siguiente" onclick="galleryMove(1,event)">›</button>
+    <div id="galleryInfo" class="galleryInfo" role="status" aria-live="polite" aria-atomic="true"></div>
+  </div>
+</div>
+<a class="waHelpFloat" href="https://wa.me/573025469983?text=Hola%2C%20necesito%20asesor%C3%ADa%20sobre%20un%20producto." target="_blank" rel="noopener noreferrer" aria-label="Contactar asesoramiento por WhatsApp">
   <span class="waHelpLabel"><b>Asesoramiento</b></span><span class="waHelpIcon" aria-hidden="true">●</span>
 </a>
 <div id="toast" class="toast"></div>
@@ -1898,6 +1975,7 @@ let storefrontShippingSettings={...DEFAULT_STOREFRONT_SHIPPING_SETTINGS};
 let storefrontShippingSettingsLoaded=false;
 let storefrontShippingSettingsPromise=null;
 let storefrontShippingSettingsRefreshPending=false;
+let storefrontShippingSettingsLoadError=false;
 let checkoutShipping=0;
 
 function resolveStorefrontShippingRule(city,settings=storefrontShippingSettings){
@@ -1925,6 +2003,9 @@ function calculateStorefrontShipping(city,discountedSubtotal,settings=storefront
  return Number.isSafeInteger(rule.fee)&&rule.fee>=0?rule.fee:DEFAULT_STOREFRONT_SHIPPING_SETTINGS.national_shipping_cost;
 }
 function storefrontShippingPolicyText(city=''){
+ if(!storefrontShippingSettingsLoaded||storefrontShippingSettingsLoadError){
+  return storefrontShippingSettingsLoadError?'No se pudo verificar la tarifa vigente. Se confirmará cuando se recupere la conexión.':'La tarifa de envío se confirma al seleccionar la ciudad y verificar la configuración vigente.';
+ }
  if(city){
   const rule=resolveStorefrontShippingRule(city);
   if(rule.kind==='cali')return 'Envío gratis dentro de Cali y sus alias configurados.';
@@ -1933,32 +2014,72 @@ function storefrontShippingPolicyText(city=''){
   const thresholdCopy=rule.threshold===null?'sin mínimo específico de envío gratis':`gratis desde ${money(rule.threshold)} después de descuentos`;
   return `${source}: ${money(rule.fee)}; ${thresholdCopy}.`;
  }
- return 'Envío gratis en Cali. En otras ciudades, la tarifa y el mínimo se determinan según la regla de ciudad/zona o la tarifa general vigente.';
+ if(Array.isArray(storefrontShippingSettings.destination_rules)&&storefrontShippingSettings.destination_rules.length>0){
+  return 'Envío gratis en Cali. En otras ciudades, la tarifa y el mínimo se determinan según la regla de ciudad/zona o la tarifa general vigente.';
+ }
+ const threshold=storefrontShippingSettings.free_shipping_threshold;
+ return threshold===null
+  ?'Envío gratis en Cali. En otras ciudades se aplica la tarifa nacional vigente.'
+  :`Envío gratis en Cali y desde ${money(threshold)} en otras ciudades.`;
 }
 function updateStorefrontShippingCopy(){
- const policy=storefrontShippingPolicyText();
  const shippingTicker=document.querySelector('.jmTickerTrack [data-shipping-policy]');
- if(shippingTicker)shippingTicker.textContent='✦ Envío gratis en Cali · tarifas según ciudad o zona';
- const benefit=document.querySelector('.benefits .benefit:nth-child(2) small');
- if(benefit)benefit.textContent='Tarifas y mínimos según ciudad o zona';
+ const caliBenefit=document.querySelector('.benefits .benefit:nth-child(1) small');
+ const otherBenefit=document.querySelector('.benefits .benefit:nth-child(2) small');
  const foot=document.querySelector('.cartShippingFoot span:first-child');
- if(foot)foot.textContent='El costo exacto se confirma al seleccionar la ciudad';
- const otherCityShippingRule=document.querySelectorAll('.detailShippingBenefits .detailShippingRule')[1];
+ const rules=document.querySelectorAll('.detailShippingBenefits .detailShippingRule');
+ const paymentNote=$('checkoutPaymentNote');
+ const track=document.querySelector('.cartShippingTrack');
+ const caliNote=document.querySelector('.cartShippingLocalNote');
+ if(!storefrontShippingSettingsLoaded||storefrontShippingSettingsLoadError){
+  if(shippingTicker)shippingTicker.textContent='✦ Consulta la tarifa vigente al seleccionar tu ciudad';
+  if(caliBenefit)caliBenefit.textContent='Tarifa por confirmar';
+  if(otherBenefit)otherBenefit.textContent='Tarifa por confirmar';
+  if(foot)foot.textContent='Selecciona una ciudad para consultar el envío';
+  if(rules[0]){const h=rules[0].querySelector('b'),c=rules[0].querySelector('small');if(h)h.textContent='Tarifa en Cali';if(c)c.textContent='Se confirma al verificar la configuración vigente.';}
+  if(rules[1]){const h=rules[1].querySelector('b'),c=rules[1].querySelector('small');if(h)h.textContent='Tarifa por destino';if(c)c.textContent='Selecciona una ciudad para confirmarla.';}
+  if(paymentNote)paymentNote.textContent=`${storefrontShippingPolicyText()} Los pagos en línea se procesan de forma segura con Wompi.`;
+  if(track){track.hidden=true;track.style.display='none';track.setAttribute('aria-hidden','true');}
+  if(caliNote)caliNote.hidden=true;
+  return;
+ }
+ const threshold=storefrontShippingSettings.free_shipping_threshold;
+ const policy=storefrontShippingPolicyText();
+ const hasCityRules=Array.isArray(storefrontShippingSettings.destination_rules)&&storefrontShippingSettings.destination_rules.length>0;
+ if(hasCityRules){
+  if(shippingTicker)shippingTicker.textContent='✦ Envío gratis en Cali · tarifas según ciudad o zona';
+  if(caliBenefit)caliBenefit.textContent='Envío gratis';
+  if(otherBenefit)otherBenefit.textContent='Tarifas y mínimos según ciudad o zona';
+  if(foot)foot.textContent='El costo exacto se confirma al seleccionar la ciudad';
+  if(rules[0]){const h=rules[0].querySelector('b'),c=rules[0].querySelector('small');if(h)h.textContent='Envío gratis en Cali';if(c)c.textContent='Sin costo de envío en Cali.';}
+  if(rules[1]){const h=rules[1].querySelector('b'),c=rules[1].querySelector('small');if(h)h.textContent='Tarifa por destino';if(c)c.textContent='El costo y el mínimo dependen de la ciudad o zona.';}
+  if(paymentNote)paymentNote.textContent=`${policy} Los pagos en línea se procesan de forma segura con Wompi. Puedes elegir PSE, tarjeta, Nequi o Bancolombia.`;
+  if(track)track.setAttribute('aria-valuemax','1');
+  if(caliNote)caliNote.hidden=false;
+  return;
+ }
+ if(shippingTicker)shippingTicker.textContent=threshold===null?'✦ Envío nacional: tarifa vigente; Cali gratis':`✦ Envío gratis desde ${money(threshold)} fuera de Cali`;
+ if(caliBenefit)caliBenefit.textContent='Envío gratis';
+ if(otherBenefit)otherBenefit.textContent=threshold===null?`Tarifa nacional: ${money(storefrontShippingSettings.national_shipping_cost)}`:`Envío gratis desde ${money(threshold)}`;
+ if(foot)foot.textContent=threshold===null?`Fuera de Cali: ${money(storefrontShippingSettings.national_shipping_cost)} de envío`:`Envío gratis desde ${money(threshold)} fuera de Cali`;
+ const caliShippingRule=rules[0];
+ if(caliShippingRule){const h=caliShippingRule.querySelector('b'),c=caliShippingRule.querySelector('small');if(h)h.textContent='Envío gratis en Cali';if(c)c.textContent='Sin costo de envío en Cali.';}
+ const otherCityShippingRule=rules[1];
  if(otherCityShippingRule){
   const detailHeading=otherCityShippingRule.querySelector('b');
   const detailCopy=otherCityShippingRule.querySelector('small');
-  if(detailHeading)detailHeading.textContent='Tarifa por destino';
-  if(detailCopy)detailCopy.textContent='El costo y el mínimo dependen de la ciudad o zona.';
+  if(detailHeading)detailHeading.textContent=threshold===null?'Tarifa fuera de Cali':'Envío gratis a otras ciudades';
+  if(detailCopy)detailCopy.textContent=threshold===null?`Envío nacional: ${money(storefrontShippingSettings.national_shipping_cost)}.`:`En compras desde ${money(threshold)} después de descuentos.`;
  }
- const paymentNote=$('checkoutPaymentNote');
  if(paymentNote)paymentNote.textContent=`${policy} Los pagos en línea se procesan de forma segura con Wompi. Puedes elegir PSE, tarjeta, Nequi o Bancolombia.`;
- const track=document.querySelector('.cartShippingTrack');
- if(track)track.setAttribute('aria-valuemax',storefrontShippingSettings.free_shipping_threshold==null?'1':String(storefrontShippingSettings.free_shipping_threshold));
+ if(track)track.setAttribute('aria-valuemax',threshold===null?'1':String(threshold));
+ if(caliNote)caliNote.hidden=false;
 }
 async function loadStorefrontShippingSettings(force=false){
  if(storefrontShippingSettingsPromise){if(force)storefrontShippingSettingsRefreshPending=true;return storefrontShippingSettingsPromise;}
- if(storefrontShippingSettingsLoaded&&!force)return true;
+ if(storefrontShippingSettingsLoaded&&!storefrontShippingSettingsLoadError&&!force)return true;
  const task=(async()=>{
+  if(!storefrontShippingSettingsLoaded){storefrontShippingSettingsLoadError=false;updateStorefrontShippingCopy();renderCart();if($('checkoutModal')?.classList.contains('open'))updateShipping();}
   const {data,error}=await sb.rpc('get_public_storefront_shipping_settings');
   if(error)throw error;
   const row=Array.isArray(data)?data[0]:data;
@@ -1992,6 +2113,7 @@ async function loadStorefrontShippingSettings(force=false){
   }
   storefrontShippingSettings={national_shipping_cost:fee,free_shipping_threshold:threshold,free_shipping_in_cali:true,destination_rules:destinationRules};
   storefrontShippingSettingsLoaded=true;
+  storefrontShippingSettingsLoadError=false;
   updateStorefrontShippingCopy();
   renderCart();
   if($('checkoutModal')?.classList.contains('open'))updateShipping();
@@ -1999,7 +2121,7 @@ async function loadStorefrontShippingSettings(force=false){
  })();
  storefrontShippingSettingsPromise=task;
  try{return await task}
- catch(error){console.warn('No se pudo actualizar la configuración de envíos; el checkout verificará Supabase antes de continuar.',error);return false}
+ catch(error){storefrontShippingSettingsLoadError=true;updateStorefrontShippingCopy();renderCart();if($('checkoutModal')?.classList.contains('open'))updateShipping();console.warn('No se pudo actualizar la configuración de envíos; el checkout verificará Supabase antes de continuar.',error);return false}
  finally{
   if(storefrontShippingSettingsPromise===task)storefrontShippingSettingsPromise=null;
   if(storefrontShippingSettingsRefreshPending){
@@ -2224,9 +2346,15 @@ function publicImage(path){
 }
 function productImages(p){const a=Array.isArray(p.image_paths)?p.image_paths.filter(Boolean):[];if(!a.length&&p.image_url)a.push(p.image_url);return a.map(publicImage).filter(Boolean)}
 
+function showImageFallback(image,fallbackId){if(image)image.hidden=true;const fallback=$(fallbackId);if(!fallback)return;fallback.hidden=false;const message=fallback.querySelector('[data-image-fallback-message]');if(message){const alt=String(image?.alt||'').trim();message.textContent=alt?`No se pudo cargar la imagen de ${alt}.`:'No se pudo cargar la imagen del producto.'}}
+function clearImageFallback(image,fallbackId){if(image)image.hidden=false;const fallback=$(fallbackId);if(fallback)fallback.hidden=true}
+function replaceWithImageFallback(image){if(!image||typeof image.replaceWith!=='function')return;const fallback=document.createElement('div');fallback.className='noimg';fallback.setAttribute('role','img');fallback.setAttribute('aria-label','Imagen no disponible');fallback.textContent='▧';image.replaceWith(fallback)}
+function showCardImageFallback(image){if(!image)return;image.hidden=true;const photo=image.closest('.photo');if(!photo)return;let fallback=photo.querySelector('.photoImageFallback');if(!fallback){fallback=document.createElement('div');fallback.className='noimg photoImageFallback';fallback.setAttribute('role','img');fallback.setAttribute('aria-label','Imagen no disponible');fallback.textContent='▧';photo.append(fallback)}}
+function clearCardImageFallback(image){if(!image)return;image.hidden=false;const fallback=image.closest('.photo')?.querySelector('.photoImageFallback');fallback?.remove()}
 function setPhotoImage(el,src){
  const img=el?.querySelector('img');
  if(!img||!src)return;
+ clearCardImageFallback(img);
  img.src=src;
  img.removeAttribute('data-src');
  // Transición breve (140 ms); no añade intervalos ni llamadas a Supabase.
@@ -2329,12 +2457,29 @@ function photoHoverLeave(event){
 }
 
 function changePhoto(i,d,event){if(event){event.preventDefault();event.stopPropagation()}const p=productos.find(x=>String(x.id)===String(i));if(!p)return;const imgs=productImages(p);if(imgs.length<2)return;const key='photo_'+i;let n=Number(document.querySelector('[data-photo="'+CSS.escape(key)+'"]')?.dataset.index||0);n=(n+d+imgs.length)%imgs.length;const el=document.querySelector('[data-photo="'+CSS.escape(key)+'"]');if(!el)return;el.dataset.index=n;setPhotoImage(el,imgs[n]);el.querySelectorAll('.photoDot').forEach((x,j)=>x.classList.toggle('active',j===n))}
-function openGallery(id,event){if(event){event.preventDefault();event.stopPropagation()}const p=productos.find(x=>String(x.id)===String(id));if(!p)return;const imgs=productImages(p);if(!imgs.length)return;galleryProduct=p;galleryIndex=0;galleryImages=imgs;renderGallery();$('galleryModal').classList.add('open');document.body.style.overflow='hidden'}
-function openSizeGuideZoom(image,event){if(event){event.preventDefault();event.stopPropagation()}const src=String(image?.currentSrc||image?.src||'').trim();if(!src)return;galleryProduct={name:image?.alt||'Guía de tallas'};galleryIndex=0;galleryImages=[src];renderGallery();$('galleryModal').classList.add('open');document.body.style.overflow='hidden'}
-let galleryProduct=null,galleryImages=[],galleryIndex=0;
+function openGallery(id,event){if(event){event.preventDefault();event.stopPropagation()}const p=productos.find(x=>String(x.id)===String(id));if(!p)return;const imgs=productImages(p);if(!imgs.length)return;galleryProduct=p;galleryIndex=0;galleryImages=imgs;renderGallery();openGalleryModal(event?.currentTarget||document.activeElement)}
+function openSizeGuideZoom(image,event){if(event){event.preventDefault();event.stopPropagation()}const src=String(image?.currentSrc||image?.src||'').trim();if(!src)return;galleryProduct={name:image?.alt||'Guía de tallas'};galleryIndex=0;galleryImages=[src];renderGallery();openGalleryModal(event?.currentTarget||image||document.activeElement)}
+let galleryProduct=null,galleryImages=[],galleryIndex=0,galleryReturnFocus=null;
+function openGalleryModal(trigger){const modal=$('galleryModal');if(!modal)return;const candidate=trigger||document.activeElement;galleryReturnFocus=candidate&&candidate!==document.body&&typeof candidate.focus==='function'?candidate:null;modal.classList.add('open');modal.setAttribute('aria-hidden','false');document.body.style.overflow='hidden';$('galleryClose')?.focus({preventScroll:true})}
 function renderGallery(){if(!galleryImages.length)return;const main=$('galleryMain');main.loading='eager';main.fetchPriority='high';main.decoding='async';main.src=galleryImages[galleryIndex];main.alt=galleryProduct?.name||'Producto';animateGalleryImage(main);$('galleryInfo').textContent=(galleryIndex+1)+' / '+galleryImages.length;const multi=galleryImages.length>1;$('galleryPrev').style.display=multi?'block':'none';$('galleryNext').style.display=multi?'block':'none'}
 function galleryMove(d,event){if(event){event.preventDefault();event.stopPropagation()}if(galleryImages.length<2)return;galleryIndex=(galleryIndex+d+galleryImages.length)%galleryImages.length;renderGallery()}
-function closeGallery(event){if(event&&event.target!==$('galleryModal'))return;$('galleryModal').classList.remove('open');document.body.style.overflow=$('productDetailModal')?.classList.contains('open')?'hidden':''}
+function galleryFocusables(){return ['galleryClose','galleryPrev','galleryNext'].map($).filter(el=>el&&!el.disabled&&!el.hidden&&el.style?.display!=='none')}
+function handleGalleryKeydown(event){
+ const modal=$('galleryModal');
+ if(!modal?.classList.contains('open'))return;
+ if(event.key==='Escape'){event.preventDefault();event.stopPropagation();closeGallery();return}
+ if(event.key==='ArrowLeft'&&galleryImages.length>1){event.preventDefault();event.stopPropagation();galleryMove(-1);return}
+ if(event.key==='ArrowRight'&&galleryImages.length>1){event.preventDefault();event.stopPropagation();galleryMove(1);return}
+ if(event.key!=='Tab')return;
+ const controls=galleryFocusables();
+ if(!controls.length){event.preventDefault();modal.focus({preventScroll:true});return}
+ const first=controls[0],last=controls[controls.length-1],active=document.activeElement;
+ const isInside=typeof modal.contains==='function'?modal.contains(active):controls.includes(active);
+ if(event.shiftKey&&(active===first||!isInside)){event.preventDefault();last.focus({preventScroll:true})}
+ else if(!event.shiftKey&&(active===last||!isInside)){event.preventDefault();first.focus({preventScroll:true})}
+}
+document.addEventListener('keydown',handleGalleryKeydown);
+function closeGallery(event){const modal=$('galleryModal');if(event&&event.target!==modal)return;if(!modal)return;modal.classList.remove('open');modal.setAttribute('aria-hidden','true');document.body.style.overflow=$('productDetailModal')?.classList.contains('open')?'hidden':'';const returnFocus=galleryReturnFocus;galleryReturnFocus=null;const fallback=$('productDetailModal')?.classList.contains('open')?$('detailImage'):null;const target=returnFocus?.isConnected?returnFocus:fallback;if(typeof target?.focus==='function')target.focus({preventScroll:true})}
 
 function activateCatalogLazyImages(){
  const imgs=document.querySelectorAll('#grid img[data-src]');
@@ -2716,7 +2861,7 @@ function openProductDetail(id,event,options={}){
  const firstColor=colors.find(c=>colorStock(p,c)>0)||colors[0]||'';
  const firstSize=sizes.find(sz=>variantStock(p,firstColor,sz)>0)||sizes[0]||'';
  const image=variantImageUrl(p,firstColor)||(imgs[0]||'');
- const detailMainImage=$('detailImage');detailMainImage.loading='eager';detailMainImage.fetchPriority='high';detailMainImage.decoding='async';detailMainImage.src=image;
+ const detailMainImage=$('detailImage');detailMainImage.alt=String(p.name||'Producto');detailMainImage.loading='eager';detailMainImage.fetchPriority='high';detailMainImage.decoding='async';detailMainImage.src=image;
  renderDetailGallery(p,image);
  $('detailVariants').innerHTML=`<div class="detailCard" data-product-id="${esc(p.id)}">${renderDetailVariants(p,firstColor,firstSize)}</div>`;
  updateDetailVariantAvailability();
@@ -3148,7 +3293,7 @@ function updateDetailDescription(p){
  const accordion=(title,content,cls='')=>`<details class="detailAccordion ${cls}" data-detail-section="${esc(title)}"><summary>${esc(title)}<span class="detailAccordionChevron" aria-hidden="true">⌄</span></summary><div class="detailAccordionBody">${content}</div></details>`;
  const descriptionSection=description?accordion('Información del producto',`<p class="detailLongText">${esc(description)}</p>`,'detailDescriptionAccordion'):'';
  const guideImageUrl=sizeGuideImage?publicImage(sizeGuideImage):'';
- const guideImageMarkup=guideImageUrl?`<figure class="detailSizeGuideFigure"><img class="detailSizeGuideImage" src="${esc(guideImageUrl)}" alt="Guía de tallas${p.name?` de ${esc(p.name)}`:''}" loading="lazy" decoding="async" role="button" tabindex="0" aria-label="Ampliar guía de tallas" title="Toca para ampliar" onclick="openSizeGuideZoom(this,event)" onkeydown="if(event.key==='Enter'||event.key===' '){openSizeGuideZoom(this,event)}" onerror="this.style.display='none'"></figure>`:'';
+ const guideImageMarkup=guideImageUrl?`<figure class="detailSizeGuideFigure"><img class="detailSizeGuideImage" src="${esc(guideImageUrl)}" alt="Guía de tallas${p.name?` de ${esc(p.name)}`:''}" loading="lazy" decoding="async" role="button" tabindex="0" aria-label="Ampliar guía de tallas" title="Toca para ampliar" onclick="openSizeGuideZoom(this,event)" onkeydown="if(event.key==='Enter'||event.key===' '){openSizeGuideZoom(this,event)}" onerror="replaceWithImageFallback(this)"></figure>`:'';
  const guideTextMarkup=sizeGuide?`<p class="detailLongText ${guideImageUrl?'detailSizeGuideTextAfterImage':''}">${esc(sizeGuide)}</p>`:'';
  const sizeGuideSection=(guideImageUrl||sizeGuide)?accordion('Guía de tallas',`${guideImageMarkup}${guideTextMarkup}`,'detailSizeGuideAccordion'):'';
  const deliverySection=accordion('Tiempo de entrega',`<p class="detailLongText">${esc(deliveryText)}</p>`,'detailDeliveryAccordion');
@@ -3187,7 +3332,7 @@ function renderDetailGallery(p,activeUrl){
  const activeKey=normalizeImageUrl(activeUrl);
  // Store dynamic image URLs in an escaped data attribute, not inside inline JavaScript.
  // This also handles valid URLs containing apostrophes without breaking the click handler.
- box.innerHTML=imgs.map((u,i)=>{const active=normalizeImageUrl(u)===activeKey;return `<button type="button" class="detailThumb ${active?'active':''}" data-detail-image-url="${esc(u)}" aria-label="Ver foto ${i+1} de ${esc(p.name||'producto')}" aria-pressed="${active?'true':'false'}"><img src="${esc(u)}" alt="Foto ${i+1}" loading="lazy" decoding="async" draggable="false"></button>`}).join('');
+ box.innerHTML=imgs.map((u,i)=>{const active=normalizeImageUrl(u)===activeKey;return `<button type="button" class="detailThumb ${active?'active':''}" data-detail-image-url="${esc(u)}" aria-label="Ver foto ${i+1} de ${esc(p.name||'producto')}" aria-pressed="${active?'true':'false'}"><img src="${esc(u)}" alt="Foto ${i+1}" loading="lazy" decoding="async" draggable="false" onerror="replaceWithImageFallback(this)"></button>`}).join('');
  box.querySelectorAll('button[data-detail-image-url]').forEach(button=>{
   button.addEventListener('click',event=>selectDetailImage(button.dataset.detailImageUrl||'',event));
  });
@@ -3266,7 +3411,7 @@ function openDetailGallery(event){
  const currentIndex=images.findIndex(url=>normalizeImageUrl(url)===normalizeImageUrl(current));
  if(!images.length)return;
  galleryProduct=detailProduct;galleryImages=images;galleryIndex=Math.max(0,currentIndex);
- renderGallery();$('galleryModal').classList.add('open');document.body.style.overflow='hidden';
+ renderGallery();openGalleryModal(event?.currentTarget||document.activeElement);
 }
 function renderDetailVariants(p,activeColor,activeSize){
  const colors=parseVariantList(p.colors),sizes=parseVariantList(p.sizes),vs=variantList(p);
@@ -3300,6 +3445,7 @@ function detailSelectColor(btn,event){
    if(first){const b=[...box.querySelectorAll('.sizeOption')].find(x=>normalizeText(x.dataset.value)===normalizeText(first));if(b){b.classList.add('active');b.setAttribute('aria-pressed','true')}size=first}else size='';
  }
  const image=variantImageUrl(detailProduct,color)||(productImages(detailProduct)[0]||'');
+ $('detailImage').alt=String(detailProduct?.name||'Producto');
  $('detailImage').src=image;
  renderDetailGallery(detailProduct,image);
  box.innerHTML=renderDetailVariants(detailProduct,color,size);
@@ -3407,9 +3553,13 @@ function populateFilterCategory(cats){
  f.innerHTML='<option value="">Todas las categorías</option>'+(cats||[]).map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('');
  f.value=current;
 }
+let catalogAvailabilityFilter='available';
 let selectedCatalogColors=new Set();
 let selectedCatalogColorNames=new Map();
 let filterColorOptionsSignature='';
+let selectedCatalogSizes=new Set();
+let selectedCatalogSizeNames=new Map();
+let filterSizeOptionsSignature='';
 
 function availableColorsForProduct(p){
  if(!p||productStockTotal(p)<=0)return [];
@@ -3426,6 +3576,28 @@ function availableColorsForProduct(p){
    .filter(c=>{const n=normalizeText(c);return !!n&&n!=='sin color'});
  return [...new Map(inStock.map(c=>[normalizeText(c),c])).values()];
 }
+function catalogSizeFilterKey(value){
+ const key=normalizeText(value);
+ return key&&!['unica','unico','talla unica','sin talla','unitalla','one size'].includes(key)?key:'';
+}
+function availableCatalogSizesForProduct(p){
+ if(!p||productStockTotal(p)<=0)return [];
+ const declared=parseVariantList(p.sizes).filter(size=>catalogSizeFilterKey(size));
+ const variants=variantList(p);
+ let candidates=declared;
+ if(variants.length){
+   const hasNamedSizeVariants=variants.some(v=>catalogSizeFilterKey(v.size));
+   if(hasNamedSizeVariants){
+     const inStock=variants.filter(v=>Number(v.stock)>0);
+     candidates=declared.length
+       ?declared.filter(size=>inStock.some(v=>catalogSizeFilterKey(v.size)===catalogSizeFilterKey(size)))
+       :inStock.map(v=>String(v.size||'').trim()).filter(size=>catalogSizeFilterKey(size));
+   }
+ }
+ const unique=new Map();
+ for(const size of candidates){const key=catalogSizeFilterKey(size);if(key&&!unique.has(key))unique.set(key,String(size).trim())}
+ return [...unique.values()];
+}
 function buildCatalogColorIndex(){
  const colors=new Map(),byProduct=new Map();
  for(const p of productos){
@@ -3439,6 +3611,16 @@ function buildCatalogColorIndex(){
    byProduct.set(p,keys);
  }
  return {colors,byProduct};
+}
+function buildCatalogSizeIndex(){
+ const sizes=new Map();
+ for(const p of productos){
+   for(const size of availableCatalogSizesForProduct(p)){
+     const key=catalogSizeFilterKey(size);
+     if(key&&!sizes.has(key))sizes.set(key,size);
+   }
+ }
+ return {sizes};
 }
 function syncCatalogColorFilterOptions(currentColors){
  const box=$('filterColorOptions');
@@ -3494,6 +3676,62 @@ function setCatalogColorFilter(value,checked){
  else {selectedCatalogColors.delete(key);selectedCatalogColorNames.delete(key);}
  render();
 }
+function syncCatalogSizeFilterOptions(currentSizes){
+ const box=$('filterSizeOptions');if(!box)return;
+ const available=new Map(currentSizes||[]),unavailableSelected=new Set();
+ for(const key of selectedCatalogSizes){if(!available.has(key)){available.set(key,selectedCatalogSizeNames.get(key)||key);unavailableSelected.add(key)}}
+ const sorted=[...available.entries()].sort((a,b)=>a[1].localeCompare(b[1],'es',{sensitivity:'base'}));
+ const signature=JSON.stringify(sorted.map(([key,label])=>[key,label,unavailableSelected.has(key)]));
+ if(signature!==filterSizeOptionsSignature){
+   filterSizeOptionsSignature=signature;
+   box.innerHTML=sorted.length?sorted.map(([key,label])=>{
+     const unavailable=unavailableSelected.has(key),checked=selectedCatalogSizes.has(key);
+     return `<label class="filterColorOption filterSizeOption${checked?' selected':''}${unavailable?' unavailable':''}" title="${esc(unavailable?'Esta talla ya no tiene unidades disponibles':label)}"><input type="checkbox" value="${esc(label)}"${checked?' checked':''} onchange="setCatalogSizeFilter(this.value,this.checked)"><span>${esc(label)}${unavailable?' · sin stock':''}</span></label>`;
+   }).join(''):'<span class="filterColorEmpty">No hay tallas con unidades disponibles.</span>';
+ }
+ box.querySelectorAll('.filterSizeOption').forEach(option=>{const input=option.querySelector('input[type="checkbox"]');if(input){input.checked=selectedCatalogSizes.has(catalogSizeFilterKey(input.value));option.classList.toggle('selected',input.checked)}});
+ updateCatalogSizeSummary();
+}
+function updateCatalogSizeSummary(){
+ const label=$('filterSizeSummary');if(!label)return;
+ const selected=[...selectedCatalogSizes];
+ if(!selected.length){label.textContent='Todas las tallas';return}
+ if(selected.length===1){label.textContent=selectedCatalogSizeNames.get(selected[0])||'1 talla seleccionada';return}
+ label.textContent=selected.length+' tallas seleccionadas';
+}
+function toggleSizeFilterOptions(force){
+ const panel=$('filterSizeDropdownPanel'),button=$('filterSizeToggle');if(!panel||!button)return;
+ const open=typeof force==='boolean'?force:panel.hidden;
+ panel.hidden=!open;button.setAttribute('aria-expanded',String(open));
+}
+function setCatalogSizeFilter(value,checked){
+ const key=catalogSizeFilterKey(value);if(!key)return;
+ if(checked){selectedCatalogSizes.add(key);selectedCatalogSizeNames.set(key,String(value||'').trim())}
+ else{selectedCatalogSizes.delete(key);selectedCatalogSizeNames.delete(key)}
+ render();
+}
+function productMatchesCatalogVariantFilters(p,colors,sizes){
+ const chosenColors=new Set((colors||[]).map(normalizeText).filter(key=>key&&key!=='sin color'));
+ const chosenSizes=new Set((sizes||[]).map(catalogSizeFilterKey).filter(Boolean));
+ if(chosenColors.size&&chosenSizes.size){
+   return variantList(p).some(v=>Number(v.stock)>0&&chosenColors.has(normalizeText(v.color))&&chosenSizes.has(catalogSizeFilterKey(v.size)));
+ }
+ if(chosenColors.size)return availableColorsForProduct(p).some(color=>chosenColors.has(normalizeText(color)));
+ if(chosenSizes.size)return availableCatalogSizesForProduct(p).some(size=>chosenSizes.has(catalogSizeFilterKey(size)));
+ return true;
+}
+function catalogProductMatchesAvailability(p,filter=catalogAvailabilityFilter){
+ const stock=productStockTotal(p);
+ if(filter==='all')return true;
+ if(filter==='sold_out')return stock<=0;
+ return stock>0;
+}
+function setCatalogAvailabilityFilter(value){
+ const next=['available','all','sold_out'].includes(value)?value:'available';
+ catalogAvailabilityFilter=next;
+ const select=$('catalogAvailabilityFilter');if(select&&select.value!==next)select.value=next;
+ render();
+}
 
 function toggleFilterPanel(force){
  // Los filtros viven directamente dentro del menú lateral; no necesitan un segundo botón "Filtrar".
@@ -3522,36 +3760,50 @@ function clearCatalogFilters(){
  $('category').value='';
  if($('filterCategory'))$('filterCategory').value='';
  if($('sort'))$('sort').value='recent';
+ catalogAvailabilityFilter='available';
+ if($('catalogAvailabilityFilter'))$('catalogAvailabilityFilter').value='available';
  $('search').value='';
  selectedCatalogColors.clear();
  selectedCatalogColorNames.clear();
+ selectedCatalogSizes.clear();
+ selectedCatalogSizeNames.clear();
  setDirectCategoryMode('');
  updateCategoryButtons();
- render();
- toggleFilterPanel(false);
- toggleColorFilterOptions(false);
+  render();
+  toggleFilterPanel(false);
+  toggleColorFilterOptions(false);
+  toggleSizeFilterOptions(false);
 }
 
 function render(){
  if(catalogSearchDebounceTimer){clearTimeout(catalogSearchDebounceTimer);catalogSearchDebounceTimer=null;}
  const colorIndex=buildCatalogColorIndex();
  syncCatalogColorFilterOptions(colorIndex.colors);
+ const sizeIndex=buildCatalogSizeIndex();
+ syncCatalogSizeFilterOptions(sizeIndex.sizes);
  const q=normalizeText($('search').value),cat=$('category').value,sort=$('sort')?.value||'recent';
  const chosenColors=[...selectedCatalogColors];
+ const chosenSizes=[...selectedCatalogSizes];
+ const priceRange=readCatalogPriceRange();
+ syncCatalogPriceFilterUrlState(priceRange);
+ const priceStatus=$('catalogPriceFilterStatus');
+ if(priceStatus)priceStatus.textContent=priceRange.error;
  const title=$('productsHeadingTitle');
  if(title) title.textContent=cat?cat:'Todos los productos';
  let arr=productos.filter(p=>{
  const text=normalizeText((p.code||'')+' '+(p.name||'')+' '+(p.category||''));
  // El stock por variante prevalece sobre quantity cuando hay combinaciones configuradas.
- if(productStockTotal(p)<=0)return false;
+ if(!catalogProductMatchesAvailability(p,catalogAvailabilityFilter))return false;
+ if(catalogFavoritesOnly&&!favoriteProductIds.has(String(p.id)))return false;
+ if(!catalogProductMatchesPriceRange(p,priceRange))return false;
  if(!text.includes(q)||(cat&&p.category!==cat))return false;
- if(chosenColors.length&&!chosenColors.some(key=>colorIndex.byProduct.get(p)?.has(key)))return false;
+ if(!productMatchesCatalogVariantFilters(p,chosenColors,chosenSizes))return false;
  return true;
  });
  if(sort==='best_selling') arr.sort((a,b)=>(Number(b.sales_count??b.sold_count??b.units_sold??b.total_sold??0)-Number(a.sales_count??a.sold_count??a.units_sold??a.total_sold??0)));
  else if(sort==='name_asc') arr.sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'es',{sensitivity:'base'}));
- else if(sort==='price_asc') arr.sort((a,b)=>(Number(a.sale_price)||0)-(Number(b.sale_price)||0));
- else if(sort==='price_desc') arr.sort((a,b)=>(Number(b.sale_price)||0)-(Number(a.sale_price)||0));
+ else if(sort==='price_asc') arr.sort((a,b)=>compareCatalogPrice(a,b,1));
+ else if(sort==='price_desc') arr.sort((a,b)=>compareCatalogPrice(a,b,-1));
  else if(sort==='stock_desc') arr.sort((a,b)=>productStockTotal(b)-productStockTotal(a));
  else arr=[...arr];
  $('count').textContent=arr.length+' producto'+(arr.length===1?'':'s');
@@ -3562,13 +3814,192 @@ function render(){
    const ok=variantTotal>0 || reservedForThisSession;
    const blocked=!ok && !hasOwnActiveReservationForProduct(p.id);
    const key='photo_'+p.id;
-return `<article class="card ${blocked?'inventoryUnavailable':''}" data-product-id="${esc(p.id)}" aria-disabled="${blocked?'true':'false'}" onclick="openProductDetail('${esc(p.id)}',event)">${blocked?'<div class="inventoryLock">🔒 RESERVADO / AGOTADO</div>':''}<div class="photo photoSwipe" data-photo="${esc(key)}" data-index="0" onpointerdown="photoTouchStart(event)" onpointermove="photoTouchMove(event)" onpointerup="photoTouchEnd(event)" onpointercancel="photoTouchEnd(event)" onclick="photoClickGuard(event)" onpointerenter="photoHover(event)" onpointerleave="photoHoverLeave(event)">${imgs.length?`<img data-src="${esc(imgs[0])}" alt="${esc(p.name)}" loading="lazy" decoding="async" onerror="this.style.display='none'">${imgs.length>1?``:''}`:'<div class="noimg">📦</div>'}</div><div class="body"><div class="name">${esc(p.name)}</div><div class="price">${money(p.sale_price)}</div>${renderVariantOptions(p)}</div></article>`
+return `<article class="card ${blocked?'inventoryUnavailable':''}" data-product-id="${esc(p.id)}" aria-disabled="${blocked?'true':'false'}" onclick="openProductDetail('${esc(p.id)}',event)">${blocked?'<div class="inventoryLock">🔒 RESERVADO / AGOTADO</div>':''}<div class="photo photoSwipe" data-photo="${esc(key)}" data-index="0" onpointerdown="photoTouchStart(event)" onpointermove="photoTouchMove(event)" onpointerup="photoTouchEnd(event)" onpointercancel="photoTouchEnd(event)" onclick="photoClickGuard(event)" onpointerenter="photoHover(event)" onpointerleave="photoHoverLeave(event)">${imgs.length?`<img data-src="${esc(imgs[0])}" alt="${esc(p.name)}" loading="lazy" decoding="async" onerror="showCardImageFallback(this)" onload="clearCardImageFallback(this)">${imgs.length>1?``:''}`:'<div class="noimg">📦</div>'}</div><div class="body"><div class="catalogCardTitle"><div class="name">${esc(p.name)}</div><button class="productFavoriteButton" type="button" data-favorite-id="${esc(p.id)}" aria-pressed="${isCatalogFavorite(p.id)}" aria-label="${isCatalogFavorite(p.id)?'Quitar':'Añadir'} ${esc(p.name)} ${isCatalogFavorite(p.id)?'de':'a'} favoritos" onclick="toggleCatalogFavorite(event,this)"><span aria-hidden="true">${isCatalogFavorite(p.id)?'♥':'♡'}</span></button></div>${catalogProductReferenceMarkup(p)}<div class="price">${money(p.sale_price)}</div>${renderVariantOptions(p)}</div></article>`
  }).join(''):'<div class="empty">No encontramos productos con esos filtros.</div>';
  document.querySelectorAll('#grid .card').forEach(card=>{const p=productos.find(x=>String(x.id)===String(card.dataset.productId));if(p)updateVariantAvailability(card,p)});
  activateCatalogLazyImages();
  renderStorefrontComboCatalog();
  renderCart();
 }
+
+const SIREVYA_CATALOG_FAVORITES_KEY='sirevya_catalog_favorites_v1';
+const CATALOG_FAVORITES_LIMIT=500;
+let favoriteProductIds=loadCatalogFavorites();
+let catalogFavoritesOnly=false;
+function parseCatalogFavorites(raw){
+ try{
+  const value=JSON.parse(String(raw||'[]'));
+  if(!Array.isArray(value))return new Set();
+  return new Set(value.map(item=>String(item??'').trim()).filter(id=>id&&id.length<=128&&!/[\u0000-\u001f]/.test(id)).slice(0,CATALOG_FAVORITES_LIMIT));
+ }catch{return new Set();}
+}
+function loadCatalogFavorites(){
+ try{return parseCatalogFavorites(localStorage.getItem(SIREVYA_CATALOG_FAVORITES_KEY))}catch{return new Set()}
+}
+function saveCatalogFavorites(){
+ try{localStorage.setItem(SIREVYA_CATALOG_FAVORITES_KEY,JSON.stringify([...favoriteProductIds].slice(0,CATALOG_FAVORITES_LIMIT)));return true}
+ catch{showToast('No se pudieron guardar los favoritos en este navegador.');return false}
+}
+function isCatalogFavorite(id){return favoriteProductIds.has(String(id??''))}
+function updateFavoriteControls(){
+ const button=$('favoritesOnlyToggle');
+ if(!button)return;
+ button.setAttribute('aria-pressed',String(catalogFavoritesOnly));
+ button.setAttribute('aria-label',`Mostrar solo mis favoritos. ${favoriteProductIds.size} guardados.`);
+ button.innerHTML=`<span aria-hidden="true">${catalogFavoritesOnly?'♥':'♡'}</span> Favoritos <span id="favoriteProductCount">${favoriteProductIds.size}</span>`;
+}
+function toggleFavoriteFilter(){catalogFavoritesOnly=!catalogFavoritesOnly;updateFavoriteControls();render()}
+function toggleCatalogFavorite(event,button){
+ if(event){event.preventDefault();event.stopPropagation()}
+ const id=String(button?.dataset?.favoriteId||'').trim();
+ if(!id)return;
+ if(favoriteProductIds.has(id))favoriteProductIds.delete(id);
+ else if(favoriteProductIds.size<CATALOG_FAVORITES_LIMIT)favoriteProductIds.add(id);
+ else{showToast('Puedes guardar hasta 500 favoritos en este navegador.');return}
+ saveCatalogFavorites();updateFavoriteControls();render();
+}
+window.addEventListener('storage',event=>{
+ if(event.key!==SIREVYA_CATALOG_FAVORITES_KEY&&event.key!==null)return;
+ favoriteProductIds=event.key===null?new Set():parseCatalogFavorites(event.newValue);
+ updateFavoriteControls();
+ if(catalogInitialLoadComplete)render();
+});
+updateFavoriteControls();
+
+function parseCatalogPriceRange(minValue,maxValue){
+ const minRaw=String(minValue??'').trim(),maxRaw=String(maxValue??'').trim();
+ const min=minRaw===''?null:Number(minRaw),max=maxRaw===''?null:Number(maxRaw);
+ if((min!==null&&(!Number.isFinite(min)||min<0))||(max!==null&&(!Number.isFinite(max)||max<0)))return {min,max,valid:false,error:'Ingresa precios válidos en COP.'};
+ if(min!==null&&max!==null&&min>max)return {min,max,valid:false,error:'El precio mínimo no puede superar el máximo.'};
+ return {min,max,valid:true,error:''};
+}
+function readCatalogPriceRange(){return parseCatalogPriceRange($('catalogPriceMin')?.value,$('catalogPriceMax')?.value)}
+function catalogProductMatchesPriceRange(product,range){
+ if(!range?.valid||(range.min===null&&range.max===null))return true;
+ const price=Number(product?.sale_price);
+ if(!Number.isFinite(price)||price<0)return false;
+ return (range.min===null||price>=range.min)&&(range.max===null||price<=range.max);
+}
+function catalogProductSortPrice(product){
+ const raw=product?.sale_price;
+ if(raw===null||raw===undefined||(typeof raw!=='number'&&typeof raw!=='string'))return null;
+ if(typeof raw==='string'&&!raw.trim())return null;
+ const price=Number(raw);
+ return Number.isFinite(price)&&price>=0?price:null;
+}
+function compareCatalogPrice(a,b,direction=1){
+ const aPrice=catalogProductSortPrice(a),bPrice=catalogProductSortPrice(b);
+ if(aPrice===null||bPrice===null){if(aPrice===bPrice)return String(a?.name||'').localeCompare(String(b?.name||''),'es',{sensitivity:'base'});return aPrice===null?1:-1}
+ return (aPrice-bPrice)*direction||String(a?.name||'').localeCompare(String(b?.name||''),'es',{sensitivity:'base'});
+}
+function clearCatalogPriceFilter(){
+ const min=$('catalogPriceMin'),max=$('catalogPriceMax');
+ if(min)min.value='';
+ if(max)max.value='';
+ render();
+}
+function catalogProductReferenceMarkup(product){
+ const code=String(product?.code??'').replace(/[\u0000-\u001f\u007f]/g,'').trim();
+ return code&&code.length<=64?`<div class="productReference">Ref. ${esc(code)}</div>`:'';
+}
+const CATALOG_SHARE_FILTER_VALUE_LIMIT=12;
+const CATALOG_SHARE_FILTER_LENGTH_LIMIT=48;
+function catalogShareVariantValues(params,key){
+ const values=params.getAll(key);
+ if(values.length>CATALOG_SHARE_FILTER_VALUE_LIMIT)return [];
+ return values.map(value=>String(value||'').trim()).filter(value=>value&&value.length<=CATALOG_SHARE_FILTER_LENGTH_LIMIT&&!/[\u0000-\u001f\u007f]/.test(value));
+}
+function catalogShareSelectedValues(selection,names){
+ const values=[...selection].map(key=>String(names.get(key)||key).trim());
+ if(values.length>CATALOG_SHARE_FILTER_VALUE_LIMIT||values.some(value=>!value||value.length>CATALOG_SHARE_FILTER_LENGTH_LIMIT||/[\u0000-\u001f\u007f]/.test(value)))return null;
+ return [...new Set(values)].sort((a,b)=>a.localeCompare(b,'es-CO',{sensitivity:'base'}));
+}
+function syncCatalogPublicFilterParams(url){
+ const category=String($('category')?.value||'').trim();
+ if(category&&category.length<=96&&!/[\u0000-\u001f\u007f]/.test(category))url.searchParams.set('categoria',category);
+ else url.searchParams.delete('categoria');
+ url.searchParams.delete('color');url.searchParams.delete('size');
+ const colors=catalogShareSelectedValues(selectedCatalogColors,selectedCatalogColorNames);
+ const sizes=catalogShareSelectedValues(selectedCatalogSizes,selectedCatalogSizeNames);
+ if(colors)colors.forEach(value=>url.searchParams.append('color',value));
+ if(sizes)sizes.forEach(value=>url.searchParams.append('size',value));
+ return !!colors&&!!sizes;
+}
+function buildCatalogPriceFilterUrl(range){
+ if(!range?.valid)throw new TypeError('No se puede compartir un rango de precio inválido.');
+ const url=new URL('/',window.location.origin);
+ if(range.min!==null)url.searchParams.set('min_price',String(range.min));
+ if(range.max!==null)url.searchParams.set('max_price',String(range.max));
+ if(['all','sold_out'].includes(catalogAvailabilityFilter))url.searchParams.set('availability',catalogAvailabilityFilter);
+ const sort=catalogShareSortValue($('sort')?.value||'recent');
+ if(sort&&sort!=='recent')url.searchParams.set('sort',sort);
+ if(!syncCatalogPublicFilterParams(url))throw new TypeError('La selección de filtros excede los límites del enlace público.');
+ url.hash='catalogo';
+ return url.href;
+}
+function catalogShareSortValue(value){return ['recent','best_selling','name_asc','price_asc','price_desc','stock_desc'].includes(value)?value:null}
+function restoreCatalogPriceFilterFromUrl(){
+ try{
+  const params=new URLSearchParams(window.location.search);
+  selectedCatalogColors.clear();selectedCatalogColorNames.clear();
+  selectedCatalogSizes.clear();selectedCatalogSizeNames.clear();
+  for(const color of catalogShareVariantValues(params,'color')){
+   const key=normalizeText(color);
+   if(key&&key!=='sin color'){selectedCatalogColors.add(key);selectedCatalogColorNames.set(key,color)}
+  }
+  for(const size of catalogShareVariantValues(params,'size')){
+   const key=catalogSizeFilterKey(size);
+   if(key){selectedCatalogSizes.add(key);selectedCatalogSizeNames.set(key,size)}
+  }
+  if(params.has('min_price')||params.has('max_price')){
+   const range=parseCatalogPriceRange(params.get('min_price'),params.get('max_price'));
+   if(range.valid){
+    const min=$('catalogPriceMin'),max=$('catalogPriceMax');
+    if(min)min.value=range.min===null?'':String(range.min);
+    if(max)max.value=range.max===null?'':String(range.max);
+   }
+  }
+  const availability=params.get('availability');
+  if(['available','all','sold_out'].includes(availability)){
+   catalogAvailabilityFilter=availability;
+   const select=$('catalogAvailabilityFilter');if(select)select.value=availability;
+  }
+  const sort=catalogShareSortValue(params.get('sort'));
+  if(sort){const select=$('sort');if(select)select.value=sort}
+ }catch{}
+}
+function syncCatalogPriceFilterUrlState(range){
+ try{
+  const url=new URL(window.location.href);
+  if(range?.valid&&range.min!==null)url.searchParams.set('min_price',String(range.min));
+  else url.searchParams.delete('min_price');
+  if(range?.valid&&range.max!==null)url.searchParams.set('max_price',String(range.max));
+  else url.searchParams.delete('max_price');
+  if(['all','sold_out'].includes(catalogAvailabilityFilter))url.searchParams.set('availability',catalogAvailabilityFilter);
+  else url.searchParams.delete('availability');
+  const sort=catalogShareSortValue($('sort')?.value||'recent');
+  if(sort&&sort!=='recent')url.searchParams.set('sort',sort);
+  else url.searchParams.delete('sort');
+  syncCatalogPublicFilterParams(url);
+  const next=url.pathname+(url.search?url.search:'')+(url.hash||'');
+  const current=window.location.pathname+window.location.search+window.location.hash;
+  if(next!==current)window.history.replaceState(window.history.state??null,'',next);
+ }catch{}
+}
+async function copyCatalogPriceFilterLink(){
+ const range=readCatalogPriceRange();
+ if(!range.valid){showToast(range.error);return}
+ let url='';
+ try{
+  url=buildCatalogPriceFilterUrl(range);
+  await navigator.clipboard.writeText(url);
+  showToast('Enlace copiado; incluye solo filtros públicos de categoría, color, talla, precio, disponibilidad y orden.');
+ }catch{
+  if(!url){showToast('Hay demasiados filtros seleccionados para compartir. Reduce la selección a 12 colores y 12 tallas como máximo.');return}
+  showToast(`No se pudo copiar. Enlace limpio: ${url}`);
+ }
+}
+restoreCatalogPriceFilterFromUrl();
 
 let cart=[];
 let cartOpen=false;
@@ -3640,6 +4071,21 @@ function openDirectProductFromLocation(){
   openProductDetail(p.id,null,{fromDirectLink:true});
   return !!$('productDetailModal')?.classList.contains('open');
  }catch(error){console.debug('No se pudo abrir el producto enlazado.',error);return false}
+}
+async function shareCurrentProductLink(){
+ const id=String(detailProduct?.id??'').trim();
+ if(!id||id.length>128||/[\u0000-\u001f\u007f]/.test(id)){showToast('No se puede compartir esta ficha ahora.');return false}
+ const url=new URL('/',window.location.origin);
+ url.searchParams.set('producto',id);
+ url.hash='catalogo';
+ try{
+  await navigator.clipboard.writeText(url.href);
+  showToast('Enlace del producto copiado. No incluye carrito ni datos del cliente.');
+  return true;
+ }catch{
+  showToast(`No se pudo copiar. Enlace del producto: ${url.href}`);
+  return false;
+ }
 }
 
 function restoreCheckoutFromReservation(){
@@ -3713,6 +4159,15 @@ function hideCart(){
  if(!$('checkoutModal')?.classList.contains('open'))document.body.style.overflow='';
 }
 function updateCartShippingProgress(total){
+ const message=$('cartShippingMessage'),fill=$('cartShippingFill'),truck=$('cartShippingTruck'),percent=$('cartShippingPercent');
+ const track=fill?.parentElement,caliNote=document.querySelector('.cartShippingLocalNote');
+ if(!storefrontShippingSettingsLoaded||storefrontShippingSettingsLoadError){
+  if(message)message.textContent=storefrontShippingSettingsLoadError?'No se pudo verificar la tarifa vigente. El envío se confirmará cuando se recupere la conexión.':'Consultando la tarifa vigente de envío…';
+  if(fill)fill.style.width='0%';if(truck)truck.style.left='3%';if(percent)percent.textContent='—';
+  if(track){track.hidden=true;track.style.display='none';track.setAttribute('aria-hidden','true');track.setAttribute('aria-valuemax','1');track.setAttribute('aria-valuenow','0');track.setAttribute('aria-valuetext','Tarifa de envío pendiente de verificación');}
+  if(caliNote)caliNote.hidden=true;
+  return;
+ }
  const hasCityRules=Array.isArray(storefrontShippingSettings.destination_rules)&&storefrontShippingSettings.destination_rules.length>0;
  const threshold=storefrontShippingSettings.free_shipping_threshold;
  const hasThreshold=threshold!==null&&Number.isSafeInteger(Number(threshold))&&Number(threshold)>0;
@@ -3720,14 +4175,13 @@ function updateCartShippingProgress(total){
  const safeTotal=Math.max(0,Number(total)||0);
  const progress=hasThreshold?Math.max(0,Math.min(100,safeTotal/target*100)):0;
  const missing=hasThreshold?Math.max(0,target-safeTotal):0;
- const message=$('cartShippingMessage'),fill=$('cartShippingFill'),truck=$('cartShippingTruck'),percent=$('cartShippingPercent');
- const track=fill?.parentElement;
  if(hasCityRules){
   if(message)message.textContent='Las tarifas y los mínimos de envío se determinan según tu ciudad o zona y se confirman en el checkout.';
   if(fill)fill.style.width='0%';
   if(truck)truck.style.left='3%';
   if(percent)percent.textContent='—';
-  if(track){track.style.display='none';track.setAttribute('aria-hidden','true');track.setAttribute('aria-valuemax','1');track.setAttribute('aria-valuenow','0');track.setAttribute('aria-valuetext','El envío se confirma por ciudad o zona');}
+  if(track){track.hidden=true;track.style.display='none';track.setAttribute('aria-hidden','true');track.setAttribute('aria-valuemax','1');track.setAttribute('aria-valuenow','0');track.setAttribute('aria-valuetext','El envío se confirma por ciudad o zona');}
+  if(caliNote)caliNote.hidden=false;
   return;
  }
  if(message){
@@ -3740,7 +4194,8 @@ function updateCartShippingProgress(total){
  if(fill)fill.style.width=progress+'%';
  if(truck)truck.style.left=Math.max(3,Math.min(97,progress))+'%';
  if(percent)percent.textContent=hasThreshold?Math.round(progress)+'%':'—';
- if(track){track.style.display=hasThreshold?'':'none';if(hasThreshold)track.removeAttribute('aria-hidden');else track.setAttribute('aria-hidden','true');track.setAttribute('aria-valuemax',hasThreshold?String(target):'1');track.setAttribute('aria-valuenow',String(hasThreshold?Math.round(Math.min(target,safeTotal)):0));track.setAttribute('aria-valuetext',!hasThreshold?'No hay mínimo de envío gratis configurado':safeTotal>=target?'Envío gratis desbloqueado':money(missing)+' para envío gratis');}
+ if(track){track.hidden=!hasThreshold;track.style.display=hasThreshold?'':'none';if(hasThreshold)track.removeAttribute('aria-hidden');else track.setAttribute('aria-hidden','true');track.setAttribute('aria-valuemax',hasThreshold?String(target):'1');track.setAttribute('aria-valuenow',String(hasThreshold?Math.round(Math.min(target,safeTotal)):0));track.setAttribute('aria-valuetext',!hasThreshold?'No hay mínimo de envío gratis configurado':safeTotal>=target?'Envío gratis desbloqueado':money(missing)+' para envío gratis');}
+ if(caliNote)caliNote.hidden=false;
 }
 function renderCart(){
  const bar=$('cartBar'),items=$('cartItems'),sum=$('cartSummary');
@@ -3954,10 +4409,20 @@ function checkoutCityValue(){
  const raw=selected==='Otra'?String($('customerCityOther')?.value||'').trim():selected;
  return canonicalLocalDeliveryCity(raw)||raw;
 }
+function storefrontShippingDisplayVerified(selectedCity,city){
+ return storefrontShippingSettingsLoaded&&!storefrontShippingSettingsLoadError&&!!selectedCity&&(selectedCity!=='Otra'||!!String(city||'').trim());
+}
 function updateShipping(){
  const selectedCity=$('customerCity')?.value||'';
  const city=checkoutCityValue();
  updateContraEntregaAvailability(city);
+ if(!storefrontShippingDisplayVerified(selectedCity,city)){
+  checkoutShipping=0;
+  if($('shippingValue'))$('shippingValue').textContent=!selectedCity?'Selecciona una ciudad':!storefrontShippingSettingsLoaded&&!storefrontShippingSettingsLoadError?'Verificando…':storefrontShippingSettingsLoadError?'No disponible':'Escribe tu ciudad';
+  if($('shippingNote'))$('shippingNote').textContent=!storefrontShippingSettingsLoaded||storefrontShippingSettingsLoadError?storefrontShippingPolicyText():!selectedCity?storefrontShippingPolicyText()+' Selecciona una ciudad para cotizar.':'Escribe tu ciudad para confirmar la tarifa.';
+  updateCheckoutSummary();
+  return;
+ }
  const priced=calculateStorefrontComboPricing(getCheckoutItems());
  const productsTotal=priced.subtotal;
  const missingOtherCity=selectedCity==='Otra'&&!city;
@@ -4000,7 +4465,9 @@ function updateCheckoutSummary(){
    discountBox.innerHTML=priced.discountTotal>0?`<span>Descuento por combo<small>${priced.applied.map(row=>`${esc(row.title)} (${row.units} pareja${row.units===1?'':'s'})`).join(' · ')}</small></span><strong>−${money(priced.discountTotal)}</strong>`:'';
   }
  }
- $('checkoutTotal').textContent=money(priced.subtotal+checkoutShipping);
+ const selectedCity=$('customerCity')?.value||'';
+ const city=checkoutCityValue();
+ $('checkoutTotal').textContent=storefrontShippingDisplayVerified(selectedCity,city)?money(priced.subtotal+checkoutShipping):'Por verificar';
 }
 function selectedPayment(){
  return document.querySelector('input[name="paymentMethod"]:checked:not(:disabled)')?.value||'';
@@ -4999,8 +5466,8 @@ window.addEventListener('pageshow',()=>{if(catalogInitialLoadComplete&&document.
 const SIREVYA_PROMO_SESSION_KEY='sirevya_seasonal_promo_shown_v2';
 function seasonalPromoSessionKey(config){const version=String(config?.updated_at||'legacy');return `${SIREVYA_PROMO_SESSION_KEY}:${version}`}
 const SIREVYA_PROMO_PRESETS={
- halloween:{background_color:'#21132f',accent_color:'#ff914d',particles:['🕸️','🎃','🕷️','✦','🦇'],eyebrow:'TEMPORADA DE HALLOWEEN',title:'¡Halloween con estilo!',message:'Descubre la temporada y aprovecha el envío gratis a Cali.',button_label:'Ver promoción'},
- elegant:{background_color:'#17131d',accent_color:'#d7b779',particles:['✦','✧','❋','✦','✧'],eyebrow:'DETALLES QUE ENAMORAN',title:'Un detalle para ti',message:'Descubre tus favoritos y aprovecha el envío gratis a Cali.',button_label:'Explorar catálogo'},
+ halloween:{background_color:'#21132f',accent_color:'#ff914d',particles:['🕸️','🎃','🕷️','✦','🦇'],eyebrow:'TEMPORADA DE HALLOWEEN',title:'¡Halloween con estilo!',message:'Descubre la temporada y consulta las tarifas vigentes al elegir tu ciudad.',button_label:'Ver promoción'},
+ elegant:{background_color:'#17131d',accent_color:'#d7b779',particles:['✦','✧','❋','✦','✧'],eyebrow:'DETALLES QUE ENAMORAN',title:'Un detalle para ti',message:'Descubre tus favoritos y consulta las tarifas vigentes al elegir tu ciudad.',button_label:'Explorar catálogo'},
  romantic:{background_color:'#381426',accent_color:'#ff78a6',particles:['♥','✦','💗','♡','♥'],eyebrow:'UNA SORPRESA PARA TI',title:'Tu estilo merece brillar',message:'Encuentra tu próximo favorito con una promoción especial.',button_label:'Quiero verlo'},
  festive:{background_color:'#101f36',accent_color:'#83dcff',particles:['❄','✧','❄','✦','❄'],eyebrow:'CELEBRA CON SIREVYA',title:'La temporada se viste de estilo',message:'Descubre tus favoritos y promociones especiales.',button_label:'Ver favoritos'}
 };
@@ -5148,6 +5615,9 @@ function startPublicCatalogRealtime(){
  }catch(error){publicCatalogRealtimeChannel=null;console.debug('Realtime no disponible; se conserva el refresco de respaldo.',error)}
 }
 startPublicCatalogRealtime();
-
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js', { scope: '/' })
+    .catch(error => console.warn('[PWA] No se pudo activar el shell sin conexión.', error));
+}
 </script>
 </body></html>

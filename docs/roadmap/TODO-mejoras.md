@@ -13,16 +13,18 @@ Cada criterio se conserva hasta que exista evidencia en código, Supabase y prue
 
 ## Fase 2: Tarifas por ciudad y reglas de entrega
 
-> Estado al 7 de noviembre de 2026: implementación en borrador en [`PR #11`](https://github.com/Baunsel21/variedades-jm-catalogo/pull/11), rama `feature/roadmap-city-shipping`, con SQL, UI y regresión sintética. No se aplicó a producción y los criterios siguientes siguen abiertos hasta validar en un proyecto aislado. Ver [`fase-2-tarifas-por-destino.md`](fase-2-tarifas-por-destino.md).
+> Estado al 8 de noviembre de 2026: implementación en borrador en [`PR #11`](https://github.com/Baunsel21/variedades-jm-catalogo/pull/11), rama `feature/roadmap-city-shipping`, con SQL, UI y regresión sintética. La rama fue integrada localmente con el `main` vigente para conservar los cambios de la tienda y el fail-closed de envíos; esa integración aún no se ha enviado a GitHub. No se aplicó a producción y los criterios siguientes siguen abiertos hasta validar en un proyecto aislado. Ver [`fase-2-tarifas-por-destino.md`](fase-2-tarifas-por-destino.md).
 
-- [ ] El administrador puede crear/editar/desactivar una tarifa por ciudad o zona, una tarifa general alternativa y umbral de envío gratis; se muestran ciudades sin regla con la tarifa de respaldo. Ciudad/Cali se normaliza con acentos, mayúsculas, espacios y alias documentados.
-- [ ] La disponibilidad de contraentrega sigue bajo sus controles actuales por ciudad; tarifas y medios de pago no se contradicen. Cambiar una regla de entrega no altera pedidos ya creados ni reservas activas.
+- [ ] El administrador puede crear/editar/activar/desactivar/eliminar una tarifa por ciudad o zona, buscar por nombre o destino, configurar una tarifa general alternativa y umbral de envío gratis; se muestran ciudades sin regla con la tarifa de respaldo. Ciudad/Cali se normaliza con acentos, mayúsculas, espacios y alias documentados.
+- [ ] La disponibilidad de contraentrega sigue bajo sus controles actuales por ciudad y no se activa al cambiar tarifas; los medios de pago no se contradicen. Cambiar o eliminar una regla de entrega no altera pedidos ya creados ni reservas activas.
 - [ ] La cotización rechaza o maneja explícitamente ciudad vacía/no reconocida y nunca confía en el importe enviado por el navegador.
+  - Avance parcial (sin publicar): se añadió búsqueda Unicode de reglas y borrado explícito mediante RPC admin-only serializada; logout/cambio de cuenta limpia lista, guardado y formulario de edición, y las respuestas tardías quedan descartadas por epoch. El checkout permanece fail-closed hasta recibir configuración válida de Supabase. Regresión UI con mocks y parseo SQL pasaron; la regresión SQL completa requiere ejecución en Supabase aislado.
 
 ## Fase 3: Catálogo, búsqueda y conversión
 
 - [ ] El administrador puede marcar producto como destacado, nuevo, oferta o últimas unidades; las etiquetas del catálogo solo aparecen según datos guardados y stock vigente.
 - [ ] El catálogo ofrece filtros accesibles por categoría, rango de precio, color, talla, disponibilidad y ofertas; ordena por precio, novedad y destacados; refleja filtros compartibles en URL cuando no exponga datos personales.
+  - Avance parcial: categoría, precio, color, talla, disponibilidad y orden ya se pueden representar en el enlace limpio del catálogo; el enlace excluye búsqueda, favoritos, carrito y parámetros personales. La promoción/oferta y parte de órdenes del backlog aún dependen de datos/backend.
 - [ ] La ficha permite ver galería/zoom, variantes, guía de tallas, stock, relacionados, disponibilidad, código y tiempo estimado si está configurado. Fallos de imagen muestran un fallback útil.
 - [ ] CTA “Comprar ahora” y WhatsApp contextual preservan la variante elegida, reutilizan la validación actual y nunca saltan la cotización, la reserva ni el checkout seguros.
 - [ ] La lista de deseos funciona para visitantes y persiste localmente con una clave nueva namespaced; no cambia, borra ni reutiliza ninguna clave de carrito/reserva Wompi/COD.
@@ -54,13 +56,16 @@ Cada criterio se conserva hasta que exista evidencia en código, Supabase y prue
 
 - [ ] Bitácora inmutable registra actor autorizado, entidad, acción, valores antes/después permitidos, hora y resultado para inventario, productos, pedidos, envíos y configuración; usuarios comunes no la leen ni modifican.
 - [ ] La importación CSV tiene vista previa sin escrituras, límite de filas/bytes, validación por fila, detección de código duplicado, copia previa y commit transaccional o rollback; el operador ve errores sin datos sensibles.
+  - Avance parcial: el admin permite descargar los campos básicos `code,name,category,cost,sale_price,quantity` compatibles con la vista previa, con neutralización de fórmulas y los límites de 10.000 filas/5 MiB. No incluye fotos ni variantes; la importación real/transaccional sigue pendiente.
 - [ ] Los reportes filtran por rango, ciudad, categoría y método; ventas/ganancia/envíos/descuentos concilian con tablas canónicas y se indica cuándo los datos están incompletos.
 - [ ] Backup documenta qué incluye, excluye o no restaura, minimiza PII y verifica archivos R2/manifest; la exportación CSV continúa neutralizando fórmulas. Archivado de ventas sigue reversible.
 
 ## Fase 8: Confianza, SEO y rendimiento
 
 - [ ] Publicar políticas de privacidad/datos personales, compras, cambios, devoluciones, envíos y preguntas frecuentes enlazadas desde catálogo/checkout.
+  - Avance parcial: privacidad y FAQ estáticas ya están enlazadas y publicadas. Compras, cambios, devoluciones, condiciones comerciales de envío e identidad legal confirmada siguen pendientes; no se inventa el contenido.
 - [ ] Cada producto tiene URL indexable con title, description, canonical, OG/Twitter e información estructurada coherente de precio/disponibilidad; el contenido de la ruta puede leerlo el crawler sin depender solo de abrir un modal.
+  - Avance parcial: portada y páginas estáticas de privacidad/FAQ tienen canonical y metadatos sociales; el sitemap solo enumera esas rutas públicas confirmadas, mientras las rutas de producto y sus datos estructurados siguen pendientes de renderizado compatible con el catálogo dinámico.
 - [ ] PWA permite instalación, icono y carga del shell; no presenta stock/precios cacheados como actuales y no altera el checkout.
 - [ ] Optimizar fotos con miniaturas y carga bajo demanda, medir LCP/solicitudes/bytes y usar paginación/virtualización si el catálogo lo exige; el refresco de stock sigue activo y sin concurrencia solapada.
 

@@ -263,6 +263,42 @@ $function$;
 REVOKE ALL ON FUNCTION public.admin_save_storefront_shipping_rule(uuid,text,text,text[],bigint,bigint,integer,boolean) FROM PUBLIC,anon,service_role;
 GRANT EXECUTE ON FUNCTION public.admin_save_storefront_shipping_rule(uuid,text,text,text[],bigint,bigint,integer,boolean) TO authenticated;
 
+-- La eliminación es explícita y admin-only; el FK elimina destinos de la regla,
+-- pero pedidos/reservas históricos conservan los importes que ya guardaron.
+CREATE OR REPLACE FUNCTION public.admin_delete_storefront_shipping_rule(p_rule_id uuid)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public','pg_temp'
+AS $function$
+DECLARE
+  v_deleted integer;
+BEGIN
+  IF coalesce(public.is_store_admin(),false) IS DISTINCT FROM true THEN
+    RAISE EXCEPTION 'Este usuario no está autorizado para eliminar reglas de envío.' USING ERRCODE='42501';
+  END IF;
+  IF p_rule_id IS NULL THEN
+    RAISE EXCEPTION 'Indica la regla de envío que deseas eliminar.' USING ERRCODE='22023';
+  END IF;
+  -- Serializa la eliminación con cotizaciones/save de reglas del mismo singleton.
+  PERFORM 1 FROM public.storefront_shipping_settings WHERE id=1 FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'La configuración general de envíos no está disponible.' USING ERRCODE='55000';
+  END IF;
+  DELETE FROM public.storefront_shipping_rules WHERE id=p_rule_id;
+  GET DIAGNOSTICS v_deleted=ROW_COUNT;
+  IF v_deleted<>1 THEN
+    RETURN jsonb_build_object('success',false,'message','La regla ya no existe o fue eliminada.');
+  END IF;
+  UPDATE public.storefront_shipping_settings
+     SET updated_at=now(),updated_by=auth.uid()
+   WHERE id=1;
+  RETURN jsonb_build_object('success',true,'message','Regla eliminada. Los pedidos existentes conservan sus importes.');
+END
+$function$;
+REVOKE ALL ON FUNCTION public.admin_delete_storefront_shipping_rule(uuid) FROM PUBLIC,anon,service_role;
+GRANT EXECUTE ON FUNCTION public.admin_delete_storefront_shipping_rule(uuid) TO authenticated;
+
 -- Extiende la cotización existente, sin cambiar su firma ni la lógica de combos.
 -- El fallback sigue leyendo storefront_shipping_settings; Cali nunca recibe tarifa.
 CREATE OR REPLACE FUNCTION public.get_storefront_cart_quote(p_items jsonb, p_city text DEFAULT ''::text)
