@@ -14,7 +14,7 @@ const render = html.slice(renderStart, renderEnd);
 assert.match(html, /id="favoritesOnlyToggle"[^>]+onclick="toggleFavoriteFilter\(\)"/);
 assert.match(html, /class="productFavoriteButton"[^>]+onclick="toggleCatalogFavorite\(event,this\)"/);
 assert.match(render, /catalogFavoritesOnly&&!favoriteProductIds\.has\(String\(p\.id\)\)/);
-assert.match(render, /if\(productStockTotal\(p\)<=0\)return false/);
+assert.match(render, /catalogProductMatchesAvailability\(p,catalogAvailabilityFilter\)/);
 assert.match(render, /money\(p\.sale_price\)/);
 assert.match(render, /renderVariantOptions\(p\)/);
 assert.match(render, /renderStorefrontComboCatalog\(\)/);
