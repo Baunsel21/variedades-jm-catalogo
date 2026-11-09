@@ -26,6 +26,8 @@ assert.match(source, /\.detailRelatedDot\.is-active\{[^}]*transform:scale\(1\.24
 assert.ok(source.includes('@media(prefers-reduced-motion:reduce){.detailComboChoices{scroll-behavior:auto!important;}.detailRelatedDot{transition:none!important;}}'));
 assert.ok(source.includes('host.innerHTML=`<div class="detailAccordionGroup">${descriptionSection}${sizeGuideSection}${deliverySection}</div>${comboSection}${relatedSection}`;\n bindDetailRelatedCarouselIndicators(host);'),
   'La ficha conecta los dots al track que acaba de renderizarse.');
+assert.match(source, /class="detailRelatedCard" data-related-product-id="\$\{esc\(item\.id\)\}" onclick="openRelatedProduct\(this,event\)"/,
+  'Cada tarjeta relacionada incluye el id del producto correcto y un handler accionable.');
 
 const dots = Array.from({ length: 3 }, () => ({
   active: false,
@@ -84,6 +86,26 @@ const activeDot = () => dots.findIndex(dot => dot.classList.active);
 assert.equal(activeDot(), 0, 'Al inicio se activa el primer punto.');
 assert.equal(listeners.scrollOptions.passive, true, 'El listener de scroll es pasivo.');
 assert.equal(resizeHandlers.resizeOptions.passive, true, 'El recálculo de layout es pasivo.');
+
+const relatedCalls = [];
+const clickEvent = {
+  prevented: 0,
+  stopped: 0,
+  preventDefault() { this.prevented += 1; },
+  stopPropagation() { this.stopped += 1; },
+};
+const relatedContext = {
+  openProductDetail(id, event) { relatedCalls.push({ id, event }); },
+};
+vm.runInNewContext(extractFunction('openRelatedProduct'), relatedContext);
+relatedContext.openRelatedProduct({ dataset: { relatedProductId: 'related-fixture-2' } }, clickEvent);
+assert.equal(relatedCalls.length, 1);
+assert.equal(relatedCalls[0].id, 'related-fixture-2', 'Se abre la ficha del producto relacionado, no la del producto actual.');
+assert.equal(relatedCalls[0].event, clickEvent);
+assert.equal(clickEvent.prevented, 1);
+assert.equal(clickEvent.stopped, 1);
+relatedContext.openRelatedProduct({ dataset: {} }, clickEvent);
+assert.equal(relatedCalls.length, 1, 'Una tarjeta sin id no intenta abrir ni comprar otro producto.');
 
 track.scrollLeft = 350;
 listeners.scroll();
