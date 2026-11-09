@@ -114,7 +114,15 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
 .ordersSummary{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:15px}
 .orderStat{padding:15px;background:var(--surface2);border-radius:14px}
 .orderStat small{color:var(--muted);font-weight:800}.orderStat b{display:block;font-size:23px;margin-top:5px}
-.orderFilters{display:grid;grid-template-columns:1.5fr 220px;gap:10px;margin:15px 0}
+.orderFilters{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:10px;margin:15px 0;align-items:end}
+.orderFilterField{display:flex;flex-direction:column;gap:5px;min-width:0;color:var(--muted);font-size:12px;font-weight:800}
+.orderFilterSearch{grid-column:span 2}
+.orderResultsSummary{margin:6px 0 12px;font-size:12px;color:var(--muted)}
+.ordersLoadStatus[hidden]{display:none}
+.orderPagination{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:16px 0 4px;padding-top:12px;border-top:1px solid var(--border)}
+.orderPaginationControls{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.orderPaginationControls button{min-width:38px}
+.orderPaginationControls select{width:auto;min-width:88px}
 .orderCard{padding:16px;border:1px solid var(--border);border-radius:16px;background:var(--surface);margin-bottom:12px}
 .orderHead{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
 .orderCustomer{font-size:16px;font-weight:900}.orderMeta{font-size:12px;color:var(--muted);margin-top:4px}
@@ -126,7 +134,8 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
 .orderActions{display:flex;gap:7px;flex-wrap:wrap;margin-top:12px}
 .orderActions .action{font-weight:800}
 .orderStatusSelect{width:auto;min-width:145px;padding:8px 10px}
-@media(max-width:780px){.ordersSummary{grid-template-columns:repeat(2,1fr)}.orderFilters{grid-template-columns:1fr}.orderHead{flex-direction:column}}
+@media(max-width:780px){.ordersSummary{grid-template-columns:repeat(2,1fr)}.orderFilters{grid-template-columns:repeat(2,minmax(0,1fr))}.orderFilterSearch{grid-column:1/-1}.orderHead{flex-direction:column}}
+@media(max-width:460px){.orderFilters{grid-template-columns:1fr}.orderFilterSearch{grid-column:auto}.orderPagination{align-items:flex-start;flex-direction:column}}
 
 .photoPreview{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}.photoPreview img{width:78px;height:78px;object-fit:cover;border-radius:12px;border:1px solid var(--border);background:#f3f4f6}.photoPreview .photoItem{position:relative}.photoPreview .photoItem span{position:absolute;left:4px;bottom:4px;background:#111827cc;color:#fff;border-radius:7px;padding:2px 5px;font-size:10px}.multiGallery{display:flex;gap:7px;overflow-x:auto;margin-top:8px}.multiGallery img{width:54px;height:54px;object-fit:cover;border-radius:9px;border:1px solid var(--border)}
 .photoPreview .photoItem{width:104px;display:flex;flex-direction:column;gap:5px;align-items:stretch}
@@ -445,11 +454,18 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
   </div>
   <div class="box" style="margin-top:15px">
     <div class="orderFilters">
-      <input id="buscarPedido" placeholder="🔎 Buscar por cliente, teléfono, ciudad, correo o pedido" oninput="renderPedidos()">
-      <select id="filtroPedidoEstado" onchange="renderPedidos()">
+      <label class="orderFilterField orderFilterSearch">Buscar pedido<input id="buscarPedido" aria-label="Buscar pedidos por cliente, teléfono, ciudad, correo o identificador" placeholder="🔎 Cliente, teléfono, ciudad, correo o pedido" oninput="cambiarFiltroPedidos()"></label>
+      <label class="orderFilterField">Estado<select id="filtroPedidoEstado" onchange="cambiarFiltroPedidos()">
         <option value="">Todos los estados</option><option value="pendiente">Pendientes</option><option value="confirmado">Confirmados</option><option value="enviado">Enviados</option><option value="entregado">Entregados</option><option value="rechazado">Rechazados</option><option value="devuelto">Devueltos</option>
-      </select>
+      </select></label>
+      <label class="orderFilterField">Desde (Colombia)<input id="ordersFromDate" type="date" onchange="cambiarFiltroPedidos()"></label>
+      <label class="orderFilterField">Hasta (Colombia)<input id="ordersToDate" type="date" onchange="cambiarFiltroPedidos()"></label>
+      <label class="orderFilterField">Ciudad<select id="ordersCityFilter" onchange="cambiarFiltroPedidos()"><option value="">Todas las ciudades</option></select></label>
+      <label class="orderFilterField">Método de pago<select id="ordersPaymentFilter" onchange="cambiarFiltroPedidos()"><option value="">Todos los métodos</option></select></label>
+      <button class="softbtn" type="button" onclick="limpiarFiltrosPedidos()">Limpiar filtros</button>
     </div>
+    <div id="ordersLoadStatus" class="status err" role="alert" hidden></div>
+    <div id="ordersResultsSummary" class="orderResultsSummary" role="status" aria-live="polite"></div>
     <div id="listaPedidos"><div class="empty">Cargando pedidos...</div></div>
   </div>
 </section>
@@ -745,6 +761,7 @@ let moduleLoadErrors={};
 let adminDeferredModuleLoaded={clients:false,suppliers:false,expenses:false,movements:false,orders:false};
 let adminDeferredModuleInFlight={};
 let pedidos=[];
+let pedidosPage=1,pedidosPageSize=20,pedidosLoadError='',ordersFacetOptionsSignature='';
 let brandName="Variedades JM";
 let brandIcon="";
 let brandIconPath="";
@@ -2006,9 +2023,9 @@ async function cargarTodo(userId=adminSessionUserId,authEpoch=adminAuthEpoch){
    const nextSales=v.data||[],nextModuleLoadErrors={},loadedData={};
    for(const key of ['clients','suppliers','expenses','movements','orders']){
     const result=({clients:c,suppliers:pr,expenses:g,movements:m,orders:o})[key];
-    if(result?.deferred){const currentError=moduleLoadErrors[key]||previousErrors[key];if(currentError)nextModuleLoadErrors[key]=currentError;continue}
+    if(result?.deferred){const currentError=moduleLoadErrors[key]||previousErrors[key];if(currentError){nextModuleLoadErrors[key]=currentError;if(key==='orders')pedidosLoadError=currentError}continue}
     const table=({clients:'clients',suppliers:'suppliers',expenses:'expenses',movements:'inventory_movements',orders:'web_orders'})[key];
-    if(result?.error){nextModuleLoadErrors[key]=describeAdminTableError(table,result.error);continue}
+    if(result?.error){nextModuleLoadErrors[key]=describeAdminTableError(table,result.error);if(key==='orders')pedidosLoadError=nextModuleLoadErrors[key];continue}
     loadedData[key]=result?.data||[];
     if(result?.orderMode&&result.orderMode!=='stable')console.warn('Módulo '+key+' se cargó usando orden alternativo:',result.orderMode);
    }
@@ -2018,7 +2035,7 @@ async function cargarTodo(userId=adminSessionUserId,authEpoch=adminAuthEpoch){
    if(Object.hasOwn(loadedData,'suppliers')){proveedores=loadedData.suppliers;adminDeferredModuleLoaded.suppliers=true}
    if(Object.hasOwn(loadedData,'expenses')){gastos=loadedData.expenses;adminDeferredModuleLoaded.expenses=true}
    if(Object.hasOwn(loadedData,'movements')){movimientos=loadedData.movements;adminDeferredModuleLoaded.movements=true}
-   if(Object.hasOwn(loadedData,'orders')){pedidos=loadedData.orders;adminDeferredModuleLoaded.orders=true;setOrdersUpdatedAt()}
+   if(Object.hasOwn(loadedData,'orders')){pedidos=loadedData.orders;pedidosLoadError='';ordersFacetOptionsSignature='';adminDeferredModuleLoaded.orders=true;setOrdersUpdatedAt()}
    if(avail?.error)console.warn("No se pudo calcular disponibilidad reservada; se mostrará el stock físico.",avail.error);
    populateFilters();renderInicio();renderProductos();renderVentas();renderReportes();refrescarSelects();renderVentaCatalogo();
    if(adminDeferredModuleLoaded.clients)renderClientes();
@@ -2107,11 +2124,13 @@ async function cargarPedidos(){
       if(!isCurrent())return false;
       if(error){
         console.error("Error cargando pedidos:",error);
+        pedidosLoadError=describeAdminTableError('web_orders',error);moduleLoadErrors.orders=pedidosLoadError;
         toast("No se pudieron actualizar los pedidos. Se conserva la lista anterior.");
         renderPedidos();
         return false;
       }
       pedidos=data||[];
+      pedidosLoadError='';ordersFacetOptionsSignature='';
       adminDeferredModuleLoaded.orders=true;delete moduleLoadErrors.orders;
       setOrdersUpdatedAt();
       renderPedidos();
@@ -2126,6 +2145,7 @@ async function cargarPedidos(){
       }
       if(!isCurrent())return false;
       console.error("Error inesperado actualizando pedidos:",fetchError);
+      pedidosLoadError=describeAdminTableError('web_orders',fetchError);moduleLoadErrors.orders=pedidosLoadError;
       toast("No se pudieron actualizar los pedidos. Se conserva la lista anterior.");
       renderPedidos();
       return false;
@@ -2219,27 +2239,93 @@ async function rechazarPedido(id){
   await cambiarEstadoPedido(id,"rechazado");
 }
 
-function renderPedidos(){
-  const q=String($("buscarPedido")?.value||"").toLowerCase().trim();
-  const filtro=String($("filtroPedidoEstado")?.value||"").toLowerCase();
-  const arr=pedidos.filter(p=>{
-    const texto=[
-      p.customer_name,p.customer_phone,p.customer_email,p.customer_city,
-      p.customer_address,p.payment_method,p.status,p.id
-    ].map(x=>String(x??"")).join(" ").toLowerCase();
-    return texto.includes(q)&&(!filtro||pedidoEstado(p)===filtro);
+function normalizeOrderFilterValue(value){
+  return String(value??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().replace(/\s+/g,' ').toLowerCase();
+}
+function orderDateKeyColombia(value){
+  const date=new Date(value);
+  if(!Number.isFinite(date.getTime()))return '';
+  const parts=Object.fromEntries(new Intl.DateTimeFormat('en-CA',{timeZone:'America/Bogota',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(date).map(part=>[part.type,part.value]));
+  return `${parts.year}-${parts.month}-${parts.day}`;
+}
+function filterAdminOrders(rows,filters={}){
+  const list=Array.isArray(rows)?rows:[];
+  const search=normalizeOrderFilterValue(filters.search),status=normalizeOrderFilterValue(filters.status);
+  const city=normalizeOrderFilterValue(filters.city),payment=normalizeOrderFilterValue(filters.payment);
+  const fromDate=/^\d{4}-\d{2}-\d{2}$/.test(String(filters.fromDate||''))?String(filters.fromDate):'';
+  const toDate=/^\d{4}-\d{2}-\d{2}$/.test(String(filters.toDate||''))?String(filters.toDate):'';
+  return list.filter(p=>{
+    const rowStatus=normalizeOrderFilterValue(pedidoEstado(p));
+    const rowCity=normalizeOrderFilterValue(p.customer_city),rowPayment=normalizeOrderFilterValue(p.payment_method);
+    const date=orderDateKeyColombia(p.created_at);
+    if(status&&rowStatus!==status)return false;
+    if(city&&rowCity!==city)return false;
+    if(payment&&rowPayment!==payment)return false;
+    if(fromDate&&(!date||date<fromDate))return false;
+    if(toDate&&(!date||date>toDate))return false;
+    if(search){
+      const text=normalizeOrderFilterValue([p.customer_name,p.customer_phone,p.customer_email,p.customer_city,p.customer_address,p.payment_method,p.status,p.id].map(value=>String(value??'')).join(' '));
+      if(!text.includes(search))return false;
+    }
+    return true;
   });
+}
+function paginateAdminOrders(rows,page,pageSize){
+  const list=Array.isArray(rows)?rows:[];
+  const requestedSize=Number(pageSize),safeSize=[20,50,100].includes(requestedSize)?requestedSize:20;
+  const totalPages=Math.max(1,Math.ceil(list.length/safeSize));
+  const requestedPage=Math.floor(Number(page)||1),safePage=Math.min(totalPages,Math.max(1,requestedPage));
+  const start=(safePage-1)*safeSize;
+  return {items:list.slice(start,start+safeSize),page:safePage,pageSize:safeSize,total:list.length,totalPages,start:start+1,end:Math.min(list.length,start+safeSize)};
+}
+function syncOrdersFilterOptions(){
+  const citySelect=$('ordersCityFilter'),paymentSelect=$('ordersPaymentFilter');
+  const makeOptions=key=>{
+    const values=new Map();
+    pedidos.forEach(row=>{
+      const label=String(row?.[key]??'').trim(),value=normalizeOrderFilterValue(label);
+      if(value&&!values.has(value))values.set(value,label);
+    });
+    return [...values.entries()].sort((a,b)=>a[0].localeCompare(b[0],'es'));
+  };
+  const cities=makeOptions('customer_city'),payments=makeOptions('payment_method');
+  const signature=JSON.stringify({cities,payments});
+  if(signature===ordersFacetOptionsSignature)return;
+  const selectedCity=citySelect?.value||'',selectedPayment=paymentSelect?.value||'';
+  if(citySelect){citySelect.innerHTML='<option value="">Todas las ciudades</option>'+cities.map(([value,label])=>`<option value="${esc(value)}">${esc(label)}</option>`).join('');citySelect.value=cities.some(([value])=>value===selectedCity)?selectedCity:'';}
+  if(paymentSelect){paymentSelect.innerHTML='<option value="">Todos los métodos</option>'+payments.map(([value,label])=>`<option value="${esc(value)}">${esc(label)}</option>`).join('');paymentSelect.value=payments.some(([value])=>value===selectedPayment)?selectedPayment:'';}
+  ordersFacetOptionsSignature=signature;
+}
+function cambiarFiltroPedidos(){pedidosPage=1;renderPedidos();}
+function limpiarFiltrosPedidos(){['buscarPedido','filtroPedidoEstado','ordersFromDate','ordersToDate','ordersCityFilter','ordersPaymentFilter'].forEach(id=>{const input=$(id);if(input)input.value='';});cambiarFiltroPedidos();}
+function cambiarPaginaPedidos(page){pedidosPage=Number(page)||1;renderPedidos();}
+function cambiarTamanoPaginaPedidos(value){const size=Number(value);if([20,50,100].includes(size)){pedidosPageSize=size;pedidosPage=1;renderPedidos();}}
+
+function renderPedidos(){
+  syncOrdersFilterOptions();
+  const arr=filterAdminOrders(pedidos,{
+    search:$('buscarPedido')?.value||'',status:$('filtroPedidoEstado')?.value||'',
+    fromDate:$('ordersFromDate')?.value||'',toDate:$('ordersToDate')?.value||'',
+    city:$('ordersCityFilter')?.value||'',payment:$('ordersPaymentFilter')?.value||''
+  });
+  const pageData=paginateAdminOrders(arr,pedidosPage,pedidosPageSize);pedidosPage=pageData.page;
 
   const pending=pedidos.filter(p=>pedidoEstado(p)==="pendiente").length;
   const confirmed=pedidos.filter(p=>pedidoEstado(p)==="confirmado").length;
   const delivered=pedidos.filter(p=>pedidoEstado(p)==="entregado").length;
-  if($("ordersTotal"))$("ordersTotal").textContent=pedidos.length;
-  if($("ordersPending"))$("ordersPending").textContent=pending;
-  if($("ordersConfirmed"))$("ordersConfirmed").textContent=confirmed;
-  if($("ordersDelivered"))$("ordersDelivered").textContent=delivered;
+  const loadError=String(pedidosLoadError||moduleLoadErrors.orders||'');
+  const countsAvailable=adminDeferredModuleLoaded.orders||pedidos.length>0;
+  if($("ordersTotal"))$("ordersTotal").textContent=loadError&&!countsAvailable?'—':pedidos.length;
+  if($("ordersPending"))$("ordersPending").textContent=loadError&&!countsAvailable?'—':pending;
+  if($("ordersConfirmed"))$("ordersConfirmed").textContent=loadError&&!countsAvailable?'—':confirmed;
+  if($("ordersDelivered"))$("ordersDelivered").textContent=loadError&&!countsAvailable?'—':delivered;
 
   const box=$("listaPedidos");if(!box)return;
-  box.innerHTML=arr.map(p=>{
+  const loadStatus=$('ordersLoadStatus');
+  if(loadStatus){loadStatus.hidden=!loadError;loadStatus.textContent=loadError?(countsAvailable?'No se pudo actualizar la lista. Se conserva la última carga disponible. ':'No se pudieron cargar los pedidos. ')+loadError:'';}
+  const summary=$('ordersResultsSummary');
+  if(summary)summary.textContent=loadError&&!countsAvailable?'Sin datos disponibles por un error de consulta.':!countsAvailable?'Los pedidos aún no se han cargado.':pageData.total?`Mostrando ${pageData.start}–${pageData.end} de ${pageData.total} coincidencia(s) (${pedidos.length} pedidos cargados) · Página ${pageData.page} de ${pageData.totalPages}.`:`0 coincidencias (${pedidos.length} pedidos cargados).`;
+  const cards=pageData.items.map(p=>{
     const status=pedidoEstado(p);
     const created=p.created_at?new Date(p.created_at).toLocaleString("es-CO"):"";
     const total=Number(p.total)||0;
@@ -2271,7 +2357,10 @@ function renderPedidos(){
         </select>
       </div>
     </div>`;
-  }).join("")||'<div class="empty">No hay pedidos con esos filtros.</div>';
+  }).join('');
+  const emptyMessage=loadError&&!countsAvailable?'No se muestran pedidos porque falló la consulta.':!countsAvailable?'Cargando pedidos…':!pedidos.length?'No hay pedidos registrados.':'No hay pedidos que coincidan con estos filtros.';
+  const pagination=pageData.total?`<nav class="orderPagination" aria-label="Paginación de pedidos"><span class="muted">${pageData.start}–${pageData.end} de ${pageData.total}</span><div class="orderPaginationControls"><label class="orderFilterField" style="flex-direction:row;align-items:center;gap:6px">Por página<select aria-label="Pedidos por página" onchange="cambiarTamanoPaginaPedidos(this.value)"><option value="20" ${pageData.pageSize===20?'selected':''}>20</option><option value="50" ${pageData.pageSize===50?'selected':''}>50</option><option value="100" ${pageData.pageSize===100?'selected':''}>100</option></select></label><button type="button" class="softbtn" data-orders-page="${pageData.page-1}" aria-label="Página anterior" ${pageData.page<=1?'disabled':''}>Anterior</button><span aria-current="page">${pageData.page} / ${pageData.totalPages}</span><button type="button" class="softbtn" data-orders-page="${pageData.page+1}" aria-label="Página siguiente" ${pageData.page>=pageData.totalPages?'disabled':''}>Siguiente</button></div></nav>`:'';
+  box.innerHTML=(cards||`<div class="empty">${esc(emptyMessage)}</div>`)+pagination;
 }
 
 function applyDefaultSirevyaCategoryOrder(categories,allowLegacyDefault=true){
@@ -3969,6 +4058,8 @@ document.addEventListener("DOMContentLoaded",()=>{
   const ordersBox=$("listaPedidos");
   if(ordersBox){
     ordersBox.addEventListener('click',event=>{
+      const pageButton=event.target.closest('button[data-orders-page]');
+      if(pageButton&&ordersBox.contains(pageButton)){cambiarPaginaPedidos(pageButton.dataset.ordersPage);return;}
       const button=event.target.closest('button[data-order-action]');
       if(!button||!ordersBox.contains(button))return;
       const action=button.dataset.orderAction||'',id=button.dataset.orderId||'';

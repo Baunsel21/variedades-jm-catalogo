@@ -27,7 +27,7 @@ scoop install supabase
 
 En Linux también se distribuyen paquetes `.deb`, `.rpm` y `.apk` en la página oficial de releases. Para ejecutar el stack local completo se necesita Docker Desktop o un runtime compatible. Instala PostgreSQL 17 desde el distribuidor oficial del sistema operativo y confirma que `psql --version` indique la versión mayor 17. [2]
 
-A partir de CLI v3, `db dump` apunta por defecto al stack local. Pasa siempre `--remote` con la URI privada para seleccionar la base remota de lectura. La opción antigua `--db-url` aún existe, pero está deprecada. No ejecutes `supabase db dump` sin `--remote`. [3]
+En CLI v3, `db dump` apunta al stack local por defecto. `--remote=<postgres-url>` selecciona una URL PostgreSQL remota explícita; el valor debe adjuntarse con `=` (no como argumento separado). `--db-url` aún funciona, pero está deprecado y se retirará en v4. Este runbook usa `--remote="$SIREVYA_DB_URL"`. [3] [4]
 
 ## 1. Preparar destino privado y conexión
 
@@ -40,8 +40,6 @@ umask 077
 export BACKUP_DIR="$HOME/secure-backups/sirevya-preflight-$(date -u +%Y%m%dT%H%M%SZ)"
 mkdir -p "$BACKUP_DIR"
 chmod 700 "$BACKUP_DIR"
-cd /path/to/variedades-jm-catalogo
-test -f supabase/config.toml
 supabase --version
 docker --version
 docker info >/dev/null
@@ -53,13 +51,13 @@ Usa una terminal privada. La URI aparecerá como argumento del proceso CLI, así
 
 ## 2. Exportar con Supabase CLI
 
-Ejecuta desde el root del repositorio, donde está `supabase/config.toml`. Estos comandos leen la base remota. En CLI v3, `--remote` selecciona explícitamente el destino remoto. No uses `db reset`, `migration up`, `db push`, `apply_migration` ni comandos de restauración contra la URL de producción. [3] [4]
+CLI v3 acepta una URL PostgreSQL explícita en `--remote=<postgres-url>` y la usa como destino de `db dump`; no requiere `supabase link` ni un `supabase/config.toml` del repositorio. Ejecuta desde la terminal privada con los archivos dirigidos a `$BACKUP_DIR`; no ejecutes `db dump` sin el flag `--remote` explícito. No uses `db reset`, `migration up`, `db push`, `apply_migration` ni comandos de restauración contra la URL de producción. [3] [4]
 
 ```sh
-supabase db dump --remote="$SIREVYA_DB_URL" -f "$BACKUP_DIR/roles.sql" --role-only
-supabase db dump --remote="$SIREVYA_DB_URL" -f "$BACKUP_DIR/schema.sql"
-supabase db dump --remote="$SIREVYA_DB_URL" -f "$BACKUP_DIR/data.sql" --use-copy --data-only \
-  -x "storage.buckets_vectors" -x "storage.vector_indexes"
+supabase db dump -f "$BACKUP_DIR/roles.sql" --role-only --remote="$SIREVYA_DB_URL"
+supabase db dump -f "$BACKUP_DIR/schema.sql" --remote="$SIREVYA_DB_URL"
+supabase db dump -f "$BACKUP_DIR/data.sql" --use-copy --data-only \
+  -x "storage.buckets_vectors" -x "storage.vector_indexes" --remote="$SIREVYA_DB_URL"
 
 test -s "$BACKUP_DIR/roles.sql"
 test -s "$BACKUP_DIR/schema.sql"
@@ -149,5 +147,5 @@ El plan Free no confirma backup diario automático. El camino sin proyecto Supab
 
 [1]: https://supabase.com/docs/guides/platform/backups "Supabase Database Backups"
 [2]: https://supabase.com/docs/guides/local-development/cli/getting-started "Supabase CLI installation and local stack"
-[3]: https://supabase.com/changelog/supabase-cli-v3 "Supabase CLI v3 defaults and remote flags"
+[3]: https://supabase.com/docs/guides/local-development/cli/migrating-to-v3 "Migrate to Supabase CLI v3"
 [4]: https://supabase.com/docs/guides/platform/migrating-within-supabase/backup-restore "Supabase Backup and Restore using the CLI"

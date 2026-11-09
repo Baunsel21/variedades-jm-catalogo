@@ -29,7 +29,7 @@ export async function previewCsvFile(file, existingCodes = []) {
 const REPORT_FILENAME = 'sirevya-csv-preview-validation.csv';
 const REPORT_COLUMNS = Object.freeze([
   'tipo', 'bytes_entrada', 'limite_bytes', 'limite_filas', 'filas_datos',
-  'filas_validas', 'filas_invalidas', 'errores_totales', 'fila', 'campo',
+  'filas_validas', 'filas_invalidas', 'errores_totales', 'fila', 'linea_fisica', 'campo',
   'codigo', 'mensaje', 'puede_aplicar', 'dry_run', 'escritura_realizada',
 ]);
 const REPORTABLE_FIELDS = new Set(PRODUCT_COLUMNS);
@@ -78,13 +78,13 @@ export function buildCsvPreviewReportCsv(result) {
       reportCount(summary.validRows, Array.isArray(result.rows) ? result.rows.length : 0),
       reportCount(summary.invalidRows),
       reportCount(summary.errorCount, errors.length),
-      '', '', '', '', false, true, false,
+      '', '', '', '', '', false, true, false,
     ],
     ...errors.map(error => {
       const details = reportErrorDetails(error);
       return [
         'ERROR', '', '', '', '', '', '', '',
-        reportCount(error?.row), details.field, details.code, details.message,
+        reportCount(error?.row), reportCount(error?.physicalLine), details.field, details.code, details.message,
         false, true, false,
       ];
     }),
@@ -165,9 +165,12 @@ export function renderCsvPreviewResult(result, documentRef = globalThis.document
     errorList.replaceChildren();
     for (const error of errors.slice(0, MAX_VISIBLE_ERRORS)) {
       const item = documentRef.createElement('li');
-      const location = Number.isInteger(error.row) && error.row > 0 ? `Fila ${error.row}` : 'Archivo';
+      const logicalLocation = Number.isInteger(error.row) && error.row > 0 ? `Fila ${error.row}` : 'Archivo';
+      const physicalLocation = Number.isInteger(error.physicalLine) && error.physicalLine > 0
+        ? ` · línea física ${error.physicalLine}`
+        : '';
       const field = error.field ? ` · ${error.field}` : '';
-      item.textContent = `${location}${field}: ${error.message || error.code || 'Error de validación.'}`;
+      item.textContent = `${logicalLocation}${physicalLocation}${field}: ${error.message || error.code || 'Error de validación.'}`;
       errorList.appendChild(item);
     }
   }

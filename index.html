@@ -4346,12 +4346,15 @@ function canonicalLocalDeliveryCity(value){
  if(['cali','santiago de cali','cali valle del cauca'].includes(normalized))return 'Cali';
  return '';
 }
+function normalizeCODCityKey(value){
+ return normalizeDeliveryCity(canonicalLocalDeliveryCity(value)||value);
+}
 const COD_KNOWN_CITY_KEYS=['cali','bogota','medellin','barranquilla','cartagena','bucaramanga','pereira','armenia','manizales','cucuta','pasto'];
 function isLocalCODCity(value){
- const normalized=normalizeDeliveryCity(value);
+ const normalized=normalizeCODCityKey(value);
  if(!codPaymentEnabled||!normalized)return false;
  if(codAllowedCities.includes('*'))return true;
- if(codAllowedCities.map(normalizeDeliveryCity).includes(normalized))return true;
+ if(codAllowedCities.map(normalizeCODCityKey).includes(normalized))return true;
  if(codAllowedCities.includes('__other__')&&!COD_KNOWN_CITY_KEYS.includes(normalized))return true;
  return false;
 }
@@ -4386,12 +4389,12 @@ function syncCustomerCityOptionsForPaymentMode(){
   return;
  }
  const allAllowed=codAllowedCities.includes('*');
- const allowedKeys=codAllowedCities.map(normalizeDeliveryCity);
+ const allowedKeys=codAllowedCities.map(normalizeCODCityKey);
  select.innerHTML=originalCustomerCityOptionsHTML;
  const options=[...select.options];
  options.forEach(option=>{
   if(!option.value)return;
-  const key=normalizeDeliveryCity(option.value);
+  const key=normalizeCODCityKey(option.value);
   const isOther=option.value==='Otra';
   option.hidden=!(codPaymentEnabled&&(allAllowed||allowedKeys.includes(key)||(isOther&&codAllowedCities.includes('__other__'))));
   option.disabled=option.hidden;

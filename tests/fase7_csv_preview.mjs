@@ -150,6 +150,16 @@ for (const ending of ['\n', '\r\n', '']) {
   assert.ok(unterminated.errors.some(error => error.code === 'MALFORMED_CSV'));
   assert.equal(unterminated.rows.length, 0);
 
+  const malformedAfterMultiline = previewProductsCsv(
+    `${header}\nP-044,"Línea uno\nLínea dos",Ropa,1,2,1\nP-045,"Sin cierre\ncontinúa`,
+  );
+  assert.equal(malformedAfterMultiline.errors.length, 1);
+  assert.equal(malformedAfterMultiline.errors[0].code, 'MALFORMED_CSV');
+  assert.equal(malformedAfterMultiline.errors[0].row, 3, 'Conserva la fila lógica tras un campo multilinea previo');
+  assert.equal(malformedAfterMultiline.errors[0].physicalLine, 5, 'Indica la línea física de EOF, no la línea inicial del campo');
+  assert.equal(malformedAfterMultiline.summary.invalidRows, 1);
+  assert.equal(malformedAfterMultiline.canCommit, false);
+
   const strayQuote = previewProductsCsv(`${header}\nP-043,Nombre"roto,Ropa,1,2,1\n`);
   assert.ok(strayQuote.errors.some(error => error.code === 'MALFORMED_CSV'));
 }
