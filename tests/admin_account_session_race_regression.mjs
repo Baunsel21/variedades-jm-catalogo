@@ -335,9 +335,11 @@ assert.ok(admin.includes('storefrontCombosAdminLoaded=false;storefrontProductCom
 assert.ok(admin.includes('seasonalPromoSettingsLoaded=false;seasonalPromoSettingsOriginal=null;'), 'El lock invalida los settings de campaña.');
 
 const lockSource = extract(/function lockAdminPanel\(message='[^']*'\)\{[\s\S]*?\n\}/, 'Debe existir invalidación de estado al cerrar la sesión');
+const shippingRulesResetSource = extract(/function resetStorefrontShippingRulesAdminState\(\)\{[\s\S]*?\n\}/, 'Debe existir reset del estado de reglas por destino');
+const shippingRuleFormResetSource = extract(/function resetStorefrontShippingRuleForm\(\)\{[\s\S]*?\n\}/, 'Debe existir reset de formulario de reglas por destino');
 let editorClearCalls = 0;
-const lockNodes = Object.fromEntries(['app','loginScreen','refreshOrdersBtn','accountEmail','securityAccountEmail','password','currentAdminPassword','newAdminPassword','confirmAdminPassword','changeAdminPasswordBtn','adminCurrentPasswordField','onlinePaymentsToggle','saveOnlinePaymentsBtn','onlinePaymentsStateText','shippingNationalCost','shippingFreeThreshold','shippingFreeThresholdEnabled','saveStorefrontShippingSettingsBtn','refreshStorefrontShippingSettingsBtn','codPaymentsToggle','saveCODCitiesBtn'].map(id => [id, { value: 'stale', checked: true, disabled: true, textContent: 'stale', classList: { add() {}, remove() {} } }]));
-const locked = run(`let availabilityRefreshBusy=true,availabilityRefreshToken=4,storefrontMarketingMetricsBusy=true,storefrontMarketingMetricsToken=12,editingProductImageLoadToken=7;\n${lockSource}\nfunction lockStateForTest(){return {busy:availabilityRefreshBusy,refreshToken:availabilityRefreshToken,marketingBusy:storefrontMarketingMetricsBusy,marketingToken:storefrontMarketingMetricsToken,imageToken:editingProductImageLoadToken};}`, {
+const lockNodes = Object.fromEntries(['app','loginScreen','refreshOrdersBtn','accountEmail','securityAccountEmail','password','currentAdminPassword','newAdminPassword','confirmAdminPassword','changeAdminPasswordBtn','adminCurrentPasswordField','onlinePaymentsToggle','saveOnlinePaymentsBtn','onlinePaymentsStateText','shippingNationalCost','shippingFreeThreshold','shippingFreeThresholdEnabled','saveStorefrontShippingSettingsBtn','refreshStorefrontShippingSettingsBtn','shippingRulesSearch','refreshStorefrontShippingRulesBtn','storefrontShippingRulesAdminList','shippingRuleEditId','shippingRuleScope','shippingRuleName','shippingRuleDestinations','shippingRulePriority','shippingRuleCost','shippingRuleThresholdEnabled','shippingRuleThreshold','shippingRuleEnabled','saveStorefrontShippingRuleBtn','resetStorefrontShippingRuleBtn','codPaymentsToggle','saveCODCitiesBtn'].map(id => [id, { value: 'stale', checked: true, disabled: true, textContent: 'stale', classList: { add() {}, remove() {} } }]));
+const locked = run(`let availabilityRefreshBusy=true,availabilityRefreshToken=4,storefrontMarketingMetricsBusy=true,storefrontMarketingMetricsToken=12,editingProductImageLoadToken=7;\n${shippingRuleFormResetSource}\n${shippingRulesResetSource}\n${lockSource}\nfunction lockStateForTest(){return {busy:availabilityRefreshBusy,refreshToken:availabilityRefreshToken,marketingBusy:storefrontMarketingMetricsBusy,marketingToken:storefrontMarketingMetricsToken,imageToken:editingProductImageLoadToken};}`, {
   adminAuthEpoch: 11, adminSessionAuthorized: true, adminSessionUserId: 'account-A', adminPasswordRecoveryMode: true,
   adminCatalogRealtimeChannel: null, sb: null, adminCatalogRealtimeReady: true, adminCatalogRealtimePending: [],
   productos: [{}], ventas: [{}], clientes: [{}], proveedores: [{}], gastos: [{}], movimientos: [{}], pedidos: [{}], categorias: [{}], categoryRecords: [{}],
@@ -345,10 +347,11 @@ const locked = run(`let availabilityRefreshBusy=true,availabilityRefreshToken=4,
   onlinePaymentSettingLoaded: true, onlinePaymentSettingOriginal: true,
   codCitiesSettingsLoaded: true, codCitiesSettingsOriginal: { enabled: true, allowed_cities: ['Cali'] },
   storefrontShippingAdminLoaded: true, storefrontShippingAdminOriginal: { fee: 1000, threshold: 2000 }, storefrontShippingAdminSaving: true,
+  storefrontShippingRulesAdminLoaded: true, storefrontShippingRulesAdmin: [{ id: 'stale-rule' }], storefrontShippingRuleSaving: true,
   storefrontCombosAdminLoaded: true, storefrontProductCombosAdmin: [{}], storefrontComboSaving: true, storefrontComboEditingId: 'stale',
   seasonalPromoSettingsLoaded: true, seasonalPromoSettingsOriginal: { enabled: true }, seasonalPromoSaving: true, seasonalPromoAutoCloseTimer: 0,
   $: id => lockNodes[id] || null, document: { querySelectorAll: () => [] }, clearTimeout() {}, loginMsg() {}, console: consoleStub,
-  limpiarProducto() { editorClearCalls++; }, updateStorefrontShippingAdminForm() {}, setStorefrontComboFormDisabled() {}, renderStorefrontCombosAdminList() {}, setSeasonalPromoFormDisabled() {},
+  limpiarProducto() { editorClearCalls++; }, updateStorefrontShippingAdminForm() {}, updateStorefrontShippingRuleAdminForm() {}, renderStorefrontShippingRulesAdmin() {}, setStorefrontShippingRulesAdminStatus() {}, setStorefrontComboFormDisabled() {}, renderStorefrontCombosAdminList() {}, setSeasonalPromoFormDisabled() {},
 });
 locked.lockAdminPanel('Cuenta cerrada.');
 const lockedState = locked.lockStateForTest();
@@ -362,6 +365,18 @@ assert.equal(lockedState.marketingToken, 13);
 assert.equal(lockedState.imageToken, 8);
 assert.equal(locked.onlinePaymentSettingLoaded, false);
 assert.equal(locked.storefrontShippingAdminLoaded, false);
+assert.equal(locked.storefrontShippingRulesAdminLoaded, false);
+assert.equal(locked.storefrontShippingRulesAdmin.length, 0);
+assert.equal(locked.storefrontShippingRuleSaving, false);
+assert.equal(lockNodes.shippingRulesSearch.value, '');
+assert.equal(lockNodes.refreshStorefrontShippingRulesBtn.disabled, false);
+assert.equal(lockNodes.shippingRuleEditId.value, '');
+assert.equal(lockNodes.shippingRuleName.value, '');
+assert.equal(lockNodes.shippingRuleDestinations.value, '');
+assert.equal(lockNodes.shippingRuleScope.value, 'city');
+assert.equal(lockNodes.shippingRulePriority.value, '0');
+assert.equal(lockNodes.shippingRuleCost.value, '15000');
+assert.equal(lockNodes.shippingRuleThreshold.value, '130000');
 assert.equal(locked.codCitiesSettingsLoaded, false);
 assert.equal(locked.storefrontCombosAdminLoaded, false);
 assert.equal(locked.seasonalPromoSettingsLoaded, false);

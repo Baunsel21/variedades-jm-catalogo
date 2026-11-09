@@ -60,6 +60,12 @@ const confirmCheckoutSource = extractFunction('confirmCheckout');
 const normalizeCitySource = extractSyncFunction('normalizeDeliveryCity');
 const canonicalCitySource = extractSyncFunction('canonicalLocalDeliveryCity');
 const shippingSource = extractSyncFunction('calculateStorefrontShipping');
+const destinationKeySource = source.includes('function storefrontShippingDestinationKey(')
+  ? extractSyncFunction('storefrontShippingDestinationKey')
+  : '';
+const shippingRuleSource = source.includes('function resolveStorefrontShippingRule(')
+  ? extractSyncFunction('resolveStorefrontShippingRule')
+  : '';
 const syntheticItems = [{ id: 'synthetic-product', qty: 2, color: 'Azul', size: 'M' }];
 const settings = { national_shipping_cost: 15000, free_shipping_threshold: 130000, free_shipping_in_cali: true };
 
@@ -75,7 +81,7 @@ async function runCheckout({ city, payment, subtotal, discount, quote, expectedD
     DEFAULT_STOREFRONT_SHIPPING_SETTINGS: settings,
     storefrontShippingSettings: settings,
   });
-  vm.runInContext(`${normalizeCitySource}\n${canonicalCitySource}\n${shippingSource}`, shippingContext);
+  vm.runInContext([normalizeCitySource, canonicalCitySource, destinationKeySource, shippingRuleSource, shippingSource].filter(Boolean).join('\n'), shippingContext);
   const calculateShipping = shippingContext.calculateStorefrontShipping;
   const initialShipping = calculateShipping(city, subtotal, settings);
   const context = vm.createContext({
