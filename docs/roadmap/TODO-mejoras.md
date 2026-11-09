@@ -42,6 +42,8 @@ Cada criterio se conserva hasta que exista evidencia en código, Supabase y prue
 - [ ] Conciliación muestra importe, referencia, transacción, estado de pago, inventario, logística y causa. Las acciones de reparación requieren RPC transaccional y guardia admin, confirman el resultado, registran bitácora y nunca inician reembolso sin una política aprobada.
 - [ ] El cliente recibe una confirmación clara al regresar de Wompi; PSE se prueba en sandbox, no se hace un cobro real de validación.
 - [ ] Reintentos conservan referencia/reserva existente, carrito y vencimiento original de 10 minutos; no se permite doble reserva para una persona/carrito ni se libera inventario ajeno.
+- [ ] Cédula obligatoria server-side antes de pedido COD/Wompi; `legal-id` se envía a Wompi y replay legacy exacto conserva idempotencia.
+  - Avance preview: el campo UI está en la rama `preview/development`; el backend y trigger están en [PR #50 draft](https://github.com/Baunsel21/variedades-jm-catalogo/pull/50), sin aplicar/desplegar. POST sigue bloqueado (403); no se introducen cédulas ni pedidos reales.
 
 ## Fase 6: Dashboard, clientes y logística
 

@@ -1796,7 +1796,7 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
     <div id="checkoutValidationSummary" class="checkoutValidationSummary" role="alert" aria-live="assertive" hidden></div>
     <div class="checkoutGrid">
       <label for="customerName">Nombre completo *</label><input id="customerName" type="text" autocomplete="name" placeholder="Tu nombre" required aria-describedby="checkoutErrorCustomerName"><small id="checkoutErrorCustomerName" class="checkoutFieldError"></small>
-      <label for="customerCedula">Cédula (opcional)</label><input id="customerCedula" type="text" inputmode="numeric" placeholder="Número de cédula (opcional)" autocomplete="off">
+      <label for="customerCedula">Cédula o documento de identidad *</label><input id="customerCedula" type="text" maxlength="60" autocomplete="off" placeholder="Número de cédula o documento" required aria-describedby="checkoutErrorCustomerCedula"><small id="checkoutErrorCustomerCedula" class="checkoutFieldError"></small>
       <label for="customerPhone">Teléfono *</label><input id="customerPhone" type="tel" autocomplete="tel" placeholder="300 000 0000" required aria-describedby="checkoutErrorCustomerPhone"><small id="checkoutErrorCustomerPhone" class="checkoutFieldError"></small>
       <label for="customerEmail">Correo electrónico *</label><input id="customerEmail" type="email" autocomplete="email" placeholder="correo@ejemplo.com" required aria-describedby="checkoutErrorCustomerEmail"><small id="checkoutErrorCustomerEmail" class="checkoutFieldError"></small>
       <label for="customerCity">Ciudad *</label>
@@ -4703,8 +4703,9 @@ async function payWithWompi(payload){
    'signature:integrity':data.signature,
    // URL HTTPS limpia: sin query ni hash de la categoría actual.
    'redirect-url':new URL(window.location.pathname,window.location.origin).href,
-   'customer-data:full-name':payload.name,
-   'customer-data:phone-number':payload.phone,
+  'customer-data:full-name':payload.name,
+  'customer-data:legal-id':payload.cedula,
+  'customer-data:phone-number':payload.phone,
    'customer-data:email':payload.email,
    'customer-data:phone-number-prefix':'+57',
    'shipping-address:address-line-1':payload.address,
@@ -4716,7 +4717,6 @@ async function payWithWompi(payload){
    'shipping-address:name':payload.name
   };
 
-  if(payload.cedula)fields['customer-data:legal-id']=payload.cedula;
   Object.entries(fields).forEach(([name,value])=>{
    const input=document.createElement('input');
    input.type='hidden';
@@ -4865,11 +4865,11 @@ async function saveContraEntregaOrder(payload){
    showContraEntregaError('Ocurrió un error al registrar el pedido: '+String(error?.message||error||'error desconocido')+'. El carrito se conservó; puedes reintentar sin duplicar el mismo pedido.');
    return false;
  }finally{
-   contraEntregaInProgress=false;
+ contraEntregaInProgress=false;
    if(btn){btn.disabled=false;btn.textContent='✅ Confirmar pedido'}
- }
+  }
 }
-const checkoutValidationFieldIds=['customerName','customerPhone','customerEmail','customerCity','customerCityOther','customerAddress','customerNeighborhood'];
+const checkoutValidationFieldIds=['customerName','customerCedula','customerPhone','customerEmail','customerCity','customerCityOther','customerAddress','customerNeighborhood'];
 function checkoutErrorElement(fieldId){
  const id=String(fieldId||'');
  if(!id.startsWith('customer'))return null;
@@ -4879,7 +4879,7 @@ function checkoutErrorElement(fieldId){
 function clearCheckoutValidation(){
  const summary=$('checkoutValidationSummary');
  if(summary){summary.hidden=true;summary.textContent='';}
- ['customerName','customerPhone','customerEmail','customerCity','customerCityOther','customerAddress','customerNeighborhood'].forEach(id=>{
+ checkoutValidationFieldIds.forEach(id=>{
   const field=$(id);if(field)field.removeAttribute('aria-invalid');
   const msg=checkoutErrorElement(id);
   if(msg){msg.textContent='';msg.style.display='none';}
@@ -4890,7 +4890,7 @@ function clearCheckoutFieldError(id){
  if(summary&&summary.hidden===false){
   const remaining=getCheckoutValidationErrors();
   const byId=new Map(remaining.map(error=>[error.id,error]));
-  ['customerName','customerPhone','customerEmail','customerCity','customerCityOther','customerAddress','customerNeighborhood'].forEach(fieldId=>{
+  ['customerName','customerCedula','customerPhone','customerEmail','customerCity','customerCityOther','customerAddress','customerNeighborhood'].forEach(fieldId=>{
    const field=$(fieldId),message=checkoutErrorElement(fieldId),error=byId.get(fieldId);
    if(error){
     if(field)field.setAttribute('aria-invalid','true');
@@ -4901,7 +4901,7 @@ function clearCheckoutFieldError(id){
    }
   });
   if(!remaining.length){summary.hidden=true;summary.textContent='';}
-  else summary.textContent='Completa todos los campos obligatorios para continuar. Cédula es opcional. Falta revisar: '+remaining.map(x=>x.label).join(', ')+'.';
+  else summary.textContent='Completa todos los campos obligatorios para continuar. Falta revisar: '+remaining.map(x=>x.label).join(', ')+'.';
  }else{
   const field=$(id);if(field)field.removeAttribute('aria-invalid');
   const msg=checkoutErrorElement(id);
@@ -4911,6 +4911,7 @@ function clearCheckoutFieldError(id){
 function getCheckoutValidationErrors(){
  const errors=[];
  const name=$('customerName')?.value.trim()||'';
+ const cedula=$('customerCedula')?.value.trim()||'';
  const phone=$('customerPhone')?.value.trim()||'';
  const email=$('customerEmail')?.value.trim()||'';
  const citySelection=$('customerCity')?.value||'';
@@ -4918,6 +4919,8 @@ function getCheckoutValidationErrors(){
  const address=$('customerAddress')?.value.trim()||'';
  const neighborhood=$('customerNeighborhood')?.value.trim()||'';
  if(!name)errors.push({id:'customerName',label:'Nombre completo',message:'Escribe tu nombre completo.'});
+ if(!cedula)errors.push({id:'customerCedula',label:'Cédula',message:'Escribe tu número de cédula o documento de identidad.'});
+ else if(cedula.length>60||/[\u0000-\u001f\u007f-\u009f]/.test(cedula))errors.push({id:'customerCedula',label:'Cédula',message:'Escribe un documento válido de hasta 60 caracteres.'});
  if(!phone)errors.push({id:'customerPhone',label:'Teléfono',message:'Escribe un teléfono de contacto.'});
  if(!email)errors.push({id:'customerEmail',label:'Correo electrónico',message:'Escribe tu correo electrónico.'});
  else if(!$('customerEmail').checkValidity())errors.push({id:'customerEmail',label:'Correo electrónico',message:'Escribe un correo electrónico válido.'});
@@ -4931,7 +4934,7 @@ function displayCheckoutValidation(errors){
  clearCheckoutValidation();
  const summary=$('checkoutValidationSummary');
  if(summary){
-  summary.textContent='Completa todos los campos obligatorios para continuar. Cédula es opcional. Falta revisar: '+errors.map(x=>x.label).join(', ')+'.';
+  summary.textContent='Completa todos los campos obligatorios para continuar. Falta revisar: '+errors.map(x=>x.label).join(', ')+'.';
   summary.hidden=false;
  }
  errors.forEach(error=>{
@@ -4949,15 +4952,15 @@ function displayCheckoutValidation(errors){
    box.scrollTo({top:target,behavior:'smooth'});
   });
  }
- showToast('Completa todos los campos obligatorios. La cédula es opcional.');
+ showToast('Completa todos los campos obligatorios, incluida la cédula o documento.');
 }
 document.addEventListener('input',event=>{
  const id=event.target?.id||'';
- if(['customerName','customerPhone','customerEmail','customerCity','customerCityOther','customerAddress','customerNeighborhood'].includes(id))clearCheckoutFieldError(id);
+ if(['customerName','customerCedula','customerPhone','customerEmail','customerCity','customerCityOther','customerAddress','customerNeighborhood'].includes(id))clearCheckoutFieldError(id);
 });
 document.addEventListener('change',event=>{
  const id=event.target?.id||'';
- if(['customerName','customerPhone','customerEmail','customerCity','customerCityOther','customerAddress','customerNeighborhood'].includes(id))clearCheckoutFieldError(id);
+ if(['customerName','customerCedula','customerPhone','customerEmail','customerCity','customerCityOther','customerAddress','customerNeighborhood'].includes(id))clearCheckoutFieldError(id);
  if(event.target?.name==='paymentMethod')updateShipping();
 });
 
