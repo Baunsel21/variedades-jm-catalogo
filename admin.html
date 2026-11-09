@@ -309,6 +309,7 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
     <button class="navbtn" data-view="reportes" onclick="show('reportes',this)">📊 <span>Reportes</span></button>
     <div class="navtitle">Herramientas</div>
     <button class="navbtn" data-view="producto" onclick="show('producto',this)">➕ <span>Nuevo producto</span></button>
+    <button class="navbtn" data-view="csvPreview" onclick="show('csvPreview',this)">🧾 <span>Importación CSV · vista previa</span></button>
     <button class="navbtn" data-view="config" onclick="show('config',this)">⚙️ <span>Configuración</span></button>
     <div class="sidebarBottom"><button class="navbtn" onclick="logout()">🚪 <span>Cerrar sesión</span></button></div>
   </aside>
@@ -489,6 +490,27 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
         </div>
       </section>
 
+      <section id="csvPreview" class="view">
+        <div><h2 style="margin:0">🧾 Importación CSV · vista previa</h2><p class="muted">Revisa filas y errores antes de definir una importación real. Este incremento no permite guardar ni aplicar productos.</p></div>
+        <div class="box" style="margin-top:15px">
+          <div class="status" role="note"><strong>Dry-run local:</strong> el archivo se lee en este navegador, no se sube ni se escribe en la base de datos. Límite: 5 MB y 10.000 filas. Solo admite code, name, category, cost, sale_price y quantity; no carga variantes.</div>
+          <div class="searchbar" style="align-items:end;margin-top:14px">
+            <label for="csvProductFile">Archivo CSV<input id="csvProductFile" type="file" accept=".csv,text/csv"></label>
+            <button id="csvPreviewButton" type="button" class="primary">Previsualizar archivo</button>
+            <button id="csvPreviewClear" type="button" class="softbtn">Limpiar</button>
+          </div>
+          <p id="csvPreviewStatus" class="muted" role="status" aria-live="polite">Selecciona un CSV para revisar sus filas localmente.</p>
+          <p id="csvPreviewSummary" class="muted"></p>
+          <div id="csvPreviewErrors" class="box" role="region" aria-label="Errores de validación CSV" hidden>
+            <h3>Filas que requieren corrección</h3>
+            <ul id="csvPreviewErrorList"></ul>
+            <p id="csvPreviewErrorsNote" class="muted"></p>
+          </div>
+          <div class="tableWrap" style="margin-top:12px"><table><thead><tr><th>Fila</th><th>Código</th><th>Nombre</th><th>Categoría</th><th>Costo</th><th>Precio venta</th><th>Cantidad</th></tr></thead><tbody id="csvPreviewRows"></tbody></table></div>
+          <p id="csvPreviewRowsNote" class="muted">No hay filas válidas para mostrar.</p>
+        </div>
+      </section>
+
       <section id="config" class="view">
         <div><h2 style="margin:0">⚙️ Configuración y herramientas</h2><p class="muted">Opciones para cuidar y llevar tus datos.</p></div>
         <div class="sectionGrid">
@@ -664,6 +686,7 @@ const SUPABASE_URL="https://hnlbbtnfmbnbkcgegufa.supabase.co";
 const SUPABASE_ANON_KEY="sb_publishable_p2XJjsFd4Hp7LZ1IgfyVAg_hpXnFSSc";
 const IMAGE_WORKER_URL="https://sirevya-images.variedadesjm99.workers.dev";
 let sb=null,editingId=null,productos=[],ventas=[],clientes=[],inventoryMode=localStorage.getItem("jm_inventory_mode")||"cards";
+window.getAdminCsvPreviewExistingCodes=()=>Array.isArray(productos)?productos.map(product=>String(product?.code||'').trim()).filter(Boolean):[];
 let editingSizeGuideImagePath="",sizeGuideImageRemoveRequested=false,sizeGuidePreviewObjectUrl=null;
 let proveedores=[],gastos=[],movimientos=[];
 // Mantiene el error de carga por módulo para no mostrar como vacío un dato que falló al consultarse.
@@ -1542,7 +1565,7 @@ function setDateText(){const d=new Date();$("todayText").textContent=d.toLocaleD
 function show(id,btn){
  document.querySelectorAll(".view").forEach(x=>x.classList.remove("active"));$(id).classList.add("active");
  document.querySelectorAll(".navbtn[data-view]").forEach(x=>x.classList.remove("active"));if(btn)btn.classList.add("active");
- const titles={inicio:"Inicio",inventario:"Inventario",producto:editingId?"Editar producto":"Nuevo producto",ventas:"Ventas",pedidos:"Pedidos",clientes:"Clientes",proveedores:"Proveedores",reportes:"Reportes",gastos:"Gastos",movimientos:"Movimientos",config:"Configuración"};
+ const titles={inicio:"Inicio",inventario:"Inventario",producto:editingId?"Editar producto":"Nuevo producto",ventas:"Ventas",pedidos:"Pedidos",clientes:"Clientes",proveedores:"Proveedores",reportes:"Reportes",gastos:"Gastos",movimientos:"Movimientos",config:"Configuración",csvPreview:"Importación CSV · vista previa"};
  $("pageTitle").textContent=titles[id]||"Variedades JM";
  if(id==="ventas"){refreshSalePreview();renderVentaCatalogo();}
  if(id==="pedidos"){cargarPedidos();}
@@ -3688,5 +3711,6 @@ window.addEventListener('change',event=>{if(event.target?.closest?.('#seasonalPr
 window.addEventListener('keydown',event=>{if(event.key==='Escape'&&!$('seasonalPromoOverlay')?.hidden)closeSeasonalPromo()});
 
 </script>
+<script type="module" src="./scripts/admin_csv_preview.mjs"></script>
 </body>
 </html>
