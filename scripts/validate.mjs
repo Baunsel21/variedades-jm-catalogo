@@ -39,6 +39,14 @@ try{
  assert.equal(context.safeCSVCell('Cali'),'"Cali"');
  assert.ok(admin.includes("${esc(({home:'Pantalla de inicio'"),'Etiqueta de promoción escapada');
 
+ const promoUrlMatch=catalog.match(/function safeSeasonalPromoUrl\(value\)\{[\s\S]*?\n\}/);
+ assert.ok(promoUrlMatch,'Normalizador de destino promocional');
+ const promoUrlContext=vm.createContext({URL,location:{href:'https://sirevya.com.co/'}});
+ vm.runInContext(promoUrlMatch[0],promoUrlContext);
+ assert.equal(promoUrlContext.safeSeasonalPromoUrl('#contactanos'),'#contactanos','Anchor local permitido');
+ assert.equal(promoUrlContext.safeSeasonalPromoUrl('https://promo.example/oferta'),'https://promo.example/oferta','Destino externo HTTPS permitido');
+ for(const unsafeUrl of ['http://promo.example/oferta','//promo.example/oferta','javascript:alert(1)','data:text/html,unsafe'])assert.equal(promoUrlContext.safeSeasonalPromoUrl(unsafeUrl),'#catalogo',`Destino no seguro rechazado: ${unsafeUrl}`);
+
  const shippingMatch=catalog.match(/function calculateStorefrontShipping\([\s\S]*?\n\}/);
  assert.ok(shippingMatch,'Cálculo de tarifa local aislado');
  const normalizeMatch=catalog.match(/function normalizeDeliveryCity\(value\)\{[\s\S]*?\n\}/);
