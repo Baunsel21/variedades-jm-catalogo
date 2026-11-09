@@ -218,6 +218,7 @@ const ordersSection=admin.match(/<section id="pedidos"[\s\S]*?<\/section>/)?.[0]
 	 assert.ok(!/\b(localStorage|sessionStorage)\b/.test(orderHelperSection),'Filtros y página se mantienen solo en memoria');
 
  await import('../tests/inventory_reservation_client_boundary_regression.mjs');
+ await import('../tests/admin_dashboard_pending_orders_regression.mjs');
 	 console.log('PASS: sintaxis, SDK/SRI, seguridad admin, CSV, tarifas, COD, rollback, claves Wompi y filtros/paginación de pedidos.');
 
 }finally{fs.rmSync(temp,{recursive:true,force:true});}
