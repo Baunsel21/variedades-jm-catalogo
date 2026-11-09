@@ -41,9 +41,49 @@ for (const question of faqQuestions) assert.ok(faqHtml.includes(question), `La F
 assert.ok(faqHtml.includes('Esta guía no reemplaza las políticas comerciales de la tienda.'));
 assert.match(faqHtml, /href="\/index\.html"/);
 
+const shareImage = 'https://sirevya.com.co/share-sirevya.png';
+function assertSocialMetadata(name, html, { url, title, description }) {
+  const exactTags = [
+    `<link rel="canonical" href="${url}">`,
+    '<meta property="og:type" content="website">',
+    '<meta property="og:site_name" content="Sirevya">',
+    `<meta property="og:title" content="${title}">`,
+    `<meta property="og:description" content="${description}">`,
+    `<meta property="og:url" content="${url}">`,
+    '<meta property="og:locale" content="es_CO">',
+    `<meta property="og:image" content="${shareImage}">`,
+    '<meta property="og:image:width" content="1200">',
+    '<meta property="og:image:height" content="630">',
+    '<meta property="og:image:alt" content="Sirevya, moda y accesorios">',
+    '<meta name="twitter:card" content="summary_large_image">',
+    `<meta name="twitter:title" content="${title}">`,
+    `<meta name="twitter:description" content="${description}">`,
+    `<meta name="twitter:image" content="${shareImage}">`,
+    '<meta name="twitter:image:alt" content="Sirevya, moda y accesorios">',
+  ];
+  for (const tag of exactTags) {
+    assert.equal((html.split(tag).length - 1), 1, `${name} debe incluir una sola vez: ${tag}`);
+  }
+  assert.equal((html.match(/<link rel="canonical"/g) || []).length, 1, `${name} no debe tener canonicals duplicados.`);
+  assert.equal((html.match(/<meta property="og:url"/g) || []).length, 1, `${name} no debe tener og:url duplicados.`);
+}
+
+assertSocialMetadata('privacy', privacyHtml, {
+  url: 'https://sirevya.com.co/politica-privacidad.html',
+  title: 'Sirevya | Política de Tratamiento de Datos Personales',
+  description: 'Consulta la Política de Tratamiento de Datos Personales de Sirevya y los canales disponibles para presentar solicitudes relacionadas con tus datos.',
+});
+assertSocialMetadata('faq', faqHtml, {
+  url: 'https://sirevya.com.co/preguntas-frecuentes.html',
+  title: 'Sirevya | Preguntas frecuentes',
+  description: 'Respuestas sobre el catálogo Sirevya, la información de productos y las opciones que se muestran en el checkout.',
+});
+
 for (const [name, html] of [['privacy', privacyHtml], ['faq', faqHtml]]) {
-  assert.doesNotMatch(html, /<script\b|<iframe\b|https?:\/\//i, `${name} no carga scripts, iframes ni recursos externos.`);
+  assert.doesNotMatch(html, /<script\b|<iframe\b/i, `${name} permanece como HTML estático sin JS ni iframes.`);
+  assert.doesNotMatch(html, /<(?:img|script|iframe|source|audio|video)\b[^>]*\b(?:src|href)\s*=\s*["']https?:\/\//i, `${name} no carga recursos activos externos.`);
+  assert.doesNotMatch(html, /<link\b(?=[^>]*rel=["'](?:stylesheet|preload|preconnect)["'])[^>]*href=["']https?:\/\//i, `${name} no importa estilos ni recursos externos.`);
   assert.doesNotMatch(html, /noindex,nofollow/i, `${name} no hereda el bloqueo de indexación exclusivo del preview.`);
 }
 
-console.log('public_policies_regression: OK (texto de privacidad conservado; enlaces de catálogo/checkout; FAQ factual; HTML estático sin recursos externos).');
+console.log('public_policies_regression: OK (texto y enlaces conservados; canonical/OG/Twitter únicos; HTML estático sin recursos activos externos).');
