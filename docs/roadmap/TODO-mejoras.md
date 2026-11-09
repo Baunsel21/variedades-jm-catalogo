@@ -44,6 +44,7 @@ Cada criterio se conserva hasta que exista evidencia en código, Supabase y prue
 ## Fase 4: Descuentos y campañas
 
 - [ ] Cupones pueden activarse por código, porcentaje o valor fijo, vigencia, compra mínima, límite global y límite de uso; el servidor valida/redime atómicamente y el panel muestra uso/expiración.
+  - Candidate #14: fuente de checkout/panel, DDL y Edge están preparados; validaciones Node, TypeScript y parseo PostgreSQL local pasan. La migración no está aplicada, Edge no está desplegada y no hay prueba SQL/concurrente en staging; cupones no están activos.
 - [ ] Calendario de promociones incluye fechas, zona horaria, prioridad, productos/categorías elegibles y copy veraz; popup, combos, cupones y envío no aplican beneficios duplicados a la misma unidad.
   - Avance funcional: destinos externos del botón de campaña aceptan solo HTTPS; anchors internos aprobados se conservan y HTTP/esquemas no web vuelven al catálogo. El calendario y la validación/redención server-side siguen abiertos.
   - Fail-closed de combos: si falla la carga del RPC, el storefront elimina reglas/descuentos locales obsoletos, re-renderiza carrito, detalle y checkout, y muestra un aviso accesible de que no aplicó descuento adicional. No reemplaza la validación de quote ni activa cupones; prueba sintética registrada en el validador.

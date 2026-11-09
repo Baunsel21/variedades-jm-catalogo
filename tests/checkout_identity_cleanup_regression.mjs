@@ -58,6 +58,7 @@ const context = vm.createContext({
   $: id => id === 'checkoutModal' ? modal : fields[id] || null,
   document: { body },
   checkoutCart: { id: 'synthetic-cart' },
+  clearCheckoutCouponState() {},
 });
 vm.runInContext(`${clearSensitiveSource}\n${closeCheckoutSource}`, context);
 
