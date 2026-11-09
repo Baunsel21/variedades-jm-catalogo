@@ -65,6 +65,7 @@ function element(id, extra = {}) {
 
 function makeContext() {
   const ticker = element('ticker');
+  const tickerCopy = element('tickerCopy');
   const caliBenefit = element('caliBenefit');
   const otherBenefit = element('otherBenefit');
   const cartFoot = element('cartFoot');
@@ -113,7 +114,11 @@ function makeContext() {
     $(id) { return nodes.get(id) ?? null; },
     document: {
       querySelector(selector) { return selectors.get(selector) ?? null; },
-      querySelectorAll(selector) { return selector === '.detailShippingBenefits .detailShippingRule' ? [caliRule, otherRule] : []; },
+      querySelectorAll(selector) {
+        if (selector === '.detailShippingBenefits .detailShippingRule') return [caliRule, otherRule];
+        if (selector === '.jmTickerTrack [data-shipping-policy-copy]') return [tickerCopy];
+        return [];
+      },
     },
     sb: { async rpc() { return rpcResult; } },
     console: { warn() {} },
@@ -130,6 +135,7 @@ function makeContext() {
     setRpcResult(value) { rpcResult = value; },
     nodes,
     ticker,
+    tickerCopy,
     caliBenefit,
     otherBenefit,
     cartFoot,
@@ -156,6 +162,7 @@ const ctx = makeContext();
 ctx.updateStorefrontShippingCopy();
 ctx.updateCartShippingProgress(100000);
 assert.equal(ctx.ticker.textContent, '✦ Consulta la tarifa vigente al seleccionar tu ciudad');
+assert.equal(ctx.tickerCopy.textContent, ctx.ticker.textContent, 'El clone aria-hidden refleja el mismo estado neutral.');
 assert.equal(ctx.caliBenefit.textContent, 'Tarifa por confirmar');
 assert.match(ctx.nodes.get('cartShippingMessage').textContent, /Consultando la tarifa vigente/);
 assert.equal(ctx.track.hidden, true);
@@ -174,6 +181,8 @@ assert.equal(ctx.storefrontShippingDisplayVerified('Otra', ''), false);
 assert.equal(await ctx.loadStorefrontShippingSettings(), true);
 assert.equal(ctx.storefrontShippingSettingsLoaded, true);
 assert.equal(ctx.storefrontShippingSettingsLoadError, false);
+assert.equal(ctx.tickerCopy.textContent, ctx.ticker.textContent, 'El clone se actualiza con el valor retornado por el RPC sintético.');
+assert.equal(ctx.tickerCopy.textContent, '✦ Envío gratis desde $130,000 fuera de Cali');
 assert.equal(ctx.caliBenefit.textContent, 'Envío gratis');
 assert.equal(ctx.localNote.hidden, false);
 ctx.updateCartShippingProgress(130000);
@@ -209,6 +218,7 @@ assert.equal(ctx.track.hidden, true);
 assert.equal(ctx.track.style.display, 'none');
 assert.equal(ctx.track.attributes['aria-hidden'], 'true');
 assert.equal(ctx.caliRule.heading.textContent, 'Tarifa en Cali');
+assert.equal(ctx.tickerCopy.textContent, ctx.ticker.textContent, 'El clone conserva el mensaje de verificación fallida.');
 assert.equal(ctx.caliBenefit.textContent, 'Tarifa por confirmar');
 assert.equal(ctx.localNote.hidden, true);
 
