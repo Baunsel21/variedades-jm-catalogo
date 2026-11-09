@@ -1,0 +1,7 @@
+# Seguridad de cuenta y sesión en el panel
+
+Este slice frontend añade recuperación de contraseña con redirect canónico, validación de contraseña/cuenta, cambio protegido por nivel de Auth, cierre explícito de otras sesiones y guards por usuario/época para cargas y mutaciones administrativas asíncronas. Si la identidad cambia mientras una solicitud está pendiente, la respuesta, el `finally`, los mensajes y los efectos sobre el editor de la cuenta anterior se descartan. Las cargas de fotos mantienen el token/usuario iniciador y no continúan con la sesión de otra cuenta.
+
+La caché local de marca ahora se guarda por `userId`; las claves globales antiguas sin propietario se eliminan y no se migran. Los metadatos explícitamente vacíos limpian la marca/icono. Esto evita que un navegador compartido presente valores de una cuenta anterior a la siguiente.
+
+El trabajo se valida con mocks locales y no cambia esquema, RLS, secretos, redirect allowlist, correo SMTP ni configuración Supabase. MFA-AAL2 solo se comprueba donde es requisito de la operación; no se agrega enrolamiento/gestión de factores ni se da por verificado el runtime de producción. En admin-preview, la identidad y las filas son ficticias y todas las escrituras/Auth real quedan bloqueadas. Antes de activar recovery/cambio de clave/cierre de sesiones en producción se deben verificar las URL/SMTP/Auth policy y hacer un smoke controlado con cuentas de prueba en un entorno aislado.
