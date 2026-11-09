@@ -8,6 +8,7 @@ import { createPreviewServer, DEMO_ADMIN_ROWS, DEMO_PRODUCTS, PREVIEW_ADMIN_CLIE
 
 const html = await renderPreviewHtml();
 const standalonePrivacyHtml = await readFile(new URL('../politica-privacidad.html', import.meta.url), 'utf8');
+const standaloneFaqHtml = await readFile(new URL('../preguntas-frecuentes.html', import.meta.url), 'utf8');
 assert.match(html, /PREVIEW DE DESARROLLO/);
 assert.match(html, /productos, stock y tarifas de envío son datos sintéticos \(no oferta real\)/);
 assert.match(html, /pointer-events:none/);
@@ -24,12 +25,18 @@ assert.doesNotMatch(html, /<script\b[^>]*\bsrc\s*=\s*(["'])(?:https?:)?\/\//i);
 assert.doesNotMatch(html, /<link\b[^>]*\bhref\s*=\s*(["'])(?:https?:)?\/\//i);
 assert.doesNotMatch(html, /<a\b[^>]*\bhref\s*=\s*(["'])(?:https?:\/\/|\/\/|tel:|mailto:|javascript:)/i);
 assert.equal((html.match(/href="\/politica-privacidad\.html"/g) || []).length, 2, 'Catálogo/modal y checkout enlazan la página de privacidad.');
+assert.equal((html.match(/href="\/preguntas-frecuentes\.html"/g) || []).length, 3, 'Catálogo, modal y checkout enlazan la FAQ.');
 for (const section of ['1. Responsable del tratamiento', '2. Datos que podemos recolectar', '3. Finalidades del tratamiento', '4. Autorización', '5. Encargados y terceros', '6. Seguridad', '7. Derechos del titular', '8. Consultas, reclamos y solicitudes', '9. Vigencia y cambios']) {
   assert.ok(html.includes(section), `El modal conserva ${section}.`);
   assert.ok(standalonePrivacyHtml.includes(section), `La página estática publica ${section}.`);
 }
 assert.ok(standalonePrivacyHtml.includes('Esta política es un texto informativo preparado para el funcionamiento actual del catálogo.'));
 assert.doesNotMatch(standalonePrivacyHtml, /<script\b|<iframe\b|https?:\/\//i);
+for (const question of ['¿Cómo encuentro un producto?', '¿Dónde consulto tallas, colores o detalles de un producto?', '¿Cómo se calcula el envío?', '¿Qué medios de pago están disponibles?', '¿Puedo pagar contraentrega?', '¿Cómo contacto a Sirevya?', '¿Puedo consultar precios y disponibilidad sin conexión?']) {
+  assert.ok(standaloneFaqHtml.includes(question), `La FAQ incluye ${question}.`);
+}
+assert.ok(standaloneFaqHtml.includes('Esta guía no reemplaza las políticas comerciales de la tienda.'));
+assert.doesNotMatch(standaloneFaqHtml, /<script\b|<iframe\b|https?:\/\//i);
 
 const adminHtml = await renderPreviewHtml({ mode: 'admin' });
 assert.match(adminHtml, /ADMIN DE PREVIEW/);
@@ -318,6 +325,16 @@ try {
   assert.doesNotMatch(previewPrivacyHtml, /<script\b|<iframe\b|https?:\/\//i);
   assert.equal((await fetch(actualBase + '/politica-privacidad.html', { method: 'POST', body: 'blocked' })).status, 403);
   assert.equal((await fetch(actualBase + '/politica-desconocida.html')).status, 404);
+  const faqResponse = await fetch(actualBase + '/preguntas-frecuentes.html');
+  assert.equal(faqResponse.status, 200);
+  assert.match(faqResponse.headers.get('content-type'), /text\/html/);
+  const previewFaqHtml = await faqResponse.text();
+  assert.match(previewFaqHtml, /PREVIEW DE DESARROLLO/);
+  assert.match(previewFaqHtml, /noindex,nofollow/);
+  assert.match(previewFaqHtml, /¿Cómo se calcula el envío\?/);
+  assert.doesNotMatch(previewFaqHtml, /<script\b|<iframe\b|https?:\/\//i);
+  assert.equal((await fetch(actualBase + '/preguntas-frecuentes.html', { method: 'POST', body: 'blocked' })).status, 403);
+  assert.equal((await fetch(actualBase + '/faq.html')).status, 404);
   const adminResponse = await fetch(actualBase + '/admin-preview');
   assert.equal(adminResponse.status, 200);
   assert.match(await adminResponse.text(), /ADMIN DE PREVIEW/);
@@ -345,7 +362,7 @@ try {
   const routesResponse = await fetch(actualBase + '/manus-routes.json');
   assert.equal(routesResponse.status, 200);
   const routes = await routesResponse.json();
-  assert.deepEqual(routes.routes.map(route => route.path), ['/', '/storefront', '/admin-preview', '/politica-privacidad.html']);
+  assert.deepEqual(routes.routes.map(route => route.path), ['/', '/storefront', '/admin-preview', '/politica-privacidad.html', '/preguntas-frecuentes.html']);
   assert.ok(routes.routes.every(route => typeof route.title === 'string'));
   const versionResponse = await fetch(actualBase + '/__version');
   const version = await versionResponse.json();

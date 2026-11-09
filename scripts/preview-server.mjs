@@ -427,6 +427,10 @@ const PREVIEW_PWA_FILES = new Map([
   ['/assets/pwa/icon-192.png', ['assets/pwa/icon-192.png', 'image/png']],
   ['/assets/pwa/icon-512.png', ['assets/pwa/icon-512.png', 'image/png']],
 ]);
+const PREVIEW_STATIC_PAGES = new Map([
+  ['/politica-privacidad.html', 'politica-privacidad.html'],
+  ['/preguntas-frecuentes.html', 'preguntas-frecuentes.html'],
+]);
 
 export function createPreviewServer({ root = ROOT, versionProvider = () => getVersion(root) } = {}) {
   return createServer(async (req, res) => {
@@ -472,18 +476,20 @@ export function createPreviewServer({ root = ROOT, versionProvider = () => getVe
       try { return send(res, 200, 'application/json; charset=utf-8', await readFile(path.join(root, 'manus-routes.json'), 'utf8'), headOnly); }
       catch { return send(res, 404, 'application/json; charset=utf-8', JSON.stringify({ error: 'Route manifest unavailable' }), headOnly); }
     }
-    if (url.pathname === '/politica-privacidad.html') {
+    if (PREVIEW_STATIC_PAGES.has(url.pathname)) {
+      const pageFile = PREVIEW_STATIC_PAGES.get(url.pathname);
       try {
-        let policyHtml = await readFile(path.join(root, 'politica-privacidad.html'), 'utf8');
-        if ((policyHtml.match(/<head\b/gi) || []).length !== 1 || (policyHtml.match(/<body\b/gi) || []).length !== 1) throw new Error('Estructura HTML no permitida.');
-        if (/<script\b|<iframe\b|https?:\/\/|\b(?:src|href)\s*=\s*(["'])\s*(?:\/\/|(?:data|javascript|mailto|tel):)/i.test(policyHtml)) throw new Error('Contenido activo o externo no permitido.');
-        policyHtml = policyHtml.replace(/<head\b[^>]*>/i, tag => `${tag}<meta name="robots" content="noindex,nofollow">`);
-        const banner = `<aside id="previewSafetyBanner" role="status" style="position:relative;z-index:9999;padding:10px 14px;background:#37131d;color:#fff;border-bottom:2px solid #dca45f;text-align:center;font:700 13px/1.4 system-ui"><strong>PREVIEW DE DESARROLLO</strong> · GitHub <code>${escapeHtml(versionProvider().branch)}@${escapeHtml(versionProvider().commit)}</code> · pagos, pedidos, reservas y cambios reales están deshabilitados.</aside>`;
-        policyHtml = policyHtml.replace(/<body\b[^>]*>/i, tag => `${tag}${banner}`);
-        return send(res, 200, 'text/html; charset=utf-8', policyHtml, headOnly);
+        let pageHtml = await readFile(path.join(root, pageFile), 'utf8');
+        if ((pageHtml.match(/<head\b/gi) || []).length !== 1 || (pageHtml.match(/<body\b/gi) || []).length !== 1) throw new Error('Estructura HTML no permitida.');
+        if (/<script\b|<iframe\b|https?:\/\/|\b(?:src|href)\s*=\s*(["'])\s*(?:\/\/|(?:data|javascript|mailto|tel):)/i.test(pageHtml)) throw new Error('Contenido activo o externo no permitido.');
+        const version = versionProvider();
+        pageHtml = pageHtml.replace(/<head\b[^>]*>/i, tag => `${tag}<meta name="robots" content="noindex,nofollow">`);
+        const banner = `<aside id="previewSafetyBanner" role="status" style="position:relative;z-index:9999;padding:10px 14px;background:#37131d;color:#fff;border-bottom:2px solid #dca45f;text-align:center;font:700 13px/1.4 system-ui"><strong>PREVIEW DE DESARROLLO</strong> · GitHub <code>${escapeHtml(version.branch)}@${escapeHtml(version.commit)}</code> · productos, stock y tarifas son sintéticos; pagos, pedidos, reservas y cambios reales están deshabilitados.</aside>`;
+        pageHtml = pageHtml.replace(/<body\b[^>]*>/i, tag => `${tag}${banner}`);
+        return send(res, 200, 'text/html; charset=utf-8', pageHtml, headOnly);
       } catch (error) {
-        console.error('[preview] privacy page unavailable:', error.message);
-        return send(res, 500, 'text/plain; charset=utf-8', 'Página de privacidad del preview no disponible.');
+        console.error(`[preview] static page ${url.pathname} unavailable:`, error.message);
+        return send(res, 500, 'text/plain; charset=utf-8', 'Página estática del preview no disponible.', headOnly);
       }
     }
     if (url.pathname === '/') {

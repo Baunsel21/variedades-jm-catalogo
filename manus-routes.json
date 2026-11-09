@@ -3,6 +3,7 @@
     { "path": "/", "title": "Preview de desarrollo" },
     { "path": "/storefront", "title": "Tienda · Preview" },
     { "path": "/admin-preview", "title": "Administración · Preview" },
-    { "path": "/politica-privacidad.html", "title": "Privacidad y datos personales · Preview" }
+    { "path": "/politica-privacidad.html", "title": "Privacidad y datos personales · Preview" },
+    { "path": "/preguntas-frecuentes.html", "title": "Preguntas frecuentes · Preview" }
   ]
 }
