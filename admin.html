@@ -656,7 +656,7 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
             <div id="categoryManager"></div>
           </div>
           <div class="box"><h3>🎨 Apariencia</h3><button class="softbtn" onclick="toggleCompact()">Cambiar modo compacto</button><p class="muted" style="font-size:12px">La preferencia queda guardada en este dispositivo.</p></div>
-          <div class="box"><h3>💾 Copia de respaldo</h3><p class="muted">Descarga una copia de las tablas disponibles y sus referencias a imágenes. Las fotos binarias de R2 no se incluyen; para borrar productos en lote, conserva además una copia de las fotografías necesarias.</p><button class="primary" onclick="exportBackup(event)">⬇️ Descargar respaldo JSON</button><button class="softbtn" style="margin-left:6px" onclick="exportCSV()">📄 Exportar inventario CSV</button></div>
+          <div class="box"><h3>💾 Copia de respaldo</h3><p class="muted">Descarga una copia de las tablas disponibles y sus referencias a imágenes. Las fotos binarias de R2 no se incluyen; para borrar productos en lote, conserva además una copia de las fotografías necesarias.</p><button class="primary" onclick="exportBackup(event)">⬇️ Descargar respaldo JSON</button><button class="softbtn" style="margin-left:6px" onclick="exportCSV()">📄 Exportar inventario CSV</button><button type="button" class="softbtn" style="margin-left:6px;margin-top:6px" onclick="exportCSVForPreview()" title="Descarga local; no importa ni guarda cambios">CSV para vista previa</button></div>
           <div class="box"><h3>🔐 Sesión</h3><p class="muted">Cuenta actualmente conectada:</p><b id="accountEmail">—</b><div style="margin-top:12px"><button class="dangerbtn" onclick="logout()">Cerrar sesión</button></div></div>
           <div class="box" style="grid-column:1/-1;border-color:#e7d8b0"><h3>🗄️ Archivo seguro de ventas</h3>
             <p class="muted">Las ventas de prueba ya no se borran. Se marcan como archivadas, dejan de aparecer en los reportes y pueden restaurarse desde este panel.</p>
@@ -3480,6 +3480,19 @@ function exportCSV(){
  const lines=[head,...productos.map(p=>[p.code,p.name,p.category,p.quantity,p.cost_price,p.sale_price,Number(p.sale_price)-Number(p.cost_price),p.location||""])]
    .map(r=>r.map(safeCSVCell).join(";")).join("\n");
  downloadFile("variedades_jm_inventario.csv","\uFEFF"+lines,"text/csv;charset=utf-8");toast("CSV descargado");
+}
+function exportCSVForPreview(){
+ if(!adminSessionAuthorized){toast('Inicia sesión para exportar el catálogo.');return false}
+ if(!Array.isArray(productos)){toast('No hay un catálogo cargado para exportar.');return false}
+ if(productos.length>10_000){toast('El CSV de vista previa admite hasta 10.000 productos; sigue disponible la exportación de inventario completa.');return false}
+ const head=['code','name','category','cost','sale_price','quantity'];
+ const rows=productos.map(p=>[p?.code??'',p?.name??'',p?.category??'',p?.cost_price??'',p?.sale_price??'',p?.quantity??'']);
+ const content=[head,...rows].map(row=>row.map(safeCSVCell).join(',')).join('\r\n');
+ const output='\uFEFF'+content;
+ if(new TextEncoder().encode(output).byteLength>5*1024*1024){toast('El CSV de vista previa supera el límite de 5 MiB; sigue disponible la exportación de inventario completa.');return false}
+ downloadFile('sirevya_productos_vista_previa.csv',output,'text/csv;charset=utf-8');
+ toast(`CSV básico descargado (${rows.length} productos); solo para vista previa, sin fotos/variantes ni cambios en Supabase.`);
+ return true;
 }
 function downloadFile(name,text,type){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
 function toggleCompact(){document.body.classList.toggle("compact");localStorage.setItem("jm_compact",document.body.classList.contains("compact"));toast("Apariencia actualizada")}
