@@ -68,7 +68,7 @@ Cada criterio se conserva hasta que exista evidencia en código, Supabase y prue
   - Verificado: el reporte se construye en memoria, redacciona cabeceras desconocidas, neutraliza fórmulas, conserva todas las columnas CSV y solo incluye conteos/detalles de error. Regresión UI, contrato de exportación, parser dry-run y validador PASS; Chromium sin overflow a 502/1280 px.
 - [ ] Los reportes filtran por rango, ciudad, categoría y método; ventas/ganancia/envíos/descuentos concilian con tablas canónicas y se indica cuándo los datos están incompletos.
 - [ ] Backup documenta qué incluye, excluye o no restaura, minimiza PII y verifica archivos R2/manifest; la exportación CSV continúa neutralizando fórmulas. Archivado de ventas sigue reversible.
-  - Avance parcial: `docs/deployment/supabase-backup-restore-preflight.md` define exportación lógica CLI, manifiesto/checksums y restauración local aislada PostgreSQL 17. No se exportaron datos ni se hizo el ensayo; el proyecto es Free y este Sandbox no tiene Supabase CLI/Docker. El criterio completo sigue abierto hasta demostrar backup y restore.
+  - Avance parcial: el runbook documenta CLI v3 (`--remote`), filtros/limitaciones, comandos dump/restore y gate; el proyecto es Free. Smoke test sintético de dump/restore pasó en PG16 local con 2 filas y SHA-256, y eliminó las bases/dumps temporales. No se exportó ni restauró Sirevya: aún faltan CLI, Docker, PG17 y URI privada de solo lectura en un PC confiable; el criterio sigue abierto.
 
 ## Fase 8: Confianza, SEO y rendimiento
 
