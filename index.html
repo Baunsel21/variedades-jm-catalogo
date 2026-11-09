@@ -1671,6 +1671,10 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
 @media(prefers-reduced-motion:reduce){.detailComboChoices{scroll-behavior:auto!important;}.detailRelatedDot{transition:none!important;}}
 </style>
 
+
+<style id="sirevyaCouponCheckoutStyles">
+.checkoutCouponBox{margin:12px 0 4px;padding:13px;border:1px solid #ead9cb;border-radius:14px;background:#fffaf3;color:#352923}.checkoutCouponTitle{margin:0 0 4px;color:#7b1730;font-size:14px;font-weight:900}.checkoutCouponHelp{margin:0 0 9px;color:#796b62;font-size:11px;line-height:1.4}.checkoutCouponRow{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:7px;align-items:end}.checkoutCouponRow label{display:flex;flex-direction:column;gap:5px;color:#51443c;font-size:12px;font-weight:800}.checkoutCouponRow input{width:100%;min-width:0;border:1px solid #ded0c6;border-radius:10px;padding:10px 11px;background:#fff;color:#302822;text-transform:uppercase;letter-spacing:.06em}.checkoutCouponRow button{border:1px solid #7b1730;border-radius:10px;padding:10px 12px;background:#7b1730;color:#fff;font-size:12px;font-weight:900}.checkoutCouponRow button[data-coupon-action="remove"]{background:#fff;color:#7b1730;border-color:#cfaeba}.checkoutCouponRow button:disabled{opacity:.55;cursor:not-allowed}.checkoutCouponStatus{min-height:17px;margin-top:8px;color:#796b62;font-size:11px;line-height:1.4}.checkoutCouponStatus[data-kind="success"]{color:#16845d;font-weight:800}.checkoutCouponStatus[data-kind="error"]{color:#a51d3b;font-weight:800}.checkoutCouponStatus[data-kind="pending"]{color:#7b1730;font-weight:800}.checkoutTotalsBreakdown{display:grid;gap:5px;margin-top:11px;padding:10px 0;border-top:1px solid #eee3dc;color:#76685f;font-size:12px}.checkoutTotalsBreakdown>div{display:flex;justify-content:space-between;gap:12px}.checkoutTotalsBreakdown strong{color:#7b1730}.checkoutTotalsBreakdown [hidden]{display:none!important}.checkoutCouponBox [hidden]{display:none!important}@media(max-width:430px){.checkoutCouponRow{grid-template-columns:1fr 1fr}.checkoutCouponRow label{grid-column:1/-1}.checkoutCouponRow button{width:100%}}
+</style>
 </head>
 <body>
 <header class="top">
@@ -1811,6 +1815,16 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
       <label for="customerAddress">Dirección *</label><input id="customerAddress" type="text" autocomplete="street-address" placeholder="Calle, carrera, número, etc." required aria-describedby="checkoutErrorCustomerAddress"><small id="checkoutErrorCustomerAddress" class="checkoutFieldError"></small>
       <label for="customerNeighborhood">Barrio / referencia *</label><input id="customerNeighborhood" type="text" placeholder="Barrio, conjunto o referencia" required aria-describedby="checkoutErrorCustomerNeighborhood"><small id="checkoutErrorCustomerNeighborhood" class="checkoutFieldError"></small>
       <div class="shippingBox"><div class="shippingLine"><span>🚚 Envío</span><span id="shippingValue">Selecciona una ciudad</span></div><div id="shippingNote" class="shippingSmall">La tarifa se confirma al verificar la configuración vigente.</div></div>
+      <section id="checkoutCouponBox" class="checkoutCouponBox" aria-labelledby="checkoutCouponTitle">
+        <h3 id="checkoutCouponTitle" class="checkoutCouponTitle">🏷️ ¿Tienes un cupón?</h3>
+        <p class="checkoutCouponHelp">Un cupón por carrito. No se combina con descuentos de combo. El servidor cotiza descuento y envío; el límite por cliente se confirma al reservar.</p>
+        <div class="checkoutCouponRow">
+          <label for="couponCode">Código del cupón<input id="couponCode" type="text" inputmode="text" autocomplete="off" maxlength="64" placeholder="EJ. BIENVENIDA" aria-describedby="couponStatus"></label>
+          <button type="button" data-coupon-action="apply" onclick="applyCheckoutCoupon()">Aplicar</button>
+          <button type="button" data-coupon-action="remove" onclick="removeCheckoutCoupon()">Quitar</button>
+        </div>
+        <div id="couponStatus" class="checkoutCouponStatus" role="status" aria-live="polite">Ingresa un código y pulsa Aplicar.</div>
+      </section>
       <label>Forma de pago</label>
       <div class="paymentOptions">
         <label class="paymentOption onlinePaymentOption"><input type="radio" name="paymentMethod" value="PSE" checked> 🏦 <span><b>Pago en línea · PSE o Nequi</b><small>Continuar a Wompi para elegir el medio disponible.</small></span></label>
@@ -1822,6 +1836,12 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
         <div id="checkoutSummaryItems" class="checkoutSummaryItems"></div>
         <div class="checkoutSummaryFoot">Verifica producto, talla y color antes de confirmar el pedido.</div>
       </section>
+<div id="checkoutTotalsBreakdown" class="checkoutTotalsBreakdown" aria-live="polite">
+        <div><span>Subtotal</span><strong id="checkoutSubtotal">$0</strong></div>
+        <div id="checkoutDiscountTotalRow" hidden><span id="checkoutDiscountTotalLabel">Descuentos</span><strong id="checkoutDiscountTotal">−$0</strong></div>
+        <div id="checkoutCouponDiscountRow" hidden><span>Descuento cupón</span><strong id="checkoutCouponDiscount">−$0</strong></div>
+        <div><span>Envío</span><strong id="checkoutShippingTotal">$0</strong></div>
+      </div>
 <div class="checkoutTotal"><span>Total</span><span id="checkoutTotal">Por verificar</span></div>
       <div class="checkoutActions"><button class="checkoutCancel" type="button" onclick="closeCheckout()">Cancelar</button><button id="checkoutConfirmBtn" class="checkoutConfirm" type="button" onclick="confirmCheckout()">✅ Confirmar pedido</button></div>
     </div>
@@ -1978,6 +1998,161 @@ let storefrontShippingSettingsPromise=null;
 let storefrontShippingSettingsRefreshPending=false;
 let storefrontShippingSettingsLoadError=false;
 let checkoutShipping=0;
+// El cupón y su cotización viven únicamente durante esta sesión de checkout.
+// No se escriben en localStorage, URL ni mensajes de diagnóstico.
+let checkoutCouponCode='';
+let checkoutCouponQuote=null;
+let checkoutCouponQuoteFingerprint='';
+let checkoutCouponQuoteRequiresConfirmation=false;
+let checkoutCouponRequestToken=0;
+let checkoutCouponReservationReference='',checkoutCouponReservationFingerprint='';
+let checkoutServerQuote=null;
+let checkoutServerQuoteFingerprint='';
+
+function normalizeCheckoutCouponCode(value){return String(value??'').trim().toUpperCase()}
+function checkoutQuoteItems(items=getCheckoutItems()){return (Array.isArray(items)?items:[]).map(x=>({id:String(x?.id??''),qty:Math.max(1,Number(x?.qty)||1),color:String(x?.color||'').trim(),size:String(x?.size||'').trim()}))}
+function getCheckoutQuoteFingerprint(items=getCheckoutItems(),code=checkoutCouponCode){
+ const email=String($('customerEmail')?.value||'').trim().toLocaleLowerCase('es-CO');
+ const phone=String($('customerPhone')?.value||'').trim();
+ const city=String(checkoutCityValue()||'').trim().toLocaleLowerCase('es-CO');
+ return JSON.stringify({items:checkoutQuoteItems(items),city,email,phone,code:normalizeCheckoutCouponCode(code)});
+}
+function currentCheckoutCouponQuote(){
+ if(!checkoutCouponQuote)return null;
+ return checkoutCouponQuoteFingerprint===getCheckoutQuoteFingerprint(getCheckoutItems(),checkoutCouponCode)?checkoutCouponQuote:null;
+}
+function currentCheckoutServerQuote(){
+ if(!checkoutServerQuote)return null;
+ return checkoutServerQuoteFingerprint===getCheckoutQuoteFingerprint(getCheckoutItems(),'')?checkoutServerQuote:null;
+}
+function setCheckoutServerQuote(quote,items=getCheckoutItems()){
+ checkoutServerQuote=quote;checkoutServerQuoteFingerprint=getCheckoutQuoteFingerprint(items,'');
+ const shipping=Number(quote?.shipping);if(Number.isSafeInteger(shipping)&&shipping>=0)checkoutShipping=shipping;
+}
+function clearCheckoutServerQuote(){checkoutServerQuote=null;checkoutServerQuoteFingerprint='';}
+function setCheckoutCouponStatus(message,kind=''){
+ const el=$('couponStatus');if(!el)return;el.textContent=String(message||'');if(kind)el.dataset.kind=kind;else el.removeAttribute('data-kind');
+}
+function invalidateCheckoutCouponQuote(message='Los datos cambiaron. Vuelve a aplicar el cupón para verificar el descuento.') {
+ checkoutCouponQuote=null;checkoutCouponQuoteFingerprint='';checkoutCouponQuoteRequiresConfirmation=false;checkoutCouponReservationReference='';checkoutCouponReservationFingerprint='';
+ clearCheckoutServerQuote();
+ checkoutCouponCode=normalizeCheckoutCouponCode($('couponCode')?.value||checkoutCouponCode);
+ setCheckoutCouponStatus(checkoutCouponCode?message:'Ingresa un código y pulsa Aplicar.');
+}
+function clearCheckoutCouponState(clearInput=true){
+ checkoutCouponRequestToken++;checkoutCouponCode='';checkoutCouponQuote=null;checkoutCouponQuoteFingerprint='';checkoutCouponQuoteRequiresConfirmation=false;checkoutCouponReservationReference='';checkoutCouponReservationFingerprint='';
+ clearCheckoutServerQuote();
+ if(clearInput&&$('couponCode'))$('couponCode').value='';
+ setCheckoutCouponStatus('Ingresa un código y pulsa Aplicar.');
+}
+function setCheckoutCouponQuote(quote,requiresConfirmation=false){
+ clearCheckoutServerQuote();
+ checkoutCouponQuote=quote;checkoutCouponQuoteFingerprint=getCheckoutQuoteFingerprint(getCheckoutItems(),checkoutCouponCode);checkoutCouponQuoteRequiresConfirmation=!!requiresConfirmation;
+ const shipping=Number(quote?.shipping);if(Number.isSafeInteger(shipping)&&shipping>=0)checkoutShipping=shipping;
+}
+function quoteLineItemsForCheckout(quote,items=getCheckoutItems()){
+ const raw=Array.isArray(quote?._lineItems)?quote._lineItems:[];
+ return (Array.isArray(items)?items:[]).map((item,index)=>{
+  const byId=raw.find(line=>String(line?.id??line?.product_id??'')===String(item?.id??'')&&(!String(item?.color||'')||String(line?.color||'')===String(item?.color||''))&&(!String(item?.size||'')||String(line?.size||'')===String(item?.size||'')));
+  const serverLine=byId||raw[index]||{};
+  const qty=Math.max(1,Number(item?.qty)||1);
+  const unitPrice=Math.max(0,Number(serverLine.unit_price??serverLine.price??serverLine.sale_price??comboPriceForItem(item))||0);
+  const originalSubtotal=Math.max(0,Number(serverLine.original_subtotal??serverLine.gross_subtotal??serverLine.subtotal_before_discount??(unitPrice*qty))||0);
+  const discountTotal=Math.max(0,Number(serverLine.discount_total??serverLine.line_discount_total??0)||0);
+  const couponDiscountTotal=Math.max(0,Number(serverLine.coupon_discount_total??0)||0);
+  const netSubtotal=Math.max(0,Number(serverLine.net_subtotal??(originalSubtotal-discountTotal))||0);
+  return {index,item,product:productos.find(row=>String(row.id)===String(item?.id))||null,qty,unitPrice,originalSubtotal,discountTotal,couponDiscountTotal,netSubtotal,lineDiscount:discountTotal};
+ });
+}
+function normalizeCheckoutQuote(raw){
+ const row=Array.isArray(raw)?raw[0]:raw;
+ const source=row&&typeof row.quote==='object'&&row.quote?row.quote:row;
+ if(!source||typeof source!=='object')return source;
+ const lineItems=Array.isArray(source.line_items)?source.line_items:Array.isArray(source.lines)?source.lines:(Array.isArray(source.items)&&source.items.some(x=>x&&('net_subtotal' in x||'discount_total' in x||'coupon_discount_total' in x))?source.items:[]);
+ return {...source,_lineItems:lineItems};
+}
+function quoteErrorMessage(row,error,withCoupon=false){
+ const code=String(row?.coupon_error_code||row?.coupon_status||row?.error_code||row?.code||error?.code||'').toLowerCase();
+ const text=String(row?.message||row?.error||error?.message||'').toLowerCase();
+ if(/pgrst202|could not find the function|function .* does not exist|schema cache/.test(code+' '+text))return withCoupon?'Falta instalar la RPC de cupones en Supabase. El cupón no se aplicó y no se registró ningún pedido.':'Falta instalar la RPC de cotización en Supabase.';
+ if(/expired|vencid|inactive|inactiv|not[_ -]?started|not[_ -]?active/.test(code+' '+text))return 'El cupón está vencido o todavía no está activo.';
+ if(/minimum|minim|subtotal/.test(code+' '+text))return 'El cupón requiere un mínimo de compra que este carrito no alcanza.';
+ if(/customer_required|correo.*tel[eé]fono/.test(code+' '+text))return 'Completa un correo y teléfono válidos para verificar el límite por cliente.';
+ if(/limit|l[ií]mite|quota|cupo|customer/.test(code+' '+text))return 'El cupón alcanzó su límite de uso para la tienda o para este cliente.';
+ if(/combo|conflict|combin|non.?stack|stack/.test(code+' '+text))return 'Este cupón no se puede combinar con el descuento de combo del carrito.';
+ if(/invalid|inval|not[_ -]?found|unknown|does not exist|no existe/.test(code+' '+text))return 'El cupón no es válido.';
+ if(withCoupon)return 'No se pudo validar el cupón. Revisa el código e inténtalo de nuevo.';
+ return String(row?.message||row?.error||error?.message||'No se pudo obtener la cotización vigente.');
+}
+function quoteHasValidTotals(row,withCoupon=false){
+	 if(!row||row.success!==true||row.total==null||row.discount_total==null||row.shipping==null||row.original_subtotal==null||row.discounted_subtotal==null)return false;
+	 if(withCoupon&&(row.coupon_discount_total==null||!String(row.coupon_id||'').trim()||!String(row.coupon_code||'').trim()))return false;
+	 const total=Number(row.total),discount=Number(row.discount_total),shipping=Number(row.shipping);
+	 const original=Number(row.original_subtotal),discounted=Number(row.discounted_subtotal),coupon=Number(row.coupon_discount_total??0);
+	 return Number.isSafeInteger(total)&&total>=0&&Number.isSafeInteger(discount)&&discount>=0&&Number.isSafeInteger(shipping)&&shipping>=0&&
+	  Number.isSafeInteger(original)&&original>=0&&Number.isSafeInteger(discounted)&&discounted>=0&&Number.isSafeInteger(coupon)&&coupon>=0&&
+	  discount<=original&&discounted===original-discount&&total===discounted+shipping&&coupon<=discount&&(!withCoupon||coupon>0);
+}
+async function requestCheckoutQuote(code,items=getCheckoutItems()){
+ const normalized=normalizeCheckoutCouponCode(code);
+ const common={p_items:checkoutQuoteItems(items),p_city:checkoutCityValue()};
+ const rpcName=normalized?'get_storefront_cart_quote_with_coupon':'get_storefront_cart_quote';
+	 const args=normalized?{...common,p_coupon_code:normalized,p_customer_email:'',p_customer_phone:''}:common;
+ const {data,error}=await sb.rpc(rpcName,args);
+ const row=normalizeCheckoutQuote(data);
+ if(error||!quoteHasValidTotals(row,!!normalized)){
+  const failure=new Error(quoteErrorMessage(row,error,!!normalized));failure.quote=row;failure.couponError=!!normalized;throw failure;
+ }
+ row.coupon_discount_total=Math.max(0,Number(row.coupon_discount_total??0)||0);
+ return row;
+}
+function checkoutDisplayPricing(){
+ const couponQuote=currentCheckoutCouponQuote();
+ const quote=couponQuote||currentCheckoutServerQuote();
+ if(!quote){const local=calculateStorefrontComboPricing(getCheckoutItems());return {...local,isCouponQuote:false,couponDiscountTotal:0,total:Math.round(local.subtotal+checkoutShipping)}}
+ const lines=quoteLineItemsForCheckout(quote);
+ const lineOriginal=lines.reduce((sum,line)=>sum+line.originalSubtotal,0);
+ const discountTotal=Math.max(0,Number(quote.discount_total)||0);
+ const originalSubtotal=Number.isFinite(Number(quote.original_subtotal))?Math.max(0,Number(quote.original_subtotal)):lineOriginal||Math.max(0,Number(quote.subtotal)||0)+discountTotal;
+ const subtotalRaw=Number(quote.discounted_subtotal??quote.subtotal??(originalSubtotal-discountTotal));
+ const subtotal=Math.max(0,Number.isFinite(subtotalRaw)?subtotalRaw:originalSubtotal-discountTotal);
+ const shipping=Math.max(0,Number(quote.shipping)||0);
+ const totalRaw=Number(quote.total);
+ const total=Math.max(0,Number.isFinite(totalRaw)?totalRaw:subtotal+shipping);
+ return {lines,originalSubtotal,discountTotal,subtotal,applied:[],isCouponQuote:!!couponQuote,couponDiscountTotal:Math.max(0,Number(quote.coupon_discount_total)||0),shipping,total};
+}
+function applyCheckoutCoupon(){return applyCheckoutCouponAsync()}
+async function applyCheckoutCouponAsync(){
+ const input=$('couponCode'),code=normalizeCheckoutCouponCode(input?.value||'');
+ const items=getCheckoutItems(),selection=$('customerCity')?.value||'',city=checkoutCityValue(),email=String($('customerEmail')?.value||'').trim(),phone=String($('customerPhone')?.value||'').trim();
+ if(!items.length)return setCheckoutCouponStatus('Tu carrito está vacío. Agrega productos antes de aplicar un cupón.','error');
+ if(!code)return setCheckoutCouponStatus('Escribe un código de cupón.','error');
+ if(!email)return setCheckoutCouponStatus('Completa tu correo electrónico antes de aplicar el cupón.','error');
+ if(!$('customerEmail')?.checkValidity())return setCheckoutCouponStatus('Escribe un correo electrónico válido antes de aplicar el cupón.','error');
+ if(!phone)return setCheckoutCouponStatus('Completa tu teléfono antes de aplicar el cupón.','error');
+ if(!selection|| (selection==='Otra'&&!city))return setCheckoutCouponStatus('Selecciona o escribe la ciudad de entrega antes de aplicar el cupón.','error');
+ if(input)input.value=code;checkoutCouponCode=code;checkoutCouponQuote=null;checkoutCouponQuoteFingerprint='';checkoutCouponQuoteRequiresConfirmation=false;
+ const token=++checkoutCouponRequestToken;setCheckoutCouponStatus('Validando el cupón y el envío…','pending');
+ const buttons=[...document.querySelectorAll('[data-coupon-action]')];buttons.forEach(button=>button.disabled=true);
+ try{
+  const quote=await requestCheckoutQuote(code,items);
+  if(token!==checkoutCouponRequestToken||getCheckoutQuoteFingerprint(items,code)!==getCheckoutQuoteFingerprint(getCheckoutItems(),checkoutCouponCode)){setCheckoutCouponStatus('Los datos cambiaron mientras se validaba el cupón. Vuelve a aplicarlo.','error');return;}
+  setCheckoutCouponQuote(quote,false);
+  const discount=Math.max(0,Number(quote.coupon_discount_total)||0);
+  setCheckoutCouponStatus(discount>0?`Cupón cotizado. Descuento: ${money(discount)}; el límite de uso se confirmará al continuar.`:'Cupón válido. La cotización del servidor no aplicó descuento.', 'success');
+  updateShipping();
+ }catch(error){
+  if(token!==checkoutCouponRequestToken)return;
+  checkoutCouponQuote=null;checkoutCouponQuoteFingerprint='';checkoutCouponQuoteRequiresConfirmation=false;
+  setCheckoutCouponStatus(quoteErrorMessage(error?.quote,error,true),'error');
+  updateShipping();
+ }finally{buttons.forEach(button=>button.disabled=false)}
+}
+function removeCheckoutCoupon(){
+ clearCheckoutCouponState(true);
+ updateShipping();
+}
+
 
 function storefrontShippingDestinationKey(value){
  const normalized=normalizeDeliveryCity(value);
@@ -3184,7 +3359,11 @@ async function loadStorefrontProductCombos({force=false}={}){
  if(storefrontProductCombosLoading&&!force)return storefrontProductCombosLoading;
  storefrontProductCombosLoading=(async()=>{
   try{
-   const {data,error}=await sb.rpc('get_public_storefront_product_combos');
+   let response=await sb.rpc('get_public_storefront_product_combos_v2');
+   if(response.error&&(response.error.code==='PGRST202'||response.error.code==='42883'||/get_public_storefront_product_combos_v2.*(schema cache|does not exist|not found)/i.test(String(response.error.message||'')))){
+    response=await sb.rpc('get_public_storefront_product_combos');
+   }
+   const {data,error}=response;
    if(error)throw error;
    storefrontProductCombos=Array.isArray(data)?data:[];
    setStorefrontComboAvailability('ready');
@@ -3605,6 +3784,7 @@ function detailBuyNow(event){
  if(!variants)return;
  const max=Math.max(1,variantStock(detailProduct,variants.color||'',variants.size||''));
  checkoutCart=[{id:detailProduct.id,name:detailProduct.name,code:detailProduct.code,price:Number(detailProduct.sale_price)||0,qty:1,max:max,color:variants.color||'',size:variants.size||''}];
+ clearCheckoutCouponState(true);
  clearCheckoutValidation();
  closeProductDetail();
  updateShipping();
@@ -4091,7 +4271,7 @@ function calculateStorefrontComboPricing(items){
  });
  const originalSubtotal=lines.reduce((sum,line)=>sum+line.originalSubtotal,0);
  const rules=[...(storefrontProductCombos||[])].filter(row=>String(row.discount_type||'none')!=='none')
-  .sort((a,b)=>String(a.created_at||'').localeCompare(String(b.created_at||''))||String(a.id||'').localeCompare(String(b.id||'')));
+  .sort((a,b)=>(Number(b.priority)||0)-(Number(a.priority)||0)||String(a.created_at||'').localeCompare(String(b.created_at||''))||String(a.id||'').localeCompare(String(b.id||'')));
  const applied=[];
  for(const rule of rules){
   let unitsApplied=0,discountApplied=0;
@@ -4201,6 +4381,7 @@ function addToCart(p,event){
 function changeCart(i,d){
  if(!cart[i])return;
  clearPendingWompiReference();
+ invalidateCheckoutCouponQuote();
  cart[i].qty+=d;
  if(cart[i].qty<=0)cart.splice(i,1);
  else if(cart[i].qty>cart[i].max)cart[i].qty=cart[i].max;
@@ -4210,6 +4391,7 @@ function changeCart(i,d){
 }
 function removeCart(i){
  clearPendingWompiReference();
+ invalidateCheckoutCouponQuote();
  cart.splice(i,1);
  saveWompiCart();
  renderCart();
@@ -4297,6 +4479,7 @@ function renderCart(){
 function sendCart(){
  if(!cart.length)return;
  checkoutCart=null;
+ clearCheckoutCouponState(true);
  clearCheckoutValidation();
  hideCart();
  updateShipping();
@@ -4336,6 +4519,7 @@ function clearCheckoutSensitiveFields(){
 function closeCheckout(event){
  if(event&&event.target!==$('checkoutModal'))return;
  clearCheckoutSensitiveFields();
+ clearCheckoutCouponState(true);
  $('checkoutModal').classList.remove('open');checkoutCart=null;document.body.style.overflow='';
 }
 async function refreshOnlinePaymentSetting(options={}){
@@ -4495,6 +4679,7 @@ function handleCityChange(){
  const wrap=$('customerCityOtherWrap'),input=$('customerCityOther');
  if(wrap)wrap.hidden=selected!=='Otra';
  if(input){input.required=selected==='Otra';if(selected!=='Otra')input.value='';}
+ invalidateCheckoutCouponQuote();
  updateShipping();
 }
 function checkoutCityValue(){
@@ -4510,6 +4695,8 @@ function updateShipping(){
  const selectedCity=$('customerCity')?.value||'';
  const city=checkoutCityValue();
  updateContraEntregaAvailability(city);
+ const quote=currentCheckoutCouponQuote()||currentCheckoutServerQuote();
+ const priced=checkoutDisplayPricing();
  if(!storefrontShippingDisplayVerified(selectedCity,city)){
   checkoutShipping=0;
   if($('shippingValue'))$('shippingValue').textContent=!selectedCity?'Selecciona una ciudad':!storefrontShippingSettingsLoaded&&!storefrontShippingSettingsLoadError?'Verificando…':storefrontShippingSettingsLoadError?'No disponible':'Escribe tu ciudad';
@@ -4517,18 +4704,18 @@ function updateShipping(){
   updateCheckoutSummary();
   return;
  }
- const priced=calculateStorefrontComboPricing(getCheckoutItems());
  const productsTotal=priced.subtotal;
  const missingOtherCity=selectedCity==='Otra'&&!city;
  const shippingRule=resolveStorefrontShippingRule(city);
  const threshold=shippingRule.threshold;
  const reachesFreeShipping=threshold!==null&&productsTotal>=Number(threshold);
- checkoutShipping = !selectedCity||missingOtherCity ? 0 : calculateStorefrontShipping(city,productsTotal);
+ checkoutShipping = !selectedCity||missingOtherCity ? 0 : (quote ? Math.max(0,Number(quote.shipping)||0) : calculateStorefrontShipping(city,productsTotal));
  if($('shippingValue'))$('shippingValue').textContent=!selectedCity?'Selecciona una ciudad':missingOtherCity?'Escribe tu ciudad':(checkoutShipping===0?'GRATIS':money(checkoutShipping));
  if($('shippingNote')){
    $('shippingNote').textContent=!selectedCity
-     ?storefrontShippingPolicyText()+' Selecciona tu ciudad para ver el valor exacto.'
+     ?storefrontShippingPolicyText()+' Selecciona una ciudad para ver el valor exacto.'
      :missingOtherCity?'Escribe tu ciudad para calcular la tarifa de envío.'
+     :quote?`La cotización vigente del servidor calcula ${checkoutShipping===0?'envío sin costo':money(checkoutShipping)} para ${city}.`
      :shippingRule.kind==='cali'?'Envío gratis dentro de Cali y sus alias configurados.'
      :shippingRule.fee===0?`El envío para ${city} no tiene costo según la regla vigente.`
      :reachesFreeShipping?`${shippingRule.kind==='fallback'?'La tarifa general':'La regla de envío'} para ${city} ofrece envío gratis desde ${money(threshold)} después de descuentos.`
@@ -4537,8 +4724,7 @@ function updateShipping(){
  updateCheckoutSummary();
 }
 function updateCheckoutSummary(){
- const checkoutItems=getCheckoutItems();
- const priced=calculateStorefrontComboPricing(checkoutItems);
+ const checkoutItems=getCheckoutItems(),priced=checkoutDisplayPricing();
  const summary=$('checkoutItemSummary'),summaryItems=$('checkoutSummaryItems');
  if(summary&&summaryItems){
   if(!checkoutItems.length){summary.hidden=true;summaryItems.innerHTML='';}
@@ -4550,18 +4736,28 @@ function updateCheckoutSummary(){
     const title=esc(item.name||product?.name||'Producto'),color=String(item.color||'').trim()||'No aplica',size=String(item.size||'').trim()||'No aplica';
     const qty=Math.max(1,Number(item.qty)||1),original=line.originalSubtotal,net=line.netSubtotal;
     const image=thumb?`<img class="checkoutSummaryThumb" src="${esc(thumb)}" alt="${title}" loading="lazy" decoding="async" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'checkoutSummaryThumbFallback',textContent:'🛍️'}))">`:'<div class="checkoutSummaryThumbFallback" aria-hidden="true">🛍️</div>';
-    const prices=line.lineDiscount>0?`<div class="checkoutSummaryPriceWrap"><span class="checkoutSummaryOriginal">${money(original)}</span><span class="checkoutSummaryNet">${money(net)}</span><small>−${money(line.lineDiscount)}</small></div>`:`<div class="checkoutSummaryPrice">${money(original)}</div>`;
+    const discount=Math.max(0,Number(line.discountTotal??line.lineDiscount)||0);
+    const prices=discount>0?`<div class="checkoutSummaryPriceWrap"><span class="checkoutSummaryOriginal">${money(original)}</span><span class="checkoutSummaryNet">${money(net)}</span><small>−${money(discount)}</small></div>`:`<div class="checkoutSummaryPrice">${money(original)}</div>`;
     return `<div class="checkoutSummaryItem">${image}<div><div class="checkoutSummaryName">${title}</div><div class="checkoutSummaryVariant">Talla: ${esc(size)} · Color: ${esc(color)} · Cant.: ${qty}</div></div>${prices}</div>`;
    }).join('');
    let discountBox=$('checkoutComboDiscountSummary');
    if(!discountBox){discountBox=document.createElement('div');discountBox.id='checkoutComboDiscountSummary';discountBox.className='checkoutComboDiscountSummary';summaryItems.after(discountBox);}
-   discountBox.hidden=priced.discountTotal<=0;
-   discountBox.innerHTML=priced.discountTotal>0?`<span>Descuento por combo<small>${priced.applied.map(row=>`${esc(row.title)} (${row.units} pareja${row.units===1?'':'s'})`).join(' · ')}</small></span><strong>−${money(priced.discountTotal)}</strong>`:'';
+   discountBox.hidden=priced.isCouponQuote||priced.discountTotal<=0;
+   discountBox.innerHTML=!priced.isCouponQuote&&priced.discountTotal>0?`<span>Descuento por combo<small>${priced.applied.map(row=>`${esc(row.title)} (${row.units} pareja${row.units===1?'':'s'})`).join(' · ')}</small></span><strong>−${money(priced.discountTotal)}</strong>`:'';
   }
  }
  const selectedCity=$('customerCity')?.value||'';
  const city=checkoutCityValue();
- $('checkoutTotal').textContent=storefrontShippingDisplayVerified(selectedCity,city)?money(priced.subtotal+checkoutShipping):'Por verificar';
+ const shippingVerified=storefrontShippingDisplayVerified(selectedCity,city);
+ const subtotal=Math.max(0,Number(priced.originalSubtotal)||0);
+ const couponDiscount=priced.isCouponQuote?Math.max(0,Number(priced.couponDiscountTotal)||0):0;
+ const discountRow=$('checkoutDiscountTotalRow'),discountLabel=$('checkoutDiscountTotalLabel'),discountValue=$('checkoutDiscountTotal');
+ if($('checkoutSubtotal'))$('checkoutSubtotal').textContent=money(subtotal);
+ if(discountRow){discountRow.hidden=priced.isCouponQuote||priced.discountTotal<=0;if(discountLabel)discountLabel.textContent='Descuentos combo';if(discountValue)discountValue.textContent='−'+money(priced.discountTotal);}
+ const couponRow=$('checkoutCouponDiscountRow');if(couponRow){couponRow.hidden=!priced.isCouponQuote||couponDiscount<=0;if($('checkoutCouponDiscount'))$('checkoutCouponDiscount').textContent='−'+money(couponDiscount);}
+ if($('checkoutShippingTotal'))$('checkoutShippingTotal').textContent=shippingVerified?(checkoutShipping===0?'GRATIS':money(checkoutShipping)):'Por verificar';
+ const total=priced.isCouponQuote?Math.max(0,Number(priced.total)||0):Math.max(0,Number(priced.subtotal)||0)+checkoutShipping;
+ if($('checkoutTotal'))$('checkoutTotal').textContent=shippingVerified?money(total):'Por verificar';
 }
 function selectedPayment(){
  return document.querySelector('input[name="paymentMethod"]:checked:not(:disabled)')?.value||'';
@@ -4580,10 +4776,13 @@ function getRegion(city){
 function buildOrderPayload(){
  const name=$('customerName').value.trim(),cedula=$('customerCedula').value.trim(),cedulaType=$('customerCedulaType').value,phone=$('customerPhone').value.trim(),
        email=$('customerEmail').value.trim(),city=checkoutCityValue(),address=$('customerAddress').value.trim(),
-       neighborhood=$('customerNeighborhood').value.trim();
+       neighborhood=$('customerNeighborhood').value.trim(),couponCode=normalizeCheckoutCouponCode($('couponCode')?.value||checkoutCouponCode),
+       couponQuote=currentCheckoutCouponQuote();
  const payload={name,cedula,cedula_type:cedulaType,phone,email,city,address,neighborhood,payment:selectedPayment(),
          environment:'production',
          shipping:checkoutShipping,
+         coupon_code:couponCode,
+         expected_coupon_discount_total:couponQuote?Math.max(0,Number(couponQuote.coupon_discount_total)||0):0,
          items:getCheckoutItems().map(x=>({id:x.id,name:x.name,code:x.code,qty:x.qty,price:comboPriceForItem(x),color:x.color||'',size:x.size||''}))};
 
  // No reutilizar la referencia anterior de Wompi. La reserva del inventario
@@ -4633,6 +4832,7 @@ async function payWithWompi(payload){
  await refreshOnlinePaymentSetting({silent:true});
  syncPaymentOptions();
  if(!onlinePaymentsEnabled){showToast('Los pagos en línea están desactivados. Selecciona pago contraentrega en una ciudad habilitada.');resetWompiButton();return;}
+ if(!Number.isSafeInteger(Math.round(Number(payload.expected_total)))||Math.round(Number(payload.expected_total))<=0){showToast('Wompi no permite un total de $0. Elige contraentrega si está habilitada para esta ciudad.');resetWompiButton();return;}
  // Web Checkout debe iniciarse desde la página segura publicada, no desde una
  // copia abierta como content:// o file:// en el administrador de descargas.
  if(location.protocol!=='https:' || !location.hostname){
@@ -4663,35 +4863,42 @@ async function payWithWompi(payload){
 
   // Fuente autoritativa de precios/descuentos. Si falta la migración, no abrimos Wompi
   // ni dejamos al cliente expuesto a un importe distinto del mostrado en el carrito.
-  const {data:comboQuote,error:comboQuoteError}=await sb.rpc('get_storefront_cart_quote',{
-    p_items:checkoutItems.map(x=>({id:String(x.id),qty:Math.max(1,Number(x.qty)||1),color:String(x.color||''),size:String(x.size||'')})),
-    p_city:String(payload.city||'')
-  });
-  if(comboQuoteError)throw new Error('No se pudo verificar el total promocional en Supabase; no se abrió Wompi. Verifica la migración de descuentos y vuelve a intentar. '+String(comboQuoteError.message||''));
-  authoritativeComboQuote=comboQuote;
-  if(!authoritativeComboQuote||authoritativeComboQuote.success!==true||authoritativeComboQuote.total==null||authoritativeComboQuote.discount_total==null||authoritativeComboQuote.shipping==null||
-     !Number.isFinite(Number(authoritativeComboQuote.total))||!Number.isFinite(Number(authoritativeComboQuote.discount_total))||!Number.isFinite(Number(authoritativeComboQuote.shipping)))
-   throw new Error('Supabase no devolvió una cotización completa y válida; no se abrió Wompi.');
-  const localPricing=calculateStorefrontComboPricing(checkoutItems);
+  const couponCode=normalizeCheckoutCouponCode(payload.coupon_code);
+  const authoritativeComboQuote=await requestCheckoutQuote(couponCode,checkoutItems);
   const quotedShipping=Number(authoritativeComboQuote.shipping);
   const quotedTotal=Math.round(Number(authoritativeComboQuote.total));
   const quotedDiscount=Math.round(Number(authoritativeComboQuote.discount_total));
-  const visibleTotal=Math.round(localPricing.subtotal+checkoutShipping);
-  if(!Number.isSafeInteger(quotedShipping)||quotedShipping<0||quotedTotal!==visibleTotal||Math.round(localPricing.discountTotal)!==quotedDiscount){
-   if(Number.isSafeInteger(quotedShipping)&&quotedShipping>=0)checkoutShipping=quotedShipping;
-   updateCheckoutSummary();
-   throw new Error('Cambió la tarifa de envío o una promoción después de confirmar. Revisa el total actualizado y vuelve a pulsar Confirmar; no se abrió Wompi.');
+  const quotedCouponDiscount=Math.round(Number(authoritativeComboQuote.coupon_discount_total)||0);
+  const visibleTotal=Math.round(Number(payload.expected_total));
+  const visibleDiscount=Math.round(Number(payload.expected_discount_total)||0);
+  const visibleCouponDiscount=Math.round(Number(payload.expected_coupon_discount_total)||0);
+  if(!Number.isSafeInteger(quotedShipping)||quotedShipping<0||!Number.isSafeInteger(quotedTotal)||quotedTotal<0||
+     quotedTotal!==visibleTotal||quotedShipping!==Math.round(Number(payload.shipping)||0)||quotedDiscount!==visibleDiscount||quotedCouponDiscount!==visibleCouponDiscount){
+   if(couponCode){setCheckoutCouponQuote(authoritativeComboQuote,true);setCheckoutCouponStatus('El cupón, el envío o el total cambiaron. Revisa la cotización y confirma nuevamente.','error');}
+   else if(Number.isSafeInteger(quotedShipping)&&quotedShipping>=0)checkoutShipping=quotedShipping;
+   updateShipping();
+   throw new Error('Cambió la tarifa de envío o el descuento después de confirmar. Revisa el total actualizado y vuelve a pulsar Confirmar; no se abrió Wompi.');
   }
+  if(quotedTotal<=0)throw new Error('Wompi no permite un total de $0. Elige contraentrega si está habilitada para esta ciudad.');
+  if(couponCode){setCheckoutCouponQuote(authoritativeComboQuote,false);setCheckoutCouponStatus(quotedCouponDiscount>0?`Cupón aplicado. Descuento: ${money(quotedCouponDiscount)}.`:'Cupón validado por el servidor.','success');}
   payload.shipping=quotedShipping;
-  payload.storefront_pricing_version='combo-discounts-v1';
+  payload.storefront_pricing_version=couponCode?'coupon-discounts-v1':'combo-discounts-v1';
   payload.expected_total=quotedTotal;
   payload.expected_discount_total=quotedDiscount;
+  payload.expected_coupon_discount_total=quotedCouponDiscount;
 
   const storedReference=getActiveReservationReference()||getPendingWompiReference()||'';
   const storedItems=getActiveReservationItems();
-  const matchingRecord=(storedReference&&reservationItemsMatch(storedItems,checkoutItems))
-    ? findReservationRecordByReference(storedReference)
-    : findReservationRecordForItems(checkoutItems);
+  const couponReservationFingerprint=couponCode?getCheckoutQuoteFingerprint(checkoutItems,couponCode):'';
+	  const couponScopedRecord=couponCode&&checkoutCouponReservationReference&&checkoutCouponReservationFingerprint===couponReservationFingerprint
+	    ?findReservationRecordByReference(checkoutCouponReservationReference):null;
+	  const matchingRecord=couponCode
+	    ?(couponScopedRecord||(storedReference&&reservationItemsMatch(storedItems,checkoutItems)
+	      ?findReservationRecordByReference(storedReference)
+	      :findReservationRecordForItems(checkoutItems)))
+	    :(storedReference&&reservationItemsMatch(storedItems,checkoutItems)
+	      ?findReservationRecordByReference(storedReference)
+	      :findReservationRecordForItems(checkoutItems));
 
   if(matchingRecord){
     // Reutilizar la reserva de ESTE conjunto de productos si sigue vigente.
@@ -4703,10 +4910,12 @@ async function payWithWompi(payload){
     // Es una reserva registrada localmente; los errores ambiguos conservan su TTL.
     saveActiveReservationReference(reservationReference);
     saveActiveReservationItems(checkoutItems);
+    if(couponCode){checkoutCouponReservationReference=reservationReference;checkoutCouponReservationFingerprint=couponReservationFingerprint;}
   }else{
     // Carrito diferente: crear una reserva independiente sin liberar las anteriores.
     reservationReference=generateReservationReference();
     saveReservationDraft(reservationReference,checkoutItems);
+    if(couponCode){checkoutCouponReservationReference=reservationReference;checkoutCouponReservationFingerprint=couponReservationFingerprint;}
     // La reserva se crea de forma atómica en wompi-create-checkout antes de abrir Wompi.
   }
 
@@ -4728,11 +4937,9 @@ async function payWithWompi(payload){
     const {data:authState}=await sb.auth.getSession();
     if(authState?.session?.access_token)functionHeaders.Authorization='Bearer '+authState.session.access_token;
   }catch(sessionError){console.warn('No se pudo recuperar una sesión opcional para preparar el pago.',sessionError)}
-  // Si el intento anterior terminó como DECLINED/VOIDED/ERROR, la Edge Function
-  // libera esa referencia y responde WOMPI_REFERENCE_TERMINAL. Si otra pestaña
-  // ya creó una reserva para el mismo teléfono y carrito, responde
-  // WOMPI_ACTIVE_RESERVATION. En ambos casos se reintenta una sola vez con una
-  // referencia segura, sin duplicar reservas ni reenviar un cobro aprobado.
+  // Una reserva activa idéntica o una referencia vieja sin order puede reintentarse
+  // una vez con su referencia segura. Un terminal_grace nunca se reintenta aquí:
+  // se limpia solo el draft de pago, se conserva el carrito y se espera al servidor.
   let response,data;
   for(let preparationAttempt=0;preparationAttempt<2;preparationAttempt++){
    response=await fetch(WOMPI_SIGNATURE_ENDPOINT,{
@@ -4741,13 +4948,12 @@ async function payWithWompi(payload){
     body:JSON.stringify(payload)
    });
    data=await response.json().catch(()=>({}));
-   if(response.status===409&&['WOMPI_REFERENCE_TERMINAL','WOMPI_ACTIVE_RESERVATION','WOMPI_REFERENCE_STALE'].includes(data?.code)&&preparationAttempt===0){
+   if(response.status===409&&['WOMPI_ACTIVE_RESERVATION','WOMPI_REFERENCE_STALE'].includes(data?.code)&&preparationAttempt===0){
     const expiredReference=paymentReference;
     if(expiredReference)forgetReservationRecord(expiredReference);
     const reusedReference=data?.code==='WOMPI_ACTIVE_RESERVATION'?String(data.existingReference||''):'';
     reservationReference=reusedReference||generateReservationReference();
     paymentReference=reservationReference;
-    createdReservation=!reusedReference;
     if(reusedReference){
      const expiresAt=Date.parse(String(data.expiresAt||''));
      const startedAt=Number.isFinite(expiresAt)?expiresAt-WOMPI_RESERVATION_TTL:Date.now();
@@ -4755,6 +4961,7 @@ async function payWithWompi(payload){
     }else saveReservationDraft(reservationReference,checkoutItems);
     saveActiveReservationReference(reservationReference);
     saveActiveReservationItems(checkoutItems);
+    if(couponCode){checkoutCouponReservationReference=reservationReference;checkoutCouponReservationFingerprint=couponReservationFingerprint;}
     payload.reference=paymentReference;
     if(btn)btn.textContent='⏳ Reintentando pago...';
     continue;
@@ -4762,11 +4969,25 @@ async function payWithWompi(payload){
    break;
   }
 
+  if(!response.ok&&data?.code==='WOMPI_TERMINAL_GRACE'){
+   const refsToClear=[paymentReference,String(data.existingReference||'')].filter(Boolean);
+   [...new Set(refsToClear)].forEach(forgetReservationRecord);
+   checkoutCouponReservationReference='';
+   checkoutCouponReservationFingerprint='';
+   throw new Error(data.error||'El intento anterior terminó. Espera 15 minutos antes de iniciar otro pago.');
+  }
+
   if(!response.ok){
    if(data?.code==='WOMPI_QUOTE_CHANGED'){
     const serverShipping=Number(data.shipping);
+    const couponCode=normalizeCheckoutCouponCode(payload.coupon_code);
+    if(couponCode){
+      const priorQuote=currentCheckoutCouponQuote();
+      const updatedQuote={...(priorQuote||{}),success:true,total:Number(data.total),shipping:serverShipping,discount_total:Number(data.discount_total??priorQuote?.discount_total??0),coupon_discount_total:Number(data.coupon_discount_total??priorQuote?.coupon_discount_total??0)};
+      setCheckoutCouponQuote(updatedQuote,true);setCheckoutCouponStatus('El cupón o el envío cambiaron. Revisa la cotización y confirma nuevamente.','error');
+    }
     const shippingSettingsRefreshed=await loadStorefrontShippingSettings(true);
-    try{await loadStorefrontProductCombos({force:true})}catch(refreshError){console.warn('No se pudieron refrescar los combos después del cambio de cotización.',refreshError)}
+    try{if(!couponCode)await loadStorefrontProductCombos({force:true})}catch(refreshError){console.warn('No se pudieron refrescar los combos después del cambio de cotización.',refreshError)}
     if(shippingSettingsRefreshed)updateShipping();
     else if(Number.isSafeInteger(serverShipping)&&serverShipping>=0)checkoutShipping=serverShipping;
     updateCheckoutSummary();
@@ -4789,7 +5010,7 @@ async function payWithWompi(payload){
   }
   const expectedAmountInCents=Math.round(Number(authoritativeComboQuote?.total))*100;
   if(!Number.isSafeInteger(expectedAmountInCents)||expectedAmountInCents<=0||amountInCents!==expectedAmountInCents){
-    throw new Error('No abrimos Wompi porque el servidor de pago todavía devuelve un valor distinto al total del carrito con descuento. No se realizó ningún cobro. Debe actualizarse wompi-create-checkout para calcular el importe mediante get_storefront_cart_quote antes de activar los descuentos en pagos en línea.');
+    throw new Error('No abrimos Wompi porque el servidor de pago devolvió un valor distinto al total cotizado. No se realizó ningún cobro.');
   }
 
   // wompi-create-checkout conserva la referencia enviada por el navegador. Si ese
@@ -4848,7 +5069,7 @@ async function payWithWompi(payload){
   form.submit();
 
  }catch(err){
-  console.error(err);
+  console.error('No se pudo preparar el pago Wompi.');
 
   // Nunca liberar inventario desde el navegador: la respuesta puede haberse
   // perdido después de guardar el pedido. La Edge libera solo tras comprobar el
@@ -4863,31 +5084,40 @@ async function payWithWompi(payload){
 
 let contraEntregaInProgress=false;
 const COD_ORDER_DRAFT_KEY='jm_cod_order_draft_v1';
-function getCODOrderFingerprint(payload,items){
- return JSON.stringify({
-   customer:[payload.name,payload.cedula,payload.phone,payload.email,payload.city,payload.address,payload.neighborhood]
-    .map(value=>String(value||'').trim().toLocaleLowerCase('es')),
-   // Use the same canonical variant rules as inventory reservations so “Única”,
-   // “unica”, empty values and reordered lines remain the same cart.
-   items:normalizeReservationItems(items)
- });
+let codDraftIdentityFingerprint='';
+function sanitizeCODOrderDraft(){
+ try{
+  const saved=JSON.parse(localStorage.getItem(COD_ORDER_DRAFT_KEY)||'null');
+  const reference=String(saved?.reference||'').trim();
+  if(!/^JMCODCLIENT-[A-Z0-9-]{8,80}$/.test(reference)){
+   localStorage.removeItem(COD_ORDER_DRAFT_KEY);return;
+  }
+  // Las versiones anteriores guardaban PII en `fingerprint`; se conserva solo
+  // la referencia aleatoria necesaria para que el servidor detecte reintentos.
+  localStorage.setItem(COD_ORDER_DRAFT_KEY,JSON.stringify({reference}));
+ }catch{try{localStorage.removeItem(COD_ORDER_DRAFT_KEY)}catch{}}
 }
-function getCODOrderReference(payload,items){
- const fingerprint=getCODOrderFingerprint(payload,items);
+sanitizeCODOrderDraft();
+function getCODOrderReference(payload={},items=[]){
+ const identityKeys=['name','cedula','phone','email','city','address','neighborhood'];
+ const identity=identityKeys.map(key=>String(payload?.[key]||'').trim().toLocaleLowerCase('es-CO'));
+ const fingerprint=JSON.stringify({identity,items:normalizeReservationItems(items),coupon:normalizeCheckoutCouponCode(payload?.coupon_code||'')});
  let saved=null;
  try{saved=JSON.parse(localStorage.getItem(COD_ORDER_DRAFT_KEY)||'null')}catch{}
- // Keep the same idempotency reference until the server confirms the order. If a
- // previous request succeeded but its response was lost, changing the cart/address
- // must not silently create a second order and strand the earlier inventory hold.
- if(saved?.reference&&saved?.fingerprint===fingerprint)return saved.reference;
- if(saved?.reference)try{localStorage.removeItem(COD_ORDER_DRAFT_KEY)}catch{}
+ if(saved?.reference&&/^JMCODCLIENT-[A-Z0-9-]{8,80}$/.test(String(saved.reference))){
+  // El fingerprint vive solo en memoria. Tras recargar, se reutiliza la referencia
+  // opaca y la RPC COD valida servidor-side si ya existe un pedido con otros datos.
+  if(!codDraftIdentityFingerprint||codDraftIdentityFingerprint===fingerprint){codDraftIdentityFingerprint=fingerprint;return String(saved.reference)}
+  try{localStorage.removeItem(COD_ORDER_DRAFT_KEY)}catch{}
+ }
  const uuid=crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+'-'+Math.random().toString(36).slice(2);
  const reference='JMCODCLIENT-'+String(uuid).replace(/[^a-zA-Z0-9-]/g,'').toUpperCase();
- localStorage.setItem(COD_ORDER_DRAFT_KEY,JSON.stringify({reference,fingerprint}));
+ codDraftIdentityFingerprint=fingerprint;
+ try{localStorage.setItem(COD_ORDER_DRAFT_KEY,JSON.stringify({reference}))}catch{}
  return reference;
 }
 function clearCODOrderReference(reference){
- try{const saved=JSON.parse(localStorage.getItem(COD_ORDER_DRAFT_KEY)||'null');if(!reference||saved?.reference===reference)localStorage.removeItem(COD_ORDER_DRAFT_KEY)}catch{localStorage.removeItem(COD_ORDER_DRAFT_KEY)}
+ try{const saved=JSON.parse(localStorage.getItem(COD_ORDER_DRAFT_KEY)||'null');if(!reference||saved?.reference===reference){localStorage.removeItem(COD_ORDER_DRAFT_KEY);codDraftIdentityFingerprint=''}}catch{try{localStorage.removeItem(COD_ORDER_DRAFT_KEY)}catch{}codDraftIdentityFingerprint=''}
 }
 function showContraEntregaError(message){
  const safeMessage=String(message||'No se pudo registrar el pedido contraentrega. El carrito se conservó.');
@@ -4907,18 +5137,13 @@ async function saveContraEntregaOrder(payload){
  let clientReference='';
  try{
    const checkoutItems=getCheckoutItems();
-   // A client_reference no es inventory_reference. Nunca usarlo para una RPC de
-   // liberación desde el navegador; los pedidos COD conservan su reserva del lado
-   // servidor hasta que se gestione el pedido.
-   const savedCOD=(()=>{try{return JSON.parse(localStorage.getItem(COD_ORDER_DRAFT_KEY)||'null')}catch{return null}})();
-   if(savedCOD?.reference&&savedCOD.fingerprint!==getCODOrderFingerprint(payload,checkoutItems)){
-     clearCODOrderReference(savedCOD.reference);
-   }
+   const couponCode=normalizeCheckoutCouponCode(payload.coupon_code);
+   // Persistimos solo una referencia aleatoria; la identidad y el carrito no quedan en storage.
    clientReference=getCODOrderReference(payload,checkoutItems);
-   // El servidor vuelve a leer precio/código/nombre, valida que la ciudad sea Cali y reserva las
-   // variantes de forma atómica. El navegador ya no inserta pedidos COD directo.
+   // El servidor vuelve a leer precio, producto, ciudad permitida y cupón, y reserva
+   // las variantes de forma atómica. El navegador no inserta pedidos ni muta reservas.
    const items=checkoutItems.map(x=>({id:String(x.id),qty:Math.max(1,Number(x.qty)||1),color:String(x.color||''),size:String(x.size||'')}));
-   const {data,error}=await sb.rpc('create_contra_delivery_order_with_quote',{
+   const orderRpcArgs={
      p_client_reference:clientReference,
      p_customer_name:payload.name,
      p_customer_cedula:payload.cedula,
@@ -4930,19 +5155,30 @@ async function saveContraEntregaOrder(payload){
      p_items:items,
      p_expected_total:Number(payload.expected_total),
      p_expected_discount_total:Number(payload.expected_discount_total)||0
-   });
+   };
+   if(couponCode){
+     orderRpcArgs.p_coupon_code=couponCode;
+     orderRpcArgs.p_expected_coupon_discount_total=Math.max(0,Number(payload.expected_coupon_discount_total)||0);
+   }
+   const {data,error}=await sb.rpc(couponCode?'create_contra_delivery_order_with_coupon':'create_contra_delivery_order_with_quote',orderRpcArgs);
    if(error){
-     console.error('No se pudo crear el pedido contra entrega de forma transaccional:',error);
+     console.error('No se pudo crear el pedido contra entrega de forma transaccional.');
      const missingRpc=error.code==='PGRST202'||/could not find the function|function .* does not exist|schema cache/i.test(String(error.message||''));
      showContraEntregaError(missingRpc
-       ?'Falta instalar la migración de cotización/contraentrega en Supabase. El pedido no se guardó y el carrito se conservó.'
-       :'Supabase no pudo registrar ni reservar este pedido. Revisa los datos y las existencias; el carrito se conservó.');
+       ?(couponCode?'Falta instalar la RPC de contraentrega con cupones en Supabase. El pedido no se guardó y el carrito se conservó.':'Falta instalar la migración de cotización/contraentrega en Supabase. El pedido no se guardó y el carrito se conservó.')
+       :'Supabase no pudo registrar ni reservar este pedido. Revisa los datos, el cupón y las existencias; el carrito se conservó.');
      return false;
    }
    const result=Array.isArray(data)?data[0]:data;
    if(!result?.success){
     if(result?.quote_changed){
      const newShipping=Number(result.shipping);
+     const couponCode=normalizeCheckoutCouponCode(payload.coupon_code);
+     if(couponCode){
+       const priorQuote=currentCheckoutCouponQuote();
+       const updatedQuote={...(priorQuote||{}),success:true,total:Number(result.total),shipping:newShipping,discount_total:Number(result.discount_total??priorQuote?.discount_total??0),coupon_discount_total:Number(result.coupon_discount_total??priorQuote?.coupon_discount_total??0)};
+       setCheckoutCouponQuote(updatedQuote,true);setCheckoutCouponStatus('El cupón o el envío cambiaron. Revisa la cotización y confirma nuevamente.','error');
+     }
      if(Number.isSafeInteger(newShipping)&&newShipping>=0)checkoutShipping=newShipping;
      updateCheckoutSummary();
      if(result.duplicate===true&&result.existing_order_id){
@@ -4962,7 +5198,7 @@ async function saveContraEntregaOrder(payload){
    ['customerName','customerCedulaType','customerCedula','customerPhone','customerEmail','customerCity','customerCityOther','customerAddress','customerNeighborhood'].forEach(id=>{if($(id))$(id).value=''});
    handleCityChange();renderCart();$('orderSuccess')?.classList.add('open');void refreshInventoryStatus(true);return true;
  }catch(error){
-   console.error('No se pudo guardar el pedido contra entrega:',error);
+   console.error('No se pudo guardar el pedido contra entrega.');
    showContraEntregaError('Ocurrió un error al registrar el pedido: '+String(error?.message||error||'error desconocido')+'. El carrito se conservó; puedes reintentar sin duplicar el mismo pedido.');
    return false;
  }finally{
@@ -5060,10 +5296,13 @@ function displayCheckoutValidation(errors){
 document.addEventListener('input',event=>{
  const id=event.target?.id||'';
  if(['customerName','customerCedulaType','customerCedula','customerPhone','customerEmail','customerCity','customerCityOther','customerAddress','customerNeighborhood'].includes(id))clearCheckoutFieldError(id);
+ if(['customerName','customerPhone','customerEmail','customerCity','customerCityOther','customerAddress','customerNeighborhood'].includes(id)){invalidateCheckoutCouponQuote();if($('checkoutModal')?.classList.contains('open'))updateShipping();}
+ if(id==='couponCode'){const input=$('couponCode');const normalized=normalizeCheckoutCouponCode(input?.value||'');if(input&&input.value!==normalized)input.value=normalized;checkoutCouponCode=normalized;invalidateCheckoutCouponQuote('El código cambió. Pulsa Aplicar para validarlo de nuevo.');if($('checkoutModal')?.classList.contains('open'))updateShipping();}
 });
 document.addEventListener('change',event=>{
  const id=event.target?.id||'';
  if(['customerName','customerCedulaType','customerCedula','customerPhone','customerEmail','customerCity','customerCityOther','customerAddress','customerNeighborhood'].includes(id))clearCheckoutFieldError(id);
+ if(['customerName','customerPhone','customerEmail','customerCity','customerCityOther','customerAddress','customerNeighborhood'].includes(id)){invalidateCheckoutCouponQuote();if($('checkoutModal')?.classList.contains('open'))updateShipping();}
  if(event.target?.name==='paymentMethod')updateShipping();
 });
 
@@ -5072,12 +5311,16 @@ async function confirmCheckout(){
  if(!checkoutItems.length){showToast('Tu carrito está vacío.');return;}
  const validationErrors=getCheckoutValidationErrors();
  if(validationErrors.length){displayCheckoutValidation(validationErrors);resetWompiButton();return;}
- // Elimina errores persistentes de un intento anterior antes de iniciar otro.
  clearCheckoutValidation();
- // No convertir silenciosamente un pago online en contraentrega si el administrador
- // desactivó Wompi mientras el cliente completaba el formulario. Primero pedimos
- // revisar la nueva forma de pago y solo en el siguiente intento se confirma.
- const totalDisplayedBeforeRefresh=Math.round(calculateStorefrontComboPricing(checkoutItems).subtotal+checkoutShipping);
+ const couponCode=normalizeCheckoutCouponCode($('couponCode')?.value||checkoutCouponCode);
+ checkoutCouponCode=couponCode;
+ if(couponCode&&!currentCheckoutCouponQuote()){
+  setCheckoutCouponStatus('El cupón necesita validarse con estos datos. Pulsa Aplicar antes de confirmar.','error');
+  showToast('Vuelve a aplicar el cupón antes de continuar. No se abrió ningún pago ni se creó el pedido.');
+  return;
+ }
+ const displayedPricing=checkoutDisplayPricing();
+ const totalDisplayedBeforeRefresh=Math.round(displayedPricing.isCouponQuote?displayedPricing.total:displayedPricing.subtotal+checkoutShipping);
  const paymentBeforeRefresh=selectedPayment();
  const onlinePaymentsWereEnabled=onlinePaymentsEnabled;
  await refreshOnlinePaymentSetting({silent:true});
@@ -5091,59 +5334,49 @@ async function confirmCheckout(){
    return;
  }
  const payment=selectedPayment();
- if(!payment){
-   showToast(onlinePaymentsEnabled?'Selecciona una forma de pago para continuar.':'Los pagos en línea están desactivados. Elige una ciudad habilitada para contraentrega.');
-   return;
- }
- if(!onlinePaymentsEnabled&&payment!=='Contra entrega'){
-   showToast('Los pagos en línea están desactivados. Selecciona pago contraentrega en una ciudad habilitada.');
-   syncPaymentOptions();
-   return;
- }
+ if(!payment){showToast(onlinePaymentsEnabled?'Selecciona una forma de pago para continuar.':'Los pagos en línea están desactivados. Elige una ciudad habilitada para contraentrega.');return;}
+ if(!onlinePaymentsEnabled&&payment!=='Contra entrega'){showToast('Los pagos en línea están desactivados. Selecciona pago contraentrega en una ciudad habilitada.');syncPaymentOptions();return;}
  if(payment==='Contra entrega'&&!isLocalCODCity(checkoutCityValue())){
    if(onlinePaymentsEnabled){const online=document.querySelector('input[name="paymentMethod"][value="PSE"]');if(online)online.checked=true;}
    else {const cod=document.querySelector('input[name="paymentMethod"][value="Contra entrega"]');if(cod)cod.checked=false;}
    showToast(onlinePaymentsEnabled?'La tienda no habilitó contraentrega para esa ciudad. Selecciona un pago en línea.':'Los pagos en línea están desactivados. La ciudad elegida no está habilitada para contraentrega.');
-   updateContraEntregaAvailability(checkoutCityValue());
-   updateShipping();
-   return;
+   updateContraEntregaAvailability(checkoutCityValue());updateShipping();return;
  }
- // Alinea lo que ve el cliente con la cotización del servidor antes de crear un pedido o un pago.
- // Si las reglas públicas no coinciden con la cotización (o falta la migración), no se cobra ni se registra nada.
  try{
-  await loadStorefrontProductCombos({force:true});
-  const itemsForQuote=checkoutItems.map(x=>({id:String(x.id),qty:Math.max(1,Number(x.qty)||1),color:String(x.color||''),size:String(x.size||'')}));
-  const {data:cartQuote,error:cartQuoteError}=await sb.rpc('get_storefront_cart_quote',{p_items:itemsForQuote,p_city:checkoutCityValue()});
-  if(cartQuoteError)throw cartQuoteError;
-  if(!cartQuote||cartQuote.success!==true||cartQuote.total==null||cartQuote.discount_total==null||cartQuote.shipping==null||
-     !Number.isFinite(Number(cartQuote.total))||!Number.isFinite(Number(cartQuote.discount_total))||!Number.isFinite(Number(cartQuote.shipping)))
-   throw new Error(cartQuote?.message||'Supabase no devolvió una cotización completa y válida.');
-  const localPricing=calculateStorefrontComboPricing(checkoutItems);
-  const localExpected=Math.round(localPricing.subtotal+checkoutShipping);
-  const serverShipping=Number(cartQuote.shipping);
-  const serverTotal=Math.round(Number(cartQuote.total));
+  if(!couponCode)await loadStorefrontProductCombos({force:true});
+  const beforeQuote=checkoutDisplayPricing();
+  const beforeCouponQuote=currentCheckoutCouponQuote();
+  const cartQuote=await requestCheckoutQuote(couponCode,checkoutItems);
+  if(couponCode)clearCheckoutServerQuote();else setCheckoutServerQuote(cartQuote,checkoutItems);
+  const serverShipping=Number(cartQuote.shipping),serverTotal=Math.round(Number(cartQuote.total));
   const serverDiscount=Math.round(Number(cartQuote.discount_total));
+  const serverCouponDiscount=Math.round(Number(cartQuote.coupon_discount_total)||0);
+  const visibleDiscount=couponCode?Math.round(Number(beforeCouponQuote?.discount_total)||0):Math.round(Number(beforeQuote.discountTotal)||0);
+  const visibleCouponDiscount=couponCode?Math.round(Number(beforeCouponQuote?.coupon_discount_total)||0):0;
+  const visibleShipping=Math.round(Number(checkoutShipping)||0);
   if(!Number.isSafeInteger(serverShipping)||serverShipping<0||!Number.isSafeInteger(serverTotal)||serverTotal<0||!Number.isSafeInteger(serverDiscount)||serverDiscount<0||
-     localExpected!==serverTotal||totalDisplayedBeforeRefresh!==serverTotal||Math.round(localPricing.discountTotal)!==serverDiscount){
-   if(Number.isSafeInteger(serverShipping)&&serverShipping>=0)checkoutShipping=serverShipping;
-   updateCheckoutSummary();
-   showToast('La tarifa de envío o una promoción cambió. Revisa el total actualizado y pulsa confirmar otra vez; no se creó ningún pedido ni se inició un cobro.');
+     serverTotal!==totalDisplayedBeforeRefresh||serverTotal!==Math.round(couponCode?Number(beforeCouponQuote?.total):beforeQuote.subtotal+checkoutShipping)||
+     serverShipping!==visibleShipping||serverDiscount!==visibleDiscount||serverCouponDiscount!==visibleCouponDiscount){
+   if(couponCode){setCheckoutCouponQuote(cartQuote,true);setCheckoutCouponStatus('La cotización del cupón se actualizó. Revisa subtotal, descuento, envío y total; confirma nuevamente.','error');}
+   else if(Number.isSafeInteger(serverShipping)&&serverShipping>=0)checkoutShipping=serverShipping;
+   updateShipping();
+   showToast('La tarifa, el descuento o el total cambiaron. Revisa la cotización actualizada y pulsa confirmar otra vez; no se creó ningún pedido ni se inició un cobro.');
    return;
   }
-  checkoutShipping=Number(cartQuote.shipping)||0;
-  updateCheckoutSummary();
+  if(couponCode){setCheckoutCouponQuote(cartQuote,false);setCheckoutCouponStatus(serverCouponDiscount>0?`Cupón aplicado. Descuento: ${money(serverCouponDiscount)}.`:'Cupón validado por el servidor.','success');}
+  checkoutShipping=serverShipping;updateCheckoutSummary();
   const payload=buildOrderPayload();
-  payload.shipping=checkoutShipping;
-  payload.expected_total=serverTotal;
-  payload.expected_discount_total=serverDiscount;
-  payload.storefront_pricing_version='combo-discounts-v1';
-  if(payment!=='Contra entrega'){payWithWompi(payload);return}
+  payload.shipping=serverShipping;payload.expected_total=serverTotal;payload.expected_discount_total=serverDiscount;payload.expected_coupon_discount_total=serverCouponDiscount;payload.storefront_pricing_version=couponCode?'coupon-discounts-v1':'combo-discounts-v1';
+  if(payment!=='Contra entrega'){
+   if(serverTotal<=0){showToast('Wompi no permite un total de $0. Elige contraentrega si está habilitada para esta ciudad.');resetWompiButton();return;}
+   payWithWompi(payload);return;
+  }
   await saveContraEntregaOrder(payload);
  }catch(quoteError){
-  console.error('Cotización promocional no validada; checkout detenido:',quoteError);
-  showToast('No pudimos verificar el descuento en Supabase. No se registró ni cobró el pedido. Revisa que la migración de combos y descuentos esté instalada.');
-  resetWompiButton();
-  return;
+  console.error('No se pudo validar la cotización del checkout.');
+  const message=quoteError?.couponError?quoteError.message:'No pudimos verificar el descuento o envío en Supabase. No se registró ni cobró el pedido. Revisa que las RPC de cotización estén instaladas.';
+  if(quoteError?.couponError)setCheckoutCouponStatus(message,'error');
+  showToast(message);resetWompiButton();return;
  }
 }
 

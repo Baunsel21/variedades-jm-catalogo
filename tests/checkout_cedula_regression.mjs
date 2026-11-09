@@ -86,6 +86,9 @@ const orderContext = vm.createContext({
   checkoutCityValue: () => 'Cali', selectedPayment: () => 'PSE', checkoutShipping: 0,
   getCheckoutItems: () => [{ id: 'synthetic-product', name: 'Synthetic', code: 'SYN-1', qty: 1, color: 'Azul', size: 'M' }],
   comboPriceForItem: item => item.price ?? 10,
+  normalizeCheckoutCouponCode: value => String(value ?? '').trim().toUpperCase(),
+  checkoutCouponCode: '',
+  currentCheckoutCouponQuote: () => null,
 });
 vm.runInContext(extractFunction(index, 'buildOrderPayload'), orderContext);
 const payload = JSON.parse(JSON.stringify(orderContext.buildOrderPayload()));
@@ -101,7 +104,7 @@ assert.match(index, /'customer-data:legal-id':payload\.cedula/);
 assert.doesNotMatch(index, /if\(payload\.cedula\)fields\['customer-data:legal-id'\]/);
 assert.match(index, /'customer-data:legal-id-type':payload\.cedula_type/);
 assert.match(index, /p_customer_cedula:payload\.cedula/);
-assert.match(index, /if\(payment!=='Contra entrega'\)\{payWithWompi\(payload\);return\}/, 'PSE/Nequi/tarjeta conservan la ruta común Wompi.');
+assert.match(index, /if\(payment!=='Contra entrega'\)\{[\s\S]*?payWithWompi\(payload\);return;/, 'PSE/Nequi/tarjeta conservan la ruta común Wompi después de validar la quote y el total.');
 assert.ok(index.includes("const checkoutValidationFieldIds=['customerName','customerCedulaType','customerCedula'"));
 assert.ok(index.includes(String.raw`\u007f-\u009f`), 'La regex de UI cubre los controles C1 además de C0/DEL.');
 
@@ -112,10 +115,11 @@ const firstFetchPos = edge.indexOf('await fetch(', handlerStart);
 assert.ok(parsePos >= 0 && invalidGuardPos > parsePos && firstFetchPos > invalidGuardPos, 'La Edge valida tipo/largo/control antes de cualquier llamada remota.');
 const existingLookupPos = edge.indexOf('const existing = existingRows[0]');
 const newReferenceGuardPos = edge.indexOf('if (!existing && !customerCedula)');
-const firstReservationPos = edge.indexOf('/rpc/reserve_order_inventory');
-assert.ok(existingLookupPos >= 0 && newReferenceGuardPos > existingLookupPos && firstReservationPos > newReferenceGuardPos, 'Una referencia nueva sin documento se rechaza antes de reservar.');
-assert.match(edge, /Sin cédula solo se admite el replay exacto/);
-assert.match(edge, /if \(!customerCedula\) \{\s*return json\(\{ code: "CUSTOMER_CEDULA_REQUIRED"/, 'Un replay distinto no puede liberar/reservar sin documento.');
+const prepareCheckoutPos = edge.indexOf('fetch(`${supabaseUrl}/rest/v1/rpc/prepare_storefront_wompi_checkout`');
+assert.ok(existingLookupPos >= 0 && newReferenceGuardPos > existingLookupPos && prepareCheckoutPos > newReferenceGuardPos, 'Una referencia nueva sin documento se rechaza antes de preparar y reservar el checkout.');
+const existingCedulaGuardPos = edge.indexOf('if (!customerCedula)', existingLookupPos);
+const terminalRetryPos = edge.indexOf('const terminalTransaction = Boolean(existingTransactionId)', existingLookupPos);
+assert.ok(existingCedulaGuardPos > newReferenceGuardPos && terminalRetryPos > existingCedulaGuardPos, 'Una nueva tentativa sobre una referencia existente requiere cédula antes de liberar reservas terminales.');
 
 const migration = fs.readFileSync(new URL('../supabase/migrations/20261109090000_require_customer_cedula.sql', import.meta.url), 'utf8');
 assert.match(migration, /BEFORE INSERT OR UPDATE OF customer_cedula, payment_method/);
@@ -124,4 +128,4 @@ assert.match(migration, /CUSTOMER_CEDULA_REQUIRED/);
 assert.match(migration, /CREATE TRIGGER[\s\S]*ON public\.web_orders/);
 assert.doesNotMatch(migration, /ALTER TABLE public\.orders|NOT NULL/);
 
-console.log('PASS checkout_cedula_regression: UI required/cleanup, C1 controls, payload legal-id/type, server gate, legacy replay and COD trigger contract.');
+console.log('PASS checkout_cedula_regression: UI required/cleanup, C1 controls, payload legal-id/type, server guard, reference retry and COD trigger contract.');
