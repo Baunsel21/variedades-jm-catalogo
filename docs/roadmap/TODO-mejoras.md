@@ -19,6 +19,7 @@ Cada criterio se conserva hasta que exista evidencia en código, Supabase y prue
 
 ## Fase 3: Catálogo, búsqueda y conversión
 
+- [x] Al filtrar por categoría, la tienda no repite el encabezado “Ver todos los productos”; el botón visible “Todas” permite restablecer la selección.
 - [ ] El administrador puede marcar producto como destacado, nuevo, oferta o últimas unidades; las etiquetas del catálogo solo aparecen según datos guardados y stock vigente.
 - [ ] El catálogo ofrece filtros accesibles por categoría, rango de precio, color, talla, disponibilidad y ofertas; ordena por precio, novedad y destacados; refleja filtros compartibles en URL cuando no exponga datos personales.
   - Avance parcial: categoría, precio, color, talla, disponibilidad y orden ya se pueden representar en el enlace limpio del catálogo; el enlace excluye búsqueda, favoritos, carrito y parámetros personales. La promoción/oferta y parte de órdenes del backlog aún dependen de datos/backend.
