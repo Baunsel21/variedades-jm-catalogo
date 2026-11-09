@@ -39,6 +39,14 @@ try{
  assert.equal(context.safeCSVCell('Cali'),'"Cali"');
  assert.ok(admin.includes("${esc(({home:'Pantalla de inicio'"),'Etiqueta de promoción escapada');
 
+ const promoUrlMatch=catalog.match(/function safeSeasonalPromoUrl\(value\)\{[\s\S]*?\n\}/);
+ assert.ok(promoUrlMatch,'Normalizador de destino promocional');
+ const promoUrlContext=vm.createContext({URL,location:{href:'https://sirevya.com.co/'}});
+ vm.runInContext(promoUrlMatch[0],promoUrlContext);
+ assert.equal(promoUrlContext.safeSeasonalPromoUrl('#contactanos'),'#contactanos','Anchor local permitido');
+ assert.equal(promoUrlContext.safeSeasonalPromoUrl('https://promo.example/oferta'),'https://promo.example/oferta','Destino externo HTTPS permitido');
+ for(const unsafeUrl of ['http://promo.example/oferta','//promo.example/oferta','javascript:alert(1)','data:text/html,unsafe'])assert.equal(promoUrlContext.safeSeasonalPromoUrl(unsafeUrl),'#catalogo',`Destino no seguro rechazado: ${unsafeUrl}`);
+
  const shippingMatch=catalog.match(/function calculateStorefrontShipping\([\s\S]*?\n\}/);
  assert.ok(shippingMatch,'Cálculo de tarifa local aislado');
  const normalizeMatch=catalog.match(/function normalizeDeliveryCity\(value\)\{[\s\S]*?\n\}/);
@@ -221,6 +229,7 @@ const ordersSection=admin.match(/<section id="pedidos"[\s\S]*?<\/section>/)?.[0]
  await import('../tests/inventory_reservation_client_boundary_regression.mjs');
  await import('../tests/admin_dashboard_pending_orders_regression.mjs');
  await import('../tests/checkout_quote_success_contract_regression.mjs');
-	 console.log('PASS: sintaxis, SDK/SRI, seguridad admin, CSV, tarifas, COD, rollback, claves Wompi y filtros/paginación de pedidos.');
+ await import('../tests/storefront_cod_settings_fail_closed_regression.mjs');
+	 console.log('PASS: sintaxis, SDK/SRI, seguridad admin/COD, CSV, tarifas, rollback, claves Wompi y filtros/paginación de pedidos.');
 
 }finally{fs.rmSync(temp,{recursive:true,force:true});}
