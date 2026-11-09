@@ -65,6 +65,7 @@ Cada criterio se conserva hasta que exista evidencia en código, Supabase y prue
   - Avance parcial: portada y páginas estáticas de privacidad/FAQ tienen canonical y metadatos sociales; el sitemap solo enumera esas rutas públicas confirmadas, mientras las rutas de producto y sus datos estructurados siguen pendientes de renderizado compatible con el catálogo dinámico.
 - [ ] PWA permite instalación, icono y carga del shell; no presenta stock/precios cacheados como actuales y no altera el checkout.
 - [ ] Optimizar fotos con miniaturas y carga bajo demanda, medir LCP/solicitudes/bytes y usar paginación/virtualización si el catálogo lo exige; el refresco de stock sigue activo y sin concurrencia solapada.
+  - Avance parcial: la primera imagen de producto del grid usa carga eager y prioridad alta; las demás conservan carga diferida por `IntersectionObserver`. No se declaran miniaturas ni métricas LCP medidas; siguen pendientes.
 
 ## Reglas de regresión aplicables a cada fase
 
