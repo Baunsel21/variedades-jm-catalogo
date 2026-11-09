@@ -62,7 +62,7 @@ Cada criterio se conserva hasta que exista evidencia en código, Supabase y prue
 ## Fase 8: Confianza, SEO y rendimiento
 
 - [ ] Publicar políticas de privacidad/datos personales, compras, cambios, devoluciones, envíos y preguntas frecuentes enlazadas desde catálogo/checkout.
-  - Avance parcial: privacidad y FAQ estáticas ya están enlazadas y publicadas; se incorpora una página estática de cambios/devoluciones y reembolsos con enlaces de atención y fuentes legales. Condiciones de compra, política comercial de envíos e identidad legal confirmada siguen pendientes.
+  - Avance parcial: privacidad y FAQ estáticas ya están enlazadas y publicadas; la página estática de cambios/devoluciones y reembolsos se enlaza desde el pie, la FAQ y el checkout, con canales existentes y fuentes legales. Condiciones de compra, política comercial de envíos e identidad legal confirmada siguen pendientes.
 - [ ] Cada producto tiene URL indexable con title, description, canonical, OG/Twitter e información estructurada coherente de precio/disponibilidad; el contenido de la ruta puede leerlo el crawler sin depender solo de abrir un modal.
   - Avance parcial: portada y páginas estáticas de privacidad, FAQ y cambios/devoluciones tienen canonical y metadatos sociales y están en el sitemap; las rutas de producto y sus datos estructurados siguen pendientes de renderizado compatible con el catálogo dinámico.
 - [ ] PWA permite instalación, icono y carga del shell; no presenta stock/precios cacheados como actuales y no altera el checkout.

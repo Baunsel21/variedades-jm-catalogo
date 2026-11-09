@@ -8,9 +8,13 @@ const returnsHtml = await readFile(new URL('../cambios-devoluciones.html', impor
 const sitemapXml = await readFile(new URL('../sitemap.xml', import.meta.url), 'utf8');
 const robotsTxt = await readFile(new URL('../robots.txt', import.meta.url), 'utf8');
 
+const footerPolicyLinks = indexHtml.match(/<div class="footerPolicyLinks">([\s\S]*?)<\/div>/)?.[1] ?? '';
+const checkoutPrivacyNote = indexHtml.match(/<p class="checkoutPrivacyNote">([\s\S]*?)<\/p>/)?.[1] ?? '';
 assert.equal((indexHtml.match(/href="\/politica-privacidad\.html"/g) || []).length, 2, 'Catálogo/modal y checkout enlazan privacidad.');
 assert.equal((indexHtml.match(/href="\/preguntas-frecuentes\.html"/g) || []).length, 3, 'Catálogo, modal y checkout enlazan FAQ.');
-assert.equal((indexHtml.match(/href="\/cambios-devoluciones\.html"/g) || []).length, 1, 'El pie del catálogo enlaza la política de cambios y devoluciones.');
+assert.equal((indexHtml.match(/href="\/cambios-devoluciones\.html"/g) || []).length, 2, 'El catálogo y el checkout enlazan la política de cambios y devoluciones.');
+assert.ok(footerPolicyLinks.includes('href="/cambios-devoluciones.html"'), 'El pie conserva el enlace de cambios y devoluciones.');
+assert.ok(checkoutPrivacyNote.includes('href="/cambios-devoluciones.html"'), 'El checkout permite consultar la política antes de continuar.');
 assert.equal((faqHtml.match(/href="\/cambios-devoluciones\.html"/g) || []).length, 1, 'La FAQ enlaza la política de cambios y devoluciones.');
 assert.match(robotsTxt, /^User-agent: \*$/m);
 assert.match(robotsTxt, /^Allow: \/$/m);
