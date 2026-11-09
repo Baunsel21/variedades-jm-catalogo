@@ -31,6 +31,8 @@ assert.match(html, /No se pudo cargar la imagen del producto\./);
 assert.match(html, /\.imageLoadFallback\[hidden\],#productDetailModal \.detailImage\[hidden\],\.galleryMain\[hidden\]\{display:none!important\}/);
 assert.match(html, /detailMainImage\.alt=String\(p\.name\|\|'Producto'\);detailMainImage\.loading=/);
 assert.match(html, /\$\('detailImage'\)\.alt=String\(detailProduct\?\.name\|\|'Producto'\)/);
+const catalogRenderSource = extractFunction('render');
+assert.ok(catalogRenderSource.indexOf('activateFirstCatalogImage()') < catalogRenderSource.indexOf('activateCatalogLazyImages()'), 'La imagen inicial se activa antes de observar las diferidas');
 
 const functions = [
   'showImageFallback',
@@ -39,6 +41,7 @@ const functions = [
   'showCardImageFallback',
   'clearCardImageFallback',
   'setPhotoImage',
+  'activateFirstCatalogImage',
 ].map(extractFunction);
 for (const source of functions) {
   assert.doesNotMatch(source, /\bfetch\s*\(|XMLHttpRequest|\bsb\.(?:rpc|from)\s*\(/);
@@ -59,6 +62,24 @@ const context = {
   },
 };
 vm.runInNewContext(functions.join('\n'), context);
+
+const priorityAttributes = {};
+const firstCatalogImage = {
+  dataset: { src: '/images/first-product.webp' },
+  src: '',
+  setAttribute(name, value) { priorityAttributes[name] = value; },
+  removeAttribute(name) { assert.equal(name, 'data-src'); delete this.dataset.src; this.lazyAttributeRemoved = true; },
+};
+context.document.querySelector = selector => {
+  assert.equal(selector, '#grid img[data-src]');
+  return firstCatalogImage.dataset.src ? firstCatalogImage : null;
+};
+assert.equal(context.activateFirstCatalogImage(), true);
+assert.equal(priorityAttributes.loading, 'eager');
+assert.equal(priorityAttributes.fetchpriority, 'high');
+assert.equal(firstCatalogImage.src, '/images/first-product.webp');
+assert.equal(firstCatalogImage.lazyAttributeRemoved, true);
+assert.equal(context.activateFirstCatalogImage(), false, 'No se promueve otra imagen si el grid no tiene una pendiente');
 
 const message = { textContent: '' };
 const detailFallback = {

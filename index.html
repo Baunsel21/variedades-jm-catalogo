@@ -2481,6 +2481,12 @@ function handleGalleryKeydown(event){
 document.addEventListener('keydown',handleGalleryKeydown);
 function closeGallery(event){const modal=$('galleryModal');if(event&&event.target!==modal)return;if(!modal)return;modal.classList.remove('open');modal.setAttribute('aria-hidden','true');document.body.style.overflow=$('productDetailModal')?.classList.contains('open')?'hidden':'';const returnFocus=galleryReturnFocus;galleryReturnFocus=null;const fallback=$('productDetailModal')?.classList.contains('open')?$('detailImage'):null;const target=returnFocus?.isConnected?returnFocus:fallback;if(typeof target?.focus==='function')target.focus({preventScroll:true})}
 
+function activateFirstCatalogImage(){
+ const img=document.querySelector('#grid img[data-src]');if(!img)return false;
+ const src=img.dataset?.src;if(!src)return false;
+ img.setAttribute('loading','eager');img.setAttribute('fetchpriority','high');img.src=src;img.removeAttribute('data-src');return true;
+}
+
 function activateCatalogLazyImages(){
  const imgs=document.querySelectorAll('#grid img[data-src]');
  if(!imgs.length)return;
@@ -3816,6 +3822,7 @@ function render(){
    const key='photo_'+p.id;
 return `<article class="card ${blocked?'inventoryUnavailable':''}" data-product-id="${esc(p.id)}" aria-disabled="${blocked?'true':'false'}" onclick="openProductDetail('${esc(p.id)}',event)">${blocked?'<div class="inventoryLock">🔒 RESERVADO / AGOTADO</div>':''}<div class="photo photoSwipe" data-photo="${esc(key)}" data-index="0" onpointerdown="photoTouchStart(event)" onpointermove="photoTouchMove(event)" onpointerup="photoTouchEnd(event)" onpointercancel="photoTouchEnd(event)" onclick="photoClickGuard(event)" onpointerenter="photoHover(event)" onpointerleave="photoHoverLeave(event)">${imgs.length?`<img data-src="${esc(imgs[0])}" alt="${esc(p.name)}" loading="lazy" decoding="async" onerror="showCardImageFallback(this)" onload="clearCardImageFallback(this)">${imgs.length>1?``:''}`:'<div class="noimg">📦</div>'}</div><div class="body"><div class="catalogCardTitle"><div class="name">${esc(p.name)}</div><button class="productFavoriteButton" type="button" data-favorite-id="${esc(p.id)}" aria-pressed="${isCatalogFavorite(p.id)}" aria-label="${isCatalogFavorite(p.id)?'Quitar':'Añadir'} ${esc(p.name)} ${isCatalogFavorite(p.id)?'de':'a'} favoritos" onclick="toggleCatalogFavorite(event,this)"><span aria-hidden="true">${isCatalogFavorite(p.id)?'♥':'♡'}</span></button></div>${catalogProductReferenceMarkup(p)}<div class="price">${money(p.sale_price)}</div>${renderVariantOptions(p)}</div></article>`
  }).join(''):'<div class="empty">No encontramos productos con esos filtros.</div>';
+ activateFirstCatalogImage();
  document.querySelectorAll('#grid .card').forEach(card=>{const p=productos.find(x=>String(x.id)===String(card.dataset.productId));if(p)updateVariantAvailability(card,p)});
  activateCatalogLazyImages();
  renderStorefrontComboCatalog();
