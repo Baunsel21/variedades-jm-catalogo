@@ -40,8 +40,6 @@ umask 077
 export BACKUP_DIR="$HOME/secure-backups/sirevya-preflight-$(date -u +%Y%m%dT%H%M%SZ)"
 mkdir -p "$BACKUP_DIR"
 chmod 700 "$BACKUP_DIR"
-cd /path/to/variedades-jm-catalogo
-test -f supabase/config.toml
 supabase --version
 docker --version
 docker info >/dev/null
@@ -53,7 +51,7 @@ Usa una terminal privada. La URI aparecerá como argumento del proceso CLI, así
 
 ## 2. Exportar con Supabase CLI
 
-Ejecuta desde el root del repositorio, donde está `supabase/config.toml`. Estos comandos leen la URL remota indicada expresamente con `--remote=<postgres-url>`. No uses `db reset`, `migration up`, `db push`, `apply_migration` ni comandos de restauración contra la URL de producción. [3] [4]
+CLI v3 acepta una URL PostgreSQL explícita en `--remote=<postgres-url>` y la usa como destino de `db dump`; no requiere `supabase link` ni un `supabase/config.toml` del repositorio. Ejecuta desde la terminal privada con los archivos dirigidos a `$BACKUP_DIR`; no ejecutes `db dump` sin el flag `--remote` explícito. No uses `db reset`, `migration up`, `db push`, `apply_migration` ni comandos de restauración contra la URL de producción. [3] [4]
 
 ```sh
 supabase db dump -f "$BACKUP_DIR/roles.sql" --role-only --remote="$SIREVYA_DB_URL"
