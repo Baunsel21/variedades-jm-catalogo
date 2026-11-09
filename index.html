@@ -1757,7 +1757,7 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
   <label>Desde <input id="catalogPriceMin" type="number" min="0" step="1000" inputmode="numeric" placeholder="Mínimo" aria-label="Precio mínimo en pesos colombianos" oninput="render()"></label>
   <label>Hasta <input id="catalogPriceMax" type="number" min="0" step="1000" inputmode="numeric" placeholder="Máximo" aria-label="Precio máximo en pesos colombianos" oninput="render()"></label>
   <button type="button" onclick="clearCatalogPriceFilter()" aria-label="Limpiar filtro de precio">Limpiar</button>
-  <button type="button" onclick="copyCatalogPriceFilterLink()" aria-label="Copiar enlace de filtros públicos (precio, disponibilidad y orden)">Compartir</button>
+  <button type="button" onclick="copyCatalogPriceFilterLink()" aria-label="Copiar enlace de filtros públicos del catálogo">Compartir</button>
   <span id="catalogPriceFilterStatus" class="catalogPriceFilterStatus" role="status" aria-live="polite"></span>
 </div>
 <div class="catalogCountLine"><button id="favoritesOnlyToggle" class="favoritesFilterButton" type="button" aria-pressed="false" onclick="toggleFavoriteFilter()"><span aria-hidden="true">♡</span> Favoritos <span id="favoriteProductCount">0</span></button><span id="count" class="count">Cargando catálogo…</span></div>
@@ -3831,6 +3831,29 @@ function catalogProductReferenceMarkup(product){
  const code=String(product?.code??'').replace(/[\u0000-\u001f\u007f]/g,'').trim();
  return code&&code.length<=64?`<div class="productReference">Ref. ${esc(code)}</div>`:'';
 }
+const CATALOG_SHARE_FILTER_VALUE_LIMIT=12;
+const CATALOG_SHARE_FILTER_LENGTH_LIMIT=48;
+function catalogShareVariantValues(params,key){
+ const values=params.getAll(key);
+ if(values.length>CATALOG_SHARE_FILTER_VALUE_LIMIT)return [];
+ return values.map(value=>String(value||'').trim()).filter(value=>value&&value.length<=CATALOG_SHARE_FILTER_LENGTH_LIMIT&&!/[\u0000-\u001f\u007f]/.test(value));
+}
+function catalogShareSelectedValues(selection,names){
+ const values=[...selection].map(key=>String(names.get(key)||key).trim());
+ if(values.length>CATALOG_SHARE_FILTER_VALUE_LIMIT||values.some(value=>!value||value.length>CATALOG_SHARE_FILTER_LENGTH_LIMIT||/[\u0000-\u001f\u007f]/.test(value)))return null;
+ return [...new Set(values)].sort((a,b)=>a.localeCompare(b,'es-CO',{sensitivity:'base'}));
+}
+function syncCatalogPublicFilterParams(url){
+ const category=String($('category')?.value||'').trim();
+ if(category&&category.length<=96&&!/[\u0000-\u001f\u007f]/.test(category))url.searchParams.set('categoria',category);
+ else url.searchParams.delete('categoria');
+ url.searchParams.delete('color');url.searchParams.delete('size');
+ const colors=catalogShareSelectedValues(selectedCatalogColors,selectedCatalogColorNames);
+ const sizes=catalogShareSelectedValues(selectedCatalogSizes,selectedCatalogSizeNames);
+ if(colors)colors.forEach(value=>url.searchParams.append('color',value));
+ if(sizes)sizes.forEach(value=>url.searchParams.append('size',value));
+ return !!colors&&!!sizes;
+}
 function buildCatalogPriceFilterUrl(range){
  if(!range?.valid)throw new TypeError('No se puede compartir un rango de precio inválido.');
  const url=new URL('/',window.location.origin);
@@ -3839,6 +3862,7 @@ function buildCatalogPriceFilterUrl(range){
  if(['all','sold_out'].includes(catalogAvailabilityFilter))url.searchParams.set('availability',catalogAvailabilityFilter);
  const sort=catalogShareSortValue($('sort')?.value||'recent');
  if(sort&&sort!=='recent')url.searchParams.set('sort',sort);
+ if(!syncCatalogPublicFilterParams(url))throw new TypeError('La selección de filtros excede los límites del enlace público.');
  url.hash='catalogo';
  return url.href;
 }
@@ -3846,6 +3870,16 @@ function catalogShareSortValue(value){return ['recent','best_selling','name_asc'
 function restoreCatalogPriceFilterFromUrl(){
  try{
   const params=new URLSearchParams(window.location.search);
+  selectedCatalogColors.clear();selectedCatalogColorNames.clear();
+  selectedCatalogSizes.clear();selectedCatalogSizeNames.clear();
+  for(const color of catalogShareVariantValues(params,'color')){
+   const key=normalizeText(color);
+   if(key&&key!=='sin color'){selectedCatalogColors.add(key);selectedCatalogColorNames.set(key,color)}
+  }
+  for(const size of catalogShareVariantValues(params,'size')){
+   const key=catalogSizeFilterKey(size);
+   if(key){selectedCatalogSizes.add(key);selectedCatalogSizeNames.set(key,size)}
+  }
   if(params.has('min_price')||params.has('max_price')){
    const range=parseCatalogPriceRange(params.get('min_price'),params.get('max_price'));
    if(range.valid){
@@ -3875,6 +3909,7 @@ function syncCatalogPriceFilterUrlState(range){
   const sort=catalogShareSortValue($('sort')?.value||'recent');
   if(sort&&sort!=='recent')url.searchParams.set('sort',sort);
   else url.searchParams.delete('sort');
+  syncCatalogPublicFilterParams(url);
   const next=url.pathname+(url.search?url.search:'')+(url.hash||'');
   const current=window.location.pathname+window.location.search+window.location.hash;
   if(next!==current)window.history.replaceState(window.history.state??null,'',next);
@@ -3883,11 +3918,13 @@ function syncCatalogPriceFilterUrlState(range){
 async function copyCatalogPriceFilterLink(){
  const range=readCatalogPriceRange();
  if(!range.valid){showToast(range.error);return}
- const url=buildCatalogPriceFilterUrl(range);
+ let url='';
  try{
+  url=buildCatalogPriceFilterUrl(range);
   await navigator.clipboard.writeText(url);
-  showToast('Enlace copiado; solo contiene precio, disponibilidad y orden públicos.');
+  showToast('Enlace copiado; incluye solo filtros públicos de categoría, color, talla, precio, disponibilidad y orden.');
  }catch{
+  if(!url){showToast('Hay demasiados filtros seleccionados para compartir. Reduce la selección a 12 colores y 12 tallas como máximo.');return}
   showToast(`No se pudo copiar. Enlace limpio: ${url}`);
  }
 }
