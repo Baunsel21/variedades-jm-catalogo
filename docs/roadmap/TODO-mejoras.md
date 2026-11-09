@@ -46,6 +46,7 @@ Cada criterio se conserva hasta que exista evidencia en código, Supabase y prue
 ## Fase 6: Dashboard, clientes y logística
 
 - [ ] Dashboard muestra ventas por día/semana, pedidos pendientes, ventas/valor promedio, alertas de inventario bajo, agotados y pagos con revisión pendiente, indicando fecha/fuente y estados de carga/error.
+  - Avance parcial: el candidato añade ingresos brutos de hoy y de los últimos 7 días para ventas de mostrador, sumando registros ya cargados de `sales` por `sale_date`; indica rango/unidades/líneas y excluye pedidos web. No representa tickets/promedio, pedidos pendientes ni revisión de pagos; el criterio global permanece abierto.
 - [ ] Los filtros de pedido incluyen periodo, estado, ciudad y pago; listas usan paginación, conservan conteos correctos y nunca presentan error de consulta como “sin pedidos”.
 - [ ] El historial de clientes muestra órdenes relacionadas, recurrencia y notas bajo autorización del administrador; PII se obtiene bajo demanda, no se guarda en logs/URL/localStorage ni queda expuesta a público.
 - [ ] Estado logístico (preparando, transportadora, número de guía, fecha estimada, entregado y evidencia) es distinto del estado de pago; cada transición queda registrada y validada server-side.
