@@ -79,6 +79,8 @@ BEGIN
   IF result->>'ok' IS DISTINCT FROM 'false' OR NOT (result->'errors' @> '[{"code":"IMPORT_LIMIT_EXCEEDED"}]'::jsonb) THEN
     RAISE EXCEPTION 'empty import should fail closed, got %', result;
   END IF;
+  SELECT count(*) INTO row_count FROM public.products WHERE user_id = auth.uid();
+  IF row_count <> 2 THEN RAISE EXCEPTION 'empty RPC readiness probe changed the table'; END IF;
 
   SELECT jsonb_agg(jsonb_build_object(
     'row', n + 1, 'code', 'LIMIT-' || n, 'name', 'Producto', 'category', 'Otros',
@@ -116,5 +118,19 @@ BEGIN
 END;
 $$;
 
+RESET ROLE;
+SET LOCAL ROLE service_role;
+DO $$
+DECLARE
+  denied boolean := false;
+BEGIN
+  BEGIN
+    PERFORM public.admin_import_products_csv('[]'::jsonb);
+  EXCEPTION WHEN insufficient_privilege THEN
+    denied := true;
+  END;
+  IF NOT denied THEN RAISE EXCEPTION 'service_role must not invoke the browser import RPC'; END IF;
+END;
+$$;
 RESET ROLE;
 ROLLBACK;

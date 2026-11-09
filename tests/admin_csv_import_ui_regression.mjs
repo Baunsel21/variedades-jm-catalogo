@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { PRODUCT_COLUMNS } from '../scripts/fase7_csv_preview.mjs';
 import { initializeCsvPreviewUi } from '../scripts/admin_csv_preview.mjs';
 
@@ -19,7 +20,7 @@ class FakeDocument {
   getElementById(id) { return this.nodes.get(id)||null; }
   createElement(tagName) { return new FakeNode(tagName); }
 }
-function makeUi(csv, { confirm=true, commit=async()=>({ok:true,inserted:1}), refresh=async()=>true }={}) {
+function makeUi(csv, { confirm=true, rpcReady=true, commit=async()=>({ok:true,inserted:1}), refresh=async()=>true }={}) {
   const ids={
     csvProductFile:Object.assign(new FakeNode('input'),{files:csv?[csvFile(csv)]:[]}),
     csvPreviewButton:new FakeNode('button'), csvPreviewClear:new FakeNode('button'),
@@ -27,13 +28,14 @@ function makeUi(csv, { confirm=true, commit=async()=>({ok:true,inserted:1}), ref
     csvPreviewStatus:new FakeNode(), csvPreviewSummary:new FakeNode(), csvPreviewErrors:new FakeNode(),
     csvPreviewErrorList:new FakeNode('ul'), csvPreviewErrorsNote:new FakeNode(), csvPreviewRows:new FakeNode('tbody'), csvPreviewRowsNote:new FakeNode(),
   };
-  const documentRef=new FakeDocument(ids); let commits=[]; let refreshes=0;
+  const documentRef=new FakeDocument(ids); let commits=[]; let refreshes=0; let readinessChecks=0;
   const browserRef={confirm:()=>confirm};
+  globalThis.checkAdminCsvImportRpcReady=async()=>{ readinessChecks+=1; return rpcReady; };
   globalThis.commitAdminCsvProducts=async rows=>{ commits.push(rows); return commit(rows); };
   globalThis.refreshAdminAfterCsvImport=async()=>{ refreshes+=1; return refresh(); };
   globalThis.getAdminCsvPreviewExistingCodes=()=>[];
   initializeCsvPreviewUi(documentRef,browserRef);
-  return {ids,documentRef,get commits(){return commits;},get refreshes(){return refreshes;}};
+  return {ids,documentRef,get commits(){return commits;},get refreshes(){return refreshes;},get readinessChecks(){return readinessChecks;}};
 }
 const header=PRODUCT_COLUMNS.join(',');
 
@@ -51,6 +53,17 @@ const header=PRODUCT_COLUMNS.join(',');
   assert.match(ui.ids.csvPreviewSummary.textContent,/importación confirmada: 1 nuevos/);
   assert.doesNotMatch(ui.ids.csvPreviewSummary.textContent,/dry-run: sí · escritura: no/);
   assert.equal(ui.ids.csvPreviewImportButton.disabled,true);
+}
+
+// Si el endpoint no está desplegado, mantiene el preview pero no ofrece la acción de escritura.
+{
+  const ui=makeUi(`${header}\nSKU-NO-RPC,Corset,Accesorios,12000,25000,2`,{rpcReady:false});
+  await ui.ids.csvPreviewButton.trigger('click');
+  assert.equal(ui.readinessChecks,1);
+  assert.equal(ui.ids.csvPreviewImportButton.disabled,true);
+  assert.match(ui.ids.csvPreviewStatus.textContent,/aún no está disponible/);
+  await ui.ids.csvPreviewImportButton.trigger('click');
+  assert.equal(ui.commits.length,0);
 }
 
 // El usuario puede cancelar; no hay solicitud ni refresh.
@@ -94,6 +107,11 @@ const header=PRODUCT_COLUMNS.join(',');
 }
 
 delete globalThis.commitAdminCsvProducts;
+delete globalThis.checkAdminCsvImportRpcReady;
 delete globalThis.refreshAdminAfterCsvImport;
 delete globalThis.getAdminCsvPreviewExistingCodes;
+const adminHtml=readFileSync(new URL('../admin.html',import.meta.url),'utf8');
+assert.ok(adminHtml.includes("window.checkAdminCsvImportRpcReady=async()=>{"));
+assert.ok(adminHtml.includes("sb.rpc('admin_import_products_csv',{p_rows:[]})"));
+assert.ok(adminHtml.includes("error?.code==='IMPORT_LIMIT_EXCEEDED'"));
 console.log('admin_csv_import_ui_regression: PASS (confirmation, allowlist payload, invalid/oversized block, ambiguous result safe handling)');

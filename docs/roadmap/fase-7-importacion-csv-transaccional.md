@@ -2,9 +2,9 @@
 
 ## Estado
 
-La interfaz candidata extiende el preview CSV ya publicado con una acción de aplicación explícita. Antes de confirmar, ejecuta preview local y no habilita la acción si hay errores, si el lote supera 250 filas, o si falta el callback autenticado del administrador. La RPC propuesta inserta productos nuevos como transacción, respeta RLS y rechaza duplicados/valores fuera del contrato; nunca actualiza productos existentes ni importa fotos/variantes.
+La interfaz extiende el preview CSV con una acción de aplicación explícita. Antes de habilitarla ejecuta preview local y un probe autenticado del RPC con lote vacío; ese probe nunca escribe y el botón queda deshabilitado si el RPC no está desplegado/disponible, si hay errores, si el lote supera 250 filas o si la sesión/admin no está autorizada. La RPC propuesta inserta productos nuevos como transacción, respeta RLS y rechaza duplicados/valores fuera del contrato; nunca actualiza productos existentes ni importa fotos/variantes.
 
-El código está en una rama Draft y **no está publicado ni aplicado**. La migración usa solo columnas/índice/RLS comprobados por metadatos read-only (`products_user_code_idx`, `products own`) y se prueba contra una fixture PostgreSQL sintética. La falta de backup restaurable y la necesidad de validar el lock/contrato sobre un restore aislado siguen bloqueando activación productiva.
+El código puede integrarse/publicarse con la importación efectivamente desactivada mientras el probe no confirme el RPC. La migración continúa **sin aplicar** en producción. Usa columnas/índice/RLS revisados por metadatos read-only (`products_user_code_idx`, `products own`) y se prueba contra una fixture PostgreSQL sintética. La falta de backup restaurable y la necesidad de validar el lock/contrato sobre un restore aislado siguen bloqueando activación productiva.
 
 ## Protección y límites
 

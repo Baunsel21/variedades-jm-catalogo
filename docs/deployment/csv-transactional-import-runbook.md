@@ -1,6 +1,6 @@
 # Importación CSV transaccional (candidata)
 
-**Estado:** no aplicada ni activa en Supabase de producción. La migración `20261109213200_admin_csv_product_import_atomic.sql` es candidata y debe mantenerse en revisión Draft hasta validar un backup restaurable y el contrato en un PostgreSQL aislado.
+**Estado:** no aplicada ni activa en Supabase de producción. La migración `20261109213200_admin_csv_product_import_atomic.sql` puede integrarse en Git, pero su DDL solo se aplica tras backup/restauración verificables y revisar el contrato en un PostgreSQL aislado. La UI comprueba la disponibilidad con una llamada autenticada al RPC con `p_rows: []`; el servidor devuelve `IMPORT_LIMIT_EXCEEDED` antes del lock y cualquier escritura, así que el botón permanece deshabilitado mientras falte el RPC o la sesión/admin no esté autorizada.
 
 ## Contrato
 
@@ -8,7 +8,7 @@
 - Inserta productos nuevos del usuario autenticado; no actualiza registros existentes. Un duplicado en el archivo o en el catálogo rechaza el lote entero.
 - La función es `SECURITY INVOKER`, usa la política RLS vigente, limita a 250 filas/1 MiB y sostiene un lock de escritores solo durante la validación e inserción acotada.
 - Error de validación devuelve filas/códigos/campos, no el contenido del producto. Una excepción PostgreSQL revierte la transacción RPC completa.
-- El botón requiere preview local sin errores y confirmación explícita. Ante una respuesta de red ambigua, deshabilita el reintento hasta volver a cargar/previsualizar; el servidor también rechaza códigos ya existentes.
+- El botón requiere preview local sin errores, probe RPC disponible y confirmación explícita. El probe envía cero filas y nunca escribe. Ante una respuesta de red ambigua, deshabilita el reintento hasta volver a cargar/previsualizar; el servidor también rechaza códigos ya existentes.
 
 ## Prueba local
 

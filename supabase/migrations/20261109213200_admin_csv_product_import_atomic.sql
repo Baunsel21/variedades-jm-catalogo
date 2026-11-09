@@ -21,6 +21,9 @@ DECLARE
   v_inserted integer := 0;
   v_count integer;
 BEGIN
+  IF current_user <> 'authenticated' THEN
+    RAISE EXCEPTION USING ERRCODE = '42501', MESSAGE = 'CSV_IMPORT_AUTHENTICATED_ROLE_REQUIRED';
+  END IF;
   IF v_user_id IS NULL THEN
     RAISE EXCEPTION USING ERRCODE = '42501', MESSAGE = 'CSV_IMPORT_AUTH_REQUIRED';
   END IF;

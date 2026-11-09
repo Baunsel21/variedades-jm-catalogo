@@ -10,6 +10,7 @@ const CURRENCY_FORMAT = new Intl.NumberFormat('es-CO', {
 });
 let previewGeneration = 0;
 let lastPreviewResult = null;
+let importRpcReady = false;
 
 export async function previewCsvFile(file, existingCodes = []) {
   if (!file || typeof file.arrayBuffer !== 'function') {
@@ -147,16 +148,20 @@ export function renderCsvPreviewResult(result, documentRef = globalThis.document
   const errorCount = Number(summary.errorCount) || errors.length;
   const importButton = documentRef.getElementById('csvPreviewImportButton');
   if (importButton) {
-    const canImport = errors.length === 0 && rows.length > 0 && rows.length <= MAX_IMPORT_ROWS &&
+    const canImport = importRpcReady && errors.length === 0 && rows.length > 0 && rows.length <= MAX_IMPORT_ROWS &&
       typeof globalThis.commitAdminCsvProducts === 'function';
     importButton.disabled = !canImport;
   }
 
   const status = documentRef.getElementById('csvPreviewStatus');
   if (status) {
-    status.textContent = rows.length > MAX_IMPORT_ROWS && errorCount === 0
-      ? `Vista previa lista: ${validRows} filas válidas de ${dataRows}; máximo 250 por lote de importación. No se guardó ningún dato.`
-      : `Vista previa lista: ${validRows} filas válidas de ${dataRows}; ${errorCount} errores. No se guardó ni subió ningún dato.`;
+    if (rows.length > MAX_IMPORT_ROWS && errorCount === 0) {
+      status.textContent = `Vista previa lista: ${validRows} filas válidas de ${dataRows}; máximo 250 por lote de importación. No se guardó ningún dato.`;
+    } else if (errors.length === 0 && rows.length > 0 && !importRpcReady) {
+      status.textContent = `Vista previa lista: ${validRows} filas válidas. La importación transaccional aún no está disponible para esta sesión. No se guardó ni subió ningún dato.`;
+    } else {
+      status.textContent = `Vista previa lista: ${validRows} filas válidas de ${dataRows}; ${errorCount} errores. No se guardó ni subió ningún dato.`;
+    }
   }
 
   const summaryNode = documentRef.getElementById('csvPreviewSummary');
@@ -217,6 +222,7 @@ export function renderCsvPreviewResult(result, documentRef = globalThis.document
 
 function resetCsvPreviewUi(documentRef) {
   lastPreviewResult = null;
+  importRpcReady = false;
   const reportButton = documentRef.getElementById('csvPreviewDownloadReport');
   if (reportButton) reportButton.disabled = true;
   const importButton = documentRef.getElementById('csvPreviewImportButton');
@@ -259,6 +265,7 @@ export function initializeCsvPreviewUi(documentRef = globalThis.document, browse
     const file = fileInput.files?.[0];
     const generation = ++previewGeneration;
     lastPreviewResult = null;
+    importRpcReady = false;
     if (downloadButton) downloadButton.disabled = true;
     if (importButton) importButton.disabled = true;
     const status = documentRef.getElementById('csvPreviewStatus');
@@ -273,7 +280,15 @@ export function initializeCsvPreviewUi(documentRef = globalThis.document, browse
         ? globalThis.getAdminCsvPreviewExistingCodes()
         : [];
       const result = await previewCsvFile(file, Array.isArray(existingCodes) ? existingCodes : []);
-      if (generation === previewGeneration) renderCsvPreviewResult(result, documentRef);
+      let rpcReady = false;
+      if (result.errors.length === 0 && result.rows.length > 0 && result.rows.length <= MAX_IMPORT_ROWS &&
+          typeof globalThis.checkAdminCsvImportRpcReady === 'function') {
+        try { rpcReady = await globalThis.checkAdminCsvImportRpcReady() === true; } catch { rpcReady = false; }
+      }
+      if (generation === previewGeneration) {
+        importRpcReady = rpcReady;
+        renderCsvPreviewResult(result, documentRef);
+      }
     } catch {
       if (generation === previewGeneration && status) {
         status.textContent = 'No se pudo leer el archivo. No se envió ni guardó ningún dato.';
@@ -298,7 +313,7 @@ export function initializeCsvPreviewUi(documentRef = globalThis.document, browse
     const result = lastPreviewResult;
     const rows = Array.isArray(result?.rows) ? result.rows : [];
     const status = documentRef.getElementById('csvPreviewStatus');
-    if (!result || result.errors?.length || rows.length < 1 || rows.length > MAX_IMPORT_ROWS ||
+    if (!importRpcReady || !result || result.errors?.length || rows.length < 1 || rows.length > MAX_IMPORT_ROWS ||
         typeof globalThis.commitAdminCsvProducts !== 'function') {
       if (status) status.textContent = 'No hay una vista previa válida para importar. Selecciona y previsualiza el archivo otra vez.';
       importButton.disabled = true;
