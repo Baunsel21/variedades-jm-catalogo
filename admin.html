@@ -352,6 +352,7 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
           <div class="card stat"><small>Ganancia acumulada</small><div class="num" id="nGanancia">$0</div><div class="sub">Sobre ventas registradas</div><div class="bubble">💰</div></div>
           <div class="card stat" title="Suma de cantidad por precio de venta para registros de mostrador con la fecha de hoy."><small>Ingresos brutos · hoy</small><div class="num" id="dashboardSalesTodayRevenue" aria-live="polite">$0</div><div class="sub" id="dashboardSalesTodayMeta">Ventas de mostrador por fecha registrada; no incluye pedidos web.</div><div class="bubble">📅</div></div>
           <div class="card stat" title="Suma de cantidad por precio de venta para los últimos siete días calendario registrados."><small>Ingresos brutos · 7 días</small><div class="num" id="dashboardSalesWeekRevenue" aria-live="polite">$0</div><div class="sub" id="dashboardSalesWeekMeta">Ventas de mostrador por fecha registrada; no incluye pedidos web.</div><div class="bubble">📈</div></div>
+          <div class="card stat" title="Pedidos web en estado Pendiente dentro de la lista administrativa cargada; no incluye la tabla Wompi orders."><small>Pedidos web pendientes</small><div class="num" id="dashboardPendingWebOrdersCount" aria-live="polite">—</div><div class="sub" id="dashboardPendingWebOrdersMeta">Abre Pedidos para consultar web_orders. La cola Wompi se administra aparte.</div><div class="bubble">📋</div></div>
         </div>
         <div class="sectionGrid">
           <div class="box"><div class="rowBetween"><h3>⚠️ Atención de inventario</h3><span class="badge low" id="lowCount">0</span></div><div id="stockBajo"></div></div>
@@ -1587,7 +1588,7 @@ function lockAdminPanel(message='Tu sesión terminó. Vuelve a entrar.'){
  $("app").classList.add("hidden");$("loginScreen").classList.remove("hidden");
  if(adminCatalogRealtimeChannel&&sb){const channel=adminCatalogRealtimeChannel;adminCatalogRealtimeChannel=null;void sb.removeChannel(channel).catch(error=>console.debug('No se pudo cerrar el canal administrativo.',error));}
  adminCatalogRealtimeReady=false;adminCatalogRealtimePending=[];
- productos=[];ventas=[];clientes=[];proveedores=[];gastos=[];movimientos=[];pedidos=[];categorias=[];categoryRecords=[];
+ productos=[];ventas=[];clientes=[];proveedores=[];gastos=[];movimientos=[];pedidos=[];pedidosLoadError='';ordersFacetOptionsSignature='';categorias=[];categoryRecords=[];
  moduleLoadErrors={};
  Object.keys(adminDeferredModuleLoaded).forEach(key=>adminDeferredModuleLoaded[key]=false);
  onlinePaymentSettingLoaded=false;onlinePaymentSettingOriginal=null;
@@ -2127,6 +2128,7 @@ async function cargarPedidos(){
         pedidosLoadError=describeAdminTableError('web_orders',error);moduleLoadErrors.orders=pedidosLoadError;
         toast("No se pudieron actualizar los pedidos. Se conserva la lista anterior.");
         renderPedidos();
+        renderInicio();
         return false;
       }
       pedidos=data||[];
@@ -2134,6 +2136,7 @@ async function cargarPedidos(){
       adminDeferredModuleLoaded.orders=true;delete moduleLoadErrors.orders;
       setOrdersUpdatedAt();
       renderPedidos();
+      renderInicio();
       return true;
     }catch(fetchError){
       if(!isCurrent())return false;
@@ -2148,6 +2151,7 @@ async function cargarPedidos(){
       pedidosLoadError=describeAdminTableError('web_orders',fetchError);moduleLoadErrors.orders=pedidosLoadError;
       toast("No se pudieron actualizar los pedidos. Se conserva la lista anterior.");
       renderPedidos();
+      renderInicio();
       return false;
     }finally{
       if(isCurrent()&&button){button.disabled=false;button.textContent=originalText}
@@ -3388,6 +3392,20 @@ function calculatePosSalesDashboardSummary(rows,todayKey=new Date().toISOString(
  return summary;
 }
 
+function calculatePendingWebOrdersDashboardSummary(rows){
+ const orders=Array.isArray(rows)?rows:[];
+ const pending=orders.filter(order=>String(order?.status??'').trim().toLowerCase()==='pendiente').length;
+ return {pending,total:orders.length};
+}
+function renderDashboardPendingWebOrders(){
+ const count=$('dashboardPendingWebOrdersCount'),meta=$('dashboardPendingWebOrdersMeta');
+ if(!count||!meta)return;
+ if(pedidosLoadError){count.textContent='—';meta.textContent='No fue posible cargar pedidos web. Abre Pedidos para reintentar.';return;}
+ if(!adminDeferredModuleLoaded.orders){count.textContent='—';meta.textContent='Abre Pedidos para consultar web_orders. La cola Wompi se administra aparte.';return;}
+ const summary=calculatePendingWebOrdersDashboardSummary(pedidos);
+ count.textContent=String(summary.pending);
+ meta.textContent=`${summary.pending} de ${summary.total} pedidos web consultados; Wompi orders se administra aparte.`;
+}
 function renderInicio(){
  const units=productos.reduce((s,p)=>s+(Number(p.quantity)||0),0),sold=ventas.reduce((s,v)=>s+(Number(v.quantity)||0),0),gain=ventas.reduce((s,v)=>s+(Number(v.quantity)||0)*(Number(v.sale_price)-Number(v.cost_price)),0);
  $("nProductos").textContent=productos.length;$("nUnidades").textContent=units;$("nVendidos").textContent=sold;$("nGanancia").textContent=money(gain);
@@ -3397,6 +3415,7 @@ function renderInicio(){
  $("dashboardSalesTodayMeta").textContent=`${periodSummary.todayKey} · ${periodSummary.todayLines} líneas · ${periodSummary.todayUnits} unidades · mostrador; excluye pedidos web.`;
  $("dashboardSalesWeekRevenue").textContent=money(periodSummary.weekRevenue);
  $("dashboardSalesWeekMeta").textContent=`${periodSummary.weekStartKey} a ${periodSummary.todayKey} · ${periodSummary.weekLines} líneas · ${periodSummary.weekUnits} unidades · mostrador; excluye pedidos web.`;
+ renderDashboardPendingWebOrders();
  const low=productos.filter(p=>availableQuantity(p)<=2);$("lowCount").textContent=low.length;
  $("stockBajo").innerHTML=low.length?low.slice(0,8).map(p=>`<div class="alert"><div class="rowBetween"><b>${esc(p.code)} — ${esc(p.name)}</b>${stockBadge(availableQuantity(p))}</div><span class="muted">${availableQuantity(p)} disponible(s) • ${esc(p.location||"Sin ubicación")}</span></div>`).join(""):'<div class="empty">✓ Todo el inventario tiene más de 2 unidades.</div>';
  $("recentSales").innerHTML=ventas.slice(0,6).map(v=>`<div class="listItem"><div class="rowBetween"><b>${esc(v.product_code)} — ${esc(v.product_name)}</b><b>${money(Number(v.quantity)*Number(v.sale_price))}</b></div><span class="muted">${v.sale_date} • ${v.quantity} unidad(es)</span></div>`).join("")||'<div class="empty">No hay ventas todavía.</div>';
