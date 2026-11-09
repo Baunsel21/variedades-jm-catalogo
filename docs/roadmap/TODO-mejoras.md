@@ -18,6 +18,7 @@ Cada criterio se conserva hasta que exista evidencia en código, Supabase y prue
 
 - [ ] El administrador puede crear/editar/desactivar una tarifa por ciudad o zona, una tarifa general alternativa y umbral de envío gratis; se muestran ciudades sin regla con la tarifa de respaldo. Ciudad/Cali se normaliza con acentos, mayúsculas, espacios y alias documentados.
 - [ ] La disponibilidad de contraentrega sigue bajo sus controles actuales por ciudad; tarifas y medios de pago no se contradicen. Cambiar una regla de entrega no altera pedidos ya creados ni reservas activas.
+  - Avance (2026-11-09): la prevalidación del navegador canonicaliza Cali, Santiago de Cali y Cali Valle del Cauca igual que la RPC `storefront_cod_city_allowed`; regresión sintética PASS. No habilita ciudades nuevas, no escribe reglas y la cotización del servidor sigue siendo la autoridad.
 - [ ] La cotización rechaza o maneja explícitamente ciudad vacía/no reconocida y nunca confía en el importe enviado por el navegador.
 
 ## Fase 3: Catálogo, búsqueda y conversión
@@ -49,6 +50,8 @@ Cada criterio se conserva hasta que exista evidencia en código, Supabase y prue
 - [ ] Cédula obligatoria: validación server-side antes de pedido COD o checkout Wompi nuevo; envío como `legal-id`; replay legacy exacto mantiene idempotencia y el documento no aparece en logs.
   - Candidato en PR #50 DRAFT: UI/Edge y trigger COD; regresiones Node/PostgreSQL sintéticas, chequeo TypeScript y validador PASS. La UI solo está en preview, POST 403; no se aplicó migración ni se desplegó Edge. No hubo pedidos/pagos reales; el criterio sigue abierto.
 
+> Cobertura local adicional (2026-11-09): `tests/checkout_quote_fail_closed_regression.mjs` ejecuta los handlers actuales con respuestas de cotización error/null/incompletas para PSE, COD y el segundo chequeo Wompi; verifica cero llamada a la Edge de pago, cero RPC de creación COD y cero liberación de reservas previas. No realiza red, pago ni escritura.
+
 ## Fase 6: Dashboard, clientes y logística
 
 > Avance parcial: los filtros y paginación visual de pedidos `web_orders` se publicaron por [PR #58](https://github.com/Baunsel21/variedades-jm-catalogo/pull/58), merge `4bf73a6`; Pages reportó `built` para ese commit y el admin oficial respondió HTTP 200 con los controles nuevos. PR #15, que era la copia apilada sobre cupones, se cerró como duplicado; PR #14 no se modificó. Pruebas locales y Chromium sintético desktop/móvil/error pasan. No integra Wompi/`orders` ni toca estados logísticos; dashboard completo, clientes, logística/notificaciones y paginación server-side siguen abiertos.
@@ -71,6 +74,7 @@ Cada criterio se conserva hasta que exista evidencia en código, Supabase y prue
   - Avance parcial: el admin permite descargar los campos básicos `code,name,category,cost,sale_price,quantity` compatibles con la vista previa, con neutralización de fórmulas y los límites de 10.000 filas/5 MiB. No incluye fotos ni variantes; la importación real/transaccional sigue pendiente.
 - [x] La previsualización CSV permite descargar un reporte generado solo en este navegador con bytes de entrada, límites, filas de datos, válidas e inválidas, errores totales y detalle de fila/campo/código/mensaje; no incluye valores de filas ni datos personales, queda deshabilitado hasta completar la validación y se reinicia al cambiar/limpiar archivo; conserva `canCommit:false`, `dryRun:true`, `writePerformed:false` y no sube, importa ni escribe datos.
   - Verificado: el reporte se construye en memoria, redacciona cabeceras desconocidas, neutraliza fórmulas, conserva todas las columnas CSV y solo incluye conteos/detalles de error. Regresión UI, contrato de exportación, parser dry-run y validador PASS; Chromium sin overflow a 502/1280 px.
+  - Avance (2026-11-09): `MALFORMED_CSV` conserva la fila lógica y ahora informa la línea física real, incluso tras un campo multilinea; el reporte agrega `linea_fisica`. Regresiones del parser, UI y exportación PASS con un fixture sintético. La importación real y transaccional sigue pendiente.
 - [ ] Los reportes filtran por rango, ciudad, categoría y método; ventas/ganancia/envíos/descuentos concilian con tablas canónicas y se indica cuándo los datos están incompletos.
 - [ ] Backup documenta qué incluye, excluye o no restaura, minimiza PII y verifica archivos R2/manifest; la exportación CSV continúa neutralizando fórmulas. Archivado de ventas sigue reversible.
   - Avance parcial: el runbook documenta CLI v3 (`--remote`), filtros/limitaciones, comandos dump/restore y gate; el proyecto es Free. Smoke test sintético PG17.11 local pasó (2 filas + 2 de auditoría), SHA-256 y conteos `2:2`; las bases/dumps temporales se eliminaron. No se exportó ni restauró Sirevya: siguen faltando Supabase CLI, Docker y URI privada de solo lectura; el criterio sigue abierto.

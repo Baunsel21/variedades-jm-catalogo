@@ -140,8 +140,8 @@ function parseCsvRecords(text) {
   let rowStartLine = 1;
   let physicalLine = 1;
 
-  const malformed = (message, line = rowStartLine) => ({
-    error: makeError(0, 'MALFORMED_CSV', message, null, { physicalLine: line }),
+  const malformed = (message, line = physicalLine) => ({
+    error: makeError(records.length + 1, 'MALFORMED_CSV', message, null, { physicalLine: line }),
   });
 
   const startNextRecord = () => {
@@ -244,7 +244,7 @@ function parseCsvRecords(text) {
   }
 
   if (inQuotes) {
-    return malformed('El último campo entre comillas no tiene comilla de cierre.', rowStartLine);
+    return malformed('El último campo entre comillas no tiene comilla de cierre.', physicalLine);
   }
   if (afterClosingQuote || sawContent || fields.length > 0 || field !== '') {
     finishCsvRecord(records, fields, field, rowStartLine, sawContent);
@@ -403,10 +403,7 @@ export function previewProductsCsv(input, options = {}, legacyOptions = {}) {
 
   const parsed = parseCsvRecords(text);
   if (parsed.error) {
-    const error = {
-      ...parsed.error,
-      row: parsed.error.physicalLine > 0 ? 1 : parsed.error.row,
-    };
+    const error = parsed.error;
     return baseResult({
       errors: [error],
       summary: resultSummary(decoded.bytes, 0, 0, [error], limits),
