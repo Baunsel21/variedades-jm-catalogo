@@ -4,9 +4,22 @@ import { readFile } from 'node:fs/promises';
 const indexHtml = await readFile(new URL('../index.html', import.meta.url), 'utf8');
 const privacyHtml = await readFile(new URL('../politica-privacidad.html', import.meta.url), 'utf8');
 const faqHtml = await readFile(new URL('../preguntas-frecuentes.html', import.meta.url), 'utf8');
+const sitemapXml = await readFile(new URL('../sitemap.xml', import.meta.url), 'utf8');
+const robotsTxt = await readFile(new URL('../robots.txt', import.meta.url), 'utf8');
 
 assert.equal((indexHtml.match(/href="\/politica-privacidad\.html"/g) || []).length, 2, 'Catálogo/modal y checkout enlazan privacidad.');
 assert.equal((indexHtml.match(/href="\/preguntas-frecuentes\.html"/g) || []).length, 3, 'Catálogo, modal y checkout enlazan FAQ.');
+assert.match(robotsTxt, /^User-agent: \*$/m);
+assert.match(robotsTxt, /^Allow: \/$/m);
+assert.match(robotsTxt, /^Disallow: \/admin\.html$/m);
+assert.match(robotsTxt, /^Sitemap: https:\/\/sirevya\.com\.co\/sitemap\.xml$/m);
+const sitemapUrls = [...sitemapXml.matchAll(/<loc>([^<]+)<\/loc>/g)].map(([, url]) => url);
+assert.deepEqual(sitemapUrls, [
+  'https://sirevya.com.co/',
+  'https://sirevya.com.co/politica-privacidad.html',
+  'https://sirevya.com.co/preguntas-frecuentes.html',
+], 'El sitemap incluye solo la portada y páginas estáticas públicas confirmadas.');
+assert.equal((sitemapXml.match(/<url>/g) || []).length, sitemapUrls.length);
 
 const privacySections = [
   '1. Responsable del tratamiento',
@@ -86,4 +99,4 @@ for (const [name, html] of [['privacy', privacyHtml], ['faq', faqHtml]]) {
   assert.doesNotMatch(html, /noindex,nofollow/i, `${name} no hereda el bloqueo de indexación exclusivo del preview.`);
 }
 
-console.log('public_policies_regression: OK (texto y enlaces conservados; canonical/OG/Twitter únicos; HTML estático sin recursos activos externos).');
+console.log('public_policies_regression: OK (canonical/OG/Twitter, sitemap y robots coherentes; solo rutas públicas confirmadas).');
