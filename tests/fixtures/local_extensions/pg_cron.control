@@ -1,0 +1,4 @@
+comment = 'Sandbox-only SQL mock used by Telegram scheduler regression tests'
+default_version = '1.0'
+schema = 'cron'
+relocatable = false
