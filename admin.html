@@ -532,12 +532,13 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
       </section>
 
       <section id="csvPreview" class="view">
-        <div><h2 style="margin:0">🧾 Importación CSV · vista previa</h2><p class="muted">Revisa filas y errores antes de definir una importación real. Este incremento no permite guardar ni aplicar productos.</p></div>
+        <div><h2 style="margin:0">🧾 Importación CSV</h2><p class="muted">Previsualiza localmente y confirma solo el lote válido. La importación agrega productos nuevos de forma transaccional; no actualiza productos existentes ni incluye fotos o variantes.</p></div>
         <div class="box" style="margin-top:15px">
-          <div class="status" role="note"><strong>Dry-run local:</strong> el archivo se lee en este navegador, no se sube ni se escribe en la base de datos. Límite: 5 MB y 10.000 filas. Solo admite code, name, category, cost, sale_price y quantity; no carga variantes.</div>
+          <div class="status" role="note"><strong>Vista previa local:</strong> el archivo se lee en este navegador. El panel comprueba disponibilidad del RPC con un lote vacío sin escribir; si falta, el botón permanece desactivado. Solo se envían filas validadas tras confirmación. Preview: 5 MiB/10.000 filas; importación: máximo 250 filas/1 MiB. Solo admite code, name, category, cost, sale_price y quantity; no carga variantes ni fotos. La aplicación requiere autenticación vigente y autorización RLS; el servidor revalida todo el lote.</div>
           <div class="searchbar" style="align-items:end;margin-top:14px">
             <label for="csvProductFile">Archivo CSV<input id="csvProductFile" type="file" accept=".csv,text/csv"></label>
             <button id="csvPreviewButton" type="button" class="primary">Previsualizar archivo</button>
+            <button id="csvPreviewImportButton" type="button" class="primary" disabled>Importar lote nuevo (máx. 250)</button>
             <button id="csvPreviewClear" type="button" class="softbtn">Limpiar</button>
           </div>
           <div style="margin-top:8px"><button id="csvPreviewDownloadReport" type="button" class="softbtn" style="max-width:100%" disabled>Descargar reporte de validación</button></div>
@@ -609,6 +610,15 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
               <button id="telegramTestBtn" class="primary" type="button" onclick="sendTelegramTestMessage()" disabled>Enviar mensaje de prueba</button>
             </div>
             <div id="telegramTestStatus" class="status" role="status" aria-live="polite">Disponible solo desde el dominio oficial, con una sesión admin autorizada.</div>
+          </div>
+          <div class="box" style="grid-column:1/-1" id="telegramAutomaticBox">
+            <div class="rowBetween" style="align-items:flex-start;gap:16px;flex-wrap:wrap">
+              <div style="flex:1;min-width:220px"><h3 style="margin-bottom:7px">🔔 Notificaciones automáticas de Telegram</h3><p class="muted" style="margin-top:0">Notifica pedidos, estados de pago y cambios relevantes de inventario. Para activarlas, el scheduler y el worker deben estar verificados por el despliegue. Al apagar, un lote ya reclamado puede terminar; no se envían datos personales.</p></div>
+              <label class="paymentSwitch" for="telegramAutomaticToggle" aria-label="Activar notificaciones automáticas de Telegram"><input id="telegramAutomaticToggle" type="checkbox" onchange="updateTelegramAutomaticControls()" disabled><span class="paymentSwitchTrack" aria-hidden="true"></span></label>
+            </div>
+            <div id="telegramAutomaticStatus" class="status" role="status" aria-live="polite">Disponible solo desde sirevya.com.co, con sesión admin y backend de notificaciones instalado.</div>
+            <div id="telegramAutomaticMetrics" class="muted" style="margin-top:8px" aria-live="polite">Estado y contadores aún no consultados.</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><button id="refreshTelegramAutomaticBtn" class="softbtn" type="button" onclick="loadTelegramAutomaticStatus(true)" disabled>↻ Consultar estado</button><button id="saveTelegramAutomaticBtn" class="primary" type="button" onclick="saveTelegramAutomaticSettings()" disabled>Guardar configuración</button></div>
           </div>
           <div class="box" style="grid-column:1/-1" id="codCitiesSettingsBox">
             <div class="rowBetween" style="align-items:flex-start;gap:16px;flex-wrap:wrap">
@@ -737,6 +747,22 @@ const SUPABASE_ANON_KEY="sb_publishable_p2XJjsFd4Hp7LZ1IgfyVAg_hpXnFSSc";
 const IMAGE_WORKER_URL="https://sirevya-images.variedadesjm99.workers.dev";
 let sb=null,editingId=null,productos=[],ventas=[],clientes=[],inventoryMode=localStorage.getItem("jm_inventory_mode")||"cards";
 window.getAdminCsvPreviewExistingCodes=()=>Array.isArray(productos)?productos.map(product=>String(product?.code||'').trim()).filter(Boolean):[];
+window.checkAdminCsvImportRpcReady=async()=>{
+ if(!sb)return false;
+ const sessionResult=await sb.auth.getSession(),session=sessionResult?.data?.session;
+ if(sessionResult?.error||!session?.user?.id||String(session.user.id)!==String(adminSessionUserId||''))return false;
+ const response=await sb.rpc('admin_import_products_csv',{p_rows:[]});
+ return !response?.error&&response?.data?.ok===false&&Array.isArray(response?.data?.errors)&&response.data.errors.some(error=>error?.code==='IMPORT_LIMIT_EXCEEDED');
+};
+window.commitAdminCsvProducts=async rows=>{
+ if(!sb||!Array.isArray(rows))throw new Error('CSV_IMPORT_SESSION_UNAVAILABLE');
+ const sessionResult=await sb.auth.getSession(),session=sessionResult?.data?.session;
+ if(sessionResult?.error||!session?.user?.id||String(session.user.id)!==String(adminSessionUserId||''))throw new Error('CSV_IMPORT_SESSION_UNAVAILABLE');
+ const response=await sb.rpc('admin_import_products_csv',{p_rows:rows});
+ if(response?.error)throw new Error('CSV_IMPORT_RPC_FAILED');
+ return response?.data;
+};
+window.refreshAdminAfterCsvImport=async()=>await cargarTodo();
 let editingSizeGuideImagePath="",sizeGuideImageRemoveRequested=false,sizeGuidePreviewObjectUrl=null;
 let proveedores=[],gastos=[],movimientos=[];
 // Mantiene el error de carga por módulo para no mostrar como vacío un dato que falló al consultarse.
@@ -1241,6 +1267,145 @@ async function sendTelegramTestMessage(){
  }
 }
 
+let telegramAutomaticSettingsLoaded=false;
+let telegramAutomaticSettingsOriginal=null;
+let telegramAutomaticSchedulerReady=false;
+let telegramAutomaticDispatcherReady=false;
+let telegramAutomaticSaving=false;
+const telegramAutomaticErrorCodes=new Set(['network','timeout','telegram_rate_limited','telegram_server_error','telegram_rejected','telegram_auth','telegram_invalid_payload','worker_internal','db_completion']);
+function setTelegramAutomaticStatus(message,tone=''){
+ const status=$('telegramAutomaticStatus');if(!status)return;
+ status.textContent=message;status.className=('status '+tone).trim();
+}
+function updateTelegramAutomaticControls(){
+ const toggle=$('telegramAutomaticToggle'),save=$('saveTelegramAutomaticBtn'),refresh=$('refreshTelegramAutomaticBtn');
+ const official=location.origin==='https://sirevya.com.co';
+ const authorized=adminSessionAuthorized&&!!adminSessionUserId;
+ const loaded=telegramAutomaticSettingsLoaded&&!!telegramAutomaticSettingsOriginal;
+ const previous=telegramAutomaticSettingsOriginal?.enabled===true;
+ const desired=!!toggle?.checked;
+ const ready=telegramAutomaticSchedulerReady&&telegramAutomaticDispatcherReady;
+ if(toggle)toggle.disabled=!official||!authorized||!loaded||telegramAutomaticSaving||(!ready&&!previous);
+ if(refresh)refresh.disabled=!official||!authorized||telegramAutomaticSaving;
+ if(save)save.disabled=!official||!authorized||!loaded||telegramAutomaticSaving||desired===previous||(desired&&!ready);
+}
+async function loadTelegramAutomaticStatus(showStatus=true){
+ const userId=adminSessionUserId,authEpoch=adminAuthEpoch,isCurrent=()=>adminAuthOperationStillCurrent(userId,authEpoch);
+ const toggle=$('telegramAutomaticToggle'),refresh=$('refreshTelegramAutomaticBtn'),metrics=$('telegramAutomaticMetrics');
+ telegramAutomaticSettingsLoaded=false;telegramAutomaticSchedulerReady=false;telegramAutomaticDispatcherReady=false;
+ if(toggle)toggle.disabled=true;if(refresh)refresh.disabled=true;updateTelegramAutomaticControls();
+ if(location.origin!=='https://sirevya.com.co'){
+  setTelegramAutomaticStatus('La vista previa no consulta Supabase ni permite cambiar la configuración automática.','');
+  return false;
+ }
+ if(!adminSessionAuthorized||!userId||!isCurrent()){
+  setTelegramAutomaticStatus('Inicia sesión con una cuenta admin autorizada para consultar Telegram.','err');
+  return false;
+ }
+ if(typeof sb?.rpc!=='function'){
+  setTelegramAutomaticStatus('La interfaz de notificaciones aún no está conectada al backend instalado.','err');
+  return false;
+ }
+ if(showStatus)setTelegramAutomaticStatus('Consultando estado de las notificaciones…','');
+ if(refresh)refresh.disabled=true;
+ try{
+  await assertCurrentAdminAuthorization(userId,authEpoch);
+  if(!isCurrent())return false;
+  const {data,error}=await sb.rpc('get_sirevya_telegram_notification_status');
+  if(!isCurrent())return false;
+  if(error)throw new Error('telegram_status_unavailable');
+  const state=Array.isArray(data)?data[0]:data;
+  if(!state||typeof state.enabled!=='boolean'||typeof state.scheduler_ready!=='boolean'||typeof state.dispatcher_ready!=='boolean')throw new Error('telegram_status_invalid');
+  telegramAutomaticSettingsOriginal={enabled:state.enabled};
+  telegramAutomaticSchedulerReady=state.scheduler_ready;
+  telegramAutomaticDispatcherReady=state.dispatcher_ready;
+  telegramAutomaticSettingsLoaded=true;
+  if(toggle)toggle.checked=state.enabled;
+  const asCount=value=>{const count=Number(value);return Number.isSafeInteger(count)&&count>=0?count:0;};
+  const pending=asCount(state.pending_count),processing=asCount(state.processing_count),sent=asCount(state.sent_last_24h),dead=asCount(state.dead_count);
+  const code=telegramAutomaticErrorCodes.has(String(state.last_error_code||''))?String(state.last_error_code):'';
+  let lastError=code?`Último error registrado: ${code}`:'Sin errores registrados';
+  if(code&&state.last_error_at){const when=new Date(state.last_error_at);if(!Number.isNaN(when.getTime()))lastError+=` · ${when.toLocaleString('es-CO')}`;}
+  if(metrics)metrics.textContent=`Pendientes: ${pending} · En proceso: ${processing} · Enviadas en 24 h: ${sent} · En error permanente: ${dead} · ${lastError}.`;
+  const readiness=state.scheduler_ready
+   ?'Requisitos de base listos (pg_cron, pg_net y Vault).'
+   :'Scheduler no listo: falta instalar o configurar pg_net, pg_cron o los secretos de Vault.';
+  const workerReadiness=state.dispatcher_ready
+   ?'Worker marcado como verificado por el proceso de despliegue.'
+   :'Worker no verificado por el proceso de despliegue; la activación está bloqueada.';
+  const stopNote='Al desactivar, un lote ya reclamado puede terminar.';
+  setTelegramAutomaticStatus(`${state.enabled?'Notificaciones activas.':'Notificaciones desactivadas.'} ${readiness} ${workerReadiness} ${stopNote}`,dead?'err':state.scheduler_ready&&state.dispatcher_ready?(state.enabled?'ok':''):'err');
+  return true;
+ }catch(error){
+  if(!isCurrent())return false;
+  setTelegramAutomaticStatus('No se pudo consultar el estado. Confirma que la migración y el acceso admin estén instalados; no se muestran detalles internos.','err');
+  if(metrics)metrics.textContent='Estado y contadores no disponibles.';
+  return false;
+ }finally{
+  if(isCurrent())updateTelegramAutomaticControls();
+ }
+}
+async function saveTelegramAutomaticSettings(){
+ const userId=adminSessionUserId,authEpoch=adminAuthEpoch,isCurrent=()=>adminAuthOperationStillCurrent(userId,authEpoch);
+ const toggle=$('telegramAutomaticToggle');
+ if(!adminSessionAuthorized||!userId||!isCurrent()){
+  setTelegramAutomaticStatus('Inicia sesión con una cuenta admin autorizada.','err');return false;
+ }
+ if(location.origin!=='https://sirevya.com.co'){
+  setTelegramAutomaticStatus('La vista previa no puede modificar la configuración de producción.','err');return false;
+ }
+ if(!telegramAutomaticSettingsLoaded||!telegramAutomaticSettingsOriginal||!toggle){
+  setTelegramAutomaticStatus('Consulta primero el estado del backend de notificaciones.','err');return false;
+ }
+ const enabled=!!toggle.checked;
+ if(enabled&&!telegramAutomaticSchedulerReady){
+  toggle.checked=telegramAutomaticSettingsOriginal.enabled;updateTelegramAutomaticControls();
+  setTelegramAutomaticStatus('No se puede activar: pg_net, pg_cron y Vault todavía no están listos.','err');return false;
+ }
+ if(enabled&&!telegramAutomaticDispatcherReady){
+  toggle.checked=telegramAutomaticSettingsOriginal.enabled;updateTelegramAutomaticControls();
+  setTelegramAutomaticStatus('No se puede activar: el worker aún no fue verificado por el proceso de despliegue.','err');return false;
+ }
+ if(enabled&&!confirm('Al activar esta opción se enviarán avisos automáticos de nuevos pedidos, pagos y cambios relevantes de inventario. No se creará ningún pedido ni pago de prueba. ¿Activar?')){
+  toggle.checked=telegramAutomaticSettingsOriginal.enabled;updateTelegramAutomaticControls();return false;
+ }
+ telegramAutomaticSaving=true;updateTelegramAutomaticControls();
+ setTelegramAutomaticStatus('Verificando permisos admin y guardando…','');
+ try{
+  await assertCurrentAdminAuthorization(userId,authEpoch);
+  if(!isCurrent())return false;
+  const {data,error}=await sb.rpc('set_sirevya_telegram_notifications_enabled',{p_enabled:enabled});
+  if(!isCurrent())return false;
+  if(error)throw new Error('telegram_setting_unavailable');
+  const result=Array.isArray(data)?data[0]:data;
+  if(result?.success!==true){
+   if(result?.code==='SCHEDULER_NOT_READY'){
+    telegramAutomaticSchedulerReady=false;toggle.checked=telegramAutomaticSettingsOriginal.enabled;
+    setTelegramAutomaticStatus('El backend rechazó la activación porque el scheduler no está listo.','err');
+    return false;
+   }
+   if(result?.code==='DISPATCHER_NOT_READY'){
+    telegramAutomaticDispatcherReady=false;toggle.checked=telegramAutomaticSettingsOriginal.enabled;
+    setTelegramAutomaticStatus('El backend rechazó la activación porque el worker no está marcado como verificado.','err');
+    return false;
+   }
+   throw new Error('telegram_setting_rejected');
+  }
+  telegramAutomaticSettingsOriginal={enabled:result.enabled===true};
+  toggle.checked=telegramAutomaticSettingsOriginal.enabled;
+  setTelegramAutomaticStatus(telegramAutomaticSettingsOriginal.enabled?'Notificaciones automáticas activadas.':'Notificaciones automáticas desactivadas.','ok');
+  return true;
+ }catch(error){
+  if(!isCurrent())return false;
+  toggle.checked=telegramAutomaticSettingsOriginal.enabled;
+  setTelegramAutomaticStatus('No se pudo guardar el ajuste. No se muestran detalles internos.','err');
+  return false;
+ }finally{
+  telegramAutomaticSaving=false;
+  if(isCurrent())updateTelegramAutomaticControls();
+ }
+}
+
 function applyBrand(){
   document.querySelectorAll(".brand b").forEach(x=>x.textContent=brandName);
   document.querySelectorAll(".hero h2").forEach(x=>x.textContent="Resumen de tu negocio");
@@ -1671,6 +1836,7 @@ function show(id,btn){
    if(!storefrontShippingAdminLoaded)void loadStorefrontShippingSettingsAdmin(false);
    if(!seasonalPromoSettingsLoaded)void loadSeasonalPromoSettingsAdmin();
    void loadStorefrontProductCombosAdmin();
+   void loadTelegramAutomaticStatus(false);
  }
  if(adminViewNeedsLiveAvailability())void refreshPublicAvailability();
  closeSidebar();

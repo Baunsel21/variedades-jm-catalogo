@@ -1588,6 +1588,8 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
 /* Recomendaciones combinadas visibles en el catálogo, además de la ficha del producto. */
 .storefrontComboCatalogSection{margin:30px 0 12px;padding:24px 0 6px;border-top:1px solid #eee4e8}
 .storefrontComboCatalogSection[hidden]{display:none!important}
+.storefrontComboCatalogStatus{margin:22px 0 0;padding:12px 14px;border:1px solid #ead7df;border-radius:12px;background:#fff8fa;color:#6e3a49;font-size:12px;line-height:1.45}
+.storefrontComboCatalogStatus[hidden]{display:none!important}
 .storefrontComboCatalogIntro{text-align:left;margin:0 0 16px}
 .storefrontComboEyebrow{display:block;color:#9d5269;font-size:10px;letter-spacing:.18em;font-weight:850;margin-bottom:6px}
 .storefrontComboCatalogIntro h2{margin:0;color:#30262c;font-family:Georgia,serif;font-size:clamp(23px,3vw,32px);line-height:1.15}
@@ -1761,6 +1763,7 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
 </div>
 <div class="catalogCountLine"><button id="favoritesOnlyToggle" class="favoritesFilterButton" type="button" aria-pressed="false" onclick="toggleFavoriteFilter()"><span aria-hidden="true">♡</span> Favoritos <span id="favoriteProductCount">0</span></button><span id="count" class="count">Cargando catálogo…</span></div>
 <section id="cartBar" class="cartBar" aria-hidden="true" onclick="if(event.target===this)hideCart()"><div class="cartPanel" role="dialog" aria-modal="true" aria-labelledby="cartDrawerTitle"><div class="cartDrawerBody"><div class="cartHead"><div><div id="cartDrawerTitle" class="cartTitle">Tu carrito</div><div id="cartSummary" class="cartSummary">0 productos</div></div><button class="cartClose" type="button" onclick="hideCart()" aria-label="Cerrar carrito">×</button></div><div class="cartShippingBox" aria-live="polite"><div id="cartShippingMessage" class="cartShippingMessage">Consultando la tarifa vigente de envío…</div><div class="cartShippingTrack" style="display:none" hidden aria-hidden="true" role="progressbar" aria-label="Progreso para envío gratis fuera de Cali" aria-valuemin="0" aria-valuemax="1" aria-valuenow="0"><div id="cartShippingFill" class="cartShippingFill"></div><span id="cartShippingTruck" class="cartShippingTruck" aria-hidden="true">🚚</span></div><div class="cartShippingFoot"><span>La tarifa se confirma al seleccionar una ciudad</span><span id="cartShippingPercent">—</span></div><div class="cartShippingLocalNote" hidden>🚚 Envío gratis a Cali también</div></div><div id="cartItems" class="cartItems"></div><div class="cartFooter"><div class="cartFooterTotal"><span>Total estimado</span><strong id="cartDrawerTotal">$0</strong></div><div id="cartDiscountLine" class="cartDiscountSummary" hidden></div><p class="cartFooterNote">El envío se confirma según tu ciudad en el siguiente paso.</p><button id="cartSend" class="cartSend" type="button" onclick="sendCart()">Pagar pedido</button></div></div></div></section>
+<div id="storefrontComboCatalogStatus" class="storefrontComboCatalogStatus" role="status" aria-live="polite" hidden></div>
 <section id="storefrontComboCatalogSection" class="storefrontComboCatalogSection" hidden aria-labelledby="storefrontComboCatalogTitle">
   <div id="storefrontComboCatalogIntro" class="storefrontComboCatalogIntro">
     <span class="storefrontComboEyebrow">SIREVYA · COMPLETA TU ESTILO</span>
@@ -1800,9 +1803,9 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
       <label for="customerPhone">Teléfono *</label><input id="customerPhone" type="tel" autocomplete="tel" placeholder="300 000 0000" required aria-describedby="checkoutErrorCustomerPhone"><small id="checkoutErrorCustomerPhone" class="checkoutFieldError"></small>
       <label for="customerEmail">Correo electrónico *</label><input id="customerEmail" type="email" autocomplete="email" placeholder="correo@ejemplo.com" required aria-describedby="checkoutErrorCustomerEmail"><small id="checkoutErrorCustomerEmail" class="checkoutFieldError"></small>
       <label for="customerCity">Ciudad *</label>
-      <select id="customerCity" onchange="handleCityChange()" required aria-describedby="checkoutErrorCustomerCity">
+      <select id="customerCity" onchange="handleCityChange()" required aria-describedby="checkoutErrorCustomerCity shippingCityHint">
         <option value="">Selecciona tu ciudad</option><option value="Cali">Cali</option><option value="Bogotá">Bogotá</option><option value="Medellín">Medellín</option><option value="Barranquilla">Barranquilla</option><option value="Cartagena">Cartagena</option><option value="Bucaramanga">Bucaramanga</option><option value="Pereira">Pereira</option><option value="Armenia">Armenia</option><option value="Manizales">Manizales</option><option value="Cúcuta">Cúcuta</option><option value="Pasto">Pasto</option><option value="Otra">Otra ciudad</option>
-      </select><small id="checkoutErrorCustomerCity" class="checkoutFieldError"></small>
+      </select><small id="checkoutErrorCustomerCity" class="checkoutFieldError"></small><small id="shippingCityHint" class="shippingSmall" role="status" aria-live="polite">La tarifa se confirma al seleccionar tu ciudad. Cali incluye sus alias de entrega.</small>
       <div id="customerCityOtherWrap" hidden><label for="customerCityOther">Escribe tu ciudad *</label><input id="customerCityOther" type="text" maxlength="80" autocomplete="address-level2" placeholder="Nombre de tu ciudad" aria-describedby="checkoutErrorCustomerCityOther" oninput="updateShipping()"><small id="checkoutErrorCustomerCityOther" class="checkoutFieldError"></small></div>
       <label for="customerAddress">Dirección *</label><input id="customerAddress" type="text" autocomplete="street-address" placeholder="Calle, carrera, número, etc." required aria-describedby="checkoutErrorCustomerAddress"><small id="checkoutErrorCustomerAddress" class="checkoutFieldError"></small>
       <label for="customerNeighborhood">Barrio / referencia *</label><input id="customerNeighborhood" type="text" placeholder="Barrio, conjunto o referencia" required aria-describedby="checkoutErrorCustomerNeighborhood"><small id="checkoutErrorCustomerNeighborhood" class="checkoutFieldError"></small>
@@ -3064,8 +3067,18 @@ function updateDetailStockNotice(p){
 }
 let storefrontProductCombos=[];
 let storefrontProductCombosLoading=null;
+let storefrontProductCombosState='loading';
 let storefrontMarketingSessionKey=null;
 const storefrontComboCatalogImpressions=new Set();
+function storefrontComboAvailabilityMessage(state){
+ return state==='unavailable'?'Las promociones combinadas no están disponibles en este momento. No se aplicó ningún descuento adicional; puedes comprar los productos por separado.':'';
+}
+function setStorefrontComboAvailability(state){
+ storefrontProductCombosState=['loading','ready','unavailable'].includes(state)?state:'unavailable';
+ const status=$('storefrontComboCatalogStatus');if(!status)return;
+ const message=storefrontComboAvailabilityMessage(storefrontProductCombosState);
+ status.hidden=!message;status.textContent=message;
+}
 function getStorefrontMarketingSessionKey(){
  if(storefrontMarketingSessionKey)return storefrontMarketingSessionKey;
  try{
@@ -3092,12 +3105,22 @@ async function loadStorefrontProductCombos({force=false}={}){
    const {data,error}=await sb.rpc('get_public_storefront_product_combos');
    if(error)throw error;
    storefrontProductCombos=Array.isArray(data)?data:[];
+   setStorefrontComboAvailability('ready');
    renderStorefrontComboCatalog();
    renderCart();
    if($('checkoutModal')?.classList.contains('open'))updateShipping();
    if(detailProduct&&$('productDetailModal')?.classList.contains('open'))updateDetailDescription(detailProduct);
    return storefrontProductCombos;
-  }catch(error){console.debug('Las recomendaciones de productos combinados no están instaladas; el catálogo sigue funcionando.',error?.message||error);return storefrontProductCombos}
+  }catch(error){
+   storefrontProductCombos=[];
+   setStorefrontComboAvailability('unavailable');
+   renderStorefrontComboCatalog();
+   renderCart();
+   if($('checkoutModal')?.classList.contains('open'))updateShipping();
+   if(detailProduct&&$('productDetailModal')?.classList.contains('open'))updateDetailDescription(detailProduct);
+   console.debug('Las promociones combinadas no están disponibles; se retiraron descuentos locales hasta una carga válida.',error?.message||error);
+   return storefrontProductCombos;
+  }
   finally{storefrontProductCombosLoading=null}
  })();
  return storefrontProductCombosLoading;
@@ -4215,7 +4238,14 @@ function closePrivacy(event){
  if(!$('checkoutModal')?.classList.contains('open')&&!$('sizeGuideModal')?.classList.contains('open'))document.body.style.overflow='';
 }
 
-function closeCheckout(event){if(event&&event.target!==$('checkoutModal'))return;$('checkoutModal').classList.remove('open');checkoutCart=null;document.body.style.overflow=''}
+function clearCheckoutSensitiveFields(){
+ ['customerCedula','customerCedulaType'].forEach(id=>{const field=$(id);if(field)field.value=''});
+}
+function closeCheckout(event){
+ if(event&&event.target!==$('checkoutModal'))return;
+ clearCheckoutSensitiveFields();
+ $('checkoutModal').classList.remove('open');checkoutCart=null;document.body.style.overflow='';
+}
 async function refreshOnlinePaymentSetting(options={}){
  if(onlinePaymentSettingsPromise)return onlinePaymentSettingsPromise;
  const task=(async()=>{
@@ -4356,6 +4386,18 @@ function updateContraEntregaAvailability(city){
  if(!radio)return;
  syncPaymentOptions();
 }
+function updateShippingCityHint(){
+ const hint=$('shippingCityHint');if(!hint)return;
+ const selected=$('customerCity')?.value||'';
+ const raw=selected==='Otra'?String($('customerCityOther')?.value||'').trim():selected;
+ if(!selected){hint.textContent='La tarifa se confirma al seleccionar tu ciudad. Cali incluye Cali, Santiago de Cali y Cali Valle del Cauca.';return}
+ if(selected==='Otra'&&!raw){hint.textContent='Escribe tu ciudad para consultar el valor de envío vigente.';return}
+ if(canonicalLocalDeliveryCity(raw)==='Cali'){
+  hint.textContent='Cali, Santiago de Cali y Cali Valle del Cauca comparten la referencia de entrega local. El servidor confirmará la tarifa antes de finalizar.';
+  return;
+ }
+ hint.textContent=`La tarifa de ${raw} se confirma al verificar la configuración vigente antes de finalizar.`;
+}
 function handleCityChange(){
  const selected=$('customerCity')?.value||'';
  const wrap=$('customerCityOtherWrap'),input=$('customerCityOther');
@@ -4372,6 +4414,7 @@ function storefrontShippingDisplayVerified(selectedCity,city){
  return storefrontShippingSettingsLoaded&&!storefrontShippingSettingsLoadError&&!!selectedCity&&(selectedCity!=='Otra'||!!String(city||'').trim());
 }
 function updateShipping(){
+ if(typeof updateShippingCityHint==='function')updateShippingCityHint();
  const selectedCity=$('customerCity')?.value||'';
  const city=checkoutCityValue();
  updateContraEntregaAvailability(city);
