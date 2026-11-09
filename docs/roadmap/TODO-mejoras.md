@@ -43,6 +43,7 @@ Cada criterio se conserva hasta que exista evidencia en código, Supabase y prue
 ## Fase 5: Pedidos, Wompi/PSE y conciliación
 
 - [ ] Antes de unir datos, documentar contratos/relaciones `orders` y `web_orders`; el panel muestra una sola vista coherente sin duplicar filas, pagos, ventas ni movimientos.
+  - Avance documental parcial: [`fase-5-modelo-pedidos.md`](fase-5-modelo-pedidos.md) describe identificadores COD visibles en el wrapper y panel, y prohíbe inferir uniones sin constraints. No afirma el esquema completo de Supabase ni implementa la vista unificada.
 - [ ] Repetir/concurrir el mismo webhook APPROVED no vuelve a descontar inventario ni crear reservas; estados fuera de orden no degradan un pago aprobado y cada referencia/transacción tiene integridad única.
 - [ ] Conciliación muestra importe, referencia, transacción, estado de pago, inventario, logística y causa. Las acciones de reparación requieren RPC transaccional y guardia admin, confirman el resultado, registran bitácora y nunca inician reembolso sin una política aprobada.
 - [ ] El cliente recibe una confirmación clara al regresar de Wompi; PSE se prueba en sandbox, no se hace un cobro real de validación.
