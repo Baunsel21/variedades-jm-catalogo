@@ -66,6 +66,7 @@ Cada criterio se conserva hasta que exista evidencia en código, Supabase y prue
 - [ ] PWA permite instalación, icono y carga del shell; no presenta stock/precios cacheados como actuales y no altera el checkout.
   - Avance parcial en `preview/development`: manifiesto, iconos 192/512 y service worker probado; la caché contiene solo la página offline, el manifiesto y los iconos. La navegación online no cachea catálogo y el preview confirma el worker `activated`; falta probar el flujo de instalación por dispositivo/navegador antes de cerrar el outcome.
 - [ ] Optimizar fotos con miniaturas y carga bajo demanda, medir LCP/solicitudes/bytes y usar paginación/virtualización si el catálogo lo exige; el refresco de stock sigue activo y sin concurrencia solapada.
+  - Avance parcial: la primera imagen de producto del grid usa carga eager y prioridad alta; las demás conservan carga diferida por `IntersectionObserver`. No se declaran miniaturas ni métricas LCP medidas; siguen pendientes.
 
 ## Reglas de regresión aplicables a cada fase
 
