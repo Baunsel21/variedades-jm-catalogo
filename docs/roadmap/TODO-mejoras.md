@@ -62,9 +62,9 @@ Cada criterio se conserva hasta que exista evidencia en código, Supabase y prue
 ## Fase 8: Confianza, SEO y rendimiento
 
 - [ ] Publicar políticas de privacidad/datos personales, compras, cambios, devoluciones, envíos y preguntas frecuentes enlazadas desde catálogo/checkout.
-  - Avance parcial: privacidad y FAQ estáticas ya están enlazadas y publicadas. Compras, cambios, devoluciones, condiciones comerciales de envío e identidad legal confirmada siguen pendientes; no se inventa el contenido.
+  - Avance parcial: privacidad y FAQ estáticas ya están enlazadas y publicadas; se incorpora una página estática de cambios/devoluciones y reembolsos con enlaces de atención y fuentes legales. Condiciones de compra, política comercial de envíos e identidad legal confirmada siguen pendientes.
 - [ ] Cada producto tiene URL indexable con title, description, canonical, OG/Twitter e información estructurada coherente de precio/disponibilidad; el contenido de la ruta puede leerlo el crawler sin depender solo de abrir un modal.
-  - Avance parcial: portada y páginas estáticas de privacidad/FAQ tienen canonical y metadatos sociales; el sitemap solo enumera esas rutas públicas confirmadas, mientras las rutas de producto y sus datos estructurados siguen pendientes de renderizado compatible con el catálogo dinámico.
+  - Avance parcial: portada y páginas estáticas de privacidad, FAQ y cambios/devoluciones tienen canonical y metadatos sociales y están en el sitemap; las rutas de producto y sus datos estructurados siguen pendientes de renderizado compatible con el catálogo dinámico.
 - [ ] PWA permite instalación, icono y carga del shell; no presenta stock/precios cacheados como actuales y no altera el checkout.
 - [ ] Optimizar fotos con miniaturas y carga bajo demanda, medir LCP/solicitudes/bytes y usar paginación/virtualización si el catálogo lo exige; el refresco de stock sigue activo y sin concurrencia solapada.
   - Avance parcial: la primera imagen de producto del grid usa carga eager y prioridad alta; las demás conservan carga diferida por `IntersectionObserver`. No se declaran miniaturas ni métricas LCP medidas; siguen pendientes.
