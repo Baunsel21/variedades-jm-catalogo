@@ -322,7 +322,8 @@ body{background:linear-gradient(180deg,#fffaf0 0%,#fff6e6 55%,#f8ecd7 100%);colo
 /* === VARIEDADES JM: menú, ticker y variantes === */
 .mobileMenuBtn{display:none;width:42px;height:42px;border:0;background:transparent;color:#2b2520;font-size:28px;line-height:1;cursor:pointer}
 .jmTicker{overflow:hidden;background:#241f20;color:#fff;border-bottom:1px solid rgba(242,209,139,.35);white-space:nowrap}
-.jmTickerTrack{display:inline-flex;gap:48px;min-width:max-content;padding:9px 0;font-size:13px;font-weight:800;animation:jmTickerMove 28s linear infinite}
+.jmTickerTrack{display:flex;width:max-content;gap:0;padding:9px 0;font-size:13px;font-weight:800;animation:jmTickerMove 28s linear infinite;will-change:transform}
+.jmTickerSequence{display:inline-flex;align-items:center;flex:0 0 auto;gap:48px;padding-right:48px;white-space:nowrap}
 @keyframes jmTickerMove{from{transform:translateX(0)}to{transform:translateX(-50%)}}
 .mobileMenu{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:300}
 .mobileMenu.open{display:block}
@@ -1563,19 +1564,21 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
 /* Ticker compacto y visible en celulares; permite pausar o desplazarse con movimiento reducido. */
 @media(max-width:700px){
  .jmTicker{display:block!important;max-width:100vw!important;padding:0 8px!important}
- .jmTickerTrack{gap:clamp(18px,5vw,28px)!important;padding:7px 0!important;font-size:clamp(10px,2.8vw,12px)!important;animation-duration:30s!important}
+ .jmTickerTrack{padding:7px 0!important;font-size:clamp(10px,2.8vw,12px)!important;animation-duration:30s!important;gap:0!important}
+ .jmTickerSequence{gap:clamp(18px,5vw,28px)!important;padding-right:clamp(18px,5vw,28px)!important}
 }
 .jmTicker:hover .jmTickerTrack,.jmTicker:focus-within .jmTickerTrack{animation-play-state:paused}
 @media(prefers-reduced-motion:reduce){.jmTicker{overflow-x:auto!important;scrollbar-width:none}.jmTickerTrack{animation:none!important;transform:none!important}}
 /* WhatsApp: contraste alto, etiqueta breve y huella compacta sin animación continua. */
-.waHelpFloat{position:fixed;right:max(12px,env(safe-area-inset-right));bottom:max(12px,env(safe-area-inset-bottom));z-index:260;display:flex;align-items:center;gap:7px;min-height:44px;max-width:calc(100vw - 24px);padding:6px 12px 6px 7px;background:#075e54!important;color:#fff!important;box-shadow:0 6px 20px rgba(14,45,35,.24)!important;border:1px solid rgba(255,255,255,.5)!important;border-radius:999px!important;text-decoration:none;transition:transform .16s ease,background-color .16s ease,box-shadow .16s ease}
-.waHelpIcon{display:grid;place-items:center;width:34px;height:34px;flex:0 0 34px;border-radius:50%;background:#fff;color:#075e54}
-.waHelpIcon:before{width:24px;height:24px;background:#25d366}
+.waHelpFloat{position:fixed;right:max(12px,env(safe-area-inset-right));bottom:max(12px,env(safe-area-inset-bottom));z-index:260;display:flex;align-items:center;gap:6px;min-height:40px;max-width:calc(100vw - 24px);padding:5px 9px 5px 6px;background:#fffaf3!important;color:#302b27!important;box-shadow:0 4px 14px rgba(44,30,20,.09)!important;border:1px solid rgba(123,23,48,.16)!important;border-radius:14px!important;text-decoration:none;transition:transform .16s ease,background-color .16s ease,box-shadow .16s ease}
+.waHelpIcon{display:grid;place-items:center;width:25px;height:25px;flex:0 0 25px;border-radius:0;background:transparent!important;color:#25d366;font-size:0}
+.waHelpIcon:before{width:22px;height:22px;background:#25d366}
 .waHelpLabel{display:flex;flex-direction:row;gap:0;line-height:1.1}
-.waHelpLabel b{font-family:inherit;font-size:13px;font-weight:750;letter-spacing:.1px;color:#fff;white-space:nowrap}
-.waHelpFloat:hover{background:#0a6f61!important;transform:translateY(-2px);box-shadow:0 9px 24px rgba(14,45,35,.28)!important}
+.waHelpLabel b{font-family:inherit;font-size:12px;font-weight:750;letter-spacing:.1px;color:#302b27;white-space:nowrap}
+.waHelpFloat:hover{background:#f8f5f1!important;transform:translateY(-1px);box-shadow:0 6px 16px rgba(44,30,20,.13)!important}
 .waHelpFloat:focus-visible{outline:3px solid #f2d18b;outline-offset:3px}
-@media(max-width:700px){.waHelpFloat{right:max(12px,env(safe-area-inset-right));bottom:max(12px,env(safe-area-inset-bottom));min-height:42px;padding:5px 10px 5px 6px;gap:6px}.waHelpIcon{width:30px;height:30px;flex-basis:30px}.waHelpIcon:before{width:22px;height:22px}.waHelpLabel b{font-size:12px}}
+.waHelpFloat.is-covered{visibility:hidden!important;pointer-events:none!important}
+@media(max-width:700px){.waHelpFloat{right:max(12px,env(safe-area-inset-right));bottom:max(12px,env(safe-area-inset-bottom));min-height:38px;padding:4px 8px 4px 6px;gap:5px}.waHelpIcon{width:22px;height:22px;flex-basis:22px}.waHelpIcon:before{width:20px;height:20px}.waHelpLabel b{font-size:12px}}
 @media(prefers-reduced-motion:reduce){.waHelpFloat{transition:none!important}}
 </style>
 
@@ -1627,7 +1630,10 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
 #productDetailModal .detailRelatedGrid{display:flex!important;grid-template-columns:none!important;gap:12px!important;overflow-x:auto!important;overflow-y:hidden!important;overscroll-behavior-x:contain;scroll-snap-type:x mandatory;scrollbar-width:thin;padding:3px 2px 10px!important;-webkit-overflow-scrolling:touch;}
 #productDetailModal .detailRelatedCard{flex:0 0 clamp(138px,31vw,198px)!important;width:clamp(138px,31vw,198px)!important;scroll-snap-align:start;}
 #productDetailModal .detailRelatedCard img,#productDetailModal .detailRelatedNoImage{aspect-ratio:4/5;min-height:0;max-height:none;object-fit:cover;}
-.detailRelatedSwipeHint{margin:0;color:#8c7b80;font-size:11px;text-align:right;}
+.detailRelatedSwipeHint{margin:0;color:#8c7b80;font-size:11px;text-align:center;}
+.detailRelatedPagination{display:flex;align-items:center;justify-content:center;gap:8px;min-height:14px;margin:7px auto 0}
+.detailRelatedDot{display:block;width:8px;height:8px;border:1px solid rgba(123,23,48,.38);border-radius:50%;background:transparent;opacity:.78;transition:background-color .18s ease,border-color .18s ease,transform .18s ease}
+.detailRelatedDot.is-active{background:#7b1730;border-color:#7b1730;opacity:1;transform:scale(1.24)}
 .detailComboBlock{margin-top:10px;border:1px solid #eee2d8;border-radius:15px;background:#fffdfb;padding:12px;}
 .detailComboBlockIntro>strong{display:block;color:#30262c;font-family:Georgia,serif;font-size:17px;}
 .detailComboBlockIntro>p{margin:5px 0 7px;color:#786b70;font-size:12px;line-height:1.45;}
@@ -1660,7 +1666,7 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
  .detailComboChoice .detailComboImage{height:110px;}
  .comboManualPickerGrid{grid-template-columns:minmax(0,1fr);}
 }
-@media(prefers-reduced-motion:reduce){.detailComboChoices{scroll-behavior:auto!important;}}
+@media(prefers-reduced-motion:reduce){.detailComboChoices{scroll-behavior:auto!important;}.detailRelatedDot{transition:none!important;}}
 </style>
 
 </head>
@@ -1677,7 +1683,7 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
     <button class="iconBtn cartTop" type="button" aria-label="Abrir carrito" title="Carrito" onclick="toggleCart()"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h14l1 13H4L5 8Z"></path><path d="M8 8V6a4 4 0 0 1 8 0v2"></path></svg><span id="cartBadge" class="cartBadge">0</span></button>
   </div>
 </div></header>
-<div class="jmTicker"><div class="jmTickerTrack"><span>♥ Tarifas según ciudad</span><span>✦ Compra segura</span><span>♛ La mejor calidad</span><span>♥ Tu estilo, nuestra pasión</span><span data-shipping-policy>✦ Consulta las condiciones de envío vigentes</span><span>♛ Nuevos productos</span><span>♥ Tarifas según ciudad</span><span>✦ Compra segura</span></div></div>
+<div class="jmTicker"><div class="jmTickerTrack"><div class="jmTickerSequence"><span>♥ Tarifas según ciudad</span><span>✦ Compra segura</span><span>♛ La mejor calidad, tu estilo, nuestra pasión</span><span data-shipping-policy>✦ Consulta las condiciones de envío vigentes</span><span>♛ Nuevos productos</span></div><div class="jmTickerSequence" aria-hidden="true"><span>♥ Tarifas según ciudad</span><span>✦ Compra segura</span><span>♛ La mejor calidad, tu estilo, nuestra pasión</span><span data-shipping-policy-copy>✦ Consulta las condiciones de envío vigentes</span><span>♛ Nuevos productos</span></div></div></div>
 <div id="mobileMenu" class="mobileMenu" aria-hidden="true" onclick="closeMobileMenu(event)">
   <div class="mobileMenuPanel">
     <div class="mobileMenuHead">
@@ -1987,6 +1993,8 @@ function storefrontShippingPolicyText(){
 }
 function updateStorefrontShippingCopy(){
  const shippingTicker=document.querySelector('.jmTickerTrack [data-shipping-policy]');
+ const shippingTickerCopies=document.querySelectorAll('.jmTickerTrack [data-shipping-policy-copy]');
+ const setShippingTickerText=text=>{if(shippingTicker)shippingTicker.textContent=text;shippingTickerCopies.forEach(copy=>copy.textContent=text)};
  const caliBenefit=document.querySelector('.benefits .benefit:nth-child(1) small');
  const otherBenefit=document.querySelector('.benefits .benefit:nth-child(2) small');
  const foot=document.querySelector('.cartShippingFoot span:first-child');
@@ -1995,7 +2003,7 @@ function updateStorefrontShippingCopy(){
  const track=document.querySelector('.cartShippingTrack');
  const caliNote=document.querySelector('.cartShippingLocalNote');
  if(!storefrontShippingSettingsLoaded||storefrontShippingSettingsLoadError){
-  if(shippingTicker)shippingTicker.textContent='✦ Consulta la tarifa vigente al seleccionar tu ciudad';
+  setShippingTickerText('✦ Consulta la tarifa vigente al seleccionar tu ciudad');
   if(caliBenefit)caliBenefit.textContent='Tarifa por confirmar';
   if(otherBenefit)otherBenefit.textContent='Tarifa por confirmar';
   if(foot)foot.textContent='Selecciona una ciudad para consultar el envío';
@@ -2008,7 +2016,7 @@ function updateStorefrontShippingCopy(){
  }
  const threshold=storefrontShippingSettings.free_shipping_threshold;
  const policy=storefrontShippingPolicyText();
- if(shippingTicker)shippingTicker.textContent=threshold===null?'✦ Envío nacional: tarifa vigente; Cali gratis':`✦ Envío gratis desde ${money(threshold)} fuera de Cali`;
+ setShippingTickerText(threshold===null?'✦ Envío nacional: tarifa vigente; Cali gratis':`✦ Envío gratis desde ${money(threshold)} fuera de Cali`);
  if(caliBenefit)caliBenefit.textContent='Envío gratis';
  if(otherBenefit)otherBenefit.textContent=threshold===null?`Tarifa nacional: ${money(storefrontShippingSettings.national_shipping_cost)}`:`Envío gratis desde ${money(threshold)}`;
  if(foot)foot.textContent=threshold===null?`Fuera de Cali: ${money(storefrontShippingSettings.national_shipping_cost)} de envío`:`Envío gratis desde ${money(threshold)} fuera de Cali`;
@@ -2282,6 +2290,18 @@ function setPhotoImage(el,src){
  // Transición breve (140 ms); no añade intervalos ni llamadas a Supabase.
  try{if(typeof img.animate==='function')img.animate([{opacity:.82,transform:'scale(.996)'},{opacity:1,transform:'scale(1)'}],{duration:140,easing:'ease-out'});}catch{}
 }
+function restoreCardMainPhoto(el){
+ if(!el||Number(el.dataset?.index||0)===0)return false;
+ const id=el.closest('.card')?.dataset.productId;
+ if(!id)return false;
+ const p=productos.find(x=>String(x.id)===String(id));
+ if(!p)return false;
+ const imgs=productImages(p);
+ if(!imgs.length)return false;
+ el.dataset.index=0;
+ setPhotoImage(el,imgs[0]);
+ return true;
+}
 function advancePhotoFromElement(el,d=1){
  const id=el?.closest('.card')?.dataset.productId;
  if(!id)return;
@@ -2310,6 +2330,7 @@ function photoTouchStart(event){
  photo.__verticalMoved=false;
  photo.__moved=false;
  photo.__quickPhotoChanged=false;
+ photo.__gesturePreviewChanged=false;
  // En el móvil, una pulsación breve (160 ms) avanza una foto. Un toque rápido abre la ficha.
  if(event.pointerType==='touch'){
   const pointerId=event.pointerId;
@@ -2335,9 +2356,12 @@ function photoTouchMove(event){
   photo.__moved=true;
   clearPhotoTouchTimer(photo);
  }
- // Scroll vertical normal; los movimientos horizontales no cambian la foto.
+ // Scroll vertical normal; un deslizamiento horizontal breve previsualiza la segunda foto.
  if(ay>=12&&ay>=ax*.9){photo.__verticalMoved=true;photo.__blockClickUntil=Date.now()+450;return;}
- if(ax>=12&&ax>=ay*1.1){photo.__horizontalMoved=true;photo.__blockClickUntil=Date.now()+450;}
+ if(ax>=12&&ax>=ay*1.1){
+  photo.__horizontalMoved=true;photo.__blockClickUntil=Date.now()+450;
+  if(!photo.__gesturePreviewChanged){const before=Number(photo.dataset.index||0);advancePhotoFromElement(photo,1);photo.__gesturePreviewChanged=Number(photo.dataset.index||0)!==before;}
+ }
 }
 function photoTouchEnd(event){
  const photo=event.currentTarget;
@@ -2345,10 +2369,12 @@ function photoTouchEnd(event){
  if(photo.__pointerId!=null&&event.pointerId!==photo.__pointerId)return;
  clearPhotoTouchTimer(photo);
  // Evita que un desplazamiento o una pulsación que ya cambió foto abra el producto por accidente.
- if(photo.__quickPhotoChanged||photo.__horizontalMoved||photo.__verticalMoved){
+ const changedPhoto=photo.__quickPhotoChanged||photo.__gesturePreviewChanged;
+ if(photo.__quickPhotoChanged||photo.__gesturePreviewChanged||photo.__horizontalMoved||photo.__verticalMoved){
   if(event.cancelable)event.preventDefault();
   event.stopPropagation();
  }
+ if(changedPhoto)restoreCardMainPhoto(photo);
  photo.__gestureActive=false;
  photo.__pointerId=null;
  photo.__startX=null;
@@ -2356,6 +2382,8 @@ function photoTouchEnd(event){
  photo.__horizontalMoved=false;
  photo.__verticalMoved=false;
  photo.__moved=false;
+ photo.__quickPhotoChanged=false;
+ photo.__gesturePreviewChanged=false;
 }
 function photoClickGuard(event){
  const photo=event.currentTarget;
@@ -2376,7 +2404,50 @@ function photoHoverLeave(event){
  if(!photo)return;
  if(photo.__hoverTimer){clearTimeout(photo.__hoverTimer);photo.__hoverTimer=null;}
  photo.__hovered=false;
+ restoreCardMainPhoto(photo);
 }
+
+function updateWaHelpCollisionState(button,blockers){
+ if(!button)return false;
+ const buttonRect=button.getBoundingClientRect();
+ const overlaps=Array.from(blockers||[]).some(el=>{
+  if(!el||el.hidden||el.closest?.('[hidden]'))return false;
+  const rect=el.getBoundingClientRect();
+  return rect.width>0&&rect.height>0&&buttonRect.left<rect.right&&buttonRect.right>rect.left&&buttonRect.top<rect.bottom&&buttonRect.bottom>rect.top;
+ });
+ button.classList.toggle('is-covered',overlaps);
+ return overlaps;
+}
+let waHelpCollisionCheckPending=false;
+let waHelpCollisionGuardInstalled=false;
+let waHelpCollisionObserver=null;
+function scheduleWaHelpCollisionCheck(){
+ if(waHelpCollisionCheckPending)return;
+ waHelpCollisionCheckPending=true;
+ const run=()=>{
+  waHelpCollisionCheckPending=false;
+  const button=document.querySelector('.waHelpFloat');
+  if(!button)return;
+  const blockers=document.querySelectorAll('#grid .card,#cartBar .cartPanel,#productDetailModal.open,#productDetailModal .detailPurchaseActions button,#productDetailModal .detailRelatedCard');
+  updateWaHelpCollisionState(button,blockers);
+ };
+ if(typeof requestAnimationFrame==='function')requestAnimationFrame(run);else setTimeout(run,16);
+}
+function installWaHelpCollisionGuard(){
+ if(waHelpCollisionGuardInstalled||typeof window==='undefined'||typeof window.addEventListener!=='function')return;
+ waHelpCollisionGuardInstalled=true;
+ window.addEventListener('scroll',scheduleWaHelpCollisionCheck,{passive:true});
+ window.addEventListener('resize',scheduleWaHelpCollisionCheck,{passive:true});
+ if(typeof MutationObserver==='function'){
+  waHelpCollisionObserver=new MutationObserver(scheduleWaHelpCollisionCheck);
+  ['cartBar','productDetailModal','checkoutModal'].forEach(id=>{
+   const element=document.querySelector(`#${id}`);
+   if(element)waHelpCollisionObserver.observe(element,{attributes:true,attributeFilter:['class','style','hidden']});
+  });
+ }
+ scheduleWaHelpCollisionCheck();
+}
+installWaHelpCollisionGuard();
 
 function changePhoto(i,d,event){if(event){event.preventDefault();event.stopPropagation()}const p=productos.find(x=>String(x.id)===String(i));if(!p)return;const imgs=productImages(p);if(imgs.length<2)return;const key='photo_'+i;let n=Number(document.querySelector('[data-photo="'+CSS.escape(key)+'"]')?.dataset.index||0);n=(n+d+imgs.length)%imgs.length;const el=document.querySelector('[data-photo="'+CSS.escape(key)+'"]');if(!el)return;el.dataset.index=n;setPhotoImage(el,imgs[n]);el.querySelectorAll('.photoDot').forEach((x,j)=>x.classList.toggle('active',j===n))}
 function openGallery(id,event){if(event){event.preventDefault();event.stopPropagation()}const p=productos.find(x=>String(x.id)===String(id));if(!p)return;const imgs=productImages(p);if(!imgs.length)return;galleryProduct=p;galleryIndex=0;galleryImages=imgs;renderGallery();openGalleryModal(event?.currentTarget||document.activeElement)}
@@ -3201,6 +3272,30 @@ function renderStorefrontComboCatalog(){
  });
  rows.forEach(combo=>{const id=String(combo.id||'');if(id&&!storefrontComboCatalogImpressions.has(id)){storefrontComboCatalogImpressions.add(id);trackStorefrontMarketingEvent('combo',id,'impression')}});
 }
+let detailRelatedResizeListenerBound=false;
+function updateDetailRelatedCarouselIndicators(track){
+ if(!track)return;
+ const section=track.closest('.detailRelatedSection');
+ const dots=Array.from(section?.querySelectorAll('.detailRelatedDot')||[]);
+ if(dots.length!==3)return;
+ const maxScroll=Math.max(0,track.scrollWidth-track.clientWidth);
+ const progress=maxScroll>1?Math.max(0,Math.min(1,(Number(track.scrollLeft)||0)/maxScroll)):0;
+ const active=maxScroll>1?Math.min(2,Math.floor(progress*3)):0;
+ dots.forEach((dot,index)=>dot.classList.toggle('is-active',index===active));
+}
+function refreshDetailRelatedCarouselIndicators(){
+ document.querySelectorAll('#productDetailModal .detailRelatedGrid').forEach(updateDetailRelatedCarouselIndicators);
+}
+function bindDetailRelatedCarouselIndicators(host){
+ const track=host?.querySelector('.detailRelatedGrid');
+ if(!track)return;
+ track.addEventListener('scroll',()=>updateDetailRelatedCarouselIndicators(track),{passive:true});
+ if(!detailRelatedResizeListenerBound&&typeof window!=='undefined'&&typeof window.addEventListener==='function'){
+  window.addEventListener('resize',refreshDetailRelatedCarouselIndicators,{passive:true});
+  detailRelatedResizeListenerBound=true;
+ }
+ updateDetailRelatedCarouselIndicators(track);
+}
 function updateDetailDescription(p){
  const host=$('detailAdditionalContent');if(!host||!p)return;
  const openSections=new Set(Array.from(host.querySelectorAll('.detailAccordion[open]')).map(el=>el.dataset.detailSection||''));
@@ -3215,7 +3310,7 @@ function updateDetailDescription(p){
  const guideTextMarkup=sizeGuide?`<p class="detailLongText ${guideImageUrl?'detailSizeGuideTextAfterImage':''}">${esc(sizeGuide)}</p>`:'';
  const sizeGuideSection=(guideImageUrl||sizeGuide)?accordion('Guía de tallas',`${guideImageMarkup}${guideTextMarkup}`,'detailSizeGuideAccordion'):'';
  const deliverySection=accordion('Tiempo de entrega',`<p class="detailLongText">${esc(deliveryText)}</p>`,'detailDeliveryAccordion');
- const relatedSection=related.length?`<section class="detailRelatedSection"><div class="detailSectionHeading"><h3>Productos relacionados</h3><span></span></div><div class="detailRelatedGrid" aria-label="Desliza horizontalmente para ver más productos">${related.map(item=>{const image=productImages(item)[0]||'';return `<button type="button" class="detailRelatedCard" data-related-product-id="${esc(item.id)}" onclick="openRelatedProduct(this,event)">${image?`<img src="${esc(image)}" alt="${esc(item.name||'Producto relacionado')}" loading="lazy" decoding="async">`:'<span class="detailRelatedNoImage">✦</span>'}<span class="detailRelatedName">${esc(item.name||'Producto')}</span><span class="detailRelatedPrice">${money(item.sale_price)}</span></button>`}).join('')}</div><p class="detailRelatedSwipeHint">Desliza para descubrir más productos ↔</p></section>`:'';
+ const relatedSection=related.length?`<section class="detailRelatedSection"><div class="detailSectionHeading"><h3>Productos relacionados</h3><span></span></div><div class="detailRelatedGrid" aria-label="Desliza horizontalmente para ver más productos">${related.map(item=>{const image=productImages(item)[0]||'';return `<button type="button" class="detailRelatedCard" data-related-product-id="${esc(item.id)}" onclick="openRelatedProduct(this,event)">${image?`<img src="${esc(image)}" alt="${esc(item.name||'Producto relacionado')}" loading="lazy" decoding="async">`:'<span class="detailRelatedNoImage">✦</span>'}<span class="detailRelatedName">${esc(item.name||'Producto')}</span><span class="detailRelatedPrice">${money(item.sale_price)}</span></button>`}).join('')}</div><p class="detailRelatedSwipeHint">Desliza para descubrir más productos ↔</p><div class="detailRelatedPagination" aria-hidden="true"><span class="detailRelatedDot is-active"></span><span class="detailRelatedDot"></span><span class="detailRelatedDot"></span></div></section>`:'';
  const comboCards=(storefrontProductCombos||[]).map(combo=>({combo,partners:getStorefrontComboPartnerOptions(p,combo)})).filter(x=>x.partners.length>0);
  const comboSection=comboCards.length?`<section class="detailComboSection"><div class="detailSectionHeading"><h3>Combina con estilo</h3><span></span></div>${comboCards.map(({combo,partners})=>{
    const isCategory=String(combo.rule_type||'product_pair')==='category_pair';
@@ -3230,8 +3325,10 @@ function updateDetailDescription(p){
  }).join('')}</section>`:'';
  if(comboCards.length)comboCards.forEach(({combo})=>trackStorefrontMarketingEvent('combo',combo.id,'impression'));
  host.innerHTML=`<div class="detailAccordionGroup">${descriptionSection}${sizeGuideSection}${deliverySection}</div>${comboSection}${relatedSection}`;
+ bindDetailRelatedCarouselIndicators(host);
  host.querySelectorAll('.detailAccordion').forEach(el=>{if(openSections.has(el.dataset.detailSection||''))el.open=true});
  host.hidden=false;
+ scheduleWaHelpCollisionCheck();
 }
 function detailGalleryImages(p,activeUrl=''){
  const imgs=[...new Set(productImages(p).filter(Boolean))];
@@ -3734,6 +3831,7 @@ return `<article class="card ${blocked?'inventoryUnavailable':''}" data-product-
  activateCatalogLazyImages();
  renderStorefrontComboCatalog();
  renderCart();
+ scheduleWaHelpCollisionCheck();
 }
 
 const SIREVYA_CATALOG_FAVORITES_KEY='sirevya_catalog_favorites_v1';
