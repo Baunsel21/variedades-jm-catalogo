@@ -52,6 +52,7 @@ Cada criterio se conserva hasta que exista evidencia en código, Supabase y prue
 
 - [ ] Bitácora inmutable registra actor autorizado, entidad, acción, valores antes/después permitidos, hora y resultado para inventario, productos, pedidos, envíos y configuración; usuarios comunes no la leen ni modifican.
 - [ ] La importación CSV tiene vista previa sin escrituras, límite de filas/bytes, validación por fila, detección de código duplicado, copia previa y commit transaccional o rollback; el operador ve errores sin datos sensibles.
+  - Avance parcial: el admin permite descargar los campos básicos `code,name,category,cost,sale_price,quantity` compatibles con la vista previa, con neutralización de fórmulas y los límites de 10.000 filas/5 MiB. No incluye fotos ni variantes; la importación real/transaccional sigue pendiente.
 - [ ] Los reportes filtran por rango, ciudad, categoría y método; ventas/ganancia/envíos/descuentos concilian con tablas canónicas y se indica cuándo los datos están incompletos.
 - [ ] Backup documenta qué incluye, excluye o no restaura, minimiza PII y verifica archivos R2/manifest; la exportación CSV continúa neutralizando fórmulas. Archivado de ventas sigue reversible.
 
