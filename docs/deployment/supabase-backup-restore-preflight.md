@@ -6,11 +6,11 @@ Este procedimiento prepara un respaldo lógico de los esquemas de aplicación y 
 
 Consulta read-only del 9 de noviembre de 2026: el proyecto Sirevya usa PostgreSQL 17.6 y la organización está en plan Free. `pg_cron` 1.6.4 y Vault 0.3.1 están instalados. `pg_net` 0.20.4 y `http` 1.6 están disponibles, pero no instalados. Supabase indica que los backups automáticos diarios cubren planes Pro, Team y Enterprise; en Free recomienda exportar periódicamente con CLI. No se debe presumir que existe un backup automático reciente. [1]
 
-En este Sandbox hay PostgreSQL/`psql`/`pg_dump` 16.15, pero no Supabase CLI, Docker ni cliente PostgreSQL 17. Se hizo un smoke test local sintético en PG16: se exportaron por separado esquema y datos de una tabla con dos filas ficticias, se validaron los SHA-256, se restauró en otra base temporal con `psql --single-transaction` y `ON_ERROR_STOP`, y los conteos origen/destino coincidieron. Las bases y dumps temporales se eliminaron. Esto prueba el mecanismo básico de `psql`, no una restauración de Sirevya ni compatibilidad con PG17. No se adquirió ni mostró una credencial de producción.
+En este Sandbox están PostgreSQL 16.15 y 17.11, con clusters locales separados; también están `psql`/`pg_dump` 17.11. Se repitió un smoke test sintético en PG17.11: dump de esquema/datos de dos tablas ficticias con un trigger de auditoría, verificación SHA-256, restore `psql --single-transaction`/`ON_ERROR_STOP` con triggers deshabilitados durante la carga y conteos iguales `2:2` entre origen/destino. Las dos bases y los dumps temporales se eliminaron. También había pasado un smoke test anterior en PG16. Esto prueba el mecanismo local en la misma versión mayor de Sirevya, no una restauración de Sirevya ni que el CLI remoto funcione. No se consultó una URI, no se exportó información del proyecto y no se mostró una credencial de producción.
 
 ## Herramientas y acción que faltan
 
-La prueba real requiere una computadora de escritorio confiable, porque la app Android no ofrece un terminal local apropiado para manejar dumps con PII. En esa computadora se necesitan Supabase CLI v3, Docker Desktop o un runtime compatible, `psql` de PostgreSQL 17 y la URI de base de datos obtenida por el operador desde el panel Supabase. En el Sandbox actual faltan el CLI, Docker, el cliente PG17 y esa URI privada. No se debe pegar la URI ni los dumps en chat, GitHub o Preview.
+La prueba real requiere una computadora de escritorio confiable, porque la app Android no ofrece un terminal local apropiado para manejar dumps con PII. Allí se necesitan Supabase CLI v3, Docker Desktop o un runtime compatible y la URI privada de base de datos obtenida por el operador desde el panel. El Sandbox ya tiene `psql`/`pg_dump` 17.11, pero faltan Supabase CLI, Docker y acceso privado a la URI. No se debe pegar la URI ni los dumps en chat, GitHub o Preview.
 
 Instala el CLI desde sus fuentes oficiales. En macOS o Linux con Homebrew:
 
@@ -143,7 +143,7 @@ No aplicar una migración de riesgo en producción ni desplegar una Edge Functio
 
 El plan Free no confirma backup diario automático. El camino sin proyecto Supabase nuevo es CLI + restauración local con Docker. Crear staging/clone, habilitar PITR o cambiar el plan puede generar cargos; no hacerlo sin autorización separada y evaluación de precio. Una restauración **in-place** sobre producción puede reemplazar datos recientes y causar indisponibilidad; no se usa como prueba. [1]
 
-**Acción manual que falta:** ejecuta las secciones 1–4 desde un PC/Mac/Linux confiable. No compartas la URI ni los archivos. Comunica solo si el dump pasó checksums, si PG17 restauró sin errores, la versión local y los conteos agregados comparados. El Sandbox actual no puede ejecutar ese ensayo real porque no tiene Docker, Supabase CLI, cliente PG17 ni acceso privado a la URI.
+**Acción manual que falta:** ejecuta las secciones 1–4 desde un PC/Mac/Linux confiable. No compartas la URI ni los archivos. Comunica solo si el dump pasó checksums, si PG17 restauró sin errores, la versión local y los conteos agregados comparados. El Sandbox ya probó restauración sintética en PG17.11; no puede exportar/restaurar Sirevya porque aquí siguen faltando Supabase CLI, Docker y la URI privada.
 
 ## References
 
