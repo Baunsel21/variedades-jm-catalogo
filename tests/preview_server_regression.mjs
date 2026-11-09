@@ -31,12 +31,16 @@ for (const section of ['1. Responsable del tratamiento', '2. Datos que podemos r
   assert.ok(standalonePrivacyHtml.includes(section), `La página estática publica ${section}.`);
 }
 assert.ok(standalonePrivacyHtml.includes('Esta política es un texto informativo preparado para el funcionamiento actual del catálogo.'));
-assert.doesNotMatch(standalonePrivacyHtml, /<script\b|<iframe\b|https?:\/\//i);
+assert.doesNotMatch(standalonePrivacyHtml, /<script\b|<iframe\b/i);
+assert.doesNotMatch(standalonePrivacyHtml, /<(?:img|script|iframe|source|audio|video)\b[^>]*\b(?:src|href)\s*=\s*["']https?:\/\//i);
+assert.doesNotMatch(standalonePrivacyHtml, /<link\b(?=[^>]*rel=["'](?:stylesheet|preload|preconnect)["'])[^>]*href=["']https?:\/\//i);
 for (const question of ['¿Cómo encuentro un producto?', '¿Dónde consulto tallas, colores o detalles de un producto?', '¿Cómo se calcula el envío?', '¿Qué medios de pago están disponibles?', '¿Puedo pagar contraentrega?', '¿Cómo contacto a Sirevya?', '¿Puedo consultar precios y disponibilidad sin conexión?']) {
   assert.ok(standaloneFaqHtml.includes(question), `La FAQ incluye ${question}.`);
 }
 assert.ok(standaloneFaqHtml.includes('Esta guía no reemplaza las políticas comerciales de la tienda.'));
-assert.doesNotMatch(standaloneFaqHtml, /<script\b|<iframe\b|https?:\/\//i);
+assert.doesNotMatch(standaloneFaqHtml, /<script\b|<iframe\b/i);
+assert.doesNotMatch(standaloneFaqHtml, /<(?:img|script|iframe|source|audio|video)\b[^>]*\b(?:src|href)\s*=\s*["']https?:\/\//i);
+assert.doesNotMatch(standaloneFaqHtml, /<link\b(?=[^>]*rel=["'](?:stylesheet|preload|preconnect)["'])[^>]*href=["']https?:\/\//i);
 
 const adminHtml = await renderPreviewHtml({ mode: 'admin' });
 assert.match(adminHtml, /ADMIN DE PREVIEW/);
@@ -322,6 +326,10 @@ try {
   assert.match(previewPrivacyHtml, /PREVIEW DE DESARROLLO/);
   assert.match(previewPrivacyHtml, /noindex,nofollow/);
   assert.match(previewPrivacyHtml, /Política de Tratamiento de Datos Personales/);
+  assert.match(previewPrivacyHtml, /<link rel="canonical" href="\/politica-privacidad\.html">/);
+  assert.match(previewPrivacyHtml, /<meta property="og:url" content="\/politica-privacidad\.html">/);
+  assert.match(previewPrivacyHtml, /<meta property="og:image" content="\/__preview_assets\/blocked\.svg">/);
+  assert.match(previewPrivacyHtml, /<meta name="twitter:image" content="\/__preview_assets\/blocked\.svg">/);
   assert.doesNotMatch(previewPrivacyHtml, /<script\b|<iframe\b|https?:\/\//i);
   assert.equal((await fetch(actualBase + '/politica-privacidad.html', { method: 'POST', body: 'blocked' })).status, 403);
   assert.equal((await fetch(actualBase + '/politica-desconocida.html')).status, 404);
@@ -332,6 +340,10 @@ try {
   assert.match(previewFaqHtml, /PREVIEW DE DESARROLLO/);
   assert.match(previewFaqHtml, /noindex,nofollow/);
   assert.match(previewFaqHtml, /¿Cómo se calcula el envío\?/);
+  assert.match(previewFaqHtml, /<link rel="canonical" href="\/preguntas-frecuentes\.html">/);
+  assert.match(previewFaqHtml, /<meta property="og:url" content="\/preguntas-frecuentes\.html">/);
+  assert.match(previewFaqHtml, /<meta property="og:image" content="\/__preview_assets\/blocked\.svg">/);
+  assert.match(previewFaqHtml, /<meta name="twitter:image" content="\/__preview_assets\/blocked\.svg">/);
   assert.doesNotMatch(previewFaqHtml, /<script\b|<iframe\b|https?:\/\//i);
   assert.equal((await fetch(actualBase + '/preguntas-frecuentes.html', { method: 'POST', body: 'blocked' })).status, 403);
   assert.equal((await fetch(actualBase + '/faq.html')).status, 404);

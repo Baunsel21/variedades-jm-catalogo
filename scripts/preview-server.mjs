@@ -481,6 +481,10 @@ export function createPreviewServer({ root = ROOT, versionProvider = () => getVe
       try {
         let pageHtml = await readFile(path.join(root, pageFile), 'utf8');
         if ((pageHtml.match(/<head\b/gi) || []).length !== 1 || (pageHtml.match(/<body\b/gi) || []).length !== 1) throw new Error('Estructura HTML no permitida.');
+        // Preview is noindex: keep these known production SEO URLs local; unknown external URLs still fail closed below.
+        pageHtml = pageHtml
+          .replaceAll(`https://sirevya.com.co${url.pathname}`, url.pathname)
+          .replaceAll('https://sirevya.com.co/share-sirevya.png', '/__preview_assets/blocked.svg');
         if (/<script\b|<iframe\b|https?:\/\/|\b(?:src|href)\s*=\s*(["'])\s*(?:\/\/|(?:data|javascript|mailto|tel):)/i.test(pageHtml)) throw new Error('Contenido activo o externo no permitido.');
         const version = versionProvider();
         pageHtml = pageHtml.replace(/<head\b[^>]*>/i, tag => `${tag}<meta name="robots" content="noindex,nofollow">`);
