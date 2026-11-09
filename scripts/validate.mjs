@@ -41,13 +41,18 @@ try{
 
  const shippingMatch=catalog.match(/function calculateStorefrontShipping\([\s\S]*?\n\}/);
  assert.ok(shippingMatch,'Cálculo de tarifa local aislado');
+ const normalizeMatch=catalog.match(/function normalizeDeliveryCity\(value\)\{[\s\S]*?\n\}/);
+ const canonicalMatch=catalog.match(/function canonicalLocalDeliveryCity\(value\)\{[\s\S]*?\n\}/);
+ assert.ok(normalizeMatch&&canonicalMatch,'Normalización de ciudades de entrega');
  const shippingContext=vm.createContext({
   DEFAULT_STOREFRONT_SHIPPING_SETTINGS:{national_shipping_cost:15000,free_shipping_threshold:130000,free_shipping_in_cali:true},
   storefrontShippingSettings:{national_shipping_cost:15000,free_shipping_threshold:130000,free_shipping_in_cali:true}
  });
+ vm.runInContext(normalizeMatch[0],shippingContext);vm.runInContext(canonicalMatch[0],shippingContext);
  vm.runInContext(shippingMatch[0],shippingContext);
  const calcShipping=shippingContext.calculateStorefrontShipping;
  assert.equal(calcShipping('Cali',129999),0,'Cali sigue gratis');
+ for(const alias of ['Santiago de Cali','Cali Valle del Cauca'])assert.equal(calcShipping(alias,129999),0,`El costo local conserva envío gratis para ${alias}`);
  assert.equal(calcShipping('Bogotá',129999),15000,'Tarifa actual justo bajo el umbral');
  assert.equal(calcShipping('Bogotá',130000),0,'Umbral exacto actual');
  assert.equal(calcShipping('Bogotá',130001),0,'Por encima del umbral actual');
@@ -99,10 +104,6 @@ try{
  progressContext.storefrontShippingSettings.free_shipping_threshold=150000;progressContext.updateCartShippingProgress(75000);
  assert.equal(progressTrack.style.display,'','El progreso aparece al activar umbral');
  assert.equal(progressNodes.cartShippingPercent.textContent,'50%','El porcentaje coincide con el umbral nuevo');
- const normalizeMatch=catalog.match(/function normalizeDeliveryCity\(value\)\{[\s\S]*?\n\}/);
- const canonicalMatch=catalog.match(/function canonicalLocalDeliveryCity\(value\)\{[\s\S]*?\n\}/);
- assert.ok(normalizeMatch&&canonicalMatch,'Normalización de ciudades de entrega');
- vm.runInContext(normalizeMatch[0],shippingContext);vm.runInContext(canonicalMatch[0],shippingContext);
  for(const alias of ['Cali','Santiago de Cali','Cali Valle del Cauca'])assert.equal(shippingContext.canonicalLocalDeliveryCity(alias),'Cali',`Alias gratis conservado: ${alias}`);
 
  const formMatch=admin.match(/function readStorefrontShippingAdminForm\(\)\{[\s\S]*?\n\}/);
@@ -218,6 +219,8 @@ const ordersSection=admin.match(/<section id="pedidos"[\s\S]*?<\/section>/)?.[0]
 	 assert.ok(!/\b(localStorage|sessionStorage)\b/.test(orderHelperSection),'Filtros y página se mantienen solo en memoria');
 
  await import('../tests/inventory_reservation_client_boundary_regression.mjs');
+ await import('../tests/admin_dashboard_pending_orders_regression.mjs');
+ await import('../tests/checkout_quote_success_contract_regression.mjs');
 	 console.log('PASS: sintaxis, SDK/SRI, seguridad admin, CSV, tarifas, COD, rollback, claves Wompi y filtros/paginación de pedidos.');
 
 }finally{fs.rmSync(temp,{recursive:true,force:true});}
