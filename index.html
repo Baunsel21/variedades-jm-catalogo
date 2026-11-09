@@ -1027,7 +1027,7 @@ body{background:linear-gradient(180deg,#fffaf0 0%,#fff6e6 55%,#f8ecd7 100%);colo
   .headerActions .iconBtn:hover,.headerActions .iconBtn:focus-visible{background:#f7f2ed;border-color:transparent}
   .profileBtn svg,.cartTop svg{width:23px;height:23px}
   .cartBadge{right:-1px;top:0;min-width:17px;height:17px;padding:0 4px;font-size:10px;background:#171614;color:white;border:1px solid white}
-  .jmTicker,.sirevyaHero,.benefits{display:none!important}
+  .sirevyaHero,.benefits{display:none!important}
   .sirevyaHero + .benefits{display:none!important}
   main#inicio.wrap{padding-left:0;padding-right:0;background:#fff}
   #error{margin:10px 14px}
@@ -1391,7 +1391,7 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
   .brand{width:100%!important;min-width:0!important;justify-content:center!important;overflow:visible!important}
   .brandHeaderLogo{width:96px!important;height:80px!important}
   .categoryPanel{top:84px!important}
-  .jmTicker,main#inicio>.benefits{display:none!important}
+  main#inicio>.benefits{display:none!important}
   .detailSiteHeader{min-height:78px!important}
   .detailHeaderBrand .sirevyaDetailLogo{width:82px!important;height:72px!important}
 }
@@ -1423,12 +1423,6 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
 .catalogCountLine .count{display:block!important;margin:0!important;padding:3px 0!important;color:#8b8178!important;font-size:11px!important;text-align:right!important}
 .favoritesFilterButton{display:inline-flex!important;align-items:center!important;gap:5px!important;min-height:30px!important;padding:5px 10px!important;border:1px solid #ead8da!important;border-radius:999px!important;background:#fff!important;color:#7b1730!important;font-size:12px!important;font-weight:700!important;cursor:pointer!important}
 .favoritesFilterButton[aria-pressed="true"]{background:#7b1730!important;color:#fff!important;border-color:#7b1730!important}
-.catalogPriceFilters{display:flex!important;flex-wrap:wrap!important;align-items:center!important;gap:7px!important;margin:3px 12px 5px!important;padding:0 2px!important;color:#756c62!important;font-size:11px!important}
-.catalogPriceFilterTitle{font-weight:700!important;color:#514943!important}
-.catalogPriceFilters label{display:inline-flex!important;align-items:center!important;gap:4px!important}
-.catalogPriceFilters input{width:88px!important;min-height:30px!important;padding:5px 7px!important;border:1px solid #e6ded6!important;border-radius:8px!important;background:#fff!important;color:#28231f!important;font:inherit!important}
-.catalogPriceFilters button{min-height:30px!important;padding:5px 9px!important;border:1px solid #ead8da!important;border-radius:999px!important;background:#fff!important;color:#7b1730!important;font:inherit!important;cursor:pointer!important}
-.catalogPriceFilterStatus{flex:1 0 100%!important;min-height:14px!important;color:#9b3150!important;font-size:11px!important}
 .catalogCardTitle{display:flex!important;align-items:center!important;gap:8px!important;min-width:0!important}
 .catalogCardTitle .name{flex:1 1 auto!important;min-width:0!important}
 .productReference{display:block!important;margin-top:2px!important;color:#8b8178!important;font-size:10px!important;line-height:1.25!important;overflow-wrap:anywhere!important}
@@ -1566,6 +1560,23 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
 .sirevyaPromoCard[data-size="micro"][data-shape="circle"] .sirevyaPromoCta{max-width:105px;min-height:20px;padding:3px 5px;font-size:7px}
 .sirevyaPromoCard[data-size="micro"][data-shape="circle"] .sirevyaPromoFoot{font-size:4.5px;margin-top:2px}
 @media(max-width:480px){.sirevyaPromoCard[data-size="micro"]{width:min(48vw,152px);padding:9px 8px 7px}.sirevyaPromoCard[data-size="micro"][data-shape="circle"]{width:min(37vw,132px,42vh);height:min(37vw,132px,42vh);max-height:min(37vw,132px,42vh);padding:17px 11px 8px}}
+/* Ticker compacto y visible en celulares; permite pausar o desplazarse con movimiento reducido. */
+@media(max-width:700px){
+ .jmTicker{display:block!important;max-width:100vw!important;padding:0 8px!important}
+ .jmTickerTrack{gap:clamp(18px,5vw,28px)!important;padding:7px 0!important;font-size:clamp(10px,2.8vw,12px)!important;animation-duration:30s!important}
+}
+.jmTicker:hover .jmTickerTrack,.jmTicker:focus-within .jmTickerTrack{animation-play-state:paused}
+@media(prefers-reduced-motion:reduce){.jmTicker{overflow-x:auto!important;scrollbar-width:none}.jmTickerTrack{animation:none!important;transform:none!important}}
+/* WhatsApp: contraste alto, etiqueta breve y huella compacta sin animación continua. */
+.waHelpFloat{position:fixed;right:max(12px,env(safe-area-inset-right));bottom:max(12px,env(safe-area-inset-bottom));z-index:260;display:flex;align-items:center;gap:7px;min-height:44px;max-width:calc(100vw - 24px);padding:6px 12px 6px 7px;background:#075e54!important;color:#fff!important;box-shadow:0 6px 20px rgba(14,45,35,.24)!important;border:1px solid rgba(255,255,255,.5)!important;border-radius:999px!important;text-decoration:none;transition:transform .16s ease,background-color .16s ease,box-shadow .16s ease}
+.waHelpIcon{display:grid;place-items:center;width:34px;height:34px;flex:0 0 34px;border-radius:50%;background:#fff;color:#075e54}
+.waHelpIcon:before{width:24px;height:24px;background:#25d366}
+.waHelpLabel{display:flex;flex-direction:row;gap:0;line-height:1.1}
+.waHelpLabel b{font-family:inherit;font-size:13px;font-weight:750;letter-spacing:.1px;color:#fff;white-space:nowrap}
+.waHelpFloat:hover{background:#0a6f61!important;transform:translateY(-2px);box-shadow:0 9px 24px rgba(14,45,35,.28)!important}
+.waHelpFloat:focus-visible{outline:3px solid #f2d18b;outline-offset:3px}
+@media(max-width:700px){.waHelpFloat{right:max(12px,env(safe-area-inset-right));bottom:max(12px,env(safe-area-inset-bottom));min-height:42px;padding:5px 10px 5px 6px;gap:6px}.waHelpIcon{width:30px;height:30px;flex-basis:30px}.waHelpIcon:before{width:22px;height:22px}.waHelpLabel b{font-size:12px}}
+@media(prefers-reduced-motion:reduce){.waHelpFloat{transition:none!important}}
 </style>
 
 <style id="sirevyaProductComboStyles">
@@ -1741,14 +1752,6 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
 <section class="categoryPanel" id="catalogo"><h2 class="categoryTitle">Categorías</h2><p class="categoryHint">Selecciona una categoría para ver sus productos.</p><div id="categoryButtons" class="categoryButtons"></div><select id="category" onchange="selectCategory(this.value)" style="display:none"><option value="">Todas las categorías</option></select></section>
 <div class="catalogSearchRow" id="catalogSearchRow">
   <input id="search" class="search" placeholder="Buscar productos..." oninput="handleSearchInput()" aria-label="Buscar productos">
-</div>
-<div class="catalogPriceFilters" aria-label="Filtrar productos por precio">
-  <span class="catalogPriceFilterTitle">Precio (COP)</span>
-  <label>Desde <input id="catalogPriceMin" type="number" min="0" step="1000" inputmode="numeric" placeholder="Mínimo" aria-label="Precio mínimo en pesos colombianos" oninput="render()"></label>
-  <label>Hasta <input id="catalogPriceMax" type="number" min="0" step="1000" inputmode="numeric" placeholder="Máximo" aria-label="Precio máximo en pesos colombianos" oninput="render()"></label>
-  <button type="button" onclick="clearCatalogPriceFilter()" aria-label="Limpiar filtro de precio">Limpiar</button>
-  <button type="button" onclick="copyCatalogPriceFilterLink()" aria-label="Copiar enlace de filtros públicos del catálogo">Compartir</button>
-  <span id="catalogPriceFilterStatus" class="catalogPriceFilterStatus" role="status" aria-live="polite"></span>
 </div>
 <div class="catalogCountLine"><button id="favoritesOnlyToggle" class="favoritesFilterButton" type="button" aria-pressed="false" onclick="toggleFavoriteFilter()"><span aria-hidden="true">♡</span> Favoritos <span id="favoriteProductCount">0</span></button><span id="count" class="count">Cargando catálogo…</span></div>
 <section id="cartBar" class="cartBar" aria-hidden="true" onclick="if(event.target===this)hideCart()"><div class="cartPanel" role="dialog" aria-modal="true" aria-labelledby="cartDrawerTitle"><div class="cartDrawerBody"><div class="cartHead"><div><div id="cartDrawerTitle" class="cartTitle">Tu carrito</div><div id="cartSummary" class="cartSummary">0 productos</div></div><button class="cartClose" type="button" onclick="hideCart()" aria-label="Cerrar carrito">×</button></div><div class="cartShippingBox" aria-live="polite"><div id="cartShippingMessage" class="cartShippingMessage">Consultando la tarifa vigente de envío…</div><div class="cartShippingTrack" style="display:none" hidden aria-hidden="true" role="progressbar" aria-label="Progreso para envío gratis fuera de Cali" aria-valuemin="0" aria-valuemax="1" aria-valuenow="0"><div id="cartShippingFill" class="cartShippingFill"></div><span id="cartShippingTruck" class="cartShippingTruck" aria-hidden="true">🚚</span></div><div class="cartShippingFoot"><span>La tarifa se confirma al seleccionar una ciudad</span><span id="cartShippingPercent">—</span></div><div class="cartShippingLocalNote" hidden>🚚 Envío gratis a Cali también</div></div><div id="cartItems" class="cartItems"></div><div class="cartFooter"><div class="cartFooterTotal"><span>Total estimado</span><strong id="cartDrawerTotal">$0</strong></div><div id="cartDiscountLine" class="cartDiscountSummary" hidden></div><p class="cartFooterNote">El envío se confirma según tu ciudad en el siguiente paso.</p><button id="cartSend" class="cartSend" type="button" onclick="sendCart()">Pagar pedido</button></div></div></div></section>
@@ -1935,8 +1938,8 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
     <div id="galleryInfo" class="galleryInfo" role="status" aria-live="polite" aria-atomic="true"></div>
   </div>
 </div>
-<a class="waHelpFloat" href="https://wa.me/573025469983?text=Hola%2C%20necesito%20asesor%C3%ADa%20sobre%20un%20producto." target="_blank" rel="noopener noreferrer" aria-label="Contactar asesoramiento por WhatsApp">
-  <span class="waHelpLabel"><b>Asesoramiento</b></span><span class="waHelpIcon" aria-hidden="true">●</span>
+<a class="waHelpFloat" href="https://wa.me/573025469983?text=Hola%2C%20necesito%20asesor%C3%ADa%20sobre%20un%20producto." target="_blank" rel="noopener noreferrer" aria-label="Contactar con asesoría por WhatsApp">
+  <span class="waHelpLabel"><b>Asesoría</b></span><span class="waHelpIcon" aria-hidden="true">●</span>
 </a>
 <div id="toast" class="toast"></div>
 
@@ -3698,10 +3701,7 @@ function render(){
  const q=normalizeText($('search').value),cat=$('category').value,sort=$('sort')?.value||'recent';
  const chosenColors=[...selectedCatalogColors];
  const chosenSizes=[...selectedCatalogSizes];
- const priceRange=readCatalogPriceRange();
- syncCatalogPriceFilterUrlState(priceRange);
- const priceStatus=$('catalogPriceFilterStatus');
- if(priceStatus)priceStatus.textContent=priceRange.error;
+ syncCatalogPublicFilterUrlState();
  const title=$('productsHeadingTitle');
  if(title) title.textContent=cat?cat:'Todos los productos';
  let arr=productos.filter(p=>{
@@ -3709,7 +3709,6 @@ function render(){
  // El stock por variante prevalece sobre quantity cuando hay combinaciones configuradas.
  if(!catalogProductMatchesAvailability(p,catalogAvailabilityFilter))return false;
  if(catalogFavoritesOnly&&!favoriteProductIds.has(String(p.id)))return false;
- if(!catalogProductMatchesPriceRange(p,priceRange))return false;
  if(!text.includes(q)||(cat&&p.category!==cat))return false;
  if(!productMatchesCatalogVariantFilters(p,chosenColors,chosenSizes))return false;
  return true;
@@ -3781,20 +3780,6 @@ window.addEventListener('storage',event=>{
 });
 updateFavoriteControls();
 
-function parseCatalogPriceRange(minValue,maxValue){
- const minRaw=String(minValue??'').trim(),maxRaw=String(maxValue??'').trim();
- const min=minRaw===''?null:Number(minRaw),max=maxRaw===''?null:Number(maxRaw);
- if((min!==null&&(!Number.isFinite(min)||min<0))||(max!==null&&(!Number.isFinite(max)||max<0)))return {min,max,valid:false,error:'Ingresa precios válidos en COP.'};
- if(min!==null&&max!==null&&min>max)return {min,max,valid:false,error:'El precio mínimo no puede superar el máximo.'};
- return {min,max,valid:true,error:''};
-}
-function readCatalogPriceRange(){return parseCatalogPriceRange($('catalogPriceMin')?.value,$('catalogPriceMax')?.value)}
-function catalogProductMatchesPriceRange(product,range){
- if(!range?.valid||(range.min===null&&range.max===null))return true;
- const price=Number(product?.sale_price);
- if(!Number.isFinite(price)||price<0)return false;
- return (range.min===null||price>=range.min)&&(range.max===null||price<=range.max);
-}
 function catalogProductSortPrice(product){
  const raw=product?.sale_price;
  if(raw===null||raw===undefined||(typeof raw!=='number'&&typeof raw!=='string'))return null;
@@ -3806,12 +3791,6 @@ function compareCatalogPrice(a,b,direction=1){
  const aPrice=catalogProductSortPrice(a),bPrice=catalogProductSortPrice(b);
  if(aPrice===null||bPrice===null){if(aPrice===bPrice)return String(a?.name||'').localeCompare(String(b?.name||''),'es',{sensitivity:'base'});return aPrice===null?1:-1}
  return (aPrice-bPrice)*direction||String(a?.name||'').localeCompare(String(b?.name||''),'es',{sensitivity:'base'});
-}
-function clearCatalogPriceFilter(){
- const min=$('catalogPriceMin'),max=$('catalogPriceMax');
- if(min)min.value='';
- if(max)max.value='';
- render();
 }
 function catalogProductReferenceMarkup(product){
  const code=String(product?.code??'').replace(/[\u0000-\u001f\u007f]/g,'').trim();
@@ -3840,20 +3819,8 @@ function syncCatalogPublicFilterParams(url){
  if(sizes)sizes.forEach(value=>url.searchParams.append('size',value));
  return !!colors&&!!sizes;
 }
-function buildCatalogPriceFilterUrl(range){
- if(!range?.valid)throw new TypeError('No se puede compartir un rango de precio inválido.');
- const url=new URL('/',window.location.origin);
- if(range.min!==null)url.searchParams.set('min_price',String(range.min));
- if(range.max!==null)url.searchParams.set('max_price',String(range.max));
- if(['all','sold_out'].includes(catalogAvailabilityFilter))url.searchParams.set('availability',catalogAvailabilityFilter);
- const sort=catalogShareSortValue($('sort')?.value||'recent');
- if(sort&&sort!=='recent')url.searchParams.set('sort',sort);
- if(!syncCatalogPublicFilterParams(url))throw new TypeError('La selección de filtros excede los límites del enlace público.');
- url.hash='catalogo';
- return url.href;
-}
 function catalogShareSortValue(value){return ['recent','best_selling','name_asc','price_asc','price_desc','stock_desc'].includes(value)?value:null}
-function restoreCatalogPriceFilterFromUrl(){
+function restoreCatalogPublicFiltersFromUrl(){
  try{
   const params=new URLSearchParams(window.location.search);
   selectedCatalogColors.clear();selectedCatalogColorNames.clear();
@@ -3866,14 +3833,6 @@ function restoreCatalogPriceFilterFromUrl(){
    const key=catalogSizeFilterKey(size);
    if(key){selectedCatalogSizes.add(key);selectedCatalogSizeNames.set(key,size)}
   }
-  if(params.has('min_price')||params.has('max_price')){
-   const range=parseCatalogPriceRange(params.get('min_price'),params.get('max_price'));
-   if(range.valid){
-    const min=$('catalogPriceMin'),max=$('catalogPriceMax');
-    if(min)min.value=range.min===null?'':String(range.min);
-    if(max)max.value=range.max===null?'':String(range.max);
-   }
-  }
   const availability=params.get('availability');
   if(['available','all','sold_out'].includes(availability)){
    catalogAvailabilityFilter=availability;
@@ -3883,13 +3842,10 @@ function restoreCatalogPriceFilterFromUrl(){
   if(sort){const select=$('sort');if(select)select.value=sort}
  }catch{}
 }
-function syncCatalogPriceFilterUrlState(range){
+function syncCatalogPublicFilterUrlState(){
  try{
   const url=new URL(window.location.href);
-  if(range?.valid&&range.min!==null)url.searchParams.set('min_price',String(range.min));
-  else url.searchParams.delete('min_price');
-  if(range?.valid&&range.max!==null)url.searchParams.set('max_price',String(range.max));
-  else url.searchParams.delete('max_price');
+  url.searchParams.delete('min_price');url.searchParams.delete('max_price');
   if(['all','sold_out'].includes(catalogAvailabilityFilter))url.searchParams.set('availability',catalogAvailabilityFilter);
   else url.searchParams.delete('availability');
   const sort=catalogShareSortValue($('sort')?.value||'recent');
@@ -3901,20 +3857,7 @@ function syncCatalogPriceFilterUrlState(range){
   if(next!==current)window.history.replaceState(window.history.state??null,'',next);
  }catch{}
 }
-async function copyCatalogPriceFilterLink(){
- const range=readCatalogPriceRange();
- if(!range.valid){showToast(range.error);return}
- let url='';
- try{
-  url=buildCatalogPriceFilterUrl(range);
-  await navigator.clipboard.writeText(url);
-  showToast('Enlace copiado; incluye solo filtros públicos de categoría, color, talla, precio, disponibilidad y orden.');
- }catch{
-  if(!url){showToast('Hay demasiados filtros seleccionados para compartir. Reduce la selección a 12 colores y 12 tallas como máximo.');return}
-  showToast(`No se pudo copiar. Enlace limpio: ${url}`);
- }
-}
-restoreCatalogPriceFilterFromUrl();
+restoreCatalogPublicFiltersFromUrl();
 
 let cart=[];
 let cartOpen=false;
