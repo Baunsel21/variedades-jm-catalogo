@@ -337,6 +337,8 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
           <div class="card stat"><small>Unidades disponibles</small><div class="num" id="nUnidades">0</div><div class="sub">Stock actual</div><div class="bubble">🏷️</div></div>
           <div class="card stat"><small>Unidades vendidas</small><div class="num" id="nVendidos">0</div><div class="sub">Ventas registradas</div><div class="bubble">🛒</div></div>
           <div class="card stat"><small>Ganancia acumulada</small><div class="num" id="nGanancia">$0</div><div class="sub">Sobre ventas registradas</div><div class="bubble">💰</div></div>
+          <div class="card stat" title="Suma de cantidad por precio de venta para registros de mostrador con la fecha de hoy."><small>Ingresos brutos · hoy</small><div class="num" id="dashboardSalesTodayRevenue" aria-live="polite">$0</div><div class="sub" id="dashboardSalesTodayMeta">Ventas de mostrador por fecha registrada; no incluye pedidos web.</div><div class="bubble">📅</div></div>
+          <div class="card stat" title="Suma de cantidad por precio de venta para los últimos siete días calendario registrados."><small>Ingresos brutos · 7 días</small><div class="num" id="dashboardSalesWeekRevenue" aria-live="polite">$0</div><div class="sub" id="dashboardSalesWeekMeta">Ventas de mostrador por fecha registrada; no incluye pedidos web.</div><div class="bubble">📈</div></div>
         </div>
         <div class="sectionGrid">
           <div class="box"><div class="rowBetween"><h3>⚠️ Atención de inventario</h3><span class="badge low" id="lowCount">0</span></div><div id="stockBajo"></div></div>
@@ -2882,10 +2884,37 @@ async function openProduct(id){
 }
 function closeModal(){$("productModal").classList.remove("show")}
 
+function calculatePosSalesDashboardSummary(rows,todayKey=new Date().toISOString().slice(0,10)){
+ const validDateKey=value=>{
+  const key=String(value||'').trim().slice(0,10),match=key.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if(!match)return'';
+  const date=new Date(Date.UTC(Number(match[1]),Number(match[2])-1,Number(match[3])));
+  return Number.isFinite(date.getTime())&&date.toISOString().slice(0,10)===key?key:'';
+ };
+ const today=validDateKey(todayKey)||new Date().toISOString().slice(0,10);
+ const weekStartDate=new Date(`${today}T00:00:00.000Z`);
+ weekStartDate.setUTCDate(weekStartDate.getUTCDate()-6);
+ const weekStart=weekStartDate.toISOString().slice(0,10);
+ const summary={todayKey:today,weekStartKey:weekStart,todayRevenue:0,todayUnits:0,todayLines:0,weekRevenue:0,weekUnits:0,weekLines:0};
+ for(const row of Array.isArray(rows)?rows:[]){
+  const day=validDateKey(row?.sale_date),quantity=Number(row?.quantity),price=Number(row?.sale_price);
+  if(!day||day>today||!Number.isFinite(quantity)||!Number.isFinite(price))continue;
+  const revenue=quantity*price;
+  if(day===today){summary.todayRevenue+=revenue;summary.todayUnits+=quantity;summary.todayLines++;}
+  if(day>=weekStart){summary.weekRevenue+=revenue;summary.weekUnits+=quantity;summary.weekLines++;}
+ }
+ return summary;
+}
+
 function renderInicio(){
  const units=productos.reduce((s,p)=>s+(Number(p.quantity)||0),0),sold=ventas.reduce((s,v)=>s+(Number(v.quantity)||0),0),gain=ventas.reduce((s,v)=>s+(Number(v.quantity)||0)*(Number(v.sale_price)-Number(v.cost_price)),0);
  $("nProductos").textContent=productos.length;$("nUnidades").textContent=units;$("nVendidos").textContent=sold;$("nGanancia").textContent=money(gain);
  $("heroProducts").textContent=productos.length;$("heroUnits").textContent=units;$("heroSales").textContent=ventas.length;
+ const periodSummary=calculatePosSalesDashboardSummary(ventas);
+ $("dashboardSalesTodayRevenue").textContent=money(periodSummary.todayRevenue);
+ $("dashboardSalesTodayMeta").textContent=`${periodSummary.todayKey} · ${periodSummary.todayLines} líneas · ${periodSummary.todayUnits} unidades · mostrador; excluye pedidos web.`;
+ $("dashboardSalesWeekRevenue").textContent=money(periodSummary.weekRevenue);
+ $("dashboardSalesWeekMeta").textContent=`${periodSummary.weekStartKey} a ${periodSummary.todayKey} · ${periodSummary.weekLines} líneas · ${periodSummary.weekUnits} unidades · mostrador; excluye pedidos web.`;
  const low=productos.filter(p=>availableQuantity(p)<=2);$("lowCount").textContent=low.length;
  $("stockBajo").innerHTML=low.length?low.slice(0,8).map(p=>`<div class="alert"><div class="rowBetween"><b>${esc(p.code)} — ${esc(p.name)}</b>${stockBadge(availableQuantity(p))}</div><span class="muted">${availableQuantity(p)} disponible(s) • ${esc(p.location||"Sin ubicación")}</span></div>`).join(""):'<div class="empty">✓ Todo el inventario tiene más de 2 unidades.</div>';
  $("recentSales").innerHTML=ventas.slice(0,6).map(v=>`<div class="listItem"><div class="rowBetween"><b>${esc(v.product_code)} — ${esc(v.product_name)}</b><b>${money(Number(v.quantity)*Number(v.sale_price))}</b></div><span class="muted">${v.sale_date} • ${v.quantity} unidad(es)</span></div>`).join("")||'<div class="empty">No hay ventas todavía.</div>';
