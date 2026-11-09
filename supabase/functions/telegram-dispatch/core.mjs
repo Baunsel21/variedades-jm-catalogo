@@ -49,6 +49,7 @@ function serviceKeyFromEnv(env) {
 function validSupabaseBase(value) {
   try {
     const url = new URL(value);
+    if (url.username || url.password || url.search || url.hash || !["", "/"].includes(url.pathname)) return "";
     if (url.protocol === "https:") return url.origin;
     if (url.protocol === "http:" && ["localhost", "127.0.0.1"].includes(url.hostname)) return url.origin;
   } catch {
@@ -295,14 +296,39 @@ export function createTelegramDispatchHandler({
     } catch {
       return json(400, { ok: false, error: "JSON no válido." });
     }
-    if (!body || typeof body !== "object" || Array.isArray(body) || body.action !== "dispatch" || Object.keys(body).length !== 1) {
+    if (!body || typeof body !== "object" || Array.isArray(body) || body.action !== "dispatch" || !validUuid(body.lock_token) || Object.keys(body).length !== 2) {
       return json(400, { ok: false, error: "Acción no permitida." });
     }
+
+    const lockToken = body.lock_token;
+    let expectedProjectUrl;
+    try {
+      expectedProjectUrl = await callRpc(fetcher, baseUrl, serviceKey, "get_sirevya_telegram_project_url", {});
+    } catch {
+      safeLog(logger, "dispatcher_project_check_unavailable", { stage: "project" });
+      return json(503, { ok: false, error: "No se pudo verificar el proyecto del dispatcher." });
+    }
+    if (typeof expectedProjectUrl !== "string" || validSupabaseBase(expectedProjectUrl) !== baseUrl) {
+      safeLog(logger, "dispatcher_project_mismatch", { stage: "project" });
+      return json(503, { ok: false, error: "El dispatcher no coincide con el proyecto configurado." });
+    }
+
+    const releaseDispatchLock = async () => {
+      try {
+        const released = await callRpc(fetcher, baseUrl, serviceKey, "release_sirevya_telegram_dispatch_lock", {
+          p_lock_token: lockToken,
+        });
+        if (released !== true) safeLog(logger, "dispatcher_lock_release_not_applied", { stage: "release" });
+      } catch {
+        safeLog(logger, "dispatcher_lock_release_failed", { stage: "release" });
+      }
+    };
 
     const botToken = envValue(env, "TELEGRAM_BOT_TOKEN");
     const chatId = envValue(env, "TELEGRAM_CHAT_ID");
     if (!validBotToken(botToken) || !validChatId(chatId)) {
       safeLog(logger, "telegram_credentials_unavailable", { stage: "telegram" });
+      await releaseDispatchLock();
       return json(503, { ok: false, error: "La configuración segura de Telegram no está disponible." });
     }
 
@@ -314,10 +340,12 @@ export function createTelegramDispatchHandler({
       });
     } catch {
       safeLog(logger, "dispatcher_claim_failed", { stage: "claim" });
+      await releaseDispatchLock();
       return json(503, { ok: false, error: "No se pudo leer la cola de notificaciones." });
     }
     if (!Array.isArray(rows)) {
       safeLog(logger, "dispatcher_claim_invalid_response", { stage: "claim" });
+      await releaseDispatchLock();
       return json(503, { ok: false, error: "La cola de notificaciones no respondió correctamente." });
     }
 
@@ -414,6 +442,7 @@ export function createTelegramDispatchHandler({
       safeLog(logger, "telegram_delivery_rejected", { code: failure.code, status: telegramResponse.status });
     }
 
+    await releaseDispatchLock();
     return json(200, { ok: true, ...counts });
   };
 }

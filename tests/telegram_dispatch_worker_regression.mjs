@@ -9,6 +9,7 @@ const serviceKey = `sb_secret_${"s".repeat(48)}`;
 const botToken = `123456:${"T".repeat(32)}`;
 const chatId = "-1001234567890";
 const claimToken = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+const dispatchLockToken = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
 const env = {
   SUPABASE_URL: "https://hnlbbtnfmbnbkcgegufa.supabase.co",
   SUPABASE_SECRET_KEYS: JSON.stringify({ default: serviceKey }),
@@ -16,7 +17,7 @@ const env = {
   TELEGRAM_CHAT_ID: chatId,
 };
 
-function request(body = { action: "dispatch" }, headers = {}) {
+function request(body = { action: "dispatch", lock_token: dispatchLockToken }, headers = {}) {
   return new Request("https://function.invalid/telegram-dispatch", {
     method: "POST",
     headers: {
@@ -32,7 +33,7 @@ function rpcNameFromUrl(url) {
   return new URL(url).pathname.split("/").at(-1);
 }
 
-function rpcFetcher({ rows = [], telegramStatus = 200, telegramJson = { ok: true, result: { message_id: 919191 } }, networkFail = false, env: envOverride = env } = {}) {
+function rpcFetcher({ rows = [], telegramStatus = 200, telegramJson = { ok: true, result: { message_id: 919191 } }, networkFail = false, projectUrl = env.SUPABASE_URL, env: envOverride = env } = {}) {
   const calls = [];
   const loggerEvents = [];
   const fetcher = async (url, options = {}) => {
@@ -41,6 +42,7 @@ function rpcFetcher({ rows = [], telegramStatus = 200, telegramJson = { ok: true
       const name = rpcNameFromUrl(url);
       const args = options.body ? JSON.parse(options.body) : {};
       if (name === "get_sirevya_telegram_dispatch_secret") return Response.json(dispatchSecret);
+      if (name === "get_sirevya_telegram_project_url") return Response.json(projectUrl);
       if (name === "claim_sirevya_telegram_notifications") {
         calls.at(-1).args = args;
         return Response.json(rows);
@@ -52,6 +54,10 @@ function rpcFetcher({ rows = [], telegramStatus = 200, telegramJson = { ok: true
       if (name === "retry_sirevya_telegram_notification") {
         calls.at(-1).args = args;
         return Response.json(args.p_retryable ? "pending" : "dead");
+      }
+      if (name === "release_sirevya_telegram_dispatch_lock") {
+        calls.at(-1).args = args;
+        return Response.json(args.p_lock_token === dispatchLockToken);
       }
       return new Response("unknown rpc", { status: 404 });
     }
@@ -119,10 +125,22 @@ assert.equal(formatTelegramNotification({ event_type: "unknown.event", payload: 
   assert.equal((await response.text()).includes(dispatchSecret), false);
 }
 
+// A dispatcher pointed at another Supabase project fails closed before it can claim or send.
+{
+  const wrongProjectEnv = { ...env, SUPABASE_URL: "https://another-project.supabase.co" };
+  const { calls, loggerEvents, handler } = rpcFetcher({ rows: [orderRow], env: wrongProjectEnv });
+  const response = await handler(request());
+  assert.equal(response.status, 503);
+  assert.equal(calls.some((call) => call.url.includes("claim_sirevya_telegram_notifications")), false);
+  assert.equal(calls.some((call) => call.url.startsWith("https://api.telegram.org/")), false);
+  assert.equal(calls.some((call) => rpcNameFromUrl(call.url) === "release_sirevya_telegram_dispatch_lock"), false);
+  assert.equal(loggerEvents.some((entry) => entry.event === "dispatcher_project_mismatch"), true);
+}
+
 // Only the fixed dispatch action is accepted; payloads over the byte limit are rejected.
 {
   const { calls, handler } = rpcFetcher({ rows: [orderRow] });
-  const invalid = await handler(request({ action: "dispatch", include: "anything" }));
+  const invalid = await handler(request({ action: "dispatch", lock_token: dispatchLockToken, include: "anything" }));
   assert.equal(invalid.status, 400);
   const oversized = new Request("https://function.invalid/telegram-dispatch", {
     method: "POST",
@@ -131,7 +149,7 @@ assert.equal(formatTelegramNotification({ event_type: "unknown.event", payload: 
       "x-sirevya-dispatch-secret": dispatchSecret,
       "Content-Length": "2048",
     },
-    body: JSON.stringify({ action: "dispatch", padding: "x".repeat(1500) }),
+    body: JSON.stringify({ action: "dispatch", lock_token: dispatchLockToken, padding: "x".repeat(1500) }),
   });
   const tooLarge = await handler(oversized);
   assert.equal(tooLarge.status, 413);
@@ -149,9 +167,12 @@ assert.equal(formatTelegramNotification({ event_type: "unknown.event", payload: 
   const rpcCall = calls.find((call) => call.url.includes("/rest/v1/rpc/"));
   const claimCall = calls.find((call) => rpcNameFromUrl(call.url) === "claim_sirevya_telegram_notifications");
   const completeCall = calls.find((call) => rpcNameFromUrl(call.url) === "complete_sirevya_telegram_notification");
+  const releaseCall = calls.find((call) => rpcNameFromUrl(call.url) === "release_sirevya_telegram_dispatch_lock");
   assert.ok(telegramCall);
+  assert.ok(releaseCall);
   assert.deepEqual(claimCall.args, { p_limit: 5, p_lease_seconds: 600 });
   assert.equal(completeCall.args.p_claim_token, claimToken);
+  assert.equal(releaseCall.args.p_lock_token, dispatchLockToken);
   assert.equal(rpcCall.options.headers.apikey, serviceKey);
   assert.equal(rpcCall.options.headers.Authorization, undefined);
   assert.equal(telegramCall.url.endsWith(botToken + "/sendMessage"), true);
@@ -165,6 +186,7 @@ assert.equal(formatTelegramNotification({ event_type: "unknown.event", payload: 
   assert.equal(allDiagnostics.includes(botToken), false);
   assert.equal(allDiagnostics.includes(serviceKey), false);
   assert.equal(allDiagnostics.includes(dispatchSecret), false);
+  assert.equal(allDiagnostics.includes(dispatchLockToken), false);
 }
 
 // The legacy service_role JWT continues to use both apikey and Authorization headers.

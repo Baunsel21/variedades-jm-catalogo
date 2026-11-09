@@ -43,6 +43,19 @@ BEGIN
 END
 $assert_scheduler_install$;
 
+DO $assert_dispatcher_rpc_grants$
+BEGIN
+  IF has_function_privilege('anon', 'public.get_sirevya_telegram_project_url()', 'EXECUTE')
+     OR has_function_privilege('authenticated', 'public.get_sirevya_telegram_project_url()', 'EXECUTE')
+     OR NOT has_function_privilege('service_role', 'public.get_sirevya_telegram_project_url()', 'EXECUTE')
+     OR has_function_privilege('anon', 'public.release_sirevya_telegram_dispatch_lock(uuid)', 'EXECUTE')
+     OR has_function_privilege('authenticated', 'public.release_sirevya_telegram_dispatch_lock(uuid)', 'EXECUTE')
+     OR NOT has_function_privilege('service_role', 'public.release_sirevya_telegram_dispatch_lock(uuid)', 'EXECUTE') THEN
+    RAISE EXCEPTION 'project URL and lock release RPC grants are incorrect';
+  END IF;
+END
+$assert_dispatcher_rpc_grants$;
+
 DO $assert_readiness$
 DECLARE v_status jsonb;
 BEGIN
@@ -55,6 +68,9 @@ BEGIN
   END IF;
   IF (v_status->>'dispatcher_ready')::boolean IS DISTINCT FROM false THEN
     RAISE EXCEPTION 'dispatcher readiness was not false by default';
+  END IF;
+  IF (v_status->>'dispatch_in_flight')::boolean IS DISTINCT FROM false THEN
+    RAISE EXCEPTION 'dispatch lock was not empty by default';
   END IF;
 END
 $assert_readiness$;
@@ -80,6 +96,8 @@ DECLARE
   v_timeout integer;
   v_count bigint;
   v_job_id bigint;
+  v_lock_token uuid;
+  v_next_lock_token uuid;
 BEGIN
   v_result := public.set_sirevya_telegram_notifications_enabled(true);
   IF v_result->>'code' IS DISTINCT FROM 'DISPATCHER_NOT_READY' OR COALESCE((v_result->>'success')::boolean, true) THEN
@@ -138,10 +156,36 @@ BEGIN
     RAISE EXCEPTION 'unexpected request headers: %', v_headers;
   END IF;
   IF v_url IS DISTINCT FROM 'https://hnlbbtnfmbnbkcgegufa.supabase.co/functions/v1/telegram-dispatch'
-     OR v_body IS DISTINCT FROM '{"action":"dispatch"}'::jsonb THEN
+     OR v_body->>'action' IS DISTINCT FROM 'dispatch'
+     OR public._sirevya_telegram_payload_key_count(v_body) <> 2 THEN
     RAISE EXCEPTION 'unexpected dispatcher URL/body: %, %', v_url, v_body;
   END IF;
+  v_lock_token := (v_body->>'lock_token')::uuid;
+  IF v_lock_token IS NULL THEN RAISE EXCEPTION 'scheduler did not include a lock token'; END IF;
   IF v_timeout <> 120000 THEN RAISE EXCEPTION 'worker request timeout does not fit the bounded batch: %', v_timeout; END IF;
+  v_result := public.get_sirevya_telegram_notification_status();
+  IF (v_result->>'dispatch_in_flight')::boolean IS DISTINCT FROM true THEN RAISE EXCEPTION 'status did not report the active scheduler lock'; END IF;
+  PERFORM public.sirevya_telegram_schedule_tick();
+  IF (SELECT count(*) FROM net.http_request_queue) <> 1 THEN RAISE EXCEPTION 'overlapping cron tick queued a second worker'; END IF;
+  IF public.release_sirevya_telegram_dispatch_lock('00000000-0000-4000-8000-000000000099') IS DISTINCT FROM false THEN
+    RAISE EXCEPTION 'a stale/non-owner token released the worker lock';
+  END IF;
+  IF public.release_sirevya_telegram_dispatch_lock(v_lock_token) IS DISTINCT FROM true THEN RAISE EXCEPTION 'current worker could not release its lock'; END IF;
+  PERFORM public.sirevya_telegram_schedule_tick();
+  SELECT (body->>'lock_token')::uuid INTO v_next_lock_token FROM net.http_request_queue ORDER BY id DESC LIMIT 1;
+  IF (SELECT count(*) FROM net.http_request_queue) <> 2 OR v_next_lock_token IS NULL OR v_next_lock_token = v_lock_token THEN
+    RAISE EXCEPTION 'lock release did not permit one new worker with a fresh token';
+  END IF;
+  v_lock_token := v_next_lock_token;
+  UPDATE public.sirevya_telegram_notification_settings SET dispatch_lock_until = now() - interval '1 second' WHERE id = 1;
+  PERFORM public.sirevya_telegram_schedule_tick();
+  SELECT (body->>'lock_token')::uuid INTO v_next_lock_token FROM net.http_request_queue ORDER BY id DESC LIMIT 1;
+  IF (SELECT count(*) FROM net.http_request_queue) <> 3 OR v_next_lock_token IS NULL OR v_next_lock_token = v_lock_token THEN
+    RAISE EXCEPTION 'expired worker lease was not replaced with a fresh token';
+  END IF;
+  IF public.release_sirevya_telegram_dispatch_lock(v_lock_token) IS DISTINCT FROM false THEN
+    RAISE EXCEPTION 'expired worker token released a newer worker lock';
+  END IF;
   v_result := public.set_sirevya_telegram_notifications_enabled(false);
   IF (v_result->>'success')::boolean IS DISTINCT FROM true THEN RAISE EXCEPTION 'admin could not disable after scheduler test'; END IF;
   IF public.set_sirevya_telegram_dispatcher_ready(false) IS DISTINCT FROM true THEN
@@ -152,7 +196,7 @@ BEGIN
     RAISE EXCEPTION 'admin re-enabled notifications after worker readiness was cleared: %', v_result;
   END IF;
   PERFORM public.sirevya_telegram_schedule_tick();
-  IF (SELECT count(*) FROM net.http_request_queue) <> 1 THEN
+  IF (SELECT count(*) FROM net.http_request_queue) <> 3 THEN
     RAISE EXCEPTION 'disabled tick made another HTTP request';
   END IF;
 END

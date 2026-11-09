@@ -14,6 +14,27 @@ BEGIN
 END
 $assert_disabled$;
 
+DO $assert_safe_payload_casts$
+BEGIN
+  IF public._sirevya_telegram_safe_numeric('125000') IS DISTINCT FROM 125000::numeric
+     OR public._sirevya_telegram_safe_numeric('not-a-number') IS NOT NULL
+     OR public._sirevya_telegram_safe_numeric('') IS NOT NULL THEN
+    RAISE EXCEPTION 'safe numeric conversion returned an unexpected value';
+  END IF;
+  IF public._sirevya_telegram_safe_integer('42') IS DISTINCT FROM 42
+     OR public._sirevya_telegram_safe_integer('bad') IS NOT NULL
+     OR public._sirevya_telegram_safe_integer('999999999999999999999999999999') IS NOT NULL THEN
+    RAISE EXCEPTION 'safe integer conversion did not fail open';
+  END IF;
+  IF has_function_privilege('anon', 'public._sirevya_telegram_safe_numeric(text)', 'EXECUTE')
+     OR has_function_privilege('authenticated', 'public._sirevya_telegram_safe_numeric(text)', 'EXECUTE')
+     OR has_function_privilege('anon', 'public._sirevya_telegram_safe_integer(text)', 'EXECUTE')
+     OR has_function_privilege('authenticated', 'public._sirevya_telegram_safe_integer(text)', 'EXECUTE') THEN
+    RAISE EXCEPTION 'safe conversion helpers must not be client-callable';
+  END IF;
+END
+$assert_safe_payload_casts$;
+
 -- Admin-only status and toggle authorization.
 DO $assert_auth$
 BEGIN

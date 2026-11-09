@@ -16,13 +16,48 @@ AS $function$
 $function$;
 REVOKE ALL ON FUNCTION public._sirevya_telegram_payload_key_count(jsonb) FROM PUBLIC, anon, authenticated;
 
+CREATE OR REPLACE FUNCTION public._sirevya_telegram_safe_numeric(p_value text)
+RETURNS numeric
+LANGUAGE plpgsql
+IMMUTABLE
+PARALLEL SAFE
+SET search_path TO 'pg_catalog'
+AS $function$
+BEGIN
+  IF NULLIF(btrim(p_value), '') IS NULL THEN RETURN NULL; END IF;
+  RETURN btrim(p_value)::numeric;
+EXCEPTION WHEN data_exception THEN
+  RETURN NULL;
+END;
+$function$;
+REVOKE ALL ON FUNCTION public._sirevya_telegram_safe_numeric(text) FROM PUBLIC, anon, authenticated;
+
+CREATE OR REPLACE FUNCTION public._sirevya_telegram_safe_integer(p_value text)
+RETURNS integer
+LANGUAGE plpgsql
+IMMUTABLE
+PARALLEL SAFE
+SET search_path TO 'pg_catalog'
+AS $function$
+BEGIN
+  IF NULLIF(btrim(p_value), '') IS NULL THEN RETURN NULL; END IF;
+  RETURN btrim(p_value)::integer;
+EXCEPTION WHEN data_exception THEN
+  RETURN NULL;
+END;
+$function$;
+REVOKE ALL ON FUNCTION public._sirevya_telegram_safe_integer(text) FROM PUBLIC, anon, authenticated;
+
 CREATE TABLE IF NOT EXISTS public.sirevya_telegram_notification_settings (
   id smallint PRIMARY KEY DEFAULT 1 CHECK (id = 1),
   enabled boolean NOT NULL DEFAULT false,
   dispatcher_ready boolean NOT NULL DEFAULT false,
   dispatcher_ready_at timestamptz,
+  dispatch_lock_token uuid,
+  dispatch_lock_until timestamptz,
   updated_at timestamptz NOT NULL DEFAULT now(),
-  updated_by uuid
+  updated_by uuid,
+  CHECK ((dispatch_lock_token IS NULL) = (dispatch_lock_until IS NULL))
 );
 
 INSERT INTO public.sirevya_telegram_notification_settings (id, enabled)
@@ -152,7 +187,7 @@ DECLARE
     WHEN 'contra entrega' THEN 'Contra entrega' ELSE 'sin especificar' END;
   v_payment_status text := upper(left(regexp_replace(COALESCE(v_row->>'payment_status', ''), '[^A-Za-z0-9_ -]', '', 'g'), 32));
   v_order_status text := upper(left(regexp_replace(COALESCE(v_row->>'order_status', ''), '[^A-Za-z0-9_ -]', '', 'g'), 32));
-  v_total numeric := NULLIF(v_row->>'total', '')::numeric;
+  v_total numeric := public._sirevya_telegram_safe_numeric(v_row->>'total');
   v_old_payment_status text;
   v_old_order_status text;
   v_payment_event text;
@@ -238,7 +273,7 @@ DECLARE
     WHEN 'contra entrega' THEN 'Contra entrega' ELSE 'sin especificar' END;
   v_status text := upper(left(regexp_replace(COALESCE(v_row->>'status', ''), '[^A-Za-z0-9_ -]', '', 'g'), 32));
   v_old_status text;
-  v_total numeric := NULLIF(v_row->>'total', '')::numeric;
+  v_total numeric := public._sirevya_telegram_safe_numeric(v_row->>'total');
 BEGIN
   IF TG_OP = 'INSERT' THEN
     PERFORM public._enqueue_sirevya_telegram_notification(
@@ -351,7 +386,7 @@ DECLARE
   v_code text := left(regexp_replace(COALESCE(v_data->>'product_code', ''), '[[:cntrl:]]', '', 'g'), 60);
   v_name text := left(regexp_replace(COALESCE(v_data->>'product_name', ''), '[[:cntrl:]]', '', 'g'), 80);
   v_type text := left(regexp_replace(COALESCE(v_data->>'type', ''), '[^A-Za-z0-9_ -]', '', 'g'), 32);
-  v_quantity integer := NULLIF(v_data->>'quantity', '')::integer;
+  v_quantity integer := public._sirevya_telegram_safe_integer(v_data->>'quantity');
 BEGIN
   PERFORM public._enqueue_sirevya_telegram_notification(
     'inventory-movement:' || COALESCE(v_data->>'id', ''),
@@ -409,6 +444,22 @@ AS $function$
 $function$;
 REVOKE ALL ON FUNCTION public.get_sirevya_telegram_dispatch_secret() FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.get_sirevya_telegram_dispatch_secret() TO service_role;
+
+CREATE OR REPLACE FUNCTION public.get_sirevya_telegram_project_url()
+RETURNS text
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path TO 'pg_catalog', 'public', 'vault'
+AS $function$
+  SELECT rtrim(decrypted_secret, '/')
+  FROM vault.decrypted_secrets
+  WHERE name = 'sirevya_telegram_project_url'
+  ORDER BY created_at DESC
+  LIMIT 1;
+$function$;
+REVOKE ALL ON FUNCTION public.get_sirevya_telegram_project_url() FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.get_sirevya_telegram_project_url() TO service_role;
 
 CREATE OR REPLACE FUNCTION public._sirevya_telegram_scheduler_ready()
 RETURNS boolean
@@ -471,6 +522,13 @@ BEGIN
     'enabled', COALESCE(v_enabled, false),
     'scheduler_ready', public._sirevya_telegram_scheduler_ready(),
     'dispatcher_ready', COALESCE(v_dispatcher_ready, false),
+    'dispatch_in_flight', EXISTS (
+      SELECT 1 FROM public.sirevya_telegram_notification_settings
+       WHERE id = 1 AND dispatch_lock_until > now()
+    ),
+    'dispatch_lock_until', (
+      SELECT dispatch_lock_until FROM public.sirevya_telegram_notification_settings WHERE id = 1
+    ),
     'pending_count', COALESCE(v_pending, 0),
     'processing_count', COALESCE(v_processing, 0),
     'sent_last_24h', COALESCE(v_sent_24h, 0),
@@ -663,6 +721,7 @@ DECLARE
   v_dispatcher_ready boolean;
   v_project_url text;
   v_dispatch_secret text;
+  v_lock_token uuid;
   v_request_id bigint;
 BEGIN
   SELECT enabled, dispatcher_ready INTO v_enabled, v_dispatcher_ready
@@ -688,14 +747,53 @@ BEGIN
    WHERE name = 'sirevya_telegram_dispatch_secret'
    ORDER BY created_at DESC LIMIT 1;
   IF COALESCE(v_project_url, '') = '' OR COALESCE(v_dispatch_secret, '') = '' THEN RETURN; END IF;
+  v_project_url := rtrim(v_project_url, '/');
+  IF v_project_url !~ '^https://[a-z0-9-]+[.]supabase[.]co$' THEN RETURN; END IF;
+  UPDATE public.sirevya_telegram_notification_settings
+     SET dispatch_lock_token = gen_random_uuid(),
+         dispatch_lock_until = now() + interval '180 seconds',
+         updated_at = now()
+   WHERE id = 1
+     AND enabled IS TRUE
+     AND dispatcher_ready IS TRUE
+     AND (dispatch_lock_until IS NULL OR dispatch_lock_until <= now())
+  RETURNING dispatch_lock_token INTO v_lock_token;
+  IF v_lock_token IS NULL THEN RETURN; END IF;
   EXECUTE 'SELECT net.http_post(url := $1, headers := $2, body := $3, timeout_milliseconds := $4)'
     INTO v_request_id
     USING v_project_url || '/functions/v1/telegram-dispatch',
           jsonb_build_object('Content-Type','application/json','x-sirevya-dispatch-secret',v_dispatch_secret),
-          jsonb_build_object('action','dispatch'),
+          jsonb_build_object('action','dispatch','lock_token',v_lock_token::text),
           120000;
+  IF v_request_id IS NULL THEN
+    UPDATE public.sirevya_telegram_notification_settings
+       SET dispatch_lock_token = NULL, dispatch_lock_until = NULL, updated_at = now()
+     WHERE id = 1 AND dispatch_lock_token = v_lock_token;
+  END IF;
 END;
 $function$;
 REVOKE ALL ON FUNCTION public.sirevya_telegram_schedule_tick() FROM PUBLIC, anon, authenticated;
+
+CREATE OR REPLACE FUNCTION public.release_sirevya_telegram_dispatch_lock(p_lock_token uuid)
+RETURNS boolean
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'pg_catalog', 'public', 'pg_temp'
+AS $function$
+DECLARE
+  v_released boolean := false;
+BEGIN
+  IF p_lock_token IS NULL THEN RETURN false; END IF;
+  UPDATE public.sirevya_telegram_notification_settings
+     SET dispatch_lock_token = NULL,
+         dispatch_lock_until = NULL,
+         updated_at = now()
+   WHERE id = 1 AND dispatch_lock_token = p_lock_token;
+  v_released := FOUND;
+  RETURN v_released;
+END;
+$function$;
+REVOKE ALL ON FUNCTION public.release_sirevya_telegram_dispatch_lock(uuid) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.release_sirevya_telegram_dispatch_lock(uuid) TO service_role;
 
 COMMIT;
