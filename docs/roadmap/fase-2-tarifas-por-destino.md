@@ -1,6 +1,6 @@
 # Fase 2 — Tarifas por ciudad y zona
 
-**Estado:** [PR #11 en borrador](https://github.com/Baunsel21/variedades-jm-catalogo/pull/11), rama `feature/roadmap-city-shipping`; pendiente de validación en un proyecto Supabase aislado. No fusionada, publicada ni aplicada a la base activa. Fecha: 7 de noviembre de 2026.
+**Estado:** [PR #11 en borrador](https://github.com/Baunsel21/variedades-jm-catalogo/pull/11), rama `feature/roadmap-city-shipping`; tiene runner local PG17 con esquema sintético, pero sigue pendiente la validación sobre un esquema Supabase aislado. No fusionada, publicada ni aplicada a la base activa. Fecha: 9 de noviembre de 2026.
 
 ## Cambios preparados
 
@@ -17,8 +17,9 @@
 - `node tests/prelaunch_shipping_copy_regression.mjs`: pasó; copy inicial neutral, carga válida, cotización por destino y RPC fallida.
 - `git diff --check`: pasó.
 - `pglast`: parseó 25 sentencias de la migración y la sentencia DO de la regresión SQL.
+- `tests/run_storefront_city_shipping_local.sh`: pasó en PostgreSQL 17.11 local, con un esquema y producto sintéticos. Ejecutó la migración completa y comprobó tarifa Cali gratis/pagada/umbral, aliases, precedencia city/zone, fallback general, normalización Unicode, ACL y RLS; la base temporal se eliminó. Esta prueba acotada no reproduce todas las relaciones/triggers del esquema Sirevya ni el flujo COD.
 
-El parseo no ejecuta PL/pgSQL ni demuestra grants/RLS o concurrencia. La regresión `tests/storefront_city_shipping_regression.sql` **se parseó pero no se ejecutó** porque solo hay un proyecto Supabase disponible y es el de producción. Incluye una comparación JSON del pedido/reserva COD sintéticos antes y después de borrar su regla, pero ese contrato requiere ejecución aislada. Tampoco se aplicó ninguna migración, se modificó dato real ni se verificó un despliegue web.
+El runner local sí ejecuta PL/pgSQL de la migración y sus checks de ACL/RLS, pero solo frente a la fixture mínima. La regresión completa `tests/storefront_city_shipping_regression.sql` **se parseó pero no se ejecutó** porque solo hay un proyecto Supabase disponible y es el de producción. Incluye una comparación JSON del pedido/reserva COD sintéticos antes y después de borrar su regla, y ese contrato requiere el esquema completo en una copia aislada. Tampoco se aplicó ninguna migración a Supabase, se modificó dato real ni se verificó un despliegue web.
 
 ## Puerta antes de fusionar o publicar
 
