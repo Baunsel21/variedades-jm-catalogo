@@ -4256,12 +4256,15 @@ function canonicalLocalDeliveryCity(value){
  if(['cali','santiago de cali','cali valle del cauca'].includes(normalized))return 'Cali';
  return '';
 }
+function normalizeCODCityKey(value){
+ return normalizeDeliveryCity(canonicalLocalDeliveryCity(value)||value);
+}
 const COD_KNOWN_CITY_KEYS=['cali','bogota','medellin','barranquilla','cartagena','bucaramanga','pereira','armenia','manizales','cucuta','pasto'];
 function isLocalCODCity(value){
- const normalized=normalizeDeliveryCity(value);
+ const normalized=normalizeCODCityKey(value);
  if(!codPaymentEnabled||!normalized)return false;
  if(codAllowedCities.includes('*'))return true;
- if(codAllowedCities.map(normalizeDeliveryCity).includes(normalized))return true;
+ if(codAllowedCities.map(normalizeCODCityKey).includes(normalized))return true;
  if(codAllowedCities.includes('__other__')&&!COD_KNOWN_CITY_KEYS.includes(normalized))return true;
  return false;
 }
@@ -4296,12 +4299,12 @@ function syncCustomerCityOptionsForPaymentMode(){
   return;
  }
  const allAllowed=codAllowedCities.includes('*');
- const allowedKeys=codAllowedCities.map(normalizeDeliveryCity);
+ const allowedKeys=codAllowedCities.map(normalizeCODCityKey);
  select.innerHTML=originalCustomerCityOptionsHTML;
  const options=[...select.options];
  options.forEach(option=>{
   if(!option.value)return;
-  const key=normalizeDeliveryCity(option.value);
+  const key=normalizeCODCityKey(option.value);
   const isOther=option.value==='Otra';
   option.hidden=!(codPaymentEnabled&&(allAllowed||allowedKeys.includes(key)||(isOther&&codAllowedCities.includes('__other__'))));
   option.disabled=option.hidden;
@@ -4456,23 +4459,8 @@ function generateReservationReference(){
 // La reserva se crea en el servidor dentro de wompi-create-checkout mediante
 // reserve_order_inventory. Evitamos reservar primero desde el navegador y luego
 // volver a reservar desde la Edge Function; así hay un único flujo autoritativo.
-async function attachInventoryReservation(oldReference,newReference){
- // Incluso si ambas referencias son iguales, consultar Supabase para comprobar
- // que la reserva siga activa. No dar por válida una reserva local vencida.
- if(!oldReference||!newReference){
-   return {success:false,message:'Faltan referencias para comprobar la reserva.'};
- }
- const {data,error}=await sb.rpc('attach_inventory_reservation',{p_old_reference:oldReference,p_new_reference:newReference});
- if(error) throw new Error('No se pudo asociar la reserva con el pago: '+error.message);
- const row=Array.isArray(data)?data[0]:data;
- if(!row) return {success:false,message:'No se encontró la reserva activa para continuar el pago.'};
- return row;
-}
-async function releaseInventoryReservation(reference){
- if(!reference)return;
- const {error}=await sb.rpc('release_inventory_reservation',{p_reference:reference});
- if(error)throw new Error('No se pudo liberar la reserva anterior: '+error.message);
-}
+// La tienda nunca llama RPCs privilegiadas de asociación/liberación de reservas;
+// solo las Edge Functions con service_role pueden alterar sus referencias/estados.
 function resetWompiButton(){
  const btn=$('checkoutConfirmBtn');
  if(!btn)return;
@@ -4523,8 +4511,6 @@ async function payWithWompi(payload){
  if(btn){btn.disabled=true;btn.textContent='⏳ Reservando producto...'}
 
  let reservationReference='';
- let createdReservation=false;
- let quoteRejectedBeforeReservation=false;
  let authoritativeComboQuote=null;
 
  try{
@@ -4576,16 +4562,13 @@ async function payWithWompi(payload){
     reservationReference=String(matchingRecord.reference);
     setCurrentReservationRecord(matchingRecord);
     // La Edge Function comprobará y reutilizará la reserva activa con esta referencia.
-    // Es una reserva que ya estaba registrada localmente. Si falla la preparación
-    // del pago, no liberar este hold previo: debe conservar su plazo original.
-    createdReservation=false;
+    // Es una reserva registrada localmente; los errores ambiguos conservan su TTL.
     saveActiveReservationReference(reservationReference);
     saveActiveReservationItems(checkoutItems);
   }else{
     // Carrito diferente: crear una reserva independiente sin liberar las anteriores.
     reservationReference=generateReservationReference();
     saveReservationDraft(reservationReference,checkoutItems);
-    createdReservation=true;
     // La reserva se crea de forma atómica en wompi-create-checkout antes de abrir Wompi.
   }
 
@@ -4643,7 +4626,6 @@ async function payWithWompi(payload){
 
   if(!response.ok){
    if(data?.code==='WOMPI_QUOTE_CHANGED'){
-    quoteRejectedBeforeReservation=true;
     const serverShipping=Number(data.shipping);
     const shippingSettingsRefreshed=await loadStorefrontShippingSettings(true);
     try{await loadStorefrontProductCombos({force:true})}catch(refreshError){console.warn('No se pudieron refrescar los combos después del cambio de cotización.',refreshError)}
@@ -4672,16 +4654,10 @@ async function payWithWompi(payload){
     throw new Error('No abrimos Wompi porque el servidor de pago todavía devuelve un valor distinto al total del carrito con descuento. No se realizó ningún cobro. Debe actualizarse wompi-create-checkout para calcular el importe mediante get_storefront_cart_quote antes de activar los descuentos en pagos en línea.');
   }
 
-  // Si el endpoint devuelve otra referencia, trasladar la reserva EXISTENTE una
-  // sola vez y actualizar el identificador guardado para próximos reintentos.
+  // wompi-create-checkout conserva la referencia enviada por el navegador. Si ese
+  // contrato cambia, no mutar la reserva desde el cliente ni abrir Wompi.
   if(data.reference!==paymentReference){
-    const moved=await attachInventoryReservation(paymentReference,data.reference);
-    if(moved?.success===false){
-      throw new Error(moved.message||'No se pudo asociar la reserva con el pago.');
-    }
-    reservationReference=data.reference;
-    paymentReference=data.reference;
-    saveActiveReservationReference(data.reference);
+    throw new Error('No se abrió Wompi porque el servidor devolvió una referencia distinta a la reserva del carrito. No se modificó ninguna reserva desde el navegador; vuelve a intentar con el carrito actual.');
   }
 
   saveActiveReservationItems(checkoutItems);
@@ -4735,23 +4711,9 @@ async function payWithWompi(payload){
  }catch(err){
   console.error(err);
 
-  // Liberar solo una reserva creada por esta preparación. Un rechazo de cotización
-  // ocurre antes de reservar; no liberar una reserva previa con la misma referencia.
-  if(createdReservation&&reservationReference&&!quoteRejectedBeforeReservation){
-    let released=false;
-    try{
-      await releaseInventoryReservation(reservationReference);
-      released=true;
-    }catch(releaseError){
-      // Si Supabase no confirma la liberación, conservar el registro local hasta
-      // que venza el plazo evita tratar como libre una reserva posiblemente activa.
-      console.warn('No se pudo liberar la reserva tras el error.',releaseError);
-    }
-    if(released){
-      // Quitar solo el registro que sí se liberó; los demás holds siguen vigentes.
-      forgetReservationRecord(reservationReference);
-    }
-  }
+  // Nunca liberar inventario desde el navegador: la respuesta puede haberse
+  // perdido después de guardar el pedido. La Edge libera solo tras comprobar el
+  // estado del pedido; cualquier hold incierto conserva su TTL de 10 minutos.
 
   showToast(err.message||'No fue posible abrir Wompi.');
   resetWompiButton();
@@ -4806,11 +4768,11 @@ async function saveContraEntregaOrder(payload){
  let clientReference='';
  try{
    const checkoutItems=getCheckoutItems();
-   // If a stale contraentrega draft belongs to another cart, release only its
-   // old hold before creating the new idempotency reference.
+   // A client_reference no es inventory_reference. Nunca usarlo para una RPC de
+   // liberación desde el navegador; los pedidos COD conservan su reserva del lado
+   // servidor hasta que se gestione el pedido.
    const savedCOD=(()=>{try{return JSON.parse(localStorage.getItem(COD_ORDER_DRAFT_KEY)||'null')}catch{return null}})();
    if(savedCOD?.reference&&savedCOD.fingerprint!==getCODOrderFingerprint(payload,checkoutItems)){
-     try{await releaseInventoryReservation(savedCOD.reference)}catch(error){console.warn('No se pudo liberar la reserva COD anterior; el servidor la dejará vencer.',error)}
      clearCODOrderReference(savedCOD.reference);
    }
    clientReference=getCODOrderReference(payload,checkoutItems);

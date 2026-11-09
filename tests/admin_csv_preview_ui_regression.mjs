@@ -165,6 +165,27 @@ const header = PRODUCT_COLUMNS.join(',');
   assert.equal(ids.csvPreviewErrorList.children[0].textContent, 'Fila 2 · name: <script>alert(1)</script>');
 }
 
+// Un error tras campos multilinea informa tanto el registro lógico como la línea física exacta.
+{
+  const malformed = await previewCsvFile(csvFile(
+    `${header}\nP-044,"Línea uno\nLínea dos",Ropa,1,2,1\nP-045,"Sin cierre\ncontinúa`,
+  ));
+  const ids = {
+    csvPreviewErrors: new FakeNode(),
+    csvPreviewErrorList: new FakeNode('ul'),
+  };
+  renderCsvPreviewResult(malformed, new FakeDocument(ids));
+  assert.equal(ids.csvPreviewErrorList.children[0].textContent,
+    'Fila 3 · línea física 5: El último campo entre comillas no tiene comilla de cierre.');
+
+  const report = buildCsvPreviewReportCsv(malformed);
+  const reportLines = report.replace(/^\uFEFF/, '').trimEnd().split('\r\n');
+  assert.equal(countCsvFields(reportLines[0]), 16);
+  assert.match(reportLines[0], /"fila","linea_fisica","campo"/);
+  assert.equal(countCsvFields(reportLines[2]), 16);
+  assert.match(reportLines[2], /,"3","5","","MALFORMED_CSV",/);
+}
+
 // El reporte no contiene filas de productos y neutraliza celdas de diagnóstico con fórmulas.
 {
   const result = {
@@ -186,7 +207,7 @@ const header = PRODUCT_COLUMNS.join(',');
   assert.doesNotMatch(report, /SKU-MUST-NOT-EXPORT|Nombre privado de producto|owner@example\.com/);
   const reportLines = report.replace(/^\uFEFF/, '').trimEnd().split('\r\n');
   assert.equal(reportLines.length, 4);
-  assert.ok(reportLines.every(line => countCsvFields(line) === 15));
+  assert.ok(reportLines.every(line => countCsvFields(line) === 16));
   assert.throws(() => buildCsvPreviewReportCsv({ ...result, canCommit: true }), /dry-run/);
 }
 

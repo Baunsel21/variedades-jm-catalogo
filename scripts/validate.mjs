@@ -146,7 +146,7 @@ try{
  assert.ok(wompiQuoteGuardOffset>=0&&wompiReserveOffset>wompiQuoteGuardOffset&&wompiFunction.includes('expectedDiscountTotal !== discountTotal'),'Wompi rechaza cambios antes de reservar o crear pedido');
  assert.ok(wompiFunction.includes('const expectedTotal = Number(expectedTotalRaw);')&&wompiFunction.includes('expectedAmountsAreNumeric')&&wompiFunction.includes('Number.isSafeInteger(expectedTotal)')&&wompiFunction.includes('Number.isSafeInteger(expectedDiscountTotal)'),'Wompi exige importes COP enteros numéricos antes de comparar');
  assert.ok(!wompiFunction.includes('Math.round(Number(expectedTotalRaw))')&&!wompiFunction.includes('Math.round(Number(expectedDiscountRaw))'),'Wompi no redondea silenciosamente un total fraccionario del cliente');
- assert.ok(catalog.includes('quoteRejectedBeforeReservation=true')&&catalog.includes('!quoteRejectedBeforeReservation'),'Un rechazo de cotización no libera una reserva previa');
+ assert.ok(!catalog.includes("sb.rpc('release_inventory_reservation'")&&!catalog.includes("sb.rpc('attach_inventory_reservation'"),'El navegador no libera ni reasocia reservas privilegiadas');
  assert.ok(catalog.includes('result.duplicate===true&&result.existing_order_id'),'COD explica al cliente si el pedido previo tiene otro total');
  assert.ok(codGuardMigration.includes('FOR SHARE')&&codGuardMigration.includes('quote_changed'),'COD bloquea cambios de tarifa entre cotización y creación');
  assert.ok(codGuardMigration.includes('v_quote->>\'total\' IS NULL')&&codGuardMigration.includes('v_existing_total IS NULL')&&codGuardMigration.includes('v_existing_discount_total IS NULL')&&codGuardMigration.includes('v_existing_shipping IS NULL'),'COD falla cerrado ante importes NULL/incompletos');
@@ -173,7 +173,51 @@ try{
   "const WOMPI_RESERVATION_REFERENCE_KEY='jm_wompi_reservation_reference_v6';",
   "const WOMPI_RESERVATION_ITEMS_KEY='jm_wompi_reservation_items_v2';",
   "const WOMPI_RESERVATIONS_KEY='jm_wompi_reservations_v3';",
+
   "const COD_ORDER_DRAFT_KEY='jm_cod_order_draft_v1';"
  ])assert.ok(catalog.includes(key),`Clave de carrito/reserva conservada: ${key}`);
- console.log('PASS: sintaxis, SDK/SRI, seguridad admin, CSV, tarifas, COD, rollback y claves Wompi intactas.');
+
+const ordersSection=admin.match(/<section id="pedidos"[\s\S]*?<\/section>/)?.[0];
+	 assert.ok(ordersSection&&['ordersFromDate','ordersToDate','ordersCityFilter','ordersPaymentFilter','ordersResultsSummary','ordersLoadStatus'].every(id=>ordersSection.includes(`id="${id}"`)),'Pedidos ofrece filtros explícitos y estados accesibles de carga/resultados');
+	 assert.ok(ordersSection.includes('aria-live="polite"')&&ordersSection.includes('limpiarFiltrosPedidos()')&&admin.includes('data-orders-page=')&&admin.includes('cambiarTamanoPaginaPedidos'),'Pedidos anuncia resultados y renderiza controles de página');
+	 assert.ok(admin.includes("admin_update_web_order_status_secure")&&admin.includes('pedidosLoadError')&&admin.includes('No se pudo actualizar la lista.'),'Los filtros conservan RPC segura y distinguen error de lista vacía');
+	 assert.ok(admin.includes('function cambiarFiltroPedidos(){pedidosPage=1;renderPedidos();}')&&admin.includes('pedidosPageSize=size;pedidosPage=1;renderPedidos();')&&admin.includes('const pending=pedidos.filter')&&admin.includes('const confirmed=pedidos.filter')&&admin.includes('const delivered=pedidos.filter'),'Filtrar reinicia página y los conteos continúan globales');
+	 const orderClickHandler=admin.slice(admin.indexOf("ordersBox.addEventListener('click'"),admin.indexOf("ordersBox.addEventListener('change'"));
+	 assert.ok(orderClickHandler.indexOf("button[data-orders-page]")<orderClickHandler.indexOf("button[data-order-action]"),'El listener atiende navegación de página sin interferir con acciones de pedido');
+	 const orderHelpers=['function pedidoEstado(p)','function normalizeOrderFilterValue(value)','function orderDateKeyColombia(value)','function filterAdminOrders(rows,filters={})','function paginateAdminOrders(rows,page,pageSize)'];
+	 const extractOrderHelper=(signature,nextSignature)=>{
+	  const start=admin.indexOf(signature);assert.notEqual(start,-1,`Helper de pedidos encontrado: ${signature}`);
+	  const end=admin.indexOf(nextSignature,start);assert.notEqual(end,-1,`Cierre de helper de pedidos: ${signature}`);return admin.slice(start,end);
+	 };
+	 const orderHelperCode=[
+	  extractOrderHelper(orderHelpers[0],'function pedidoEstadoLabel'),
+	  extractOrderHelper(orderHelpers[1],'function orderDateKeyColombia'),
+	  extractOrderHelper(orderHelpers[2],'function filterAdminOrders'),
+	  extractOrderHelper(orderHelpers[3],'function paginateAdminOrders'),
+	  extractOrderHelper(orderHelpers[4],'function syncOrdersFilterOptions')
+	 ].join('\n');
+	 const orderContext=vm.createContext({Intl});vm.runInContext(orderHelperCode,orderContext);
+	 assert.equal(orderContext.orderDateKeyColombia('2026-11-08T04:30:00Z'),'2026-11-07','Fecha de pedidos convertida explícitamente a America/Bogota');
+	 const orderFixtures=[
+	  {id:'cod-1',status:'pendiente',created_at:'2026-11-08T04:30:00Z',customer_name:'Ana',customer_city:'Bogotá',payment_method:'Contraentrega'},
+	  {id:'cod-2',status:'enviado',created_at:'2026-11-08T15:00:00Z',customer_name:'Bea',customer_city:'Cali',payment_method:'Contraentrega'},
+	  {id:'cod-3',status:'entregado',created_at:'2026-11-08T12:00:00Z',customer_name:'Cata',customer_city:'Cartagena',payment_method:'Efectivo'},
+	  {id:'cod-invalid-date',status:'pendiente',created_at:'not-a-date',customer_name:'Dora',customer_city:'Bogotá',payment_method:'Contraentrega'}
+	 ];
+	 const filteredOrderIds=orderContext.filterAdminOrders(orderFixtures,{search:'BOGOTÁ',status:'pendiente',fromDate:'2026-11-07',toDate:'2026-11-07',city:'bogota',payment:'contraentrega'}).map(row=>row.id);
+	 assert.deepEqual(filteredOrderIds,['cod-1'],'Filtros combinados normalizan acentos, ciudad, pago y fecha Colombia');
+	 assert.deepEqual(orderContext.filterAdminOrders(orderFixtures,{fromDate:'2026-11-07',toDate:'2026-11-07'}).map(row=>row.id),['cod-1'],'Fecha inválida no pasa un filtro temporal');
+	 assert.equal(orderContext.filterAdminOrders(orderFixtures,{city:'medellin'}).length,0,'Filtro sin coincidencias devuelve vacío verificable');
+	 const manyOrders=Array.from({length:47},(_,index)=>({id:`order-${index+1}`}));
+	 const pageThree=orderContext.paginateAdminOrders(manyOrders,3,20);
+	 assert.equal(pageThree.total,47);assert.equal(pageThree.totalPages,3);assert.equal(pageThree.page,3);
+	 assert.deepEqual(pageThree.items.map(row=>row.id),Array.from({length:7},(_,index)=>`order-${index+41}`),'Paginación muestra el tramo correcto sin descartar pedidos');
+	 assert.equal(orderContext.paginateAdminOrders(manyOrders,99,20).page,3,'Página fuera de rango se limita a la última');
+	 assert.equal(orderContext.paginateAdminOrders(manyOrders,1,10).pageSize,20,'Tamaño no permitido usa el valor seguro por defecto');
+	 const orderHelperSection=admin.slice(admin.indexOf('function normalizeOrderFilterValue(value)'),admin.indexOf('function applyDefaultSirevyaCategoryOrder'));
+	 assert.ok(!/\b(localStorage|sessionStorage)\b/.test(orderHelperSection),'Filtros y página se mantienen solo en memoria');
+
+ await import('../tests/inventory_reservation_client_boundary_regression.mjs');
+	 console.log('PASS: sintaxis, SDK/SRI, seguridad admin, CSV, tarifas, COD, rollback, claves Wompi y filtros/paginación de pedidos.');
+
 }finally{fs.rmSync(temp,{recursive:true,force:true});}
