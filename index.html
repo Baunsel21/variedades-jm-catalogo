@@ -2614,13 +2614,16 @@ function updateCategoryButtons(){
 function renderHeroProducts(){ /* La portada usa las imágenes de referencia integradas en el documento. */ }
 
 function updateCartBadge(){
- const n=cart.reduce((a,x)=>a+x.qty,0);
- ['cartBadge','detailCartBadge'].forEach(id=>{const badge=$(id);if(badge)badge.textContent=n;});
+	 const n=cart.reduce((a,x)=>a+x.qty,0);
+	 ['cartBadge','detailCartBadge'].forEach(id=>{const badge=$(id);if(badge)badge.textContent=n;});
 }
 
-function colorToCss(name){
- const n=normalizeText(name);
- const map={rojo:'#ef2b2b',roja:'#ef2b2b',negro:'#111111',negra:'#111111',blanco:'#ffffff',blanca:'#ffffff',azul:'#35a9e0',verde:'#36a85a',amarillo:'#f5df32',amarilla:'#f5df32',rosado:'#f6a8b8',rosa:'#f6a8b8',morado:'#9b4dcc',purpura:'#9b4dcc',lila:'#b89ad8',lavanda:'#c5b4e3',cafe:'#70452d',marron:'#70452d',chocolate:'#6b422f',camel:'#be9468',beige:'#e7d3aa',crema:'#fff4dd',marfil:'#fff8e7',nude:'#d8b29c',piel:'#d8b29c',mostaza:'#c49a24',dorado:'#d7ad3f',champana:'#e7d2a4',plateado:'#c9cdd2',gris:'#8d8d8d',naranja:'#f08a2d',turquesa:'#38b7b0',coral:'#f07f78',fucsia:'#e83e8c',vinotinto:'#7b1730',vino:'#7b1730',cobre:'#b87350'};
+function normalizeVariantKeyText(value){return normalizeText(value).trim().replace(/\s+/g,' ')}
+function colorToCss(name,product=null){
+		const n=normalizeVariantKeyText(name);
+		const storedHex=variantList(product).find(v=>normalizeVariantKeyText(v.color)===n)?.color_hex||'';
+	if(/^#[0-9a-fA-F]{6}$/.test(String(storedHex||'').trim()))return String(storedHex).trim().toLowerCase();
+	const map={rojo:'#ef2b2b',roja:'#ef2b2b',negro:'#111111',negra:'#111111',blanco:'#ffffff',blanca:'#ffffff',azul:'#35a9e0',verde:'#36a85a',amarillo:'#f5df32',amarilla:'#f5df32',rosado:'#f6a8b8',rosa:'#f6a8b8',morado:'#9b4dcc',purpura:'#9b4dcc',lila:'#b89ad8',lavanda:'#c5b4e3',cafe:'#70452d',marron:'#70452d',chocolate:'#6b422f',camel:'#be9468',beige:'#e7d3aa',crema:'#fff4dd',marfil:'#fff8e7',nude:'#d8b29c',piel:'#d8b29c',mostaza:'#c49a24',dorado:'#d7ad3f',champana:'#e7d2a4',plateado:'#c9cdd2',gris:'#8d8d8d',naranja:'#f08a2d',turquesa:'#38b7b0',coral:'#f07f78',fucsia:'#e83e8c',vinotinto:'#7b1730',vino:'#7b1730',cobre:'#b87350'};
  if(map[n])return map[n];
  let hash=0;for(let i=0;i<n.length;i++)hash=(hash*31+n.charCodeAt(i))|0;
  return `hsl(${Math.abs(hash)%360} 65% 55%)`;
@@ -2641,15 +2644,17 @@ function parseVariantList(value){
 }
 function normalizeVariants(value){
   if(Array.isArray(value)){
-    return value.map(v=>{
-      if(!v || typeof v!=='object') return null;
-      return {
-        color:String(v.color??'').trim(),
-        size:String(v.size??'').trim(),
-        stock:Math.max(0,Number(v.stock)||0),
-        image_path:String(v.image_path??'').trim()
-      };
-    }).filter(v=>v && (v.color || v.size));
+		return value.map(v=>{
+			if(!v || typeof v!=='object') return null;
+			const item={
+				color:String(v.color??'').trim(),
+				size:String(v.size??'').trim(),
+				stock:Math.max(0,Number(v.stock)||0),
+				image_path:String(v.image_path??'').trim()
+			};
+			const colorHex=String(v.color_hex??'').trim();if(/^#[0-9a-fA-F]{6}$/.test(colorHex))item.color_hex=colorHex.toLowerCase();
+			return item;
+		}).filter(v=>v && (v.color || v.size));
   }
   if(typeof value==='string'){
     try{return normalizeVariants(JSON.parse(value));}catch(e){return []}
@@ -2664,33 +2669,36 @@ function productStockTotal(p){
  return variants.length?variants.reduce((sum,v)=>sum+Math.max(0,Number(v.stock)||0),0):Math.max(0,Number(p?.quantity)||0);
 }
 function variantStock(p,color,size){
- const vs=variantList(p); if(!vs.length)return Number(p.quantity)||0;
- const hasDeclaredColors=parseVariantList(p?.colors).length>0;
- const targetColor=normalizeText(color),targetSize=normalizeText(size);
+		 const vs=variantList(p); if(!vs.length)return Number(p.quantity)||0;
+		 const hasDeclaredColors=parseVariantList(p?.colors).length>0;
+		 const targetColor=normalizeVariantKeyText(color),targetSize=normalizeVariantKeyText(size);
  // Older administrator builds stored the placeholder "Sin color" as a real
  // variant color. For products without configured colors, treat it like empty.
  const sizeMatches=(rawSize)=>{
-   const currentSize=normalizeText(rawSize);
+	   const currentSize=normalizeVariantKeyText(rawSize);
    if(currentSize===targetSize)return true;
    // En productos que solo tienen color, el administrador puede guardar
    // la variante como "Única" aunque el catálogo no muestre selector de talla.
-   if(!targetSize && (currentSize==='unica'||currentSize==='unico'))return true;
-   return false;
- };
- const v=vs.find(x=>{
-   let currentColor=normalizeText(x.color);
-   if(!hasDeclaredColors && currentColor==='sin color')currentColor='';
-   return currentColor===targetColor && sizeMatches(x.size);
- });
- return v?Number(v.stock)||0:0;
+	   if(!targetSize && (currentSize==='unica'||currentSize==='unico'))return true;
+	   return false;
+	 };
+		 const matches=vs.filter(x=>{
+		   let currentColor=normalizeVariantKeyText(x.color);
+	   if(!hasDeclaredColors && currentColor==='sin color')currentColor='';
+	   return currentColor===targetColor && sizeMatches(x.size);
+	 });
+	 // Nunca inferimos stock de una sola fila cuando varias variantes alias comparten
+	 // la misma clave normalizada: inventario ambiguo queda temporalmente no vendible.
+	 if(matches.length>1)return 0;
+	 return matches.length===1?Number(matches[0].stock)||0:0;
 }
-function colorStock(p,color){const vs=variantList(p);if(!vs.length)return Number(p.quantity)||0;return vs.filter(x=>normalizeText(x.color)===normalizeText(color)).reduce((s,x)=>s+Number(x.stock||0),0)}
+function colorStock(p,color){const vs=variantList(p);if(!vs.length)return Number(p.quantity)||0;return vs.filter(x=>normalizeVariantKeyText(x.color)===normalizeVariantKeyText(color)).reduce((s,x)=>s+Number(x.stock||0),0)}
 function sizeStockForColor(p,color,size){return variantStock(p,color,size)}
 function variantImageUrl(p,color){
- const hasDeclaredColors=parseVariantList(p?.colors).length>0;
- const targetColor=normalizeText(color);
- const v=variantList(p).find(x=>{
-   let currentColor=normalizeText(x.color);
+	 const hasDeclaredColors=parseVariantList(p?.colors).length>0;
+	 const targetColor=normalizeVariantKeyText(color);
+	 const v=variantList(p).find(x=>{
+	   let currentColor=normalizeVariantKeyText(x.color);
    if(!hasDeclaredColors&&currentColor==='sin color')currentColor='';
    return currentColor===targetColor&&!!x.image_path;
  });
@@ -3432,9 +3440,9 @@ function openDetailGallery(event){
  renderGallery();openGalleryModal(event?.currentTarget||document.activeElement);
 }
 function renderDetailVariants(p,activeColor,activeSize){
- const colors=parseVariantList(p.colors),sizes=parseVariantList(p.sizes),vs=variantList(p);
- let h='';
- if(colors.length) h+=`<div class="variantLabel">Color</div><div class="colorDots">${colors.map(c=>{const stock=vs.length?colorStock(p,c):Number(p.quantity)||0,active=normalizeText(c)===normalizeText(activeColor);return `<span class="colorChoice"><button type="button" class="colorDot ${active?'active':''}" aria-label="Color ${esc(c)}" aria-pressed="${active?'true':'false'}" ${stock<=0?'disabled':''} data-variant-type="color" data-value="${esc(c)}" style="background:${colorToCss(c)}" onclick="detailSelectColor(this,event)"></button><span class="colorName">${esc(c)}${stock<=0?' (agotado)':''}</span></span>`}).join('')}</div>`;
+	const colors=parseVariantList(p.colors),sizes=parseVariantList(p.sizes),vs=variantList(p);
+	let h='';
+	if(colors.length) h+=`<div class="variantLabel">Color</div><div class="colorDots">${colors.map(c=>{const stock=vs.length?colorStock(p,c):Number(p.quantity)||0,active=normalizeText(c)===normalizeText(activeColor);return `<span class="colorChoice"><button type="button" class="colorDot ${active?'active':''}" aria-label="Color ${esc(c)}" aria-pressed="${active?'true':'false'}" ${stock<=0?'disabled':''} data-variant-type="color" data-value="${esc(c)}" style="background:${colorToCss(c,p)}" onclick="detailSelectColor(this,event)"></button><span class="colorName">${esc(c)}${stock<=0?' (agotado)':''}</span></span>`}).join('')}</div>`;
  if(sizes.length) h+=`<div class="variantLabel">Talla</div><div class="sizeOptions">${sizes.map(sz=>{const stock=vs.length?variantStock(p,activeColor,sz):Number(p.quantity)||0,active=normalizeText(sz)===normalizeText(activeSize)&&stock>0;return `<button type="button" class="sizeOption ${active?'active':''}" aria-pressed="${active?'true':'false'}" ${stock<=0&&vs.length?'disabled':''} data-variant-type="size" data-value="${esc(sz)}" onclick="detailSelectSize(this,event)">${esc(sz)}${stock<=0&&vs.length?' · agotada':''}</button>`}).join('')}</div>`;
  const selectedParts=[];
  if(colors.length&&activeColor)selectedParts.push('Color: '+esc(activeColor));

@@ -151,9 +151,11 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
 .categoryInlineActions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:7px}.categoryInlineActions .softbtn{padding:7px 10px;font-size:12px}.categoryInlineActions small{font-size:11px}
 #pCategoria:disabled{opacity:.7;cursor:wait}
 .variantAdminTable{display:grid;gap:7px}.variantAdminRow{display:grid;grid-template-columns:minmax(90px,1fr) minmax(70px,1fr) 100px minmax(150px,1.4fr);gap:7px;align-items:center}.variantAdminHead{font-size:11px;font-weight:900;color:var(--muted);text-transform:uppercase}.variantAdminCell{padding:7px 9px;background:#fff;border:1px solid var(--border);border-radius:9px;font-size:12px}.variantAdminStock{width:100%;padding:8px;border:1px solid var(--border);border-radius:9px}.variantColorPhoto{width:100%;font-size:11px}.variantCurrentPhoto{font-size:10px;color:var(--success);margin-top:3px;font-weight:800}.variantPhotoHint{font-size:10px;color:var(--muted);margin-top:3px}.variantPhotoPreview{display:flex;align-items:center;gap:6px;margin-top:5px}.variantPhotoPreview img{width:42px;height:42px;object-fit:cover;border-radius:8px;border:1px solid var(--border)}@media(max-width:700px){.variantAdminRow{grid-template-columns:1fr 1fr}.variantAdminRow .variantPhotoCell{grid-column:1/-1}}
+.variantCollisionWarning{padding:13px 15px;border:1px solid #dfb75b;border-radius:11px;background:#fff7df;color:#674d0c;font-size:13px;line-height:1.5;font-weight:700}
 .adminColorField{min-width:0;padding:15px;border:1px solid var(--border);border-radius:15px;background:linear-gradient(145deg,#fff,#fcfbff)}
 .adminColorTitle{font-size:13px;font-weight:900;color:#34313f;margin-bottom:5px}
 .adminColorPalette{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px;margin-top:11px;touch-action:none;user-select:none;-webkit-user-select:none}
+.variantAdminColorCell{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.variantColorPreview{display:inline-block;width:18px;height:18px;flex:0 0 18px;border:1px solid #0002;border-radius:50%;box-shadow:inset 0 0 0 1px #ffffff50}.variantAdminColorCell small{font:10px ui-monospace,monospace;color:#665d70}
 .adminColorSwatch{display:flex;align-items:center;gap:8px;min-width:0;min-height:40px;padding:7px 9px;border:1px solid #e4e4eb;border-radius:11px;background:#fff;color:#3c4050;text-align:left;font-size:12px;font-weight:750;transition:border-color .12s ease,background .12s ease,box-shadow .12s ease;cursor:pointer;touch-action:none}
 .adminColorSwatch:hover{border-color:#b3a0e9;background:#fbf9ff}
 .adminColorSwatch[aria-pressed="true"]{border-color:#7c3aed;background:#f5f0ff;box-shadow:0 0 0 1px #7c3aed40;color:#4c1d95}
@@ -162,6 +164,8 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
 .adminColorLabel{min-width:0;overflow-wrap:normal;hyphens:none;line-height:1.1}
 .selectedColorSummary{margin-top:10px;padding:9px 11px;border-radius:10px;background:#f8f7fb;color:#6e7180;font-size:11px;line-height:1.4}
 .selectedColorSummary strong{color:#5b21b6}
+.adminColorManager{display:grid;gap:8px;margin-top:12px}.adminColorManagerRow{display:grid;grid-template-columns:minmax(120px,1.3fr) 40px minmax(100px,1fr) 26px auto;gap:8px;align-items:end;padding:9px;border:1px solid #e9e4f1;border-radius:11px;background:#fff}.adminColorManagerRow label,.adminColorCustomAddGrid label{display:grid;gap:4px;color:#655d70;font-size:10px;font-weight:800}.adminColorManagerRow input[type=text],.adminColorCustomAddGrid input[type=text]{width:100%;min-width:0;padding:7px 8px;border:1px solid var(--border);border-radius:8px;font:inherit;font-size:12px}.adminColorManagerRow input[type=color],.adminColorCustomAddGrid input[type=color]{width:40px;height:36px;padding:2px;border:1px solid var(--border);border-radius:8px;background:#fff}.adminColorManagerPreview{width:24px;height:24px;align-self:center;border:1px solid #0002;border-radius:50%;box-shadow:inset 0 0 0 1px #ffffff40}.adminColorRemoveButton{min-height:34px;padding:6px 8px;border:1px solid #ead3d3;border-radius:8px;background:#fff8f8;color:#8f3030;font-size:11px;font-weight:800}.adminColorCustomAdd{margin-top:12px;padding:11px;border:1px dashed #cfc5df;border-radius:11px;background:#faf9fd}.adminColorCustomAdd>strong{font-size:12px;color:#43375b}.adminColorCustomAddGrid{display:grid;grid-template-columns:minmax(120px,1fr) 48px minmax(110px,1fr) auto;gap:8px;align-items:end;margin:8px 0}.adminColorCustomAdd small{display:block;font-size:10px;line-height:1.4;color:#756d7d}
+@media(max-width:700px){.adminColorManagerRow{grid-template-columns:minmax(0,1fr) 40px minmax(0,1fr) 26px}.adminColorManagerRow .adminColorRemoveButton{grid-column:1/-1}.adminColorCustomAddGrid{grid-template-columns:minmax(0,1fr) 48px minmax(0,1fr)}.adminColorCustomAddGrid button{grid-column:1/-1}}
 .adminColorDetails{border:1px solid #e9dfd4;border-radius:12px;background:#fffdf9;overflow:hidden}
 .adminColorDisclosure{list-style:none;display:flex;align-items:center;gap:10px;padding:11px 12px;min-height:54px;cursor:pointer;user-select:none;background:linear-gradient(135deg,#fffdf9,#f8f1e8)}
 .adminColorDisclosure::-webkit-details-marker{display:none}
@@ -369,6 +373,17 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
               </summary>
               <div id="colorPalette" class="adminColorPalette" role="group" aria-label="Selecciona uno o varios colores del producto"></div>
             </details>
+            <div id="adminColorManager" class="adminColorManager" aria-label="Colores seleccionados"></div>
+            <div class="adminColorCustomAdd">
+              <strong>＋ Agregar un color personalizado</strong>
+              <div class="adminColorCustomAddGrid">
+                <label>Nombre<input id="adminNewColorName" maxlength="40" autocomplete="off" placeholder="Ej. Azul petróleo"></label>
+                <label>Selector de color<input id="adminNewColorPicker" type="color" value="#9ca3af" aria-label="Elegir color personalizado"></label>
+                <label>HEX manual<input id="adminNewColorHex" type="text" value="#9ca3af" maxlength="7" pattern="#[0-9a-fA-F]{6}" inputmode="text" autocomplete="off" spellcheck="false" placeholder="#RRGGBB"></label>
+                <button class="softbtn" type="button" onclick="addAdminProductColor()">Agregar color</button>
+              </div>
+              <small>Usa el selector nativo o escribe HEX. Al agregar el primer color a variantes legacy puedes confirmar su asignación conservando stock y fotos; las variantes ocultas con stock bloquean el guardado. Quitar un color con stock no está permitido; las fotos asociadas se desvinculan solo tras confirmación.</small>
+            </div>
             <div id="selectedColorSummary" class="selectedColorSummary" aria-live="polite">Selecciona uno o varios colores de la paleta. Puedes tocar un color o arrastrar por varios tonos.</div>
           </div>
           <label>Tallas del producto
@@ -2494,11 +2509,12 @@ async function getProductImages(productId, primary){
  return paths;
 }
 function variantKey(color,size){return normalizeVariantText(color)+'||'+normalizeVariantText(size)}
-function normalizeVariantText(v){return String(v||'').trim().toLowerCase()}
+function normalizeVariantText(v){return normalizeAdminColorName(v)}
+function normalizeVariantHex(value){const hex=String(value||'').trim();return /^#[0-9a-fA-F]{6}$/.test(hex)?hex.toLowerCase():''}
 function parseVariants(v){
- if(Array.isArray(v))return v.map(x=>({color:String(x?.color||'').trim(),size:String(x?.size||'').trim(),stock:Math.max(0,Number(x?.stock)||0),image_path:String(x?.image_path||'').trim()})).filter(x=>x.color||x.size);
- if(typeof v==='string'){try{const j=JSON.parse(v);return parseVariants(j)}catch{}}
- return [];
+	if(Array.isArray(v))return v.map(x=>{const item={color:String(x?.color||'').trim(),size:String(x?.size||'').trim(),stock:Math.max(0,Number(x?.stock)||0),image_path:String(x?.image_path||'').trim()},hex=normalizeVariantHex(x?.color_hex);if(hex)item.color_hex=hex;return item}).filter(x=>x.color||x.size||adminVariantHasProtectedData(x));
+	if(typeof v==='string'){try{const j=JSON.parse(v);return parseVariants(j)}catch{}}
+	return [];
 }
 function availableQuantity(p){
  const n=Number(p?.availableQuantity);
@@ -2558,23 +2574,50 @@ const ADMIN_COLOR_OPTIONS=[
 ];
 function normalizeAdminColorName(value){return String(value||'').trim().toLocaleLowerCase('es').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ')}
 function readAdminColors(){return [...new Set(String($("pColores")?.value||'').split(',').map(v=>v.trim()).filter(Boolean))]}
+function adminColorFallbackCss(name){return ADMIN_COLOR_OPTIONS.find(option=>normalizeAdminColorName(option.name)===normalizeAdminColorName(name))?.hex||'#9ca3af'}
+function variantColorHexFromList(list,colorName){const key=normalizeAdminColorName(colorName);return parseVariants(list).find(v=>normalizeAdminColorName(v.color)===key)?.color_hex||''}
+function defaultAdminColorVariant(colorName,size,list){const item={color:colorName,size,stock:0,image_path:''},hex=variantColorHexFromList(list,colorName);if(hex)item.color_hex=hex;return item}
+function renameAdminColorVariants(list,oldName,newName){const oldKey=normalizeAdminColorName(oldName),name=String(newName||'').trim(),renamed=parseVariants(list).map(v=>normalizeAdminColorName(v.color)===oldKey?{...v,color:name}:v);return adminVariantKeyCollisions(renamed).length?null:renamed}
+function setAdminColorHexInVariants(list,colorName,value){const key=normalizeAdminColorName(colorName),hex=normalizeVariantHex(value);return parseVariants(list).map(v=>{if(normalizeAdminColorName(v.color)!==key)return v;const next={...v};if(hex)next.color_hex=hex;else delete next.color_hex;return next})}
+function addAdminColorVariants(list,colorName,sizes,value){const name=String(colorName||'').trim(),hex=normalizeVariantHex(value),out=parseVariants(list),keys=new Set(out.map(v=>variantKey(v.color,v.size)));for(const rawSize of (Array.isArray(sizes)&&sizes.length?sizes:['Única'])){const size=String(rawSize||'Única').trim()||'Única',key=variantKey(name,size);if(keys.has(key))continue;const item={color:name,size,stock:0,image_path:''};if(hex)item.color_hex=hex;out.push(item);keys.add(key)}return adminVariantKeyCollisions(out).length?null:out}
+function adminColorHasStock(list,colorName){const key=normalizeAdminColorName(colorName);return parseVariants(list).some(v=>normalizeAdminColorName(v.color)===key&&Number(v.stock)>0)}
+function adminColorHasPhoto(list,colorName){const key=normalizeAdminColorName(colorName);return parseVariants(list).some(v=>normalizeAdminColorName(v.color)===key&&!!String(v.image_path||'').trim())}
+function adminColorHasHex(list,colorName){const key=normalizeAdminColorName(colorName);return parseVariants(list).some(v=>normalizeAdminColorName(v.color)===key&&!!normalizeVariantHex(v.color_hex))}
+function hiddenAdminVariantsWithData(memory,current){const visible=new Set(parseVariants(current).map(v=>variantKey(v.color,v.size)));return parseVariants(memory).filter(v=>!visible.has(variantKey(v.color,v.size))&&adminVariantHasProtectedData(v))}
+function uncoloredAdminVariants(list){return parseVariants(list).filter(v=>!String(v.color||'').trim()||normalizeAdminColorName(v.color)==='sin color')}
+function uncoloredAdminVariantsHaveDuplicateSizes(list){const sizes=new Set();for(const v of uncoloredAdminVariants(list)){const key=normalizeVariantText(v.size);if(sizes.has(key))return true;sizes.add(key)}return false}
+function adminVariantHasProtectedData(v){return Number(v?.stock)>0||!!String(v?.image_path||'').trim()||!!normalizeVariantHex(v?.color_hex)}
+function adminVariantKeyCollisions(list){const seen=new Set(),duplicates=new Set();for(const v of parseVariants(list)){const key=variantKey(v.color,v.size);if(seen.has(key))duplicates.add(key);else seen.add(key)}return [...duplicates]}
+function adminVariantCollisionMessage(){return 'Se detectaron combinaciones de color/talla duplicadas en los datos guardados. El editor bloqueó la edición para evitar fusionar o perder stock, fotos o HEX. Cierra este producto y solicita resolver la duplicidad antes de guardar.'}
+function assignUncoloredAdminVariants(list,colorName,sizes,value){const name=String(colorName||'').trim(),hex=normalizeVariantHex(value),mapped=parseVariants(list).map(v=>{if(String(v.color||'').trim()&&normalizeAdminColorName(v.color)!=='sin color')return v;const next={...v,color:name},storedHex=hex||normalizeVariantHex(v.color_hex);if(storedHex)next.color_hex=storedHex;else delete next.color_hex;return next}),assigned=addAdminColorVariants(mapped,name,sizes,hex);return adminVariantKeyCollisions(assigned).length?null:assigned}
+function discardAdminColorVariants(list,colorName){const key=normalizeAdminColorName(colorName);return parseVariants(list).filter(v=>normalizeAdminColorName(v.color)!==key)}
+function discardHiddenAdminVariants(list,hidden){const keys=new Set(parseVariants(hidden).map(v=>variantKey(v.color,v.size)));return parseVariants(list).filter(v=>!keys.has(variantKey(v.color,v.size)))}
+function renderAdminColorManager(){
+	const box=$("adminColorManager");if(!box)return;
+	const colors=readAdminColors(),variants=parseVariants(variantMemory.length?variantMemory:variantDraft);
+	box.innerHTML=colors.map(name=>{
+		const hex=variantColorHexFromList(variants,name),fallback=adminColorFallbackCss(name),picker=hex||normalizeVariantHex(fallback)||'#9ca3af';
+		return `<div class="adminColorManagerRow" data-color-name="${esc(name)}"><label>Nombre<input class="adminColorManagerName" type="text" maxlength="40" autocomplete="off" value="${esc(name)}" data-color-name="${esc(name)}"></label><label>Selector<input class="adminColorHexPicker" type="color" value="${esc(picker)}" aria-label="Selector HEX para ${esc(name)}" data-color-name="${esc(name)}"></label><label>HEX manual<input class="adminColorHexText" type="text" maxlength="7" pattern="#[0-9a-fA-F]{6}" inputmode="text" autocomplete="off" spellcheck="false" placeholder="${esc(normalizeVariantHex(fallback)||'#RRGGBB')}" value="${esc(hex)}" data-color-name="${esc(name)}"></label><span class="adminColorManagerPreview" aria-label="Vista previa ${esc(name)}" title="${esc(hex||fallback)}" style="background:${esc(hex||fallback)}"></span><button class="adminColorRemoveButton" type="button" data-color-name="${esc(name)}" onclick="removeAdminProductColor(this)">Eliminar</button></div>`;
+	}).join('');
+}
 function renderAdminColorPalette(){
- const box=$("colorPalette"),summary=$("selectedColorSummary");if(!box)return;
- const selected=readAdminColors();
- const selectedKeys=new Set(selected.map(normalizeAdminColorName));
- const knownKeys=new Set(ADMIN_COLOR_OPTIONS.map(c=>normalizeAdminColorName(c.name)));
- const extras=selected.filter(c=>!knownKeys.has(normalizeAdminColorName(c))).map(name=>({name,hex:'#9ca3af',check:'#ffffff',custom:true}));
- const options=[...ADMIN_COLOR_OPTIONS,...extras];
- box.innerHTML=options.map(color=>{
+	const box=$("colorPalette"),summary=$("selectedColorSummary");if(!box)return;
+	const selected=readAdminColors();
+	const selectedKeys=new Set(selected.map(normalizeAdminColorName));
+	const knownKeys=new Set(ADMIN_COLOR_OPTIONS.map(c=>normalizeAdminColorName(c.name)));
+	const variants=parseVariants(variantMemory.length?variantMemory:variantDraft),customHex=new Map();variants.forEach(v=>{if(v.color_hex&&!customHex.has(normalizeAdminColorName(v.color)))customHex.set(normalizeAdminColorName(v.color),v.color_hex)});
+	const options=[...ADMIN_COLOR_OPTIONS.map(c=>({...c,hex:customHex.get(normalizeAdminColorName(c.name))||c.hex})),...selected.filter(c=>!knownKeys.has(normalizeAdminColorName(c))).map(name=>({name,hex:customHex.get(normalizeAdminColorName(name))||'#9ca3af',check:'#ffffff',custom:true}))];
+	box.innerHTML=options.map(color=>{
    const active=selectedKeys.has(normalizeAdminColorName(color.name));
    const check=color.check||'#ffffff';
    return `<button type="button" class="adminColorSwatch" data-color="${esc(color.name)}" aria-pressed="${active?'true':'false'}" title="${active?'Quitar':'Seleccionar'} ${esc(color.name)}" style="--swatch-color:${color.hex};--check-color:${check}"><span class="adminColorCircle" aria-hidden="true"></span><span class="adminColorLabel">${esc(color.name)}</span></button>`;
  }).join('');
  const count=$("adminColorCount");
  if(count)count.textContent=selected.length?`${selected.length} seleccionado${selected.length===1?'':'s'}`:'0 seleccionados';
- if(summary){
-   summary.innerHTML=selected.length?`<strong>${selected.length} color${selected.length===1?' seleccionado':'es seleccionados'}:</strong> ${selected.map(esc).join(' · ')}`:'Selecciona uno o varios colores de la paleta. Puedes tocar un color o arrastrar por varios tonos.';
- }
+	if(summary){
+	  summary.innerHTML=selected.length?`<strong>${selected.length} color${selected.length===1?' seleccionado':'es seleccionados'}:</strong> ${selected.map(esc).join(' · ')}`:'Selecciona uno o varios colores de la paleta. Puedes tocar un color o arrastrar por varios tonos.';
+	}
+	renderAdminColorManager();
 }
 function paintAdminColorButton(button,active){
  if(!button)return;
@@ -2582,16 +2625,85 @@ function paintAdminColorButton(button,active){
  button.title=(active?'Quitar ':'Seleccionar ')+(button.dataset.color||'color');
 }
 function applyAdminColorPaletteSelection(){
- const box=$("colorPalette"),input=$("pColores");if(!box||!input)return;
- // Leer el stock ya escrito antes de regenerar las combinaciones de variantes.
- variantDraft=collectVariantDraft();
- const selected=[...box.querySelectorAll('.adminColorSwatch[aria-pressed="true"]')].map(b=>b.dataset.color).filter(Boolean);
- input.value=[...new Set(selected)].join(', ');
- renderAdminColorPalette();
- renderVariantEditor(variantMemory.length?variantMemory:variantDraft);
- variantDraft=collectVariantDraft();
- const stocks=[...document.querySelectorAll('#variantEditorRows .variantAdminStock')];
- if($("pCantidad")&&stocks.length)$("pCantidad").value=stocks.reduce((sum,field)=>sum+Math.max(0,Number(field.value)||0),0);
+	const box=$("colorPalette"),input=$("pColores");if(!box||!input)return;
+	if(variantEditorCollisionError){alert(variantEditorCollisionError);return}
+	// Leer el stock ya escrito antes de regenerar las combinaciones de variantes.
+	variantDraft=collectVariantDraft();
+	const previous=readAdminColors();
+	const selected=[...box.querySelectorAll('.adminColorSwatch[aria-pressed="true"]')].map(b=>b.dataset.color).filter(Boolean);
+	const selectedKeys=new Set(selected.map(normalizeAdminColorName)),removed=previous.filter(name=>!selectedKeys.has(normalizeAdminColorName(name)));
+	const allVariants=[...variantMemory,...variantDraft],blocked=removed.find(name=>adminColorHasStock(allVariants,name));
+	if(blocked){alert(`No puedes quitar “${blocked}” mientras alguna variante —incluso una talla temporalmente oculta— tenga stock. Restablece esa talla o lleva su stock a cero.`);renderAdminColorPalette();return}
+	const photoColors=removed.filter(name=>adminColorHasPhoto(allVariants,name));
+	if(photoColors.length&&!confirm(`Quitar ${photoColors.join(', ')} también desvincula las fotos guardadas en sus variantes. ¿Continuar?`)){renderAdminColorPalette();return}
+	photoColors.forEach(name=>{variantMemory=discardAdminColorVariants(variantMemory,name);variantDraft=discardAdminColorVariants(variantDraft,name)});
+	if(previous.length===0&&selected.length>0){
+	  const source=variantMemory.length?variantMemory:variantDraft,legacy=uncoloredAdminVariants(source),legacyHasData=legacy.some(adminVariantHasProtectedData),duplicateLegacy=uncoloredAdminVariantsHaveDuplicateSizes(source);
+	  if(legacyHasData&&selected.length!==1){alert('Este producto tiene stock/fotos sin color. Selecciona un solo color primero para asignarlos de forma explícita; después podrás agregar más colores.');renderAdminColorPalette();return}
+	  if(legacyHasData&&duplicateLegacy){alert('Hay variantes legacy repetidas sin color. Resuélvelas antes de asignar inventario a un color.');renderAdminColorPalette();return}
+	  if(legacyHasData&&!confirm(`¿Asignar al color “${selected[0]}” las variantes sin color existentes? Se conservarán stock y fotos; solo cambiará su etiqueta de color.`)){renderAdminColorPalette();return}
+	  if(legacy.length&&selected.length===1&&!duplicateLegacy){const assigned=assignUncoloredAdminVariants(source,selected[0],String($('pTallas')?.value||'').split(',').map(value=>value.trim()).filter(Boolean),'');if(!assigned){alert('No se asignó el color: ya existe una combinación color/talla con el mismo identificador. Resuelve los duplicados sin fusionar inventario.');renderAdminColorPalette();return}variantMemory=assigned}
+	}
+	input.value=[...new Set(selected)].join(', ');
+	renderAdminColorPalette();
+	renderVariantEditor(variantMemory.length?variantMemory:variantDraft);
+	variantDraft=collectVariantDraft();
+	updateAdminVariantTotal();
+}
+function updateAdminVariantTotal(){const stocks=[...document.querySelectorAll('#variantEditorRows .variantAdminStock')];if($("pCantidad")&&stocks.length)$("pCantidad").value=stocks.reduce((sum,field)=>sum+Math.max(0,Number(field.value)||0),0)}
+function validAdminProductColorName(value){const name=String(value||'').trim();return !!name&&name.length<=40&&!name.includes(',')&&!/[\u0000-\u001f\u007f]/.test(name)}
+function renameAdminProductColor(input){
+	if(variantEditorCollisionError){alert(variantEditorCollisionError);return}
+	const oldName=input?.dataset?.colorName||'',newName=String(input?.value||'').trim(),oldKey=normalizeAdminColorName(oldName),colors=readAdminColors();
+	if(!oldName||!validAdminProductColorName(newName)||colors.some(name=>normalizeAdminColorName(name)!==oldKey&&normalizeAdminColorName(name)===normalizeAdminColorName(newName))){if(input)input.value=oldName;alert('Usa un nombre de color válido y único (máximo 40 caracteres; no uses comas).');return}
+	if(oldName===newName)return;
+	variantDraft=collectVariantDraft();const nextMemory=renameAdminColorVariants(variantMemory.length?variantMemory:variantDraft,oldName,newName),nextDraft=renameAdminColorVariants(variantDraft,oldName,newName);if(!nextMemory||!nextDraft){if(input)input.value=oldName;alert('No se renombró: el cambio crearía una combinación de color/talla duplicada y podría perder stock, fotos o HEX. Resuelve esa colisión primero.');return}variantMemory=nextMemory;variantDraft=nextDraft;
+	$("pColores").value=colors.map(name=>normalizeAdminColorName(name)===oldKey?newName:name).join(', ');
+	renderAdminColorPalette();renderVariantEditor(variantMemory.length?variantMemory:variantDraft);variantDraft=collectVariantDraft();updateAdminVariantTotal();
+}
+function removeAdminProductColor(button){
+	if(variantEditorCollisionError){alert(variantEditorCollisionError);return}
+		const name=button?.dataset?.colorName||'';if(!name)return;
+		variantDraft=collectVariantDraft();
+		const allVariants=[...variantMemory,...variantDraft];
+		if(adminColorHasStock(allVariants,name)){alert(`No puedes eliminar “${name}” mientras alguna variante tenga stock. Restablece las tallas ocultas o lleva su stock a cero.`);return}
+		const hasPhoto=adminColorHasPhoto(allVariants,name),hasHex=adminColorHasHex(allVariants,name),removalNotes=[];
+		if(hasPhoto)removalNotes.push('desvincula las fotos del producto sin borrar los archivos');
+		if(hasHex)removalNotes.push('elimina los valores HEX propios');
+		if(removalNotes.length&&!confirm(`Eliminar “${name}” también ${removalNotes.join(' y ')}. ¿Continuar?`))return;
+		variantMemory=discardAdminColorVariants(variantMemory,name);variantDraft=discardAdminColorVariants(variantDraft,name);
+	$("pColores").value=readAdminColors().filter(value=>normalizeAdminColorName(value)!==normalizeAdminColorName(name)).join(', ');
+	renderAdminColorPalette();renderVariantEditor(variantMemory.length?variantMemory:variantDraft);variantDraft=collectVariantDraft();updateAdminVariantTotal();
+}
+function addAdminProductColor(){
+	if(variantEditorCollisionError){alert(variantEditorCollisionError);return}
+	const name=String($("adminNewColorName")?.value||'').trim(),hex=normalizeVariantHex($("adminNewColorHex")?.value),colors=readAdminColors();
+	if(!validAdminProductColorName(name)){alert('Escribe un nombre único de hasta 40 caracteres, sin comas.');$("adminNewColorName")?.focus();return}
+	if(colors.some(value=>normalizeAdminColorName(value)===normalizeAdminColorName(name))){alert('Ese nombre ya está seleccionado.');$("adminNewColorName")?.focus();return}
+	if(!hex){const field=$("adminNewColorHex");field?.setCustomValidity('Ingresa un color HEX válido, por ejemplo #3A82C4.');field?.reportValidity();return}
+	const field=$("adminNewColorHex");field?.setCustomValidity('');variantDraft=collectVariantDraft();
+	const source=variantMemory.length?variantMemory:variantDraft,hidden=hiddenAdminVariantsWithData(variantMemory,variantDraft),hiddenStock=hidden.find(v=>Number(v.stock)>0);
+	if(hiddenStock){alert(`Restablece primero la talla ${hiddenStock.size||'sin talla'}: todavía conserva stock aunque esté oculta.`);return}
+	const sizes=String($("pTallas")?.value||'').split(',').map(value=>value.trim()).filter(Boolean),legacy=colors.length===0?uncoloredAdminVariants(source):[];
+	if(legacy.length&&uncoloredAdminVariantsHaveDuplicateSizes(source)&&legacy.some(adminVariantHasProtectedData)){alert('Hay variantes legacy repetidas sin color. Resuélvelas antes de asignar stock o fotos a un color.');return}
+	if(legacy.length&&legacy.some(adminVariantHasProtectedData)&&!confirm(`¿Asignar al nuevo color “${name}” las variantes existentes sin color? Se conservarán sus stocks y fotos; solo cambiará la etiqueta de color.`))return;
+	const nextVariants=legacy.length&&!uncoloredAdminVariantsHaveDuplicateSizes(source)?assignUncoloredAdminVariants(source,name,sizes,hex):addAdminColorVariants(source,name,sizes,hex);if(!nextVariants){alert('No se agregó el color: ya existe una combinación color/talla duplicada. No se fusionaron filas ni se modificó el inventario.');return}variantMemory=nextVariants;$("pColores").value=[...colors,name].join(', ');
+	renderAdminColorPalette();renderVariantEditor(variantMemory);variantDraft=collectVariantDraft();updateAdminVariantTotal();
+	$("adminNewColorName").value='';$("adminNewColorHex").value=hex;$("adminNewColorPicker").value=hex;
+}
+function updateAdminProductColorHex(input){
+	const name=input?.dataset?.colorName||'',row=input?.closest?.('.adminColorManagerRow');if(!name||!row)return;
+	const text=row.querySelector('.adminColorHexText'),picker=row.querySelector('.adminColorHexPicker');if(!text||!picker)return;
+	const raw=input.classList.contains('adminColorHexPicker')?String(input.value||'').trim():String(text.value||'').trim();
+	const hex=normalizeVariantHex(raw);
+	if(raw&&!hex){text.setCustomValidity('Escribe un HEX de seis dígitos, por ejemplo #3A82C4.');return}
+	text.setCustomValidity('');
+	if(input.classList.contains('adminColorHexPicker'))text.value=hex;
+	else picker.value=hex||normalizeVariantHex(adminColorFallbackCss(name))||'#9ca3af';
+	const variants=variantMemory.length?variantMemory:variantDraft;variantMemory=setAdminColorHexInVariants(variants,name,hex);variantDraft=setAdminColorHexInVariants(variantDraft,name,hex);
+	const preview=row.querySelector('.adminColorManagerPreview'),fallback=adminColorFallbackCss(name);if(preview){preview.style.background=hex||fallback;preview.title=hex||fallback}
+	document.querySelectorAll('#colorPalette .adminColorSwatch').forEach(button=>{if(normalizeAdminColorName(button.dataset.color)===normalizeAdminColorName(name))button.style.setProperty('--swatch-color',hex||fallback)});
+	document.querySelectorAll('#variantEditorRows .variantColorPreview').forEach(swatch=>{if(normalizeAdminColorName(swatch.dataset.colorName)===normalizeAdminColorName(name))swatch.style.background=hex||fallback});
 }
 let adminColorDragActive=false,adminColorDragValue=false,adminColorSuppressClick=false,adminColorDragFinishedTimer=null;
 function finishAdminColorDrag(){
@@ -2640,28 +2752,33 @@ function initAdminColorPalette(){
  });
 }
 
-let variantDraft=[],variantMemory=[];
+let variantDraft=[],variantMemory=[],variantEditorCollisionError='';
 function renderVariantEditor(existing=variantDraft){
  const box=$("variantEditor"), rows=$("variantEditorRows"); if(!box||!rows)return;
  const colors=[...new Set(String($("pColores")?.value||'').split(',').map(x=>x.trim()).filter(Boolean))];
  const sizes=[...new Set(String($("pTallas")?.value||'').split(',').map(x=>x.trim()).filter(Boolean))];
+ const prior=parseVariants(existing),collisions=adminVariantKeyCollisions(prior);
+ if(collisions.length){variantEditorCollisionError=adminVariantCollisionMessage();box.style.display='block';rows.innerHTML=`<div class="variantCollisionWarning" role="alert">${esc(variantEditorCollisionError)}</div>`;return}
+ variantEditorCollisionError='';
  if(!colors.length&&!sizes.length){box.style.display='none';rows.innerHTML='';return}
  box.style.display='block';
  const ss=sizes.length?sizes:['Única'];
- const prior=parseVariants(existing);
  const map=new Map(prior.map(x=>[variantKey(x.color,x.size),x]));
  const colorsWithPhoto=colors.length?colors:["Sin color"];
- rows.innerHTML=`<div class="variantAdminTable">
- <div class="variantAdminRow variantAdminHead"><div>Color</div><div>Talla</div><div>Stock</div><div>📸 Foto de esta referencia</div></div>`+
- colorsWithPhoto.flatMap(displayColor=>ss.map(sz=>{
-   const colorValue=colors.length?displayColor:"";
-   const k=variantKey(colorValue,sz),legacyKey=variantKey("Sin color",sz);
-   const v=map.get(k)||(!colors.length?map.get(legacyKey):null)||{color:colorValue,size:sz,stock:0,image_path:''};
-   const existingPhoto=v.image_path||'';
-   const existingPhotoUrl=existingPhoto?getImageUrl(existingPhoto):'';
-   const preview=existingPhoto?`<div class="variantPhotoPreview">${existingPhotoUrl?`<img src="${esc(existingPhotoUrl)}" alt="Foto guardada ${esc(displayColor)} / ${esc(sz)}" loading="lazy" decoding="async" onerror="this.style.opacity='.35';this.title='No se pudo cargar la vista previa'">`:''}<span class="variantCurrentPhoto">✓ Foto guardada</span></div>`:'';
-   return `<div class="variantAdminRow">
-     <div class="variantAdminCell">${esc(displayColor)}</div>
+ const displayGrid=colorsWithPhoto.flatMap(displayColor=>ss.map(sz=>({color:colors.length?displayColor:'',size:sz})));
+ if(adminVariantKeyCollisions(displayGrid).length){variantEditorCollisionError=adminVariantCollisionMessage();rows.innerHTML=`<div class="variantCollisionWarning" role="alert">${esc(variantEditorCollisionError)}</div>`;return}
+	rows.innerHTML=`<div class="variantAdminTable">
+	<div class="variantAdminRow variantAdminHead"><div>Color / HEX</div><div>Talla</div><div>Stock</div><div>📸 Foto de esta referencia</div></div>`+
+	colorsWithPhoto.flatMap(displayColor=>ss.map(sz=>{
+	  const colorValue=colors.length?displayColor:"";
+	  const k=variantKey(colorValue,sz),legacyKey=variantKey("Sin color",sz);
+	  const v=map.get(k)||(!colors.length?map.get(legacyKey):null)||defaultAdminColorVariant(colorValue,sz,prior);
+	  const savedHex=normalizeVariantHex(v.color_hex),colorCss=savedHex||adminColorFallbackCss(displayColor);
+	  const existingPhoto=v.image_path||'';
+	  const existingPhotoUrl=existingPhoto?getImageUrl(existingPhoto):'';
+	  const preview=existingPhoto?`<div class="variantPhotoPreview">${existingPhotoUrl?`<img src="${esc(existingPhotoUrl)}" alt="Foto guardada ${esc(displayColor)} / ${esc(sz)}" loading="lazy" decoding="async" onerror="this.style.opacity='.35';this.title='No se pudo cargar la vista previa'">`:''}<span class="variantCurrentPhoto">✓ Foto guardada</span></div>`:'';
+	  return `<div class="variantAdminRow">
+	    <div class="variantAdminCell variantAdminColorCell"><span class="variantColorPreview" data-color-name="${esc(displayColor)}" aria-label="Vista previa ${esc(displayColor)}" style="background:${esc(colorCss)}"></span><span>${esc(displayColor)}</span>${savedHex?`<small>${esc(savedHex)}</small>`:''}</div>
      <div class="variantAdminCell">${esc(sz)}</div>
      <input class="variantAdminStock" type="number" min="0" value="${Number(v.stock)||0}" data-var-color="${esc(colorValue)}" data-var-size="${esc(sz)}">
      <div class="variantPhotoCell">
@@ -2674,15 +2791,19 @@ function renderVariantEditor(existing=variantDraft){
 }
 function collectVariantDraft(){
  const rows=[...document.querySelectorAll('#variantEditorRows .variantAdminStock')];
- const prev=new Map(parseVariants(variantMemory.length?variantMemory:variantDraft).map(x=>[variantKey(x.color,x.size),x]));
- const current=rows.map(inp=>{
-   const color=inp.dataset.varColor||'',size=inp.dataset.varSize||'';
-   const old=prev.get(variantKey(color,size))||(!color?prev.get(variantKey("Sin color",size)):null);
-   return {color,size,stock:Math.max(0,Number(inp.value)||0),image_path:old?.image_path||''};
- });
+ const source=parseVariants(variantMemory.length?variantMemory:variantDraft);
+ if(adminVariantKeyCollisions(source).length){variantEditorCollisionError=adminVariantCollisionMessage();return source}
+ variantEditorCollisionError='';
+ const prev=new Map(source.map(x=>[variantKey(x.color,x.size),x]));
+	 const current=rows.map(inp=>{
+	   const color=inp.dataset.varColor||'',size=inp.dataset.varSize||'';
+	   const old=prev.get(variantKey(color,size))||(!color?prev.get(variantKey("Sin color",size)):null);
+	   const item={color,size,stock:Math.max(0,Number(inp.value)||0),image_path:old?.image_path||''},hex=normalizeVariantHex(old?.color_hex);if(hex)item.color_hex=hex;return item;
+	 });
+	 if(adminVariantKeyCollisions(current).length){variantEditorCollisionError=adminVariantCollisionMessage();return source}
  // Conservar en memoria temporal las variantes que se oculten al desmarcar un color
  // o cambiar tallas. Si el usuario vuelve a marcarlo antes de guardar, recupera stock/foto.
- const memory=new Map(parseVariants(variantMemory.length?variantMemory:variantDraft).map(x=>[variantKey(x.color,x.size),x]));
+ const memory=new Map(source.map(x=>[variantKey(x.color,x.size),x]));
  current.forEach(v=>{
    const key=variantKey(v.color,v.size),old=memory.get(key);
    memory.set(key,{...old,...v,image_path:v.image_path||old?.image_path||''});
@@ -2717,8 +2838,28 @@ async function uploadVariantPhotos(productId, variants, files,isCurrent=()=>true
  });
 }
 
-document.addEventListener('change',e=>{if(e.target?.id==='pTallas'){variantDraft=collectVariantDraft();renderVariantEditor(variantMemory.length?variantMemory:variantDraft);variantDraft=collectVariantDraft()}});
-document.addEventListener('input',e=>{if(e.target?.classList?.contains('variantAdminStock')){const total=[...document.querySelectorAll('#variantEditorRows .variantAdminStock')].reduce((s,x)=>s+Math.max(0,Number(x.value)||0),0);if($("pCantidad"))$("pCantidad").value=total}});
+function syncAdminNewColorHex(input){
+	const text=$("adminNewColorHex"),picker=$("adminNewColorPicker");if(!text||!picker)return;
+	const raw=input?.id==='adminNewColorPicker'?String(picker.value||'').trim():String(text.value||'').trim(),hex=normalizeVariantHex(raw);
+	if(raw&&!hex){text.setCustomValidity('Escribe un HEX de seis dígitos, por ejemplo #3A82C4.');return}
+	text.setCustomValidity('');if(input?.id==='adminNewColorPicker')text.value=hex;else if(hex)picker.value=hex;
+}
+function resetAdminNewColorForm(){const name=$("adminNewColorName"),text=$("adminNewColorHex"),picker=$("adminNewColorPicker");if(name)name.value='';if(text){text.value='#9ca3af';text.setCustomValidity('')}if(picker)picker.value='#9ca3af'}
+function handleAdminColorChange(event){
+	const target=event.target;
+	if(target?.id==='pTallas'){variantDraft=collectVariantDraft();renderVariantEditor(variantMemory.length?variantMemory:variantDraft);variantDraft=collectVariantDraft();return}
+	if(target?.classList?.contains('adminColorManagerName')){renameAdminProductColor(target);return}
+	if(target?.classList?.contains('adminColorHexPicker')||target?.classList?.contains('adminColorHexText')){updateAdminProductColorHex(target);return}
+	if(target?.id==='adminNewColorPicker'||target?.id==='adminNewColorHex')syncAdminNewColorHex(target);
+}
+function handleAdminColorInput(event){
+	const target=event.target;
+	if(target?.classList?.contains('variantAdminStock'))updateAdminVariantTotal();
+	if(target?.classList?.contains('adminColorHexPicker')||target?.classList?.contains('adminColorHexText'))updateAdminProductColorHex(target);
+	if(target?.id==='adminNewColorPicker'||target?.id==='adminNewColorHex')syncAdminNewColorHex(target);
+}
+document.addEventListener('change',handleAdminColorChange);
+document.addEventListener('input',handleAdminColorInput);
 
 let adminCatalogRealtimeChannel=null,adminCatalogRealtimeReady=false,adminCatalogRealtimePending=[];
 function startAdminCatalogRealtime(){
@@ -2749,6 +2890,10 @@ async function guardarProducto(agregarOtro=false){
  const userId=adminSessionUserId,authEpoch=adminAuthEpoch,editorToken=editingProductImageLoadToken;
  const isCurrent=()=>adminAuthOperationStillCurrent(userId,authEpoch)&&editorToken===editingProductImageLoadToken;
  if(!sb||!isCurrent())return false;
+ if(variantEditorCollisionError){alert(variantEditorCollisionError);return false}
+ const hexFields=typeof document.querySelectorAll==='function'?[...document.querySelectorAll('#adminColorManager .adminColorHexText')]:[];
+ const invalidHex=hexFields.find(field=>{const raw=String(field.value||'').trim(),invalid=!!raw&&!normalizeVariantHex(raw);field.setCustomValidity?.(invalid?'Usa un HEX válido de seis dígitos, por ejemplo #3A82C4.':'');return invalid});
+ if(invalidHex){invalidHex.reportValidity();return false}
  const originalProductId=editingId||null,isEditing=!!originalProductId;
  let savedProductId=originalProductId;
  const nombre=$("pNombre").value.trim();if(!nombre)return alert("Escribe el nombre del producto.");
@@ -2762,9 +2907,18 @@ async function guardarProducto(agregarOtro=false){
    try{const existing=await sb.from("products").select("image_url,size_guide_image").eq("id",originalProductId).maybeSingle();if(!isCurrent())return false;if(!existing.error){fotoUrl=existing.data?.image_url||null;existingGuideImage=existing.data?.size_guide_image||existingGuideImage;editingSizeGuideImagePath=existingGuideImage}}catch(error){if(!isCurrent())return false}
  }
  const splitList=v=>[...new Set(String(v||'').split(',').map(x=>x.trim()).filter(Boolean))];
- if(!document.querySelector('#variantEditorRows .variantAdminStock') && (String($("pColores").value||'').trim()||String($("pTallas").value||'').trim())) renderVariantEditor(variantDraft);
- variantDraft=collectVariantDraft();
- const variantFiles=selectedVariantFiles();
+	if(!document.querySelector('#variantEditorRows .variantAdminStock') && (String($("pColores").value||'').trim()||String($("pTallas").value||'').trim())) renderVariantEditor(variantDraft);
+	variantDraft=collectVariantDraft();
+	if(variantEditorCollisionError){alert(variantEditorCollisionError);return false}
+	const hiddenData=hiddenAdminVariantsWithData(variantMemory,variantDraft),hiddenStock=hiddenData.find(v=>Number(v.stock)>0);
+	if(hiddenStock){alert(`No se guardó: la variante ${hiddenStock.color||'sin color'} / ${hiddenStock.size||'sin talla'} aún tiene stock. Restablece esa talla/color o lleva su stock a cero primero.`);return false}
+	const hiddenPhotos=hiddenData.filter(v=>String(v.image_path||'').trim());
+	if(hiddenPhotos.length&&!confirm(`${hiddenPhotos.length} variante(s) que vas a ocultar tienen fotos asignadas. ¿Desvincularlas del producto? Los archivos de imagen no se borrarán.`))return false;
+	const hiddenHexOnly=hiddenData.filter(v=>normalizeVariantHex(v.color_hex)&&!String(v.image_path||'').trim());
+	if(hiddenHexOnly.length&&!confirm(`${hiddenHexOnly.length} variante(s) que vas a ocultar conservan un color HEX propio. ¿Eliminar también ese metadato del producto?`))return false;
+	const confirmedHidden=[...hiddenPhotos,...hiddenHexOnly];
+	if(confirmedHidden.length)variantMemory=discardHiddenAdminVariants(variantMemory,confirmedHidden);
+	const variantFiles=selectedVariantFiles();
  const variantStock=variantDraft.length?totalVariantStock(variantDraft):(+$('pCantidad').value||0);
  const obj={name:nombre,category:$("pCategoria").value,colors:splitList($("pColores").value),sizes:splitList($("pTallas").value),variants:variantDraft,quantity:variantStock,cost_price:+$("pCompra").value||0,sale_price:+$("pVenta").value||0,location:$("pUbicacion").value.trim(),description:$("pDescripcion").value.trim(),size_guide:$("pGuiaTallas").value.trim(),size_guide_image:sizeGuideImageRemoveRequested?"":existingGuideImage,image_url:fotoUrl};
  let user;
@@ -2803,13 +2957,21 @@ async function guardarProducto(agregarOtro=false){
    show("producto",document.querySelector('[data-view=producto]'));
    $("pNombre").focus();
    toast("Listo. Puedes agregar el siguiente producto.");
- }else{
-   show("inventario",document.querySelector('[data-view=inventario]'));
- }
+	}else{
+	 show("inventario",document.querySelector('[data-view=inventario]'));
+	}
 }
-function limpiarProducto(){variantDraft=[];variantMemory=[];editingId=null;editingProductImageLoadToken++;editingProductImages=[];editingProductImagesLoadError=null;editingSizeGuideImagePath="";sizeGuideImageRemoveRequested=false;const guideInput=$("pGuiaTallasFoto");if(guideInput)guideInput.value="";renderSizeGuidePhotoPreview();$("formTitle").textContent="➕ Nuevo producto";$("pNombre").value="";$("pColores").value="";$("pTallas").value="";$("pCantidad").value=1;$("pCompra").value=0;$("pVenta").value=0;$("pUbicacion").value="";$("pDescripcion").value="";$("pGuiaTallas").value="";$("pFoto").value="";if($("existingPhotoStatus"))$("existingPhotoStatus").textContent="Las fotos actuales aparecerán al editar un producto.";if($("existingPhotoPreview"))$("existingPhotoPreview").innerHTML="";renderPhotoPreview();renderAdminColorPalette();renderVariantEditor([]);refreshCategorySelects()}
+function limpiarProducto(){
+	variantDraft=[];variantMemory=[];variantEditorCollisionError='';editingId=null;editingProductImageLoadToken++;editingProductImages=[];editingProductImagesLoadError=null;editingSizeGuideImagePath="";sizeGuideImageRemoveRequested=false;
+	const guideInput=$("pGuiaTallasFoto");if(guideInput)guideInput.value="";resetAdminNewColorForm();renderSizeGuidePhotoPreview();
+	$("formTitle").textContent="➕ Nuevo producto";$("pNombre").value="";$("pColores").value="";$("pTallas").value="";$("pCantidad").value=1;$("pCompra").value=0;$("pVenta").value=0;$("pUbicacion").value="";$("pDescripcion").value="";$("pGuiaTallas").value="";$("pFoto").value="";
+	if($("existingPhotoStatus"))$("existingPhotoStatus").textContent="Las fotos actuales aparecerán al editar un producto.";if($("existingPhotoPreview"))$("existingPhotoPreview").innerHTML="";
+	renderPhotoPreview();renderAdminColorPalette();renderVariantEditor([]);refreshCategorySelects();
+}
 async function editarProducto(id){
  const p=productos.find(x=>String(x.id)===String(id));if(!p)return;
+ variantEditorCollisionError='';
+ resetAdminNewColorForm();
  editingId=id;editingProductImages=[];editingProductImagesLoadError=null;editingProductImageLoadToken++;editingSizeGuideImagePath=String(p.size_guide_image||"");sizeGuideImageRemoveRequested=false;
  $("formTitle").textContent="✏️ Editar "+p.code;$("pNombre").value=p.name;$("pCategoria").value=p.category;$("pColores").value=Array.isArray(p.colors)?p.colors.join(', '):(p.colors||'');$("pTallas").value=Array.isArray(p.sizes)?p.sizes.join(', '):(p.sizes||'');variantDraft=parseVariants(p.variants);variantMemory=parseVariants(p.variants);$("pCantidad").value=p.quantity;$("pCompra").value=p.cost_price;$("pVenta").value=p.sale_price;$("pUbicacion").value=p.location||"";$("pDescripcion").value=p.description||"";$("pGuiaTallas").value=p.size_guide||"";$("pFoto").value="";renderPhotoPreview();const guideInput=$("pGuiaTallasFoto");if(guideInput)guideInput.value="";renderSizeGuidePhotoPreview();
  if($("existingPhotoStatus"))$("existingPhotoStatus").textContent="Cargando las fotos guardadas…";
