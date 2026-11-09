@@ -26,6 +26,7 @@ assert.doesNotMatch(html, /<link\b[^>]*\bhref\s*=\s*(["'])(?:https?:)?\/\//i);
 assert.doesNotMatch(html, /<a\b[^>]*\bhref\s*=\s*(["'])(?:https?:\/\/|\/\/|tel:|mailto:|javascript:)/i);
 assert.equal((html.match(/href="\/politica-privacidad\.html"/g) || []).length, 2, 'Catálogo/modal y checkout enlazan la página de privacidad.');
 assert.equal((html.match(/href="\/preguntas-frecuentes\.html"/g) || []).length, 3, 'Catálogo, modal y checkout enlazan la FAQ.');
+assert.equal((html.match(/href="\/cambios-devoluciones\.html"/g) || []).length, 1, 'El pie de la tienda de preview enlaza la página informativa nueva.');
 for (const section of ['1. Responsable del tratamiento', '2. Datos que podemos recolectar', '3. Finalidades del tratamiento', '4. Autorización', '5. Encargados y terceros', '6. Seguridad', '7. Derechos del titular', '8. Consultas, reclamos y solicitudes', '9. Vigencia y cambios']) {
   assert.ok(html.includes(section), `El modal conserva ${section}.`);
   assert.ok(standalonePrivacyHtml.includes(section), `La página estática publica ${section}.`);
@@ -342,10 +343,30 @@ try {
   assert.match(previewFaqHtml, /¿Cómo se calcula el envío\?/);
   assert.match(previewFaqHtml, /<link rel="canonical" href="\/preguntas-frecuentes\.html">/);
   assert.match(previewFaqHtml, /<meta property="og:url" content="\/preguntas-frecuentes\.html">/);
-  assert.match(previewFaqHtml, /<meta property="og:image" content="\/__preview_assets\/blocked\.svg">/);
-  assert.match(previewFaqHtml, /<meta name="twitter:image" content="\/__preview_assets\/blocked\.svg">/);
-  assert.doesNotMatch(previewFaqHtml, /<script\b|<iframe\b|https?:\/\//i);
-  assert.equal((await fetch(actualBase + '/preguntas-frecuentes.html', { method: 'POST', body: 'blocked' })).status, 403);
+assert.match(previewFaqHtml, /<meta property="og:image" content="\/__preview_assets\/blocked\.svg">/);
+assert.match(previewFaqHtml, /<meta name="twitter:image" content="\/__preview_assets\/blocked\.svg">/);
+assert.doesNotMatch(previewFaqHtml, /<script\b|<iframe\b|https?:\/\//i);
+assert.match(previewFaqHtml, /href="\/cambios-devoluciones\.html"/);
+assert.equal((await fetch(actualBase + '/preguntas-frecuentes.html', { method: 'POST', body: 'blocked' })).status, 403);
+  const returnsResponse = await fetch(actualBase + '/cambios-devoluciones.html');
+  assert.equal(returnsResponse.status, 200);
+  assert.match(returnsResponse.headers.get('content-type'), /text\/html/);
+  const previewReturnsHtml = await returnsResponse.text();
+  assert.match(previewReturnsHtml, /PREVIEW DE DESARROLLO/);
+  assert.match(previewReturnsHtml, /noindex,nofollow/);
+  assert.match(previewReturnsHtml, /Derecho de retracto en compras a distancia/);
+  assert.match(previewReturnsHtml, /quince \(15\) días calendario/);
+  assert.match(previewReturnsHtml, /<link rel="canonical" href="\/cambios-devoluciones\.html">/);
+  assert.match(previewReturnsHtml, /<meta property="og:url" content="\/cambios-devoluciones\.html">/);
+  assert.match(previewReturnsHtml, /<meta property="og:image" content="\/__preview_assets\/blocked\.svg">/);
+  assert.match(previewReturnsHtml, /<meta name="twitter:image" content="\/__preview_assets\/blocked\.svg">/);
+  assert.match(previewReturnsHtml, /href="\/storefront"/);
+  for (const label of ['whatsapp', 'email', 'ley1480', 'ley2439', 'sic']) {
+    assert.match(previewReturnsHtml, new RegExp(`data-preview-disabled="${label}" aria-disabled="true"`));
+  }
+  assert.doesNotMatch(previewReturnsHtml, /<script\b|<iframe\b|https?:\/\/|mailto:|wa\.me/i);
+  assert.equal((await fetch(actualBase + '/cambios-devoluciones.html', { method: 'POST', body: 'blocked' })).status, 403);
+  assert.equal((await fetch(actualBase + '/cambios-devoluciones-desconocido.html')).status, 404);
   assert.equal((await fetch(actualBase + '/faq.html')).status, 404);
   const adminResponse = await fetch(actualBase + '/admin-preview');
   assert.equal(adminResponse.status, 200);
@@ -374,7 +395,7 @@ try {
   const routesResponse = await fetch(actualBase + '/manus-routes.json');
   assert.equal(routesResponse.status, 200);
   const routes = await routesResponse.json();
-  assert.deepEqual(routes.routes.map(route => route.path), ['/', '/storefront', '/admin-preview', '/politica-privacidad.html', '/preguntas-frecuentes.html']);
+  assert.deepEqual(routes.routes.map(route => route.path), ['/', '/storefront', '/admin-preview', '/politica-privacidad.html', '/preguntas-frecuentes.html', '/cambios-devoluciones.html']);
   assert.ok(routes.routes.every(route => typeof route.title === 'string'));
   const versionResponse = await fetch(actualBase + '/__version');
   const version = await versionResponse.json();

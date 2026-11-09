@@ -430,6 +430,7 @@ const PREVIEW_PWA_FILES = new Map([
 const PREVIEW_STATIC_PAGES = new Map([
   ['/politica-privacidad.html', 'politica-privacidad.html'],
   ['/preguntas-frecuentes.html', 'preguntas-frecuentes.html'],
+  ['/cambios-devoluciones.html', 'cambios-devoluciones.html'],
 ]);
 
 export function createPreviewServer({ root = ROOT, versionProvider = () => getVersion(root) } = {}) {
@@ -485,6 +486,20 @@ export function createPreviewServer({ root = ROOT, versionProvider = () => getVe
         pageHtml = pageHtml
           .replaceAll(`https://sirevya.com.co${url.pathname}`, url.pathname)
           .replaceAll('https://sirevya.com.co/share-sirevya.png', '/__preview_assets/blocked.svg');
+        if (url.pathname === '/cambios-devoluciones.html') {
+          const blockedExternalLinks = [
+            ['href="https://wa.me/573025469983"', 'whatsapp'],
+            ['href="mailto:sirevya99@gmail.com?subject=Solicitud%20de%20cambio%20o%20devoluci%C3%B3n"', 'email'],
+            ['href="https://www.funcionpublica.gov.co/eva/gestornormativo/norma.php?i=44306"', 'ley1480'],
+            ['href="https://www.funcionpublica.gov.co/eva/gestornormativo/norma.php?i=257116"', 'ley2439'],
+            ['href="https://sedeelectronica.sic.gov.co/temas/proteccion-al-consumidor/derechos-y-deberes/fallas-en-un-producto"', 'sic'],
+          ];
+          for (const [href, label] of blockedExternalLinks) {
+            if (pageHtml.split(href).length - 1 !== 1) throw new Error(`Enlace externo esperado no único: ${label}.`);
+            pageHtml = pageHtml.replace(href, `data-preview-disabled="${label}" aria-disabled="true" title="Enlace externo deshabilitado en preview"`);
+          }
+          pageHtml = pageHtml.replaceAll('href="/index.html"', 'href="/storefront"');
+        }
         if (/<script\b|<iframe\b|https?:\/\/|\b(?:src|href)\s*=\s*(["'])\s*(?:\/\/|(?:data|javascript|mailto|tel):)/i.test(pageHtml)) throw new Error('Contenido activo o externo no permitido.');
         const version = versionProvider();
         pageHtml = pageHtml.replace(/<head\b[^>]*>/i, tag => `${tag}<meta name="robots" content="noindex,nofollow">`);
