@@ -22,6 +22,7 @@ Cada criterio se conserva hasta que exista evidencia en código, Supabase y prue
 - [ ] La disponibilidad de contraentrega sigue bajo sus controles actuales por ciudad; tarifas y medios de pago no se contradicen. Cambiar una regla de entrega no altera pedidos ya creados ni reservas activas.
   - Avance (2026-11-09): la prevalidación del navegador canonicaliza Cali, Santiago de Cali y Cali Valle del Cauca igual que la RPC `storefront_cod_city_allowed`; regresión sintética PASS. No habilita ciudades nuevas, no escribe reglas y la cotización del servidor sigue siendo la autoridad.
   - Avance frontend adicional: `calculateStorefrontShipping` usa la misma canonicalización para esos alias, evitando mostrar la tarifa nacional donde la cotización del servidor aplica envío gratis. El cambio no altera reglas ni RPCs; el validador cubre aliases y los límites del umbral.
+  - Ayuda de checkout adicional: un estado accesible explica ciudad vacía, `Otra`, Cali y tarifa vigente sin cambiar importes ni reemplazar la cotización del servidor; cubierta por regresión sintética.
 - [ ] La cotización rechaza o maneja explícitamente ciudad vacía/no reconocida y nunca confía en el importe enviado por el navegador.
 
 ## Fase 3: Catálogo, búsqueda y conversión
@@ -42,6 +43,7 @@ Cada criterio se conserva hasta que exista evidencia en código, Supabase y prue
 - [ ] Cupones pueden activarse por código, porcentaje o valor fijo, vigencia, compra mínima, límite global y límite de uso; el servidor valida/redime atómicamente y el panel muestra uso/expiración.
 - [ ] Calendario de promociones incluye fechas, zona horaria, prioridad, productos/categorías elegibles y copy veraz; popup, combos, cupones y envío no aplican beneficios duplicados a la misma unidad.
   - Avance funcional: destinos externos del botón de campaña aceptan solo HTTPS; anchors internos aprobados se conservan y HTTP/esquemas no web vuelven al catálogo. El calendario y la validación/redención server-side siguen abiertos.
+  - Fail-closed de combos: si falla la carga del RPC, el storefront elimina reglas/descuentos locales obsoletos, re-renderiza carrito, detalle y checkout, y muestra un aviso accesible de que no aplicó descuento adicional. No reemplaza la validación de quote ni activa cupones; prueba sintética registrada en el validador.
 - [ ] El subtotal con combo/cupón, descuento, envío y total coinciden entre navegador, quote SQL, pedido COD y amount-in-cents de Wompi; falla cerrada ante diferencias.
 
 ## Fase 5: Pedidos, Wompi/PSE y conciliación
@@ -54,6 +56,7 @@ Cada criterio se conserva hasta que exista evidencia en código, Supabase y prue
 - [ ] Reintentos conservan referencia/reserva existente, carrito y vencimiento original de 10 minutos; no se permite doble reserva para una persona/carrito ni se libera inventario ajeno.
 - [ ] Cédula obligatoria: validación server-side antes de pedido COD o checkout Wompi nuevo; envío como `legal-id`; replay legacy exacto mantiene idempotencia y el documento no aparece en logs.
   - Candidato en PR #50 DRAFT: UI/Edge y trigger COD; regresiones Node/PostgreSQL sintéticas, chequeo TypeScript y validador PASS. La UI solo está en preview, POST 403; no se aplicó migración ni se desplegó Edge. No hubo pedidos/pagos reales; el criterio sigue abierto.
+  - Protección local adicional: al cerrar/cancelar el modal, checkout limpia del DOM solo la cédula y el tipo de documento; un clic dentro no interrumpe la edición. No valida ni envía el documento al backend y no sustituye PR #50.
 
 > Cobertura local adicional (2026-11-09): `tests/checkout_quote_fail_closed_regression.mjs` ejecuta los handlers actuales con respuestas de cotización error/null/incompletas para PSE, COD y el segundo chequeo Wompi; verifica cero llamada a la Edge de pago, cero RPC de creación COD y cero liberación de reservas previas. No realiza red, pago ni escritura.
 

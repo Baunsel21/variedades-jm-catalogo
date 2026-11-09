@@ -231,6 +231,9 @@ const ordersSection=admin.match(/<section id="pedidos"[\s\S]*?<\/section>/)?.[0]
  await import('../tests/checkout_quote_success_contract_regression.mjs');
  await import('../tests/storefront_cod_settings_fail_closed_regression.mjs');
  await import('../tests/admin_csv_import_ui_regression.mjs');
+ await import('../tests/storefront_promotion_availability_regression.mjs');
+ await import('../tests/storefront_shipping_city_hint_ui_regression.mjs');
+ await import('../tests/checkout_identity_cleanup_regression.mjs');
 	 console.log('PASS: sintaxis, SDK/SRI, seguridad admin/COD, CSV, tarifas, rollback, claves Wompi y filtros/paginación de pedidos.');
 
 }finally{fs.rmSync(temp,{recursive:true,force:true});}
