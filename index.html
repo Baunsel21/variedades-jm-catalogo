@@ -3183,7 +3183,11 @@ async function loadStorefrontProductCombos({force=false}={}){
  if(storefrontProductCombosLoading&&!force)return storefrontProductCombosLoading;
  storefrontProductCombosLoading=(async()=>{
   try{
-   const {data,error}=await sb.rpc('get_public_storefront_product_combos');
+   let response=await sb.rpc('get_public_storefront_product_combos_v2');
+   if(response.error&&(response.error.code==='PGRST202'||response.error.code==='42883'||/get_public_storefront_product_combos_v2.*(schema cache|does not exist|not found)/i.test(String(response.error.message||'')))){
+    response=await sb.rpc('get_public_storefront_product_combos');
+   }
+   const {data,error}=response;
    if(error)throw error;
    storefrontProductCombos=Array.isArray(data)?data:[];
    setStorefrontComboAvailability('ready');
@@ -4090,7 +4094,7 @@ function calculateStorefrontComboPricing(items){
  });
  const originalSubtotal=lines.reduce((sum,line)=>sum+line.originalSubtotal,0);
  const rules=[...(storefrontProductCombos||[])].filter(row=>String(row.discount_type||'none')!=='none')
-  .sort((a,b)=>String(a.created_at||'').localeCompare(String(b.created_at||''))||String(a.id||'').localeCompare(String(b.id||'')));
+  .sort((a,b)=>(Number(b.priority)||0)-(Number(a.priority)||0)||String(a.created_at||'').localeCompare(String(b.created_at||''))||String(a.id||'').localeCompare(String(b.id||'')));
  const applied=[];
  for(const rule of rules){
   let unitsApplied=0,discountApplied=0;
