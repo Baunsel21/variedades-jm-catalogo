@@ -3,6 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#e7193f">
+<link rel="manifest" href="/manifest.webmanifest">
 <link rel="preconnect" href="https://hnlbbtnfmbnbkcgegufa.supabase.co" crossorigin>
 <link rel="dns-prefetch" href="//hnlbbtnfmbnbkcgegufa.supabase.co">
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
@@ -540,6 +542,9 @@ body{background:linear-gradient(180deg,#fffaf0 0%,#fff6e6 55%,#f8ecd7 100%);colo
 .privacyUpdated{font-size:12px;color:#8b7a6c;margin-bottom:16px}
 .privacyBox h3{margin:18px 0 6px;color:#8f1630}
 .privacyBox p,.privacyBox li{font-size:14px}
+.privacyPageLink,.checkoutPrivacyNote{font-size:12px;color:#746b70}
+.privacyPageLink a,.checkoutPrivacyNote a{color:#8f1630;font-weight:700;text-decoration:underline;text-underline-offset:2px}
+.checkoutPrivacyNote{margin:-7px 0 14px}
 
 
 
@@ -1768,7 +1773,7 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
 <section id="grid" class="grid"><div class="loading">Cargando catálogo...</div></section>
 
 </main>
-<footer class="footer" id="contactanos"><div class="footerFeatures"><div class="footerFeature"><b>🚚 Envíos</b>Envíos a toda Colombia</div><div class="footerFeature"><b>💳 Pagos</b>Múltiples medios de pago</div><div class="footerFeature"><b>🛡️ Compra segura</b>Tu compra protegida</div><div class="footerFeature"><b>🎧 Atención</b>Soporte personalizado</div></div><div class="footerBrand">Sirevya</div><div class="footerSub">TU ESTILO, NUESTRA PASIÓN ♥</div><div class="contactInfo"><b>📞 Contáctanos</b><a href="tel:+573025469983">+57 302 546 9983</a><a href="mailto:sirevya99@gmail.com">sirevya99@gmail.com</a></div><div style="margin-top:24px;color:#777;font-size:12px">Catálogo actualizado desde el inventario · © Sirevya</div><div class="footerPolicyLinks"><button type="button" class="footerPolicyLink" onclick="openPrivacy(event)">Política de privacidad y datos personales</button></div></footer>
+<footer class="footer" id="contactanos"><div class="footerFeatures"><div class="footerFeature"><b>🚚 Envíos</b>Envíos a toda Colombia</div><div class="footerFeature"><b>💳 Pagos</b>Múltiples medios de pago</div><div class="footerFeature"><b>🛡️ Compra segura</b>Tu compra protegida</div><div class="footerFeature"><b>🎧 Atención</b>Soporte personalizado</div></div><div class="footerBrand">Sirevya</div><div class="footerSub">TU ESTILO, NUESTRA PASIÓN ♥</div><div class="contactInfo"><b>📞 Contáctanos</b><a href="tel:+573025469983">+57 302 546 9983</a><a href="mailto:sirevya99@gmail.com">sirevya99@gmail.com</a></div><div style="margin-top:24px;color:#777;font-size:12px">Catálogo actualizado desde el inventario · © Sirevya</div><div class="footerPolicyLinks"><button type="button" class="footerPolicyLink" onclick="openPrivacy(event)">Política de privacidad y datos personales</button><a class="footerPolicyLink" href="/preguntas-frecuentes.html">Preguntas frecuentes</a></div></footer>
 
 
 <div id="seasonalPromoOverlay" class="sirevyaPromoOverlay" hidden aria-hidden="true" onclick="handleSeasonalPromoBackdrop(event)">
@@ -1788,6 +1793,7 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
   <div class="checkoutBox">
     <div class="checkoutHead"><div class="checkoutTitle">📦 Finalizar pedido</div><button class="checkoutClose" type="button" onclick="closeCheckout()">×</button></div>
     <p id="checkoutPaymentNote" class="checkoutNote">La tarifa se confirma al verificar la configuración vigente y seleccionar tu ciudad. Los pagos en línea se procesan de forma segura con Wompi. Puedes elegir PSE, tarjeta, Nequi o Bancolombia.</p>
+    <p class="checkoutPrivacyNote">Consulta la <a href="/politica-privacidad.html">Política de Tratamiento de Datos Personales</a> y las <a href="/preguntas-frecuentes.html">preguntas frecuentes</a>.</p>
     <div id="checkoutValidationSummary" class="checkoutValidationSummary" role="alert" aria-live="assertive" hidden></div>
     <div class="checkoutGrid">
       <label for="customerName">Nombre completo *</label><input id="customerName" type="text" autocomplete="name" placeholder="Tu nombre" required aria-describedby="checkoutErrorCustomerName"><small id="checkoutErrorCustomerName" class="checkoutFieldError"></small>
@@ -1836,6 +1842,7 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
   <div class="privacyBox">
     <div class="privacyHead"><div class="privacyTitle">🔒 Política de Tratamiento de Datos Personales</div><button class="privacyClose" type="button" onclick="closePrivacy()" aria-label="Cerrar">×</button></div>
     <div class="privacyUpdated">Última actualización: 7 de octubre de 2026</div>
+    <p class="privacyPageLink"><a href="/politica-privacidad.html">Ver esta política como página independiente</a> · <a href="/preguntas-frecuentes.html">Preguntas frecuentes</a></p>
     <p>En Sirevya nos comprometemos a proteger los datos personales de nuestros clientes y a utilizarlos únicamente para las finalidades informadas en esta política, de conformidad con la normativa colombiana aplicable sobre protección de datos personales.</p>
 
     <h3>1. Responsable del tratamiento</h3>
@@ -5470,6 +5477,9 @@ function startPublicCatalogRealtime(){
  }catch(error){publicCatalogRealtimeChannel=null;console.debug('Realtime no disponible; se conserva el refresco de respaldo.',error)}
 }
 startPublicCatalogRealtime();
-
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js', { scope: '/' })
+    .catch(error => console.warn('[PWA] No se pudo activar el shell sin conexión.', error));
+}
 </script>
 </body></html>
