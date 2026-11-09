@@ -2,6 +2,7 @@ import { DEFAULT_LIMITS, PRODUCT_COLUMNS, previewProductsCsv } from './fase7_csv
 
 const MAX_VISIBLE_ROWS = 50;
 const MAX_VISIBLE_ERRORS = 100;
+const MAX_IMPORT_ROWS = 250;
 const CURRENCY_FORMAT = new Intl.NumberFormat('es-CO', {
   style: 'currency',
   currency: 'COP',
@@ -9,6 +10,7 @@ const CURRENCY_FORMAT = new Intl.NumberFormat('es-CO', {
 });
 let previewGeneration = 0;
 let lastPreviewResult = null;
+let importRpcReady = false;
 
 export async function previewCsvFile(file, existingCodes = []) {
   if (!file || typeof file.arrayBuffer !== 'function') {
@@ -144,10 +146,22 @@ export function renderCsvPreviewResult(result, documentRef = globalThis.document
   const validRows = Number(summary.validRows) || rows.length;
   const dataRows = Number(summary.dataRows) || 0;
   const errorCount = Number(summary.errorCount) || errors.length;
+  const importButton = documentRef.getElementById('csvPreviewImportButton');
+  if (importButton) {
+    const canImport = importRpcReady && errors.length === 0 && rows.length > 0 && rows.length <= MAX_IMPORT_ROWS &&
+      typeof globalThis.commitAdminCsvProducts === 'function';
+    importButton.disabled = !canImport;
+  }
 
   const status = documentRef.getElementById('csvPreviewStatus');
   if (status) {
-    status.textContent = `Vista previa lista: ${validRows} filas válidas de ${dataRows}; ${errorCount} errores. No se guardó ni subió ningún dato.`;
+    if (rows.length > MAX_IMPORT_ROWS && errorCount === 0) {
+      status.textContent = `Vista previa lista: ${validRows} filas válidas de ${dataRows}; máximo 250 por lote de importación. No se guardó ningún dato.`;
+    } else if (errors.length === 0 && rows.length > 0 && !importRpcReady) {
+      status.textContent = `Vista previa lista: ${validRows} filas válidas. La importación transaccional aún no está disponible para esta sesión. No se guardó ni subió ningún dato.`;
+    } else {
+      status.textContent = `Vista previa lista: ${validRows} filas válidas de ${dataRows}; ${errorCount} errores. No se guardó ni subió ningún dato.`;
+    }
   }
 
   const summaryNode = documentRef.getElementById('csvPreviewSummary');
@@ -201,15 +215,18 @@ export function renderCsvPreviewResult(result, documentRef = globalThis.document
     rowsNote.textContent = rows.length > MAX_VISIBLE_ROWS
       ? `Se muestran ${MAX_VISIBLE_ROWS} de ${rows.length} filas válidas; la validación cubrió el archivo completo.`
       : rows.length > 0
-        ? `Se muestran las ${rows.length} filas válidas; no hay acción para aplicarlas.`
+        ? `Se muestran las ${rows.length} filas válidas; el lote solo se habilita si todo el archivo no tiene errores.`
         : 'No hay filas válidas para mostrar.';
   }
 }
 
 function resetCsvPreviewUi(documentRef) {
   lastPreviewResult = null;
+  importRpcReady = false;
   const reportButton = documentRef.getElementById('csvPreviewDownloadReport');
   if (reportButton) reportButton.disabled = true;
+  const importButton = documentRef.getElementById('csvPreviewImportButton');
+  if (importButton) importButton.disabled = true;
   for (const id of ['csvPreviewSummary', 'csvPreviewErrorsNote', 'csvPreviewRowsNote']) {
     const node = documentRef.getElementById(id);
     if (node) node.textContent = '';
@@ -231,11 +248,14 @@ export function initializeCsvPreviewUi(documentRef = globalThis.document, browse
   const clearButton = documentRef?.getElementById('csvPreviewClear');
   if (!fileInput || !previewButton || !clearButton) return;
   const downloadButton = documentRef.getElementById('csvPreviewDownloadReport');
+  const importButton = documentRef.getElementById('csvPreviewImportButton');
   if (downloadButton) downloadButton.disabled = true;
+  if (importButton) importButton.disabled = true;
 
   fileInput.addEventListener('change', () => {
     previewGeneration += 1;
     previewButton.disabled = false;
+    if (importButton) importButton.disabled = true;
     resetCsvPreviewUi(documentRef);
     const status = documentRef.getElementById('csvPreviewStatus');
     if (status && fileInput.files?.[0]) status.textContent = 'Archivo listo. La previsualización se ejecuta solo en este navegador.';
@@ -245,7 +265,9 @@ export function initializeCsvPreviewUi(documentRef = globalThis.document, browse
     const file = fileInput.files?.[0];
     const generation = ++previewGeneration;
     lastPreviewResult = null;
+    importRpcReady = false;
     if (downloadButton) downloadButton.disabled = true;
+    if (importButton) importButton.disabled = true;
     const status = documentRef.getElementById('csvPreviewStatus');
     if (!file) {
       if (status) status.textContent = 'Selecciona un archivo CSV antes de previsualizar.';
@@ -258,7 +280,15 @@ export function initializeCsvPreviewUi(documentRef = globalThis.document, browse
         ? globalThis.getAdminCsvPreviewExistingCodes()
         : [];
       const result = await previewCsvFile(file, Array.isArray(existingCodes) ? existingCodes : []);
-      if (generation === previewGeneration) renderCsvPreviewResult(result, documentRef);
+      let rpcReady = false;
+      if (result.errors.length === 0 && result.rows.length > 0 && result.rows.length <= MAX_IMPORT_ROWS &&
+          typeof globalThis.checkAdminCsvImportRpcReady === 'function') {
+        try { rpcReady = await globalThis.checkAdminCsvImportRpcReady() === true; } catch { rpcReady = false; }
+      }
+      if (generation === previewGeneration) {
+        importRpcReady = rpcReady;
+        renderCsvPreviewResult(result, documentRef);
+      }
     } catch {
       if (generation === previewGeneration && status) {
         status.textContent = 'No se pudo leer el archivo. No se envió ni guardó ningún dato.';
@@ -276,6 +306,98 @@ export function initializeCsvPreviewUi(documentRef = globalThis.document, browse
       if (status) status.textContent = 'Reporte descargado localmente. No se importó ni se envió ningún dato.';
     } catch {
       if (status) status.textContent = 'No se pudo generar el reporte local. El CSV no se envió ni se guardó.';
+    }
+  });
+
+  importButton?.addEventListener('click', async () => {
+    const result = lastPreviewResult;
+    const rows = Array.isArray(result?.rows) ? result.rows : [];
+    const status = documentRef.getElementById('csvPreviewStatus');
+    if (!importRpcReady || !result || result.errors?.length || rows.length < 1 || rows.length > MAX_IMPORT_ROWS ||
+        typeof globalThis.commitAdminCsvProducts !== 'function') {
+      if (status) status.textContent = 'No hay una vista previa válida para importar. Selecciona y previsualiza el archivo otra vez.';
+      importButton.disabled = true;
+      return;
+    }
+    if (typeof browserRef.confirm !== 'function' || !browserRef.confirm(
+      `Se agregarán ${rows.length} productos nuevos. No se actualizarán productos existentes ni se importarán fotos o variantes. Si un código ya existe, el lote completo se rechazará. ¿Continuar?`,
+    )) return;
+
+    importButton.disabled = true;
+    previewButton.disabled = true;
+    clearButton.disabled = true;
+    fileInput.disabled = true;
+    if (status) status.textContent = `Enviando ${rows.length} filas validadas al importador transaccional…`;
+    try {
+      const payload = rows.map(row => ({
+        row: row.row,
+        code: row.code,
+        name: row.name,
+        category: row.category,
+        cost: row.cost,
+        sale_price: row.sale_price,
+        quantity: row.quantity,
+      }));
+      const response = await globalThis.commitAdminCsvProducts(payload);
+      if (response?.ok !== true) {
+        const safeMessages = {
+          DUPLICATE_CODE_IN_FILE: 'El código se repite dentro del archivo.',
+          EXISTING_CODE: 'El código ya existe; no se modificó ningún producto.',
+          CSV_FIELDS_NOT_ALLOWED: 'La fila contiene campos no permitidos.',
+          CSV_TYPES_INVALID: 'Una fila contiene tipos de datos no válidos.',
+          CSV_TEXT_INVALID: 'Código, nombre o categoría no cumplen la validación.',
+          CSV_INTEGER_INVALID: 'Costo, precio o cantidad no cumplen la validación.',
+          IMPORT_LIMIT_EXCEEDED: 'El lote supera los límites del importador.',
+        };
+        const serverErrors = Array.isArray(response?.errors) ? response.errors : [];
+        const errors = serverErrors.slice(0, MAX_VISIBLE_ERRORS).map(error => ({
+          row: Number.isSafeInteger(error?.row) && error.row > 0 ? error.row : null,
+          field: ['archivo', 'fila', 'code', 'name', 'category', 'cost', 'sale_price', 'quantity'].includes(error?.field)
+            ? error.field : null,
+          code: Object.hasOwn(safeMessages, error?.code) ? error.code : 'IMPORT_REJECTED',
+          message: safeMessages[error?.code] || 'El servidor rechazó el lote; no se confirmó ninguna importación.',
+        }));
+        lastPreviewResult = { ...result, errors: errors.length ? errors : [{ row: null, field: null, code: 'IMPORT_REJECTED', message: 'El servidor rechazó el lote; no se confirmó ninguna importación.' }] };
+        renderCsvPreviewResult(lastPreviewResult, documentRef);
+        if (status) status.textContent = 'El servidor rechazó el lote completo. No se aplicaron productos; corrige los errores y vuelve a previsualizar.';
+        const summaryNode = documentRef.getElementById('csvPreviewSummary');
+        if (summaryNode) summaryNode.textContent += ' · RPC rechazada antes de aplicar filas.';
+        return;
+      }
+
+      const inserted = response?.inserted;
+      if (!Number.isSafeInteger(inserted) || inserted !== rows.length) {
+        lastPreviewResult = null;
+        if (downloadButton) downloadButton.disabled = true;
+        if (status) status.textContent = 'El servidor no confirmó un resultado completo. Actualiza el catálogo y vuelve a previsualizar antes de reintentar.';
+        const summaryNode = documentRef.getElementById('csvPreviewSummary');
+        if (summaryNode) summaryNode.textContent = summaryNode.textContent.replace(' · dry-run: sí · escritura: no', '') + ' · resultado de importación no confirmado.';
+        return;
+      }
+      lastPreviewResult = null;
+      if (downloadButton) downloadButton.disabled = true;
+      if (status) status.textContent = `Importación confirmada: ${inserted} ${inserted === 1 ? 'producto nuevo' : 'productos nuevos'}.`;
+      const summaryNode = documentRef.getElementById('csvPreviewSummary');
+      if (summaryNode) summaryNode.textContent = summaryNode.textContent.replace(' · dry-run: sí · escritura: no', '') + ` · importación confirmada: ${inserted} nuevos.`;
+      if (typeof globalThis.refreshAdminAfterCsvImport === 'function') {
+        try {
+          const refreshed = await globalThis.refreshAdminAfterCsvImport();
+          if (refreshed === false && status) status.textContent += ' Actualiza el panel para recargar el catálogo.';
+        } catch {
+          if (status) status.textContent += ' Actualiza el panel para recargar el catálogo.';
+        }
+      }
+    } catch {
+      lastPreviewResult = null;
+      if (downloadButton) downloadButton.disabled = true;
+      if (status) status.textContent = 'No se confirmó el resultado. Actualiza el catálogo y vuelve a previsualizar antes de cualquier reintento.';
+      const summaryNode = documentRef.getElementById('csvPreviewSummary');
+      if (summaryNode) summaryNode.textContent = summaryNode.textContent.replace(' · dry-run: sí · escritura: no', '') + ' · resultado de importación no confirmado.';
+    } finally {
+      previewButton.disabled = false;
+      clearButton.disabled = false;
+      fileInput.disabled = false;
+      importButton.disabled = true;
     }
   });
 
