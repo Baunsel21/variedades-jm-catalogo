@@ -5387,7 +5387,7 @@ let sirevyaPromoConfig=null,sirevyaPromoTimer=null,sirevyaPromoStartTimer=null,s
 function safeSeasonalPromoUrl(value){
  const v=String(value||'').trim();
  if(['#catalogo','#inicio','#contactanos'].includes(v))return v;
- try{const u=new URL(v,location.href);if((u.protocol==='https:'||u.protocol==='http:')&&/^https?:\/\//i.test(v))return u.href}catch{}
+ try{const u=new URL(v,location.href);if(u.protocol==='https:'&&/^https:\/\//i.test(v))return u.href}catch{}
  return '#catalogo';
 }
 function normalizeSeasonalPromoRow(row){

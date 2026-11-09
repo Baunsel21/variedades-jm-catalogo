@@ -40,6 +40,7 @@ Cada criterio se conserva hasta que exista evidencia en código, Supabase y prue
 
 - [ ] Cupones pueden activarse por código, porcentaje o valor fijo, vigencia, compra mínima, límite global y límite de uso; el servidor valida/redime atómicamente y el panel muestra uso/expiración.
 - [ ] Calendario de promociones incluye fechas, zona horaria, prioridad, productos/categorías elegibles y copy veraz; popup, combos, cupones y envío no aplican beneficios duplicados a la misma unidad.
+  - Avance funcional: destinos externos del botón de campaña aceptan solo HTTPS; anchors internos aprobados se conservan y HTTP/esquemas no web vuelven al catálogo. El calendario y la validación/redención server-side siguen abiertos.
 - [ ] El subtotal con combo/cupón, descuento, envío y total coinciden entre navegador, quote SQL, pedido COD y amount-in-cents de Wompi; falla cerrada ante diferencias.
 
 ## Fase 5: Pedidos, Wompi/PSE y conciliación
