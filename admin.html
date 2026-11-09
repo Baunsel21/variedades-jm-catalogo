@@ -569,6 +569,13 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
             <div id="wompiReconciliationStatus" class="status" role="status" aria-live="polite">Las conciliaciones se consultarán al abrir Configuración.</div>
             <div id="wompiReconciliationList" style="margin-top:12px"></div>
           </div>
+          <div class="box" style="grid-column:1/-1" id="telegramTestBox">
+            <div class="rowBetween" style="align-items:flex-start;gap:16px;flex-wrap:wrap">
+              <div style="flex:1;min-width:220px"><h3 style="margin-bottom:7px">🔔 Prueba de conexión con Telegram</h3><p class="muted" style="margin-top:0">Envía un único mensaje fijo al chat guardado en los secretos de Supabase. No incluye pedidos, clientes ni datos personales; no activa todavía notificaciones automáticas de eventos.</p></div>
+              <button id="telegramTestBtn" class="primary" type="button" onclick="sendTelegramTestMessage()" disabled>Enviar mensaje de prueba</button>
+            </div>
+            <div id="telegramTestStatus" class="status" role="status" aria-live="polite">Disponible solo desde el dominio oficial, con una sesión admin autorizada.</div>
+          </div>
           <div class="box" style="grid-column:1/-1" id="codCitiesSettingsBox">
             <div class="rowBetween" style="align-items:flex-start;gap:16px;flex-wrap:wrap">
               <div style="flex:1;min-width:220px"><h3 style="margin-bottom:7px">💵 Ciudades con pago contra entrega</h3><p class="muted" style="margin-top:0">Activa o desactiva la contraentrega y elige una o varias ciudades. “Todas las ciudades” incluye también las ciudades escritas manualmente por tus clientes. Sin esta configuración instalada, el catálogo conserva el comportamiento anterior: solo Cali.</p></div>
@@ -1168,6 +1175,36 @@ async function loadWompiReconciliation(showStatus=true){
  }finally{if(isCurrent()&&button)button.disabled=false;}
 }
 
+function setTelegramTestStatus(message,tone=''){
+ const status=$('telegramTestStatus');if(!status)return;
+ status.textContent=message;status.className=('status '+tone).trim();
+}
+function refreshTelegramTestButton(){
+ const button=$('telegramTestBtn');if(!button)return;
+ button.disabled=!adminSessionAuthorized||location.origin!=='https://sirevya.com.co';
+}
+async function sendTelegramTestMessage(){
+ const userId=adminSessionUserId,authEpoch=adminAuthEpoch,button=$('telegramTestBtn');
+ if(!adminSessionAuthorized||!userId){setTelegramTestStatus('Inicia sesión con una cuenta admin autorizada.','err');return;}
+ if(location.origin!=='https://sirevya.com.co'){setTelegramTestStatus('La prueba solo se puede enviar desde sirevya.com.co.','err');return;}
+ if(typeof sb?.functions?.invoke!=='function'){setTelegramTestStatus('La función de prueba aún no está disponible.','err');return;}
+ if(!confirm('Se enviará un único mensaje fijo al chat configurado. No se enviarán pedidos ni datos de clientes. ¿Continuar?'))return;
+ if(button)button.disabled=true;
+ setTelegramTestStatus('Verificando el permiso admin y enviando la prueba…');
+ try{
+  await assertCurrentAdminAuthorization(userId,authEpoch);
+  if(!adminAuthOperationStillCurrent(userId,authEpoch))return;
+  const {data,error}=await sb.functions.invoke('telegram-test',{body:{action:'test'}});
+  if(!adminAuthOperationStillCurrent(userId,authEpoch))return;
+  if(error||data?.ok!==true)throw new Error('telegram_test_failed');
+  setTelegramTestStatus('Telegram aceptó el mensaje de prueba. Verifica su recepción en el chat configurado.','ok');
+ }catch(error){
+  if(!adminAuthOperationStillCurrent(userId,authEpoch))return;
+  setTelegramTestStatus('No se pudo confirmar el envío. No se muestran detalles de conexión ni secretos.','err');
+ }finally{
+  if(adminAuthOperationStillCurrent(userId,authEpoch)&&button)button.disabled=false;
+ }
+}
 
 function applyBrand(){
   document.querySelectorAll(".brand b").forEach(x=>x.textContent=brandName);
@@ -1548,6 +1585,7 @@ async function startApp(){
   if(confirmedUserError||!confirmedUser||confirmedUser.id!==user.id){lockAdminPanel('La cuenta cambió durante la validación. Inicia sesión nuevamente.');await sb.auth.signOut({scope:'local'});return}
   $('retryLogout').classList.add('hidden');
   adminSessionAuthorized=true;adminSessionUserId=user.id;
+  refreshTelegramTestButton();
   $("loginScreen").classList.add("hidden");$("app").classList.remove("hidden");
   startAdminCatalogRealtime();
   $("accountEmail").textContent=user.email||"Cuenta de negocio";
