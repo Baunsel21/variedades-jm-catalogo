@@ -43,6 +43,8 @@ Cada criterio se conserva hasta que exista evidencia en código, Supabase y prue
 - [ ] Conciliación muestra importe, referencia, transacción, estado de pago, inventario, logística y causa. Las acciones de reparación requieren RPC transaccional y guardia admin, confirman el resultado, registran bitácora y nunca inician reembolso sin una política aprobada.
 - [ ] El cliente recibe una confirmación clara al regresar de Wompi; PSE se prueba en sandbox, no se hace un cobro real de validación.
 - [ ] Reintentos conservan referencia/reserva existente, carrito y vencimiento original de 10 minutos; no se permite doble reserva para una persona/carrito ni se libera inventario ajeno.
+- [ ] Cédula obligatoria: validación server-side antes de reservar/crear pedido COD o iniciar un checkout Wompi nuevo; se envía como `legal-id`, se conserva replay legacy exacto y no aparece en logs.
+  - Candidato local en `release/checkout-cedula-required-2026-11`: UI, Edge y trigger COD; regresión Node, runner PostgreSQL sintético con rollback, `tsc` del Edge y validador pasan. No se aplicó migración ni se desplegó Edge; falta backup restaurable y verificación aislada.
 
 ## Fase 6: Dashboard, clientes y logística
 
