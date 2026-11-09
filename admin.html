@@ -506,6 +506,8 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
             <button id="csvPreviewButton" type="button" class="primary">Previsualizar archivo</button>
             <button id="csvPreviewClear" type="button" class="softbtn">Limpiar</button>
           </div>
+          <div style="margin-top:8px"><button id="csvPreviewDownloadReport" type="button" class="softbtn" style="max-width:100%" disabled>Descargar reporte de validación</button></div>
+          <p class="muted">El reporte incluye métricas y errores por fila/campo, sin valores de productos. Se genera y descarga en este navegador; no se guarda ni se envía.</p>
           <p id="csvPreviewStatus" class="muted" role="status" aria-live="polite">Selecciona un CSV para revisar sus filas localmente.</p>
           <p id="csvPreviewSummary" class="muted"></p>
           <div id="csvPreviewErrors" class="box" role="region" aria-label="Errores de validación CSV" hidden>
