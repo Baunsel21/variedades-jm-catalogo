@@ -46,9 +46,8 @@ function extractFunction(name) {
 assert.match(source, /<section class="categoryPanel" id="catalogo"/);
 assert.match(source, /<div id="categoryButtons" class="categoryButtons"><\/div>/);
 assert.match(source, /\{name:'Todas',value:''\}/, 'La lista conserva el botón visible Todas.');
-assert.doesNotMatch(source, /<div id="directCategoryBar"|id="directCategoryName"|class="backAllBtn"/);
+assert.doesNotMatch(source, /directCategoryBar|directCategoryName|backAllBtn|directMode/);
 assert.doesNotMatch(source, /Ver todos los productos/);
-assert.doesNotMatch(source, /function setDirectCategoryMode|setDirectCategoryMode\(/);
 
 let categoryButtonsHtml = '';
 let selectedByClick = null;
