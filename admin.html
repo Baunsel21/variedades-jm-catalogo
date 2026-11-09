@@ -532,12 +532,13 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
       </section>
 
       <section id="csvPreview" class="view">
-        <div><h2 style="margin:0">🧾 Importación CSV · vista previa</h2><p class="muted">Revisa filas y errores antes de definir una importación real. Este incremento no permite guardar ni aplicar productos.</p></div>
+        <div><h2 style="margin:0">🧾 Importación CSV</h2><p class="muted">Previsualiza localmente y confirma solo el lote válido. La importación agrega productos nuevos de forma transaccional; no actualiza productos existentes ni incluye fotos o variantes.</p></div>
         <div class="box" style="margin-top:15px">
-          <div class="status" role="note"><strong>Dry-run local:</strong> el archivo se lee en este navegador, no se sube ni se escribe en la base de datos. Límite: 5 MB y 10.000 filas. Solo admite code, name, category, cost, sale_price y quantity; no carga variantes.</div>
+          <div class="status" role="note"><strong>Vista previa local:</strong> el archivo se lee en este navegador. El panel comprueba disponibilidad del RPC con un lote vacío sin escribir; si falta, el botón permanece desactivado. Solo se envían filas validadas tras confirmación. Preview: 5 MiB/10.000 filas; importación: máximo 250 filas/1 MiB. Solo admite code, name, category, cost, sale_price y quantity; no carga variantes ni fotos. La aplicación requiere autenticación vigente y autorización RLS; el servidor revalida todo el lote.</div>
           <div class="searchbar" style="align-items:end;margin-top:14px">
             <label for="csvProductFile">Archivo CSV<input id="csvProductFile" type="file" accept=".csv,text/csv"></label>
             <button id="csvPreviewButton" type="button" class="primary">Previsualizar archivo</button>
+            <button id="csvPreviewImportButton" type="button" class="primary" disabled>Importar lote nuevo (máx. 250)</button>
             <button id="csvPreviewClear" type="button" class="softbtn">Limpiar</button>
           </div>
           <div style="margin-top:8px"><button id="csvPreviewDownloadReport" type="button" class="softbtn" style="max-width:100%" disabled>Descargar reporte de validación</button></div>
@@ -737,6 +738,22 @@ const SUPABASE_ANON_KEY="sb_publishable_p2XJjsFd4Hp7LZ1IgfyVAg_hpXnFSSc";
 const IMAGE_WORKER_URL="https://sirevya-images.variedadesjm99.workers.dev";
 let sb=null,editingId=null,productos=[],ventas=[],clientes=[],inventoryMode=localStorage.getItem("jm_inventory_mode")||"cards";
 window.getAdminCsvPreviewExistingCodes=()=>Array.isArray(productos)?productos.map(product=>String(product?.code||'').trim()).filter(Boolean):[];
+window.checkAdminCsvImportRpcReady=async()=>{
+ if(!sb)return false;
+ const sessionResult=await sb.auth.getSession(),session=sessionResult?.data?.session;
+ if(sessionResult?.error||!session?.user?.id||String(session.user.id)!==String(adminSessionUserId||''))return false;
+ const response=await sb.rpc('admin_import_products_csv',{p_rows:[]});
+ return !response?.error&&response?.data?.ok===false&&Array.isArray(response?.data?.errors)&&response.data.errors.some(error=>error?.code==='IMPORT_LIMIT_EXCEEDED');
+};
+window.commitAdminCsvProducts=async rows=>{
+ if(!sb||!Array.isArray(rows))throw new Error('CSV_IMPORT_SESSION_UNAVAILABLE');
+ const sessionResult=await sb.auth.getSession(),session=sessionResult?.data?.session;
+ if(sessionResult?.error||!session?.user?.id||String(session.user.id)!==String(adminSessionUserId||''))throw new Error('CSV_IMPORT_SESSION_UNAVAILABLE');
+ const response=await sb.rpc('admin_import_products_csv',{p_rows:rows});
+ if(response?.error)throw new Error('CSV_IMPORT_RPC_FAILED');
+ return response?.data;
+};
+window.refreshAdminAfterCsvImport=async()=>await cargarTodo();
 let editingSizeGuideImagePath="",sizeGuideImageRemoveRequested=false,sizeGuidePreviewObjectUrl=null;
 let proveedores=[],gastos=[],movimientos=[];
 // Mantiene el error de carga por módulo para no mostrar como vacío un dato que falló al consultarse.
