@@ -21,8 +21,9 @@ Cada criterio se conserva hasta que exista evidencia en código, Supabase y prue
 
 - [x] Al filtrar por categoría, la tienda no repite el encabezado “Ver todos los productos”; el botón visible “Todas” permite restablecer la selección.
 - [ ] El administrador puede marcar producto como destacado, nuevo, oferta o últimas unidades; las etiquetas del catálogo solo aparecen según datos guardados y stock vigente.
-- [ ] El catálogo ofrece filtros accesibles por categoría, rango de precio, color, talla, disponibilidad y ofertas; ordena por precio, novedad y destacados; refleja filtros compartibles en URL cuando no exponga datos personales.
-  - Avance parcial: categoría, precio, color, talla, disponibilidad y orden ya se pueden representar en el enlace limpio del catálogo; el enlace excluye búsqueda, favoritos, carrito y parámetros personales. La promoción/oferta y parte de órdenes del backlog aún dependen de datos/backend.
+- [ ] El catálogo ofrece filtros accesibles por categoría, color, talla, disponibilidad y ofertas; ordena por precio, novedad y destacados; refleja filtros compartibles en URL cuando no exponga datos personales.
+  - Avance parcial: categoría, color, talla, disponibilidad y orden se conservan en el URL; el rango de precio se retiró a solicitud del negocio. Ofertas y parte de las órdenes aún dependen de datos/backend.
+- [x] Se retiró el bloque de rango de precio y sus acciones Limpiar/Compartir; se conservan el orden por precio, categorías, favoritos y compartir producto.
 - [ ] La ficha permite ver galería/zoom, variantes, guía de tallas, stock, relacionados, disponibilidad, código y tiempo estimado si está configurado. Fallos de imagen muestran un fallback útil.
 - [ ] CTA “Comprar ahora” y WhatsApp contextual preservan la variante elegida, reutilizan la validación actual y nunca saltan la cotización, la reserva ni el checkout seguros.
 - [ ] La lista de deseos funciona para visitantes y persiste localmente con una clave nueva namespaced; no cambia, borra ni reutiliza ninguna clave de carrito/reserva Wompi/COD.
