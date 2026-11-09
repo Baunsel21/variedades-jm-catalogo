@@ -4367,9 +4367,9 @@ async function refreshCODPaymentSettings({silent=true}={}){
    if(!row||typeof row.enabled!=='boolean'||!Array.isArray(row.allowed_cities))throw new Error('Respuesta de configuración de contraentrega no válida.');
    codPaymentEnabled=row.enabled;codAllowedCities=row.allowed_cities.map(x=>String(x||'').trim().toLowerCase()).filter(Boolean);codPaymentSettingsLoaded=true;
   }catch(error){
-   // Compatibility: until the additive migration is installed, retain the previous Cali-only rule.
-   codPaymentEnabled=true;codAllowedCities=['cali'];codPaymentSettingsLoaded=false;
-   if(!silent)console.warn('No se pudo leer la configuración de contraentrega; se mantiene Cali como única ciudad.',error);
+   // Fail closed: do not offer contraentrega until the current server configuration is confirmed.
+   codPaymentEnabled=false;codAllowedCities=[];codPaymentSettingsLoaded=false;
+   if(!silent)console.warn('No se pudo confirmar la configuración de contraentrega; se oculta hasta recuperar la conexión.',error);
   }
   syncPaymentOptions();if($('checkoutModal')?.classList.contains('open'))updateShipping();
   return codPaymentSettingsLoaded;
@@ -5483,7 +5483,7 @@ let sirevyaPromoConfig=null,sirevyaPromoTimer=null,sirevyaPromoStartTimer=null,s
 function safeSeasonalPromoUrl(value){
  const v=String(value||'').trim();
  if(['#catalogo','#inicio','#contactanos'].includes(v))return v;
- try{const u=new URL(v,location.href);if((u.protocol==='https:'||u.protocol==='http:')&&/^https?:\/\//i.test(v))return u.href}catch{}
+ try{const u=new URL(v,location.href);if(u.protocol==='https:'&&/^https:\/\//i.test(v))return u.href}catch{}
  return '#catalogo';
 }
 function normalizeSeasonalPromoRow(row){
