@@ -1924,12 +1924,12 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
         <svg viewBox="0 0 32 32" focusable="false"><path d="M16 3.8A12 12 0 0 0 5.7 22l-1.4 5.4 5.6-1.4A12 12 0 1 0 16 3.8Z"/><path d="M12.1 10.4c-.4-.9-.8-.9-1.1-.9h-.9c-.3 0-.8.1-1.2.6-.4.5-1.5 1.5-1.5 3.7s1.6 4.3 1.8 4.6c.2.3 3.1 4.9 7.6 6.7 3.8 1.5 4.6 1.2 5.4 1.1.8-.1 2.5-1 2.9-2 .4-1 .4-1.8.3-2-.1-.2-.4-.3-.9-.6s-2.5-1.2-2.9-1.3c-.4-.1-.7-.2-1 .3s-1.1 1.3-1.4 1.6c-.3.3-.5.4-1 .1-.5-.3-1.9-.7-3.6-2.2-1.3-1.1-2.2-2.5-2.5-3-.3-.5 0-.7.2-.9l.7-.8c.2-.3.3-.5.5-.8.2-.3.1-.6 0-.8Z"/></svg>
       </div>
       <div class="detailPersonalizedCopy">
-        <span class="detailPersonalizedEyebrow">ESTAMOS PARA AYUDARTE</span>
-        <h3>Atención personalizada</h3>
-        <p>¿Tienes dudas sobre la talla, el color o tu pedido? Te orientamos para que elijas con tranquilidad.</p>
+        <span class="detailPersonalizedEyebrow">SIREVYA · COMPRA CON CONFIANZA</span>
+        <h3>Tu compra, con acompañamiento</h3>
+        <p>Te orientamos sobre disponibilidad, tallas, colores, envíos y opciones de pago antes de confirmar tu pedido.</p>
       </div>
       <a class="detailPersonalizedLink" href="https://wa.me/573025469983?text=Hola%2C%20necesito%20asesor%C3%ADa%20sobre%20un%20producto%20de%20Sirevya." target="_blank" rel="noopener noreferrer">
-        Hablar con nuestro equipo <span aria-hidden="true">↗</span>
+        Consultar por WhatsApp <span aria-hidden="true">↗</span>
       </a>
     </section>
   </div>
@@ -2428,7 +2428,10 @@ function scheduleWaHelpCollisionCheck(){
   waHelpCollisionCheckPending=false;
   const button=document.querySelector('.waHelpFloat');
   if(!button)return;
-  const blockers=document.querySelectorAll('#grid .card,#cartBar .cartPanel,#productDetailModal.open,#productDetailModal .detailPurchaseActions button,#productDetailModal .detailRelatedCard');
+  const isMobile=typeof window!=='undefined'&&typeof window.matchMedia==='function'&&window.matchMedia('(max-width:700px)').matches;
+  const cardBlockers=isMobile?[]:Array.from(document.querySelectorAll('#grid .card,#productDetailModal .detailRelatedCard'));
+  const criticalBlockers=Array.from(document.querySelectorAll('#cartBar .cartPanel,#productDetailModal .detailPurchaseActions button'));
+  const blockers=[...cardBlockers,...criticalBlockers];
   updateWaHelpCollisionState(button,blockers);
  };
  if(typeof requestAnimationFrame==='function')requestAnimationFrame(run);else setTimeout(run,16);
