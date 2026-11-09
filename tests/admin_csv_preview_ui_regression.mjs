@@ -279,6 +279,9 @@ const header = PRODUCT_COLUMNS.join(',');
   assert.doesNotMatch(source, /localStorage|sessionStorage|sendBeacon|WebSocket|EventSource/i);
   assert.match(source, /URL\.createObjectURL/);
   assert.match(adminHtml, /id="csvPreviewDownloadReport"[^>]*disabled/);
+  assert.match(adminHtml, /id="csvPreviewImportButton"[^>]*disabled/);
+  assert.match(adminHtml, /window\.commitAdminCsvProducts=async rows=>/);
+  assert.match(adminHtml, /admin_import_products_csv/);
   assert.match(adminHtml, /<script type="module" src="\.\/scripts\/admin_csv_preview\.mjs"><\/script>/);
 }
 
