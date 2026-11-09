@@ -76,6 +76,7 @@ async function runCheckout({ city, payment, subtotal, discount, quote, expectedD
   let codCalls = 0;
   let resetCalls = 0;
   let capturedPayload = null;
+  let receivedQuote = null;
   const messages = [];
   const shippingContext = vm.createContext({
     DEFAULT_STOREFRONT_SHIPPING_SETTINGS: settings,
@@ -87,6 +88,12 @@ async function runCheckout({ city, payment, subtotal, discount, quote, expectedD
   const context = vm.createContext({
     checkoutShipping: initialShipping,
     onlinePaymentsEnabled: true,
+    checkoutCouponCode: '',
+    normalizeCheckoutCouponCode: value => String(value || '').trim().toUpperCase(),
+    currentCheckoutCouponQuote: () => null,
+    setCheckoutServerQuote(quote) { receivedQuote = quote; context.checkoutShipping = quote.shipping; },
+    checkoutDisplayPricing: () => ({ isCouponQuote: false, subtotal, discountTotal: discount }),
+    $: () => null,
     getCheckoutItems: () => syntheticItems,
     getCheckoutValidationErrors: () => [],
     displayCheckoutValidation() { assert.fail('El fixture debe ser válido'); },
@@ -96,7 +103,10 @@ async function runCheckout({ city, payment, subtotal, discount, quote, expectedD
     refreshOnlinePaymentSetting: async () => {},
     refreshCODPaymentSettings: async () => {},
     loadStorefrontShippingSettings: async () => true,
-    updateShipping() { context.checkoutShipping = calculateShipping(city, subtotal, settings); },
+    updateShipping() {
+      context.checkoutShipping = receivedQuote ? receivedQuote.shipping : calculateShipping(city, subtotal, settings);
+      if (receivedQuote) context.updateCheckoutSummary();
+    },
     syncPaymentOptions() {},
     isLocalCODCity: value => shippingContext.canonicalLocalDeliveryCity(value) === 'Cali',
     checkoutCityValue: () => city,
@@ -109,6 +119,15 @@ async function runCheckout({ city, payment, subtotal, discount, quote, expectedD
         assert.deepEqual(JSON.parse(JSON.stringify(args.p_items)), [{ id: 'synthetic-product', qty: 2, color: 'Azul', size: 'M' }]);
         return { data: quote, error: null };
       },
+    },
+    async requestCheckoutQuote(_code, items) {
+      const { data, error } = await context.sb.rpc('get_storefront_cart_quote', {
+        p_city: city,
+        p_items: items.map(item => ({ id: String(item.id), qty: Math.max(1, Number(item.qty) || 1),
+          color: String(item.color || '').trim(), size: String(item.size || '').trim() })),
+      });
+      if (error) throw error;
+      return data;
     },
     updateCheckoutSummary() { updateSummaryCalls += 1; },
     buildOrderPayload: () => ({ name: 'Fixture', city, phone: '0000000000', address: 'Synthetic address' }),
@@ -152,10 +171,19 @@ const successfulCases = [
   { name: 'Bogotá umbral exacto', city: 'Bogotá', payment: 'PSE', subtotal: 130000, discount: 12000, shipping: 0 },
   { name: 'Bogotá sobre umbral', city: 'Bogotá', payment: 'PSE', subtotal: 130001, discount: 12000, shipping: 0 },
 ];
+const makeQuote = (total, discountTotal, shipping) => ({
+  success: true,
+  total,
+  discount_total: discountTotal,
+  shipping,
+  original_subtotal: total - shipping + discountTotal,
+  discounted_subtotal: total - shipping,
+  coupon_discount_total: 0,
+});
 for (const scenario of successfulCases) {
   await runCheckout({
     ...scenario,
-    quote: { success: true, total: scenario.subtotal + scenario.shipping, discount_total: scenario.discount, shipping: scenario.shipping },
+    quote: makeQuote(scenario.subtotal + scenario.shipping, scenario.discount, scenario.shipping),
     expectedDispatch: true,
     name: scenario.name,
   });
@@ -164,15 +192,15 @@ for (const scenario of successfulCases) {
 const mismatchCases = [
   {
     name: 'COD descuento distinto', city: 'Santiago de Cali', payment: 'Contra entrega', subtotal: 50000, discount: 12000,
-    quote: { success: true, total: 50000, discount_total: 11000, shipping: 0 },
+    quote: makeQuote(50000, 11000, 0),
   },
   {
     name: 'PSE tarifa distinta', city: 'Bogotá', payment: 'PSE', subtotal: 100000, discount: 12000,
-    quote: { success: true, total: 100000, discount_total: 12000, shipping: 0 },
+    quote: makeQuote(100000, 12000, 0),
   },
   {
     name: 'COD total distinto', city: 'Cali Valle del Cauca', payment: 'Contra entrega', subtotal: 50000, discount: 12000,
-    quote: { success: true, total: 50001, discount_total: 12000, shipping: 0 },
+    quote: makeQuote(50001, 12000, 0),
   },
 ];
 for (const scenario of mismatchCases) await runCheckout({ ...scenario, expectedDispatch: false, name: scenario.name });

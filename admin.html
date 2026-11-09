@@ -282,6 +282,7 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
 
 <style id="sirevyaMarketingAdminStyles">
 .comboAdminGrid{margin-top:12px}.comboAdminGrid[hidden],[hidden]#storefrontComboCategoryFields{display:none!important}.comboAdminGrid .promoWide{grid-column:1/-1}.comboAdminGrid input[type=number]{font-variant-numeric:tabular-nums}.comboAdminToggle{display:flex;align-items:center;gap:9px;flex-direction:row;font-weight:800}.comboAdminToggle input{width:auto;margin:0}.detailComboSection{margin-top:12px}
+.couponAdminList{display:grid;gap:9px;margin-top:12px}.couponAdminItem{border:1px solid #e7ddd5;border-radius:12px;padding:11px;background:#fff}.couponAdminMeta{display:flex;gap:7px;flex-wrap:wrap;align-items:center;margin-top:5px;color:#6f625a;font-size:12px;line-height:1.45}.couponAdminPill{display:inline-flex;align-items:center;border:1px solid #d8c3cc;border-radius:999px;padding:3px 8px;background:#fff1f6;color:#7b1730;font-size:11px;font-weight:850}.couponAdminItem .action{white-space:nowrap}
 </style>
 <style id="sirevyaAdminCodAndComboStyles">
 .codCitiesOptions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:12px 0;padding:12px;background:#faf7f5;border:1px solid #eee3dc;border-radius:12px}
@@ -711,6 +712,25 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
             <div class="promoAdminActions"><button type="button" class="primary" id="saveStorefrontComboBtn" onclick="saveStorefrontProductCombo()" disabled>💾 Guardar combinación</button><button type="button" class="softbtn" onclick="resetStorefrontComboForm()">＋ Nueva combinación</button><button type="button" class="softbtn" onclick="loadStorefrontProductCombosAdmin(true)">↻ Recargar combinaciones</button></div>
             <div id="storefrontCombosAdminStatus" class="promoAdminStatus" role="status" aria-live="polite">Las combinaciones se cargarán al abrir Configuración.</div>
             <div id="storefrontCombosAdminList" style="margin-top:12px"></div>
+          </div>
+          <div class="box" style="grid-column:1/-1" id="storefrontCouponsAdminBox">
+            <div class="rowBetween" style="align-items:flex-start;gap:12px;flex-wrap:wrap"><div style="flex:1;min-width:220px"><h3 style="margin-bottom:7px">🏷️ Cupones de descuento</h3><p class="muted" style="margin-top:0">Administra códigos de un solo uso por carrito. Los cupones no se combinan con descuentos de combo; la vigencia, los límites, el descuento y el envío se validan en Supabase.</p></div></div>
+            <input id="storefrontCouponEditId" type="hidden" value="">
+            <div class="promoAdminGrid comboAdminGrid">
+              <label>Código<input id="storefrontCouponCode" type="text" maxlength="64" autocomplete="off" placeholder="EJ. BIENVENIDA" disabled><small>Se normaliza a mayúsculas y se guarda sin espacios externos.</small></label>
+              <label>Tipo de descuento<select id="storefrontCouponDiscountType" disabled><option value="percent">Porcentaje</option><option value="fixed_amount">Valor fijo (COP)</option></select></label>
+              <label>Valor<input id="storefrontCouponDiscountValue" type="number" min="1" step="1" inputmode="numeric" placeholder="Ej. 10" disabled></label>
+              <label>Compra mínima (COP)<input id="storefrontCouponMinimumSubtotal" type="number" min="0" step="1" inputmode="numeric" placeholder="0 = sin mínimo" disabled></label>
+              <label>Límite global<input id="storefrontCouponGlobalLimit" type="number" min="1" step="1" inputmode="numeric" placeholder="Vacío = sin límite" disabled></label>
+              <label>Límite por cliente<input id="storefrontCouponPerCustomerLimit" type="number" min="1" step="1" inputmode="numeric" placeholder="Vacío = sin límite" disabled></label>
+              <label>Inicio (hora Colombia, opcional)<input id="storefrontCouponStartAt" type="datetime-local" disabled></label>
+              <label>Fin (hora Colombia, opcional)<input id="storefrontCouponEndAt" type="datetime-local" disabled></label>
+              <label class="comboAdminToggle"><input type="checkbox" id="storefrontCouponEnabled" checked disabled> Activo</label>
+            </div>
+            <p class="promoAdminHelp">Las fechas usan America/Bogota mediante los helpers existentes. Los límites se muestran como usos redimidos y reservas activas; no se muestran datos de clientes.</p>
+            <div class="promoAdminActions"><button type="button" class="primary" id="saveStorefrontCouponBtn" onclick="saveStorefrontCoupon()" disabled>💾 Guardar cupón</button><button type="button" class="softbtn" onclick="resetStorefrontCouponForm()">＋ Nuevo cupón</button><button type="button" class="softbtn" onclick="loadStorefrontCouponsAdmin(true)">↻ Recargar cupones</button></div>
+            <div id="storefrontCouponsAdminStatus" class="promoAdminStatus" role="status" aria-live="polite">Los cupones se cargarán al abrir Configuración.</div>
+            <div id="storefrontCouponsAdminList" class="couponAdminList"></div>
           </div>
           <div class="box"><h3>🏪 Personalización</h3>
             <p class="muted">Cambia el nombre y el icono que aparecen en la aplicación.</p>
@@ -1761,10 +1781,11 @@ function lockAdminPanel(message='Tu sesión terminó. Vuelve a entrar.'){
  onlinePaymentSettingLoaded=false;onlinePaymentSettingOriginal=null;
  codCitiesSettingsLoaded=false;codCitiesSettingsOriginal={enabled:false,allowed_cities:[]};
  if(typeof categoryOrderSaving!=='undefined')categoryOrderSaving=false;
- storefrontShippingAdminLoaded=false;storefrontShippingAdminOriginal=null;storefrontShippingAdminSaving=false;
- resetStorefrontShippingRulesAdminState();
- storefrontCombosAdminLoaded=false;storefrontProductCombosAdmin=[];storefrontComboSaving=false;storefrontComboEditingId='';storefrontComboCalendarRpcAvailable=false;
- seasonalPromoSettingsLoaded=false;seasonalPromoSettingsOriginal=null;seasonalPromoSaving=false;
+	 storefrontShippingAdminLoaded=false;storefrontShippingAdminOriginal=null;storefrontShippingAdminSaving=false;
+	 resetStorefrontShippingRulesAdminState();
+	 storefrontCombosAdminLoaded=false;storefrontProductCombosAdmin=[];storefrontComboSaving=false;storefrontComboEditingId='';storefrontComboCalendarRpcAvailable=false;
+	 storefrontCouponsAdminLoaded=false;storefrontCouponsAdmin=[];storefrontCouponSaving=false;storefrontCouponEditingId='';resetStorefrontCouponForm();setStorefrontCouponFormDisabled(true);
+	 seasonalPromoSettingsLoaded=false;seasonalPromoSettingsOriginal=null;seasonalPromoSaving=false;
  if(seasonalPromoAutoCloseTimer){clearTimeout(seasonalPromoAutoCloseTimer);seasonalPromoAutoCloseTimer=null;}
  ['listaPedidos','listaProductos','listaVentas','listaClientes','listaProveedores','listaGastos','listaMovimientos','wompiReconciliationList'].forEach(id=>{const el=$(id);if(el)el.textContent='';});
  const orderRefreshButton=$('refreshOrdersBtn');if(orderRefreshButton){orderRefreshButton.disabled=false;orderRefreshButton.textContent='↻ Actualizar pedidos';}
@@ -1789,6 +1810,8 @@ function lockAdminPanel(message='Tu sesión terminó. Vuelve a entrar.'){
  if(typeof updateStorefrontShippingAdminForm==='function')updateStorefrontShippingAdminForm();
  if(typeof setStorefrontComboFormDisabled==='function')setStorefrontComboFormDisabled(true);
  if(typeof renderStorefrontCombosAdminList==='function')renderStorefrontCombosAdminList();
+ if(typeof resetStorefrontCouponForm==='function')resetStorefrontCouponForm();
+ if(typeof setStorefrontCouponFormDisabled==='function')setStorefrontCouponFormDisabled(true);
  if(typeof setSeasonalPromoFormDisabled==='function')setSeasonalPromoFormDisabled(true);
  const seasonalReload=[...document.querySelectorAll('#seasonalPromoSettingsBox button')].find(button=>button.textContent.includes('Recargar'));if(seasonalReload)seasonalReload.disabled=false;
  const currentField=$('adminCurrentPasswordField');if(currentField)currentField.classList.remove('hidden');
@@ -2070,6 +2093,7 @@ function show(id,btn){
    if(!seasonalPromoSettingsLoaded)void loadSeasonalPromoSettingsAdmin();
    void loadStorefrontProductCombosAdmin();
    void loadTelegramAutomaticStatus(false);
+   if(!storefrontCouponsAdminLoaded)void loadStorefrontCouponsAdmin();
  }
  if(adminViewNeedsLiveAvailability())void refreshPublicAvailability();
  closeSidebar();
@@ -4221,6 +4245,85 @@ async function deleteStorefrontProductCombo(id){
  try{const {data,error}=await sb.rpc('admin_delete_storefront_product_combo',{p_combo_id:id});if(!isCurrent())return false;if(error)throw error;if(data!==true&&!(Array.isArray(data)&&data[0]===true))throw new Error('Supabase no confirmó la eliminación.');storefrontProductCombosAdmin=storefrontProductCombosAdmin.filter(row=>String(row.id)!==String(id));renderStorefrontCombosAdminList();notifyPublicCatalogChanged('combo-changed');toast('Promoción eliminada')}
  catch(error){if(!isCurrent())return false;setStorefrontCombosAdminStatus('No se eliminó la promoción. '+String(error?.message||error),'error')}
 }
+let storefrontCouponsAdmin=[],storefrontCouponsAdminLoaded=false,storefrontCouponSaving=false,storefrontCouponEditingId='';
+const STOREFRONT_COUPON_FORM_IDS=['storefrontCouponCode','storefrontCouponDiscountType','storefrontCouponDiscountValue','storefrontCouponMinimumSubtotal','storefrontCouponGlobalLimit','storefrontCouponPerCustomerLimit','storefrontCouponStartAt','storefrontCouponEndAt','storefrontCouponEnabled'];
+function setStorefrontCouponsAdminStatus(message,kind=''){const el=$('storefrontCouponsAdminStatus');if(el){el.className='promoAdminStatus'+(kind?' '+(kind==='error'?'promoStatusError':kind==='ok'?'promoStatusOk':''):'');el.textContent=String(message||'')}}
+function setStorefrontCouponFormDisabled(disabled){STOREFRONT_COUPON_FORM_IDS.forEach(id=>{const el=$(id);if(el)el.disabled=!!disabled});const save=$('saveStorefrontCouponBtn');if(save)save.disabled=!!disabled||storefrontCouponSaving||!storefrontCouponsAdminLoaded}
+function readStorefrontCouponAdminForm(){
+ const numberOrNull=id=>{const raw=String($(id)?.value??'').trim();if(raw==='')return null;const value=Number(raw);return Number.isFinite(value)?value:NaN};
+ const code=String($('storefrontCouponCode')?.value||'').trim().toUpperCase();
+ return {code,discountType:String($('storefrontCouponDiscountType')?.value||''),discountValue:numberOrNull('storefrontCouponDiscountValue'),minimumSubtotal:numberOrNull('storefrontCouponMinimumSubtotal')??0,globalLimit:numberOrNull('storefrontCouponGlobalLimit'),perCustomerLimit:numberOrNull('storefrontCouponPerCustomerLimit'),startAt:String($('storefrontCouponStartAt')?.value||''),endAt:String($('storefrontCouponEndAt')?.value||''),enabled:!!$('storefrontCouponEnabled')?.checked};
+}
+function resetStorefrontCouponForm(){
+ storefrontCouponEditingId='';if($('storefrontCouponEditId'))$('storefrontCouponEditId').value='';
+ if($('storefrontCouponCode'))$('storefrontCouponCode').value='';if($('storefrontCouponDiscountType'))$('storefrontCouponDiscountType').value='percent';if($('storefrontCouponDiscountValue'))$('storefrontCouponDiscountValue').value='';if($('storefrontCouponMinimumSubtotal'))$('storefrontCouponMinimumSubtotal').value='';if($('storefrontCouponGlobalLimit'))$('storefrontCouponGlobalLimit').value='';if($('storefrontCouponPerCustomerLimit'))$('storefrontCouponPerCustomerLimit').value='';if($('storefrontCouponStartAt'))$('storefrontCouponStartAt').value='';if($('storefrontCouponEndAt'))$('storefrontCouponEndAt').value='';if($('storefrontCouponEnabled'))$('storefrontCouponEnabled').checked=true;
+ const button=$('saveStorefrontCouponBtn');if(button)button.textContent='💾 Guardar cupón';renderStorefrontCouponsAdminList();
+}
+function editStorefrontCoupon(id){
+ const row=storefrontCouponsAdmin.find(item=>String(item.id)===String(id));if(!row)return;storefrontCouponEditingId=String(row.id);if($('storefrontCouponEditId'))$('storefrontCouponEditId').value=storefrontCouponEditingId;
+ $('storefrontCouponCode').value=String(row.code||'').trim().toUpperCase();$('storefrontCouponDiscountType').value=String(row.discount_type||'percent');$('storefrontCouponDiscountValue').value=String(Number(row.discount_value)||0);$('storefrontCouponMinimumSubtotal').value=row.minimum_subtotal==null?'':String(Number(row.minimum_subtotal)||0);$('storefrontCouponGlobalLimit').value=row.global_limit==null?'':String(Number(row.global_limit)||0);$('storefrontCouponPerCustomerLimit').value=row.per_customer_limit==null?'':String(Number(row.per_customer_limit)||0);$('storefrontCouponStartAt').value=comboLocalDate(row.starts_at||row.start_at);$('storefrontCouponEndAt').value=comboLocalDate(row.end_at);$('storefrontCouponEnabled').checked=row.enabled===true;
+ const button=$('saveStorefrontCouponBtn');if(button)button.textContent='💾 Guardar cambios';setStorefrontCouponFormDisabled(false);$('storefrontCouponCode')?.focus({preventScroll:true});
+}
+function storefrontCouponCount(row,keys){for(const key of keys){const value=Number(row?.[key]);if(Number.isFinite(value)&&value>=0)return Math.floor(value)}return 0}
+function storefrontCouponLimitLabel(value){return value==null||value===''?'sin límite':String(Number(value)||0)}
+function storefrontCouponDiscountLabel(row){const type=String(row?.discount_type||'percent'),value=Number(row?.discount_value)||0;return type==='fixed_amount'?money(value)+' fijo':String(value)+'%'}
+function storefrontCouponStatus(row,redeemed,reserved){
+ if(row?.enabled!==true)return 'Inactiva';const now=Date.now(),start=Date.parse(String(row?.starts_at||row?.start_at||'')),end=Date.parse(String(row?.end_at||''));if(Number.isFinite(start)&&now<start)return 'Programada';if(Number.isFinite(end)&&now>=end)return 'Vencida';const globalLimit=row?.global_limit==null?null:Number(row.global_limit);if(Number.isFinite(globalLimit)&&globalLimit>0&&redeemed+reserved>=globalLimit)return 'Agotada';return 'Activa';
+}
+function renderStorefrontCouponsAdminList(){
+ const host=$('storefrontCouponsAdminList');if(!host)return;if(!storefrontCouponsAdminLoaded){host.textContent='';return}if(!storefrontCouponsAdmin.length){host.innerHTML='<div class="empty">Todavía no hay cupones configurados.</div>';return}
+ host.innerHTML=storefrontCouponsAdmin.map(row=>{const redeemed=storefrontCouponCount(row,['redeemed_count','uses_redeemed','redeemed','redemptions_count']),reserved=storefrontCouponCount(row,['reserved_count','active_reservations_count','uses_reserved','reserved','reservations_count']),status=storefrontCouponStatus(row,redeemed,reserved);const windowText=[(row.starts_at||row.start_at)?'Desde '+campaignScheduleDateLabel(row.starts_at||row.start_at):'',row.end_at?'Hasta '+campaignScheduleDateLabel(row.end_at):''].filter(Boolean).join(' · ')||'Sin ventana de fechas';return `<article class="couponAdminItem"><div class="rowBetween" style="align-items:flex-start;gap:10px;flex-wrap:wrap"><div style="flex:1;min-width:190px"><b>${esc(row.code||'Sin código')}</b><span class="couponAdminPill" style="margin-left:7px">${esc(status)}</span><div class="couponAdminMeta"><span>${esc(storefrontCouponDiscountLabel(row))}</span><span>Compra mínima: ${money(Number(row.minimum_subtotal)||0)}</span><span>Redimidos: ${redeemed}</span><span>Reservados: ${reserved}</span><span>Límite global: ${esc(storefrontCouponLimitLabel(row.global_limit))}</span><span>Límite cliente: ${esc(storefrontCouponLimitLabel(row.per_customer_limit))}</span></div><small class="muted" style="display:block;margin-top:5px">${esc(windowText)} · ${row.enabled===true?'Activo':'Inactivo'}</small></div><button class="action" type="button" data-coupon-admin-edit="${esc(row.id)}">✏️ Editar</button></div></article>`}).join('');
+}
+async function loadStorefrontCouponsAdmin(force=false){
+ const userId=adminSessionUserId,authEpoch=adminAuthEpoch,isCurrent=()=>adminAuthOperationStillCurrent(userId,authEpoch);
+ if(!sb||!isCurrent())return false;
+ if(storefrontCouponsAdminLoaded&&!force)return true;
+ storefrontCouponsAdminLoaded=false;storefrontCouponsAdmin=[];setStorefrontCouponFormDisabled(true);renderStorefrontCouponsAdminList();setStorefrontCouponsAdminStatus('Cargando cupones…');
+ try{
+  const {data,error}=await sb.rpc('admin_list_storefront_coupons');
+  if(!isCurrent())return false;
+  if(error)throw error;
+  storefrontCouponsAdmin=Array.isArray(data)?data:[];storefrontCouponsAdminLoaded=true;renderStorefrontCouponsAdminList();setStorefrontCouponFormDisabled(false);setStorefrontCouponsAdminStatus('Cupones cargados. La cotización y los límites de uso se vuelven a validar en el servidor.','ok');return true;
+ }catch(error){
+  if(!isCurrent())return false;
+  const message=String(error?.message||error||'Error desconocido');storefrontCouponsAdmin=[];storefrontCouponsAdminLoaded=false;renderStorefrontCouponsAdminList();setStorefrontCouponFormDisabled(true);setStorefrontCouponsAdminStatus('No se pudieron cargar los cupones. Falta instalar la RPC admin_list_storefront_coupons o revisar permisos; los controles siguen deshabilitados. Detalle: '+message,'error');return false;
+ }
+}
+function validateStorefrontCouponAdminForm(value){
+ if(!/^[A-Z0-9][A-Z0-9_-]{0,63}$/.test(value.code))return 'El código debe tener entre 1 y 64 caracteres: letras, números, guion o guion bajo.';if(!['percent','fixed_amount'].includes(value.discountType))return 'Selecciona un tipo de descuento válido.';if(!Number.isSafeInteger(value.discountValue)||value.discountValue<=0||(value.discountType==='percent'&&value.discountValue>100))return value.discountType==='percent'?'El porcentaje debe ser un entero entre 1 y 100.':'El valor fijo debe ser un entero mayor que cero.';if(!Number.isSafeInteger(value.minimumSubtotal)||value.minimumSubtotal<0||value.minimumSubtotal>500000000)return 'La compra mínima debe ser un entero entre $0 y $500.000.000.';for(const [label,limit] of [['global',value.globalLimit],['por cliente',value.perCustomerLimit]])if(limit!==null&&(!Number.isSafeInteger(limit)||limit<1||limit>1000000000))return `El límite ${label} debe ser un entero entre 1 y 1.000.000.000, o quedar vacío.`;if((value.startAt&&!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value.startAt))||(value.endAt&&!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value.endAt)))return 'Revisa las fechas y horas del cupón.';return '';
+}
+async function saveStorefrontCoupon(){
+ const userId=adminSessionUserId,authEpoch=adminAuthEpoch,isCurrent=()=>adminAuthOperationStillCurrent(userId,authEpoch);
+ if(!sb||!isCurrent())return false;
+ if(!storefrontCouponsAdminLoaded||storefrontCouponSaving){setStorefrontCouponsAdminStatus('Primero carga los cupones desde Supabase.','error');return false;}
+ const value=readStorefrontCouponAdminForm(),validation=validateStorefrontCouponAdminForm(value);
+ if(validation){setStorefrontCouponsAdminStatus(validation,'error');return false;}
+ let start=null,end=null;
+ try{start=comboDateIso(value.startAt);end=comboDateIso(value.endAt)}catch(error){setStorefrontCouponsAdminStatus(error.message,'error');return false;}
+ if(start&&end&&new Date(start)>=new Date(end)){setStorefrontCouponsAdminStatus('La fecha final debe ser posterior a la inicial.','error');return false;}
+ storefrontCouponSaving=true;const button=$('saveStorefrontCouponBtn');if(button){button.disabled=true;button.textContent='⏳ Guardando…';}setStorefrontCouponFormDisabled(true);
+ try{
+  const couponArgs={p_coupon_id:storefrontCouponEditingId||null,p_code:value.code,p_discount_type:value.discountType,p_discount_value:value.discountValue,p_minimum_subtotal:value.minimumSubtotal,p_global_limit:value.globalLimit,p_per_customer_limit:value.perCustomerLimit,p_start_at:start,p_end_at:end,p_enabled:value.enabled};
+  const {data,error}=await sb.rpc('admin_save_storefront_coupon',couponArgs);
+  if(!isCurrent())return false;
+  if(error)throw error;
+  const row=Array.isArray(data)?data[0]:data;if(!row||row.success===false)throw new Error(row?.message||'Supabase no confirmó el cupón guardado.');
+  storefrontCouponSaving=false;resetStorefrontCouponForm();storefrontCouponsAdminLoaded=false;
+  const reloaded=await loadStorefrontCouponsAdmin(true);
+  if(!isCurrent())return false;
+  if(!reloaded){setStorefrontCouponsAdminStatus('El cupón se guardó, pero no se pudo recargar la lista. Actualiza el módulo antes de continuar.','error');return true;}
+  setStorefrontCouponsAdminStatus(row.enabled===true?'Cupón guardado y activo.':'Cupón guardado como inactivo.','ok');toast('Cupón guardado');return true;
+ }catch(error){
+  if(!isCurrent())return false;
+  setStorefrontCouponsAdminStatus('No se guardó ningún cambio. Verifica el código, los límites y que tu cuenta siga autorizada. Detalle: '+String(error?.message||error),'error');return false;
+ }finally{
+  if(isCurrent()){
+   storefrontCouponSaving=false;
+   if(button){button.textContent=storefrontCouponEditingId?'💾 Guardar cambios':'💾 Guardar cupón';button.disabled=!storefrontCouponsAdminLoaded;}
+   setStorefrontCouponFormDisabled(!storefrontCouponsAdminLoaded);
+  }
+ }
+}
 async function refreshStorefrontMarketingMetrics(){
  const userId=adminSessionUserId,authEpoch=adminAuthEpoch,isCurrent=()=>adminAuthOperationStillCurrent(userId,authEpoch);
  if(storefrontMarketingMetricsBusy||!sb||!isCurrent())return;const token=++storefrontMarketingMetricsToken;storefrontMarketingMetricsBusy=true;const status=$('storefrontMarketingMetricsStatus'),host=$('storefrontMarketingMetricsReport');if(status)status.textContent='Consultando métricas…';
@@ -4299,6 +4402,8 @@ document.addEventListener("DOMContentLoaded",()=>{
   }
   const paymentToggle=$("onlinePaymentsToggle");if(paymentToggle)paymentToggle.addEventListener("change",updateOnlinePaymentAdminLabel);
   const combosHost=$("storefrontCombosAdminList");if(combosHost)combosHost.addEventListener('click',event=>{const edit=event.target.closest('[data-combo-admin-edit]'),del=event.target.closest('[data-combo-admin-delete]');if(edit)editStorefrontCombo(edit.dataset.comboAdminEdit);if(del)void deleteStorefrontProductCombo(del.dataset.comboAdminDelete)});
+  const couponsHost=$("storefrontCouponsAdminList");if(couponsHost)couponsHost.addEventListener('click',event=>{const edit=event.target.closest('[data-coupon-admin-edit]');if(edit)editStorefrontCoupon(edit.dataset.couponAdminEdit)});
+  const couponCodeInput=$("storefrontCouponCode");if(couponCodeInput)couponCodeInput.addEventListener('input',()=>{const normalized=String(couponCodeInput.value||'').trim().toUpperCase();if(couponCodeInput.value!==normalized)couponCodeInput.value=normalized});
   const comboRuleType=$('storefrontComboRuleType');if(comboRuleType)comboRuleType.addEventListener('change',updateStorefrontComboRuleFields);const comboPlacement=$('storefrontComboDisplayLocation');if(comboPlacement)comboPlacement.addEventListener('change',updateStorefrontComboRuleFields);const comboDiscountType=$('storefrontComboDiscountType');if(comboDiscountType)comboDiscountType.addEventListener('change',updateStorefrontComboRuleFields);
   const f=$("pFoto");if(f)f.addEventListener("change",renderPhotoPreview);
   const guideFile=$("pGuiaTallasFoto");if(guideFile)guideFile.addEventListener("change",()=>{if(guideFile.files?.length)sizeGuideImageRemoveRequested=false;renderSizeGuidePhotoPreview()});

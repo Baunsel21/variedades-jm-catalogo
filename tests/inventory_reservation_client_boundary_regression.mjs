@@ -75,6 +75,12 @@ async function runWompiAttempt(returnedReference) {
     },
     URL,
     getCheckoutItems: () => paymentItems,
+    normalizeCheckoutCouponCode: value => String(value || '').trim().toUpperCase(),
+    async requestCheckoutQuote() {
+      quoteCalls += 1;
+      return { success: true, total: 10000, discount_total: 0, shipping: 0,
+        original_subtotal: 10000, discounted_subtotal: 10000, coupon_discount_total: 0 };
+    },
     calculateStorefrontComboPricing: () => ({ subtotal: 10000, discountTotal: 0 }),
     getActiveReservationReference: () => '',
     getPendingWompiReference: () => '',
@@ -135,12 +141,17 @@ async function runWompiAttempt(returnedReference) {
     neighborhood: 'Synthetic neighborhood',
     email: 'fixture@example.invalid',
     cedula: '',
+    coupon_code: '',
+    shipping: 0,
+    expected_total: 10000,
+    expected_discount_total: 0,
+    expected_coupon_discount_total: 0,
   });
   return { edgeCalls, quoteCalls, formCreates, formSubmits, rpcMutationCalls, resetCalls, messages, context };
 }
 
 const matchingReference = await runWompiAttempt('JMRES-SYNTHETIC-REFERENCE');
-assert.equal(matchingReference.quoteCalls, 1);
+assert.equal(matchingReference.quoteCalls, 1, `quote request reaches its stub; messages=${matchingReference.messages.join(' | ')}`);
 assert.equal(matchingReference.edgeCalls, 1);
 assert.equal(matchingReference.formCreates, 1, 'the normal matching-reference checkout still constructs its form');
 assert.equal(matchingReference.formSubmits, 1, `the normal matching-reference checkout still submits to Wompi; messages=${matchingReference.messages.join(' | ')}`);
@@ -168,14 +179,13 @@ assert.doesNotMatch(wompiCatch, /release_inventory_reservation|releaseInventoryR
 assert.match(wompiCatch, /TTL de 10 minutos/,
   'ambiguous holds must be documented as server-owned and allowed to expire');
 
-const codStart = index.indexOf('if(savedCOD?.reference&&savedCOD.fingerprint!==getCODOrderFingerprint');
-assert.notEqual(codStart, -1, 'the stale COD draft branch must remain present');
-const codEnd = index.indexOf('\n   }', codStart);
-assert.ok(codEnd > codStart, 'the stale COD draft branch must have a finite block');
-const codBlock = index.slice(codStart, codEnd);
-assert.match(codBlock, /clearCODOrderReference\(savedCOD\.reference\)/,
-  'a changed local draft must still clear its obsolete idempotency token');
-assert.doesNotMatch(codBlock, /release_inventory_reservation|releaseInventoryReservation/,
+assert.ok(index.includes('function sanitizeCODOrderDraft()'),
+  'the local COD draft must be reduced to its opaque reference');
+assert.ok(index.includes('JSON.stringify({reference})'),
+  'the browser may persist only the opaque COD reference, not buyer fields');
+assert.doesNotMatch(index, /getCODOrderFingerprint|customer:\[payload\.name/,
+  'the browser must not persist a fingerprint derived from customer PII');
+assert.doesNotMatch(index, /release_inventory_reservation|releaseInventoryReservation/,
   'the browser must not release the server-owned COD inventory reference');
 
 const safeServerRelease = (source, label) => {
@@ -192,12 +202,9 @@ const safeServerRelease = (source, label) => {
 safeServerRelease(wompiCreate, 'wompi-create-checkout');
 safeServerRelease(wompiWebhook, 'wompi-webhook');
 
-const guardedReleaseStart = wompiCreate.indexOf('async function releaseReservationIfNoOrder(');
-const guardedReleaseEnd = wompiCreate.indexOf('\n}\n\nDeno.serve', guardedReleaseStart);
-assert.ok(guardedReleaseStart >= 0 && guardedReleaseEnd > guardedReleaseStart,
-  'the Edge cleanup helper must remain present');
-const guardedRelease = wompiCreate.slice(guardedReleaseStart, guardedReleaseEnd);
-assert.ok(guardedRelease.indexOf('/orders') < guardedRelease.indexOf('/rpc/release_inventory_reservation'),
-  'Edge cleanup must check for an existing order before releasing its reservation');
+assert.doesNotMatch(wompiCreate, /releaseReservationIfNoOrder|releaseSideEffectsIfNoOrder/,
+  'the Edge must not use separate order reads followed by a reservation release');
+assert.match(wompiCreate, /cualquier hold incierto vencerá por TTL/,
+  'ambiguous server-side holds must expire by TTL instead of a non-atomic cleanup');
 
 console.log('Inventory reservation client boundary regression passed, including Wompi reference match/mismatch flows.');
