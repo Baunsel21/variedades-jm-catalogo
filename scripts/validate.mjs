@@ -47,6 +47,9 @@ try{
  });
  shippingContext.normalizeDeliveryCity=value=>String(value||'').trim().normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[,.]+/g,' ').replace(/\s+/g,' ').trim();
  shippingContext.canonicalLocalDeliveryCity=value=>['cali','santiago de cali','cali valle del cauca'].includes(shippingContext.normalizeDeliveryCity(value))?'Cali':'';
+ const destinationKeyMatch=catalog.match(/function storefrontShippingDestinationKey\([\s\S]*?\n\}/);
+ assert.ok(destinationKeyMatch,'Clave canónica de destinos de envío');
+ vm.runInContext(destinationKeyMatch[0],shippingContext);
  const resolverMatch=catalog.match(/function resolveStorefrontShippingRule\([\s\S]*?\n\}/);
  assert.ok(resolverMatch,'Resolutor local de tarifa por destino');
  vm.runInContext(resolverMatch[0],shippingContext);
@@ -72,7 +75,12 @@ try{
  assert.equal(calcShipping('Destino sin regla',129999,cityZoneSettings),15000,'Fallback bajo su umbral general');
  assert.equal(calcShipping('Destino sin regla',130000,cityZoneSettings),0,'Fallback con umbral general exacto');
  assert.equal(calcShipping('Sao Paulo',100000,cityZoneSettings),11000,'Normalización Unicode amplia en la regla local');
- assert.equal(calcShipping('Santiago de Cali',999999,cityZoneSettings),0,'Alias de Cali no admite tarifa específica');
+ assert.equal(calcShipping('Santiago de Cali',999999,cityZoneSettings),0,'Sin regla explícita, Cali conserva el fallback gratis');
+ const caliCitySettings={national_shipping_cost:15000,free_shipping_threshold:130000,free_shipping_in_cali:false,destination_rules:[
+  {id:'city-cali',scope:'city',name:'Cali',priority:0,shipping_cost:12000,free_shipping_threshold:null,destinations:['Cali']}
+ ]};
+ assert.equal(shippingContext.resolveStorefrontShippingRule('Santiago de Cali',caliCitySettings).kind,'city','Una regla Ciudad explícita prevalece sobre el fallback Cali gratis');
+ assert.equal(calcShipping('Cali Valle del Cauca',100000,caliCitySettings),12000,'Un alias de Cali recibe la tarifa Ciudad configurada');
  const destinationNormalizer=admin.match(/function normalizeStorefrontShippingDestinationAdmin\([\s\S]*?\n\}/);
  assert.ok(destinationNormalizer,'Normalizador de destinos del panel');
  const destinationContext=vm.createContext({});vm.runInContext(destinationNormalizer[0],destinationContext);
@@ -87,6 +95,7 @@ try{
   storefrontShippingSettingsLoaded:false,storefrontShippingSettingsPromise:null,storefrontShippingSettingsRefreshPending:false,
   sb:{rpc:()=>{shippingRpcCalls++;return shippingRpcCalls===1?initialRpc:Promise.resolve({data:{success:true,national_shipping_cost:20000,free_shipping_threshold:150000,free_shipping_in_cali:true,destination_rules:[]}})}},
   normalizeDeliveryCity:shippingContext.normalizeDeliveryCity,canonicalLocalDeliveryCity:shippingContext.canonicalLocalDeliveryCity,
+  storefrontShippingDestinationKey:shippingContext.storefrontShippingDestinationKey,
   updateStorefrontShippingCopy:()=>{},renderCart:()=>{},$:()=>null,console:{warn:()=>{}},setTimeout:callback=>{refreshTimers.push(callback);return 1;}});
  vm.runInContext(catalog.slice(loadStart,loadEnd),refreshContext);
  const initialLoad=refreshContext.loadStorefrontShippingSettings(false);const forcedLoad=refreshContext.loadStorefrontShippingSettings(true);
@@ -108,7 +117,7 @@ try{
  const caliHeading={textContent:'Tarifa de envío en Cali'},caliCopy={textContent:'Se confirma al verificar la configuración vigente.'};
  const otherHeading={textContent:''},otherCopy={textContent:''};
  const detailRules=[{querySelector:s=>s==='b'?caliHeading:caliCopy},{querySelector:s=>s==='b'?otherHeading:otherCopy}];
- const copyContext=vm.createContext({storefrontShippingSettings:{national_shipping_cost:17500,free_shipping_threshold:null,destination_rules:[]},storefrontShippingSettingsLoaded:false,storefrontShippingSettingsLoadError:false,
+ const copyContext=vm.createContext({storefrontShippingSettings:{national_shipping_cost:17500,free_shipping_threshold:null,free_shipping_in_cali:true,destination_rules:[]},storefrontShippingSettingsLoaded:false,storefrontShippingSettingsLoadError:false,
  storefrontShippingPolicyText:()=> 'Envío gratis en Cali; tarifa nacional vigente.',money:value=>`COP ${value}`,$:()=>paymentNote,
  document:{querySelector:s=>({'.jmTickerTrack [data-shipping-policy]':ticker,'.benefits .benefit:nth-child(1) small':caliBenefit,'.benefits .benefit:nth-child(2) small':benefit,'.cartShippingFoot span:first-child':foot,'.cartShippingTrack':null}[s]??null),
  querySelectorAll:s=>s==='.detailShippingBenefits .detailShippingRule'?detailRules:[]}});
@@ -131,6 +140,17 @@ try{
  assert.equal(caliHeading.textContent,'Envío gratis en Cali','La copia dinámica no reemplaza la tarjeta de Cali');
  assert.equal(otherHeading.textContent,'Tarifa por destino','La ficha indica cálculo por ciudad o zona');
  assert.equal(otherCopy.textContent,'El costo y el mínimo dependen de la ciudad o zona.','La ficha no inventa una regla global');
+ copyContext.storefrontShippingSettings.destination_rules=[
+  {id:'rule-bogota',scope:'city',name:'Bogotá',enabled:true,destinations:['Bogotá']},
+  {id:'rule-cali',scope:'city',name:'Cali',enabled:true,destinations:['Cali'],shipping_cost:12000}
+ ];
+ copyContext.storefrontShippingSettings.free_shipping_in_cali=false;copyContext.updateStorefrontShippingCopy();
+ assert.equal(ticker.textContent,'✦ Tarifa de Cali según regla · tarifas según ciudad o zona','El ticker informa el override de Cali');
+ assert.equal(caliBenefit.textContent,'Tarifa por consultar','El beneficio no promete envío gratuito con tarifa positiva');
+ assert.equal(caliHeading.textContent,'Tarifa de Cali','La ficha identifica la tarifa propia');
+ assert.equal(caliCopy.textContent,'El costo se determina con la regla activa para Cali.','La ficha explica el costo dinámico');
+ copyContext.storefrontShippingSettings.destination_rules=[{id:'rule-bogota',scope:'city',name:'Bogotá',enabled:true,destinations:['Bogotá']}];
+ copyContext.storefrontShippingSettings.free_shipping_in_cali=true;copyContext.updateStorefrontShippingCopy();
  copyContext.storefrontShippingSettings.free_shipping_threshold=200000;copyContext.updateStorefrontShippingCopy();
  assert.equal(ticker.textContent,'✦ Envío gratis en Cali · tarifas según ciudad o zona','El ticker no cambia a un umbral general al reconfigurar fallback');
  assert.equal(otherHeading.textContent,'Tarifa por destino','La ficha sigue siendo neutral al editar el fallback');
@@ -173,7 +193,7 @@ try{
  const zeroAndNoThreshold=adminContext.readStorefrontShippingAdminForm();
  assert.equal(zeroAndNoThreshold.fee,0,'Tarifa cero es válida cuando se ingresa explícitamente');
  assert.equal(zeroAndNoThreshold.threshold,null,'Umbral desactivado se representa como NULL');
- assert.ok(admin.includes('row.free_shipping_in_cali!==true'),'Respuesta de guardado valida la regla Cali');
+ assert.ok(admin.includes("typeof row.free_shipping_in_cali!=='boolean'"),'Respuesta de guardado valida que el estado Cali sea booleano');
 
  const shippingMigration=read('supabase/migrations/20261108060000_configurable_storefront_shipping.sql');
  const shippingAclMigration=read('supabase/migrations/20261108060050_restrict_admin_shipping_rpc.sql');

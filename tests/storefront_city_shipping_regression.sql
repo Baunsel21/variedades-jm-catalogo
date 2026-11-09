@@ -7,11 +7,13 @@ DECLARE
   v_fake uuid:=gen_random_uuid();
   v_product_id uuid;
   v_city_rule_id uuid;
+  v_cali_rule_id uuid;
   v_zone_rule_id uuid;
   v_zone_tie_rule_id uuid;
   v_expected_zone_rule_id uuid;
   v_medellin_rule_id uuid;
   v_unicode_rule_id uuid;
+  v_cali_alias text;
   v_client_reference text;
   v_inventory_reference text;
   v_reservation_count integer;
@@ -31,6 +33,7 @@ DECLARE
   v_expected_zone_fee bigint;
   v_result jsonb;
   v_quote jsonb;
+  v_shipping_settings jsonb;
   v_cod_result jsonb;
   v_retry jsonb;
 BEGIN
@@ -215,16 +218,28 @@ BEGIN
       RAISE EXCEPTION 'TEST FAILED: no se normalizó el acento Unicode de São: %',v_quote;
     END IF;
 
-    -- Los alias vigentes de Cali conservan prioridad absoluta y no se cobran.
-    SELECT public.get_storefront_cart_quote(
-      jsonb_build_array(jsonb_build_object('id',v_product_id::text,'qty',1,'color','','size','')),
-      'Santiago de Cali'
-    ) INTO v_quote;
-    IF v_quote->>'success' IS DISTINCT FROM 'true'
-       OR v_quote->>'destination_status' IS DISTINCT FROM 'cali_free'
-       OR (v_quote->>'shipping')::numeric IS DISTINCT FROM 0 THEN
-      RAISE EXCEPTION 'TEST FAILED: Cali debe seguir gratis: %',v_quote;
+    -- Cali conserva gratuidad por fallback, pero una regla Ciudad explícita puede cobrarla.
+    v_result:=public.admin_save_storefront_shipping_rule(
+      NULL,'city','TEST-CALI-'||v_tag,ARRAY['Cali'],18000,NULL,0,true
+    );
+    IF v_result->>'success' IS DISTINCT FROM 'true' THEN RAISE EXCEPTION 'No se creó la regla Cali sintética: %',v_result; END IF;
+    v_cali_rule_id:=(v_result->>'rule_id')::uuid;
+    v_shipping_settings:=public.get_public_storefront_shipping_settings();
+    IF (v_shipping_settings->>'free_shipping_in_cali')::boolean IS DISTINCT FROM false THEN
+      RAISE EXCEPTION 'TEST FAILED: el estado público afirmó gratis con una regla Cali pagada: %',v_shipping_settings;
     END IF;
+    FOREACH v_cali_alias IN ARRAY ARRAY['Cali','Santiago de Cali','Cali Valle del Cauca'] LOOP
+      SELECT public.get_storefront_cart_quote(
+        jsonb_build_array(jsonb_build_object('id',v_product_id::text,'qty',1,'color','','size','')),
+        v_cali_alias
+      ) INTO v_quote;
+      IF v_quote->>'success' IS DISTINCT FROM 'true'
+         OR v_quote->>'destination_status' IS DISTINCT FROM 'matched_city'
+         OR v_quote->>'shipping_rule_id' IS DISTINCT FROM v_cali_rule_id::text
+         OR (v_quote->>'shipping')::numeric IS DISTINCT FROM 18000 THEN
+        RAISE EXCEPTION 'TEST FAILED: el alias de Cali no aplicó su tarifa Ciudad: %, %',v_cali_alias,v_quote;
+      END IF;
+    END LOOP;
 
     -- Un destino sin regla usa el fallback general actual, incluido su umbral.
     v_expected_fallback:=CASE
@@ -257,15 +272,38 @@ BEGIN
       RAISE NOTICE 'PASS: destino city duplicado rechazado.';
     END;
 
-    -- Cali tampoco puede recibir una regla de cobro personalizada.
+    -- Los alias colisionan en una única clave city y Cali no se agrega a zonas.
     BEGIN
       PERFORM public.admin_save_storefront_shipping_rule(
-        NULL,'city','TEST-CALI-'||v_tag,ARRAY['Cali'],1,NULL,0,true
+        NULL,'city','TEST-CALI-ALIAS-'||v_tag,ARRAY['Santiago de Cali'],9000,NULL,0,true
       );
-      RAISE EXCEPTION 'TEST FAILED: se permitió cambiar la excepción gratuita de Cali';
-    EXCEPTION WHEN SQLSTATE '22023' THEN
-      RAISE NOTICE 'PASS: tarifa custom para Cali rechazada.';
+      RAISE EXCEPTION 'TEST FAILED: se permitió una segunda regla activa por alias de Cali';
+    EXCEPTION WHEN SQLSTATE '23505' THEN
+      RAISE NOTICE 'PASS: alias de Cali se canonicaliza y bloquea una segunda regla city.';
     END;
+    BEGIN
+      PERFORM public.admin_save_storefront_shipping_rule(
+        NULL,'zone','TEST-ZONE-CALI-'||v_tag,ARRAY['Cali','Palmira'],9000,NULL,0,true
+      );
+      RAISE EXCEPTION 'TEST FAILED: se permitió incluir Cali en una zona';
+    EXCEPTION WHEN SQLSTATE '22023' THEN
+      RAISE NOTICE 'PASS: Cali solo admite una regla explícita Ciudad, no Zona.';
+    END;
+    v_result:=public.admin_save_storefront_shipping_rule(
+      v_cali_rule_id,'city','TEST-CALI-'||v_tag,ARRAY['Cali'],18000,NULL,0,false
+    );
+    IF v_result->>'success' IS DISTINCT FROM 'true' THEN RAISE EXCEPTION 'No se desactivó la regla Cali sintética: %',v_result; END IF;
+    SELECT public.get_storefront_cart_quote(
+      jsonb_build_array(jsonb_build_object('id',v_product_id::text,'qty',1,'color','','size','')),
+      'Santiago de Cali'
+    ) INTO v_quote;
+    v_shipping_settings:=public.get_public_storefront_shipping_settings();
+    IF v_quote->>'success' IS DISTINCT FROM 'true'
+       OR v_quote->>'destination_status' IS DISTINCT FROM 'cali_free'
+       OR (v_quote->>'shipping')::numeric IS DISTINCT FROM 0
+       OR (v_shipping_settings->>'free_shipping_in_cali')::boolean IS DISTINCT FROM true THEN
+      RAISE EXCEPTION 'TEST FAILED: al desactivar la regla no se restauró el fallback gratis: %, %',v_quote,v_shipping_settings;
+    END IF;
 
     v_result:=public.admin_delete_storefront_shipping_rule(v_unicode_rule_id);
     IF v_result->>'success' IS DISTINCT FROM 'true' THEN RAISE EXCEPTION 'No se eliminó la regla sintética: %',v_result; END IF;
@@ -294,13 +332,13 @@ BEGIN
   IF EXISTS(SELECT 1 FROM public.products WHERE id=v_product_id LIMIT 1) THEN
     RAISE EXCEPTION 'TEST FAILED: quedó un producto sintético después del rollback';
   END IF;
-  IF EXISTS(SELECT 1 FROM public.storefront_shipping_rules WHERE id IN (v_zone_rule_id,v_zone_tie_rule_id,v_city_rule_id,v_medellin_rule_id) LIMIT 1) THEN
+  IF EXISTS(SELECT 1 FROM public.storefront_shipping_rules WHERE id IN (v_zone_rule_id,v_zone_tie_rule_id,v_city_rule_id,v_medellin_rule_id,v_cali_rule_id) LIMIT 1) THEN
     RAISE EXCEPTION 'TEST FAILED: quedaron reglas sintéticas después del rollback';
   END IF;
   IF EXISTS(SELECT 1 FROM public.storefront_shipping_rules WHERE id=v_unicode_rule_id LIMIT 1) THEN
     RAISE EXCEPTION 'TEST FAILED: quedó una regla Unicode sintética después del rollback';
   END IF;
-  IF EXISTS(SELECT 1 FROM public.storefront_shipping_rule_destinations WHERE rule_id IN (v_zone_rule_id,v_zone_tie_rule_id,v_city_rule_id,v_medellin_rule_id,v_unicode_rule_id) LIMIT 1) THEN
+  IF EXISTS(SELECT 1 FROM public.storefront_shipping_rule_destinations WHERE rule_id IN (v_zone_rule_id,v_zone_tie_rule_id,v_city_rule_id,v_medellin_rule_id,v_unicode_rule_id,v_cali_rule_id) LIMIT 1) THEN
     RAISE EXCEPTION 'TEST FAILED: quedaron destinos sintéticos después del rollback';
   END IF;
   IF EXISTS(SELECT 1 FROM public.web_orders WHERE client_reference=v_client_reference LIMIT 1) THEN

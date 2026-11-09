@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const html = fs.readFileSync(path.join(here, '..', 'index.html'), 'utf8');
+const adminHtml = fs.readFileSync(path.join(here, '..', 'admin.html'), 'utf8');
 
 // Static HTML must not promise free shipping before the runtime settings RPC is verified.
 assert.doesNotMatch(html, /<span>♥ Envío gratis en Cali<\/span>/);
@@ -17,6 +18,11 @@ assert.match(html, /id="cartShippingPercent">—<\/span>/);
 assert.match(html, /class="cartShippingLocalNote" hidden/);
 assert.doesNotMatch(html, /Descubre la temporada y aprovecha el envío gratis a Cali\./);
 assert.doesNotMatch(html, /Descubre tus favoritos y aprovecha el envío gratis a Cali\./);
+const promoDefault = adminHtml.match(/<textarea id="seasonalPromoMessageInput"[^>]*>([\s\S]*?)<\/textarea>/)?.[1] ?? '';
+const promoPresets = adminHtml.match(/const SIREVYA_PROMO_PRESETS=\{([\s\S]*?)\n\};/)?.[1] ?? '';
+assert.ok(promoDefault && promoPresets, 'El admin contiene mensaje por defecto y presets promocionales');
+assert.doesNotMatch(promoDefault + promoPresets, /env[ií]o gratis a Cali/i, 'Los textos promocionales no prometen Cali gratis si existe una tarifa propia');
+assert.match(promoDefault, /tarifa de env[ií]o seg[uú]n tu ciudad/i, 'El mensaje inicial remite al costo real según ciudad');
 
 assert.match(html, /id="checkoutTotal">Por verificar<\/span>/);
 assert.match(html, /id="shippingNote" class="shippingSmall">La tarifa se confirma al verificar la configuración vigente\./);
@@ -122,7 +128,6 @@ function makeContext() {
     updateContraEntregaAvailability() {},
     getCheckoutItems() { return []; },
     calculateStorefrontComboPricing() { return { subtotal: 100000, discountTotal: 0, lines: [], applied: [] }; },
-    calculateStorefrontShipping(city) { return city === 'Cali' ? 0 : 15000; },
     checkoutCityValue() {
       const selected = nodes.get('customerCity').value || '';
       return selected === 'Otra' ? (nodes.get('customerCityOther').value || '').trim() : selected;
@@ -142,7 +147,9 @@ function makeContext() {
   const names = [
     'normalizeDeliveryCity',
     'canonicalLocalDeliveryCity',
+    'storefrontShippingDestinationKey',
     'resolveStorefrontShippingRule',
+    'calculateStorefrontShipping',
     'storefrontShippingPolicyText',
     'updateStorefrontShippingCopy',
     'loadStorefrontShippingSettings',
@@ -189,6 +196,26 @@ ctx.updateShipping();
 assert.equal(ctx.nodes.get('shippingValue').textContent, 'GRATIS');
 assert.equal(ctx.nodes.get('checkoutTotal').textContent, '$100,000');
 assert.equal(ctx.storefrontShippingDisplayVerified('Cali', 'Cali'), true);
+
+// Cali and its aliases stay free without a city override.
+ctx.nodes.get('customerCity').value = 'Santiago de Cali';
+ctx.updateShipping();
+assert.equal(ctx.nodes.get('shippingValue').textContent, 'GRATIS');
+
+// A verified city rule overrides the legacy free fallback; aliases resolve to the same key.
+ctx.setRpcResult({ data: [{
+  success: true, national_shipping_cost: 15000, free_shipping_threshold: 130000, free_shipping_in_cali: false,
+  destination_rules: [{ id: 'cali-paid', scope: 'city', name: 'Cali', priority: 0, shipping_cost: 12000, free_shipping_threshold: null, destinations: ['Cali'] }],
+}], error: null });
+assert.equal(await ctx.loadStorefrontShippingSettings(true), true);
+ctx.nodes.get('customerCity').value = 'Santiago de Cali';
+ctx.updateShipping();
+assert.equal(ctx.nodes.get('shippingValue').textContent, '$12,000');
+assert.equal(ctx.nodes.get('checkoutTotal').textContent, '$112,000');
+assert.equal(ctx.caliBenefit.textContent, 'Tarifa por consultar');
+assert.match(ctx.ticker.textContent, /Tarifa de Cali según regla/);
+assert.match(ctx.localNote.textContent, /tarifa/i);
+assert.equal(ctx.resolveStorefrontShippingRule('Cali Valle del Cauca').fee, 12000);
 
 ctx.nodes.get('customerCity').value = 'Otra';
 ctx.nodes.get('customerCityOther').value = '';

@@ -1,5 +1,5 @@
 -- Fase 2: reglas de envío opcionales por ciudad o zona.
--- La tarifa general existente sigue siendo el fallback; Cali permanece gratis.
+-- La tarifa general existente sigue siendo el fallback; Cali permanece gratis solo si no tiene una regla city activa.
 -- No se actualizan pedidos, reservas ni inventario históricos.
 
 CREATE TABLE public.storefront_shipping_rules (
@@ -61,6 +61,7 @@ AS $function$
 DECLARE
   v_row public.storefront_shipping_settings%ROWTYPE;
   v_rules jsonb;
+  v_free_shipping_in_cali boolean;
 BEGIN
   SELECT * INTO v_row FROM public.storefront_shipping_settings WHERE id=1;
   IF NOT FOUND THEN
@@ -91,11 +92,21 @@ BEGIN
      LIMIT 500
   ) AS active_rules;
 
+  SELECT coalesce((
+    SELECT r.shipping_cost=0
+      FROM public.storefront_shipping_rule_destinations AS d
+      JOIN public.storefront_shipping_rules AS r ON r.id=d.rule_id
+     WHERE r.enabled IS TRUE AND r.scope='city' AND d.destination_key='cali'
+     ORDER BY r.priority DESC,r.id
+     LIMIT 1
+  ),true)
+  INTO v_free_shipping_in_cali;
+
   RETURN jsonb_build_object(
     'success',true,
     'national_shipping_cost',v_row.national_shipping_cost,
     'free_shipping_threshold',v_row.free_shipping_threshold,
-    'free_shipping_in_cali',true,
+    'free_shipping_in_cali',v_free_shipping_in_cali,
     'destination_rules',v_rules,
     'updated_at',v_row.updated_at
   );
@@ -204,7 +215,10 @@ BEGIN
       RAISE EXCEPTION 'Cada destino debe tener entre 1 y 80 caracteres.' USING ERRCODE='22023';
     END IF;
     IF v_key IN ('cali','santiago de cali','cali valle del cauca') THEN
-      RAISE EXCEPTION 'Cali y sus alias conservan envío gratis y no se pueden asignar a una tarifa.' USING ERRCODE='22023';
+      IF v_scope<>'city' THEN
+        RAISE EXCEPTION 'Cali y sus alias solo se configuran como regla explícita de ciudad, no dentro de una zona.' USING ERRCODE='22023';
+      END IF;
+      v_key:='cali';
     END IF;
     IF v_key=ANY(v_keys) THEN
       RAISE EXCEPTION 'La lista contiene destinos duplicados después de normalizarlos.' USING ERRCODE='22023';
@@ -321,7 +335,7 @@ DECLARE
   v_original_line numeric(14,2); v_net_line numeric(14,2); v_normalized_city text;
   v_national_shipping_cost bigint; v_free_shipping_threshold bigint;
   v_shipping_rule_id uuid; v_shipping_rule_scope text; v_shipping_rule_name text;
-  v_destination_status text; v_resolved_shipping_cost bigint; v_resolved_threshold bigint;
+  v_destination_status text; v_resolved_shipping_cost bigint; v_resolved_threshold bigint; v_rule_city_key text;
 BEGIN
   SELECT s.admin_user_id INTO v_owner_id FROM public.store_settings AS s WHERE s.id=1;
   IF v_owner_id IS NULL THEN
@@ -398,6 +412,7 @@ BEGIN
   END LOOP;
   v_subtotal:=greatest(0,v_base-v_discount);
   v_normalized_city:=public.normalize_storefront_delivery_city(v_city);
+  v_rule_city_key:=CASE WHEN v_normalized_city IN ('cali','santiago de cali','cali valle del cauca') THEN 'cali' ELSE v_normalized_city END;
 
   -- La fila singleton sincroniza las ediciones de tarifa con cotizaciones COD.
   SELECT s.national_shipping_cost,s.free_shipping_threshold
@@ -407,31 +422,31 @@ BEGIN
     RETURN jsonb_build_object('success',false,'message','La configuración de envíos no está disponible.');
   END IF;
 
-  IF v_normalized_city IN ('cali','santiago de cali','cali valle del cauca') THEN
+  SELECT r.id,r.scope,r.name,r.shipping_cost,r.free_shipping_threshold
+    INTO v_shipping_rule_id,v_shipping_rule_scope,v_shipping_rule_name,v_resolved_shipping_cost,v_resolved_threshold
+    FROM public.storefront_shipping_rule_destinations AS d
+    JOIN public.storefront_shipping_rules AS r ON r.id=d.rule_id
+   WHERE d.destination_key=v_rule_city_key AND r.enabled=true
+   ORDER BY CASE WHEN r.scope='city' THEN 0 ELSE 1 END,r.priority DESC,r.id
+   LIMIT 1
+   FOR SHARE OF r;
+
+  IF FOUND THEN
+    v_destination_status:='matched_'||v_shipping_rule_scope;
+  ELSIF v_normalized_city IN ('cali','santiago de cali','cali valle del cauca') THEN
     v_shipping:=0;
     v_destination_status:='cali_free';
     v_shipping_rule_name:='Envío gratis en Cali';
     v_resolved_shipping_cost:=0;
     v_resolved_threshold:=NULL;
   ELSE
-    SELECT r.id,r.scope,r.name,r.shipping_cost,r.free_shipping_threshold
-      INTO v_shipping_rule_id,v_shipping_rule_scope,v_shipping_rule_name,v_resolved_shipping_cost,v_resolved_threshold
-      FROM public.storefront_shipping_rule_destinations AS d
-      JOIN public.storefront_shipping_rules AS r ON r.id=d.rule_id
-     WHERE d.destination_key=v_normalized_city AND r.enabled=true
-     ORDER BY CASE WHEN r.scope='city' THEN 0 ELSE 1 END,r.priority DESC,r.id
-     LIMIT 1
-     FOR SHARE OF r;
+    v_destination_status:='fallback';
+    v_shipping_rule_name:='Tarifa general';
+    v_resolved_shipping_cost:=v_national_shipping_cost;
+    v_resolved_threshold:=v_free_shipping_threshold;
+  END IF;
 
-    IF FOUND THEN
-      v_destination_status:='matched_'||v_shipping_rule_scope;
-    ELSE
-      v_destination_status:='fallback';
-      v_shipping_rule_name:='Tarifa general';
-      v_resolved_shipping_cost:=v_national_shipping_cost;
-      v_resolved_threshold:=v_free_shipping_threshold;
-    END IF;
-
+  IF v_destination_status<>'cali_free' THEN
     IF v_resolved_threshold IS NOT NULL AND v_subtotal>=v_resolved_threshold THEN
       v_shipping:=0;
     ELSE

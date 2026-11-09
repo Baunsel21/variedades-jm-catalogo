@@ -58,6 +58,38 @@ assert.ok(admin.includes('data-shipping-rule-delete'));
 assert.ok(admin.includes("sb.rpc('admin_delete_storefront_shipping_rule'"));
 assert.ok(admin.includes('no cambian qué ciudades tienen contraentrega'), 'Las reglas de tarifa no activan COD automáticamente');
 assert.match(admin, /function lockAdminPanel\([^)]*\)\{[\s\S]*?resetStorefrontShippingRulesAdminState\(\);/);
+assert.match(admin, /Cali conserva el envío gratis si no tiene una regla específica de ciudad activa/);
+
+const caliFormNodes = {
+  shippingRuleEditId: { value: '' }, shippingRuleScope: { value: 'city' }, shippingRuleName: { value: 'Tarifa Cali' },
+  shippingRuleDestinations: { value: 'Santiago de Cali' }, shippingRulePriority: { value: '0' }, shippingRuleCost: { value: '12000' },
+  shippingRuleThresholdEnabled: { checked: false }, shippingRuleThreshold: { value: '' }, shippingRuleEnabled: { checked: true },
+  saveStorefrontShippingRuleBtn: { disabled: true, textContent: '' }, resetStorefrontShippingRuleBtn: { disabled: true },
+  refreshStorefrontShippingRulesBtn: { disabled: true },
+};
+const caliFormContext = vm.createContext({
+  storefrontShippingRulesAdminLoaded: true, storefrontShippingRuleSaving: false,
+  $(id) { return caliFormNodes[id] || null; },
+});
+vm.runInContext([
+  extractFunction('normalizeStorefrontShippingDestinationAdmin'),
+  extractFunction('readStorefrontShippingRuleAdminForm'),
+  extractFunction('validateStorefrontShippingRuleForm'),
+  extractFunction('updateStorefrontShippingRuleAdminForm'),
+].join('\n'), caliFormContext);
+assert.equal(caliFormContext.normalizeStorefrontShippingDestinationAdmin('Cali Valle del Cauca'), 'cali');
+caliFormContext.updateStorefrontShippingRuleAdminForm();
+assert.equal(caliFormNodes.saveStorefrontShippingRuleBtn.disabled, false, 'Una regla Ciudad de Cali con tarifa debe poder guardarse');
+caliFormContext.validateStorefrontShippingRuleForm(caliFormContext.readStorefrontShippingRuleAdminForm());
+caliFormNodes.shippingRuleScope.value = 'zone';
+caliFormNodes.shippingRuleDestinations.value = 'Cali\nPalmira';
+caliFormContext.updateStorefrontShippingRuleAdminForm();
+assert.equal(caliFormNodes.saveStorefrontShippingRuleBtn.disabled, true, 'Cali no debe agregarse a una regla de zona');
+assert.throws(() => caliFormContext.validateStorefrontShippingRuleForm(caliFormContext.readStorefrontShippingRuleAdminForm()), /Cali solo admite una regla Ciudad/);
+caliFormNodes.shippingRuleScope.value = 'city';
+caliFormNodes.shippingRuleDestinations.value = 'Cali\nSantiago de Cali';
+caliFormContext.updateStorefrontShippingRuleAdminForm();
+assert.equal(caliFormNodes.saveStorefrontShippingRuleBtn.disabled, true, 'Los alias de Cali no deben crear reglas city duplicadas');
 
 const deferred = () => {
   let resolve;

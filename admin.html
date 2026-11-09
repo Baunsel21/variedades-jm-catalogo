@@ -547,8 +547,8 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
           </div>
           <div class="box" style="grid-column:1/-1" id="storefrontShippingSettingsBox">
             <div class="rowBetween" style="align-items:flex-start;gap:16px;flex-wrap:wrap">
-              <div style="flex:1;min-width:220px"><h3 style="margin-bottom:7px">🚚 Tarifas de envío del catálogo</h3><p class="muted" style="margin-top:0">Cambia aquí la tarifa nacional y el mínimo para envío gratis, sin editar código. Cali y sus alias actuales conservan el envío gratis. La regla actual se mantiene al iniciar: $15.000 y envío gratis desde $130.000 después de descuentos.</p></div>
-              <span class="status ok">Cali: envío gratis</span>
+              <div style="flex:1;min-width:220px"><h3 style="margin-bottom:7px">🚚 Tarifas de envío del catálogo</h3><p class="muted" style="margin-top:0">Cambia aquí la tarifa nacional y el mínimo para envío gratis. Cali conserva el envío gratis si no tiene una regla específica de ciudad activa; puedes fijar una tarifa y un mínimo propios en el editor de reglas inferior. La regla general inicial sigue en $15.000 y envío gratis desde $130.000 después de descuentos.</p></div>
+              <span class="status ok">Cali: tarifa propia opcional</span>
             </div>
             <div class="promoAdminGrid" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr))">
               <label>Tarifa nacional (COP)<input id="shippingNationalCost" type="number" min="0" max="5000000" step="1" inputmode="numeric" value="15000" required disabled><small>Se cobra fuera de Cali si no se alcanza el mínimo.</small></label>
@@ -558,12 +558,12 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
             <div id="shippingSettingsStatus" class="status" role="status" aria-live="polite" style="margin-top:10px">Cargando configuración de envíos…</div>
             <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><button id="saveStorefrontShippingSettingsBtn" class="primary" type="button" onclick="saveStorefrontShippingSettings()" disabled>💾 Guardar tarifas</button><button id="refreshStorefrontShippingSettingsBtn" class="softbtn" type="button" onclick="loadStorefrontShippingSettingsAdmin(true)">↻ Recargar tarifas</button></div>
             <div id="storefrontCityShippingRulesBox" style="margin-top:16px;padding:14px;border:1px solid #e6eaf0;border-radius:14px">
-              <div class="rowBetween" style="align-items:flex-start;gap:12px;flex-wrap:wrap"><div style="flex:1;min-width:220px"><h4 style="margin:0 0 6px">Reglas por ciudad o zona</h4><p class="muted" style="margin:0">Una regla específica reemplaza la tarifa general para sus destinos. Sin regla se usa la tarifa general; Cali y sus alias permanecen gratis. Estas reglas no alteran pedidos ni reservas existentes y no cambian qué ciudades tienen contraentrega.</p></div></div>
+              <div class="rowBetween" style="align-items:flex-start;gap:12px;flex-wrap:wrap"><div style="flex:1;min-width:220px"><h4 style="margin:0 0 6px">Reglas por ciudad o zona</h4><p class="muted" style="margin:0">Una regla específica reemplaza la tarifa general para sus destinos. Sin regla, Cali conserva el envío gratis y los demás destinos usan la tarifa general. Puedes crear una regla Ciudad para cobrar a Cali; no se permite incluir Cali en una Zona. Estas reglas no alteran pedidos ni reservas existentes y no cambian qué ciudades tienen contraentrega.</p></div></div>
               <input id="shippingRuleEditId" type="hidden" value="">
               <div class="promoAdminGrid" style="grid-template-columns:repeat(auto-fit,minmax(210px,1fr));margin-top:12px">
                 <label>Tipo de regla<select id="shippingRuleScope" disabled><option value="city">Ciudad o alias</option><option value="zone">Zona de varias ciudades</option></select></label>
                 <label>Nombre visible<input id="shippingRuleName" maxlength="80" placeholder="Ej. Bogotá o Eje Cafetero" disabled></label>
-                <label>Destinos (uno por línea)<textarea id="shippingRuleDestinations" rows="3" maxlength="4000" placeholder="Bogotá&#10;Santa Fe de Bogotá" disabled></textarea><small>Usa alias en la regla de ciudad o varias ciudades en una zona. Máximo 50.</small></label>
+                <label>Destinos (uno por línea)<textarea id="shippingRuleDestinations" rows="3" maxlength="4000" placeholder="Bogotá&#10;Santa Fe de Bogotá" disabled></textarea><small>Máximo 50. Los alias de Cali se unifican; Cali solo puede ser una regla Ciudad, no Zona. Sin regla activa, Cali sigue gratis.</small></label>
                 <label>Prioridad de zona<input id="shippingRulePriority" type="number" min="0" max="1000" step="1" value="0" disabled><small>Si una ciudad coincide con varias zonas, gana la prioridad mayor. La regla de ciudad siempre prevalece.</small></label>
                 <label>Tarifa de envío (COP)<input id="shippingRuleCost" type="number" min="0" max="5000000" step="1" inputmode="numeric" value="15000" disabled></label>
                 <label class="promoToggleRow"><input id="shippingRuleThresholdEnabled" type="checkbox" checked disabled> Activar envío gratis por mínimo</label>
@@ -609,7 +609,7 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
               <label>Posición<select id="seasonalPromoPosition" disabled><option value="center">Centro</option><option value="bottom-right">Esquina inferior derecha</option><option value="bottom-center">Parte inferior, centrado</option></select></label>
               <label>Texto pequeño superior<input id="seasonalPromoEyebrow" maxlength="48" value="TEMPORADA DE HALLOWEEN" disabled></label>
               <label class="promoWide">Título principal<input id="seasonalPromoTitleInput" maxlength="90" value="¡Halloween con estilo!" disabled></label>
-              <label class="promoWide">Mensaje<textarea id="seasonalPromoMessageInput" maxlength="240" disabled>Descubre la temporada y aprovecha el envío gratis a Cali.</textarea></label>
+              <label class="promoWide">Mensaje<textarea id="seasonalPromoMessageInput" maxlength="240" disabled>Consulta la tarifa de envío según tu ciudad antes de finalizar la compra.</textarea></label>
               <label>Texto del botón<input id="seasonalPromoButtonLabel" maxlength="32" value="Ver promoción" disabled></label>
               <label>Destino del botón<input id="seasonalPromoButtonUrl" maxlength="300" value="#catalogo" placeholder="#catalogo o https://…" disabled></label>
               <label>Color de fondo<div class="promoAdminColorRow"><input id="seasonalPromoBackgroundColor" type="color" value="#21132f" disabled><small>Fondo de la tarjeta</small></div></label>
@@ -1085,15 +1085,15 @@ async function loadStorefrontShippingSettingsAdmin(showStatus=true){
   const fee=Number(row?.national_shipping_cost);
   const threshold=row?.free_shipping_threshold==null?null:Number(row.free_shipping_threshold);
   if(row?.success!==true||row?.national_shipping_cost==null||!Number.isSafeInteger(fee)||fee<0||fee>5000000||
-     (threshold!==null&&(!Number.isSafeInteger(threshold)||threshold<1||threshold>50000000))||row.free_shipping_in_cali!==true){
-   throw new Error('Supabase no devolvió tarifas válidas o no confirmó Cali gratis.');
+     (threshold!==null&&(!Number.isSafeInteger(threshold)||threshold<1||threshold>50000000))||typeof row.free_shipping_in_cali!=='boolean'){
+   throw new Error('Supabase no devolvió una configuración de envío válida.');
   }
   storefrontShippingAdminOriginal={fee,threshold};
   $('shippingNationalCost').value=String(fee);
   $('shippingFreeThresholdEnabled').checked=threshold!==null;
   $('shippingFreeThreshold').value=threshold===null?'':String(threshold);
   storefrontShippingAdminLoaded=true;
-  setStorefrontShippingAdminStatus(`Configuración cargada. Cali continúa gratis; tarifa nacional ${money(fee)}${threshold===null?'':` · envío gratis desde ${money(threshold)} después de descuentos`}.`,'ok');
+  setStorefrontShippingAdminStatus(`Configuración general cargada. Cali usa su regla de ciudad activa si existe; sin ella conserva el envío gratis. Tarifa nacional ${money(fee)}${threshold===null?'':` · envío gratis desde ${money(threshold)} después de descuentos`}.`,'ok');
   return true;
  }catch(error){
   if(!isCurrent())return false;
@@ -1131,14 +1131,14 @@ async function saveStorefrontShippingSettings(){
   const fee=Number(row.national_shipping_cost);
   const threshold=row.free_shipping_threshold==null?null:Number(row.free_shipping_threshold);
   if(row?.national_shipping_cost==null||!Number.isSafeInteger(fee)||fee<0||fee>5000000||
-     (threshold!==null&&(!Number.isSafeInteger(threshold)||threshold<1||threshold>50000000))||row.free_shipping_in_cali!==true){
-   throw new Error('La respuesta de Supabase no contiene tarifas dentro de los límites o no confirmó Cali gratis.');
+     (threshold!==null&&(!Number.isSafeInteger(threshold)||threshold<1||threshold>50000000))||typeof row.free_shipping_in_cali!=='boolean'){
+   throw new Error('La respuesta de Supabase no contiene una configuración de envío válida.');
   }
   storefrontShippingAdminOriginal={fee,threshold};
   $('shippingNationalCost').value=String(fee);
   $('shippingFreeThresholdEnabled').checked=threshold!==null;
   $('shippingFreeThreshold').value=threshold===null?'':String(threshold);
-  setStorefrontShippingAdminStatus(`Tarifas guardadas. Cali permanece gratis; el catálogo y los pagos recibirán la regla nueva al recalcular. Tarifa: ${money(fee)}${threshold===null?'':` · mínimo: ${money(threshold)}`}.`,'ok');
+  setStorefrontShippingAdminStatus(`Tarifa general guardada. Si Cali tiene una regla Ciudad activa, esa tarifa prevalece; sin ella conserva el envío gratis. El catálogo y el checkout recotizan al actualizar. Tarifa general: ${money(fee)}${threshold===null?'':` · mínimo: ${money(threshold)}`}.`,'ok');
   notifyPublicCatalogChanged('shipping-settings-changed');
   toast('Tarifas de envío guardadas');
  }catch(error){
@@ -1168,7 +1168,8 @@ function setStorefrontShippingRulesAdminStatus(message,kind=''){
  el.className='status'+(kind?' '+kind:'');el.textContent=message;
 }
 function normalizeStorefrontShippingDestinationAdmin(value){
- return String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLocaleLowerCase('es-CO').replace(/[,.]+/g,' ').replace(/\s+/g,' ').trim();
+ const normalized=String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLocaleLowerCase('es-CO').replace(/[,.]+/g,' ').replace(/\s+/g,' ').trim();
+ return ['cali','santiago de cali','cali valle del cauca'].includes(normalized)?'cali':normalized;
 }
 function filterStorefrontShippingRulesAdmin(query,rules=storefrontShippingRulesAdmin){
  const needle=normalizeStorefrontShippingDestinationAdmin(query);
@@ -1196,10 +1197,10 @@ function updateStorefrontShippingRuleAdminForm(){
  if(thresholdInput)thresholdInput.disabled=!storefrontShippingRulesAdminLoaded||storefrontShippingRuleSaving||!$('shippingRuleThresholdEnabled')?.checked;
  const keys=value.destinations.map(normalizeStorefrontShippingDestinationAdmin);
  const uniqueKeys=new Set(keys);
- const hasCali=keys.some(key=>['cali','santiago de cali','cali valle del cauca'].includes(key));
+ const invalidCaliZone=value.scope==='zone'&&keys.includes('cali');
  const valid=!!value.name&&value.name.length<=80&&['city','zone'].includes(value.scope)&&
   value.destinations.length>=1&&value.destinations.length<=50&&(value.scope!=='zone'||value.destinations.length>=2)&&
-  keys.every(key=>key.length>=1&&key.length<=80)&&uniqueKeys.size===keys.length&&!hasCali&&
+  keys.every(key=>key.length>=1&&key.length<=80)&&uniqueKeys.size===keys.length&&!invalidCaliZone&&
   Number.isSafeInteger(value.fee)&&value.fee>=0&&value.fee<=5000000&&
   (value.threshold===null||(Number.isSafeInteger(value.threshold)&&value.threshold>=1&&value.threshold<=50000000))&&
   Number.isSafeInteger(value.priority)&&value.priority>=0&&value.priority<=1000;
@@ -1254,7 +1255,7 @@ function validateStorefrontShippingRuleForm(value){
  if(!['city','zone'].includes(value.scope))throw new Error('Selecciona ciudad o zona.');
  if(!value.destinations.length||value.destinations.length>50||(value.scope==='zone'&&value.destinations.length<2))throw new Error('Indica entre 1 y 50 destinos; una zona requiere al menos dos.');
  if(keys.some(key=>!key||key.length>80)||new Set(keys).size!==keys.length)throw new Error('Revisa destinos vacíos o duplicados después de normalizarlos.');
- if(keys.some(key=>['cali','santiago de cali','cali valle del cauca'].includes(key)))throw new Error('Cali y sus alias mantienen envío gratis y no admiten una tarifa personalizada.');
+ if(value.scope==='zone'&&keys.includes('cali'))throw new Error('Cali solo admite una regla Ciudad; sin regla activa se conserva el envío gratis.');
  if(!Number.isSafeInteger(value.fee)||value.fee<0||value.fee>5000000)throw new Error('La tarifa debe estar entre $0 y $5.000.000.');
  if(value.threshold!==null&&(!Number.isSafeInteger(value.threshold)||value.threshold<1||value.threshold>50000000))throw new Error('El mínimo debe estar entre $1 y $50.000.000 o quedar desactivado.');
  if(!Number.isSafeInteger(value.priority)||value.priority<0||value.priority>1000)throw new Error('La prioridad debe estar entre 0 y 1.000.');
@@ -3786,8 +3787,8 @@ window.whatsappPedido=whatsappPedido;
 
 // === Configuración de promociones emergentes para Sirevya ===
 const SIREVYA_PROMO_PRESETS={
- halloween:{background_color:'#21132f',accent_color:'#ff914d',text_color:'#ffffff',popup_size:'small',popup_position:'center',animation_style:'falling',eyebrow:'TEMPORADA DE HALLOWEEN',title:'¡Halloween con estilo!',message:'Descubre la temporada y aprovecha el envío gratis a Cali.',button_label:'Ver promoción'},
- elegant:{background_color:'#17131d',accent_color:'#d7b779',text_color:'#ffffff',popup_size:'small',popup_position:'center',animation_style:'sparkle',eyebrow:'DETALLES QUE ENAMORAN',title:'Un detalle para ti',message:'Descubre tus favoritos y aprovecha el envío gratis a Cali.',button_label:'Explorar catálogo'},
+ halloween:{background_color:'#21132f',accent_color:'#ff914d',text_color:'#ffffff',popup_size:'small',popup_position:'center',animation_style:'falling',eyebrow:'TEMPORADA DE HALLOWEEN',title:'¡Halloween con estilo!',message:'Consulta la tarifa de envío según tu ciudad antes de finalizar la compra.',button_label:'Ver promoción'},
+ elegant:{background_color:'#17131d',accent_color:'#d7b779',text_color:'#ffffff',popup_size:'small',popup_position:'center',animation_style:'sparkle',eyebrow:'DETALLES QUE ENAMORAN',title:'Un detalle para ti',message:'Elige tus favoritos y confirma el costo de envío en el checkout.',button_label:'Explorar catálogo'},
  romantic:{background_color:'#381426',accent_color:'#ff78a6',text_color:'#ffffff',popup_size:'small',popup_position:'center',animation_style:'sparkle',eyebrow:'UNA SORPRESA PARA TI',title:'Tu estilo merece brillar',message:'Encuentra tu próximo favorito con una promoción especial.',button_label:'Quiero verlo'},
  festive:{background_color:'#101f36',accent_color:'#83dcff',text_color:'#ffffff',popup_size:'small',popup_position:'center',animation_style:'falling',eyebrow:'CELEBRA CON SIREVYA',title:'La temporada se viste de estilo',message:'Descubre tus favoritos y promociones especiales.',button_label:'Ver favoritos'}
 };

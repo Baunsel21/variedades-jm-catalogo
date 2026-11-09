@@ -13,12 +13,12 @@ Cada criterio se conserva hasta que exista evidencia en código, Supabase y prue
 
 ## Fase 2: Tarifas por ciudad y reglas de entrega
 
-> Estado al 8 de noviembre de 2026: implementación en borrador en [`PR #11`](https://github.com/Baunsel21/variedades-jm-catalogo/pull/11), rama `feature/roadmap-city-shipping`, con SQL, UI y regresión sintética. La rama fue integrada localmente con el `main` vigente para conservar los cambios de la tienda y el fail-closed de envíos; esa integración aún no se ha enviado a GitHub. No se aplicó a producción y los criterios siguientes siguen abiertos hasta validar en un proyecto aislado. Ver [`fase-2-tarifas-por-destino.md`](fase-2-tarifas-por-destino.md).
+> Estado al 9 de noviembre de 2026: `PR #11` sigue en borrador en `feature/roadmap-city-shipping`; los cambios nuevos de Cali permanecen locales. No se fusionó ni se aplicó a producción y la rama aún debe sincronizarse con el `main` más reciente. Los criterios siguen abiertos hasta ejecutar la regresión SQL con una copia aislada restaurada y verificar el checkout sin pagos/pedidos reales. Ver [`fase-2-tarifas-por-destino.md`](fase-2-tarifas-por-destino.md).
 
 - [ ] El administrador puede crear/editar/activar/desactivar/eliminar una tarifa por ciudad o zona, buscar por nombre o destino, configurar una tarifa general alternativa y umbral de envío gratis; se muestran ciudades sin regla con la tarifa de respaldo. Ciudad/Cali se normaliza con acentos, mayúsculas, espacios y alias documentados.
 - [ ] La disponibilidad de contraentrega sigue bajo sus controles actuales por ciudad y no se activa al cambiar tarifas; los medios de pago no se contradicen. Cambiar o eliminar una regla de entrega no altera pedidos ya creados ni reservas activas.
 - [ ] La cotización rechaza o maneja explícitamente ciudad vacía/no reconocida y nunca confía en el importe enviado por el navegador.
-  - Avance parcial (sin publicar): se añadió búsqueda Unicode de reglas y borrado explícito mediante RPC admin-only serializada; logout/cambio de cuenta limpia lista, guardado y formulario de edición, y las respuestas tardías quedan descartadas por epoch. El checkout permanece fail-closed hasta recibir configuración válida de Supabase. Regresión UI con mocks y parseo SQL pasaron; la regresión SQL completa requiere ejecución en Supabase aislado.
+  - Avance parcial (sin publicar): reglas ciudad/zona, fallback general y búsqueda Unicode; Cali/alias pueden tener una tarifa explícita de ciudad que prevalece sobre el fallback gratis; desactivarla o eliminarla restaura el fallback. Se hicieron dinámicos los mensajes de checkout/admin que no podían prometer envío gratis fijo. Borrado admin-only serializado y guardas de sesión continúan. `scripts/validate.mjs`, regresiones UI/copy y parseo SQL pasan; la regresión SQL solo está parseada, no ejecutada en DB aislada.
 
 ## Fase 3: Catálogo, búsqueda y conversión
 
