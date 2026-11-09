@@ -472,6 +472,20 @@ export function createPreviewServer({ root = ROOT, versionProvider = () => getVe
       try { return send(res, 200, 'application/json; charset=utf-8', await readFile(path.join(root, 'manus-routes.json'), 'utf8'), headOnly); }
       catch { return send(res, 404, 'application/json; charset=utf-8', JSON.stringify({ error: 'Route manifest unavailable' }), headOnly); }
     }
+    if (url.pathname === '/politica-privacidad.html') {
+      try {
+        let policyHtml = await readFile(path.join(root, 'politica-privacidad.html'), 'utf8');
+        if ((policyHtml.match(/<head\b/gi) || []).length !== 1 || (policyHtml.match(/<body\b/gi) || []).length !== 1) throw new Error('Estructura HTML no permitida.');
+        if (/<script\b|<iframe\b|https?:\/\/|\b(?:src|href)\s*=\s*(["'])\s*(?:\/\/|(?:data|javascript|mailto|tel):)/i.test(policyHtml)) throw new Error('Contenido activo o externo no permitido.');
+        policyHtml = policyHtml.replace(/<head\b[^>]*>/i, tag => `${tag}<meta name="robots" content="noindex,nofollow">`);
+        const banner = `<aside id="previewSafetyBanner" role="status" style="position:relative;z-index:9999;padding:10px 14px;background:#37131d;color:#fff;border-bottom:2px solid #dca45f;text-align:center;font:700 13px/1.4 system-ui"><strong>PREVIEW DE DESARROLLO</strong> · GitHub <code>${escapeHtml(versionProvider().branch)}@${escapeHtml(versionProvider().commit)}</code> · pagos, pedidos, reservas y cambios reales están deshabilitados.</aside>`;
+        policyHtml = policyHtml.replace(/<body\b[^>]*>/i, tag => `${tag}${banner}`);
+        return send(res, 200, 'text/html; charset=utf-8', policyHtml, headOnly);
+      } catch (error) {
+        console.error('[preview] privacy page unavailable:', error.message);
+        return send(res, 500, 'text/plain; charset=utf-8', 'Página de privacidad del preview no disponible.');
+      }
+    }
     if (url.pathname === '/') {
       try { return send(res, 200, 'text/html; charset=utf-8', await readFile(path.join(root, 'preview', 'index.html'), 'utf8'), headOnly); }
       catch { return send(res, 500, 'text/plain; charset=utf-8', 'Preview hub no disponible.'); }

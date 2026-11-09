@@ -59,6 +59,7 @@ Cada criterio se conserva hasta que exista evidencia en código, Supabase y prue
 ## Fase 8: Confianza, SEO y rendimiento
 
 - [ ] Publicar políticas de privacidad/datos personales, compras, cambios, devoluciones, envíos y preguntas frecuentes enlazadas desde catálogo/checkout.
+  - Avance parcial en `preview/development`: la política de datos personales existente también se publica como página estática enlazada desde catálogo y checkout, sin cambiar el texto legal. Compras, cambios, devoluciones, envíos y preguntas frecuentes siguen pendientes de condiciones confirmadas por el negocio.
 - [ ] Cada producto tiene URL indexable con title, description, canonical, OG/Twitter e información estructurada coherente de precio/disponibilidad; el contenido de la ruta puede leerlo el crawler sin depender solo de abrir un modal.
 - [ ] PWA permite instalación, icono y carga del shell; no presenta stock/precios cacheados como actuales y no altera el checkout.
   - Avance parcial en `preview/development`: manifiesto, iconos 192/512 y service worker probado; la caché contiene solo la página offline, el manifiesto y los iconos. La navegación online no cachea catálogo y el preview confirma el worker `activated`; falta probar el flujo de instalación por dispositivo/navegador antes de cerrar el outcome.

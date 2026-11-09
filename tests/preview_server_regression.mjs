@@ -7,6 +7,7 @@ import path from 'node:path';
 import { createPreviewServer, DEMO_ADMIN_ROWS, DEMO_PRODUCTS, PREVIEW_ADMIN_CLIENT_SCRIPT, PREVIEW_ADMIN_USER, PREVIEW_CLIENT_SCRIPT, renderPreviewHtml } from '../scripts/preview-server.mjs';
 
 const html = await renderPreviewHtml();
+const standalonePrivacyHtml = await readFile(new URL('../politica-privacidad.html', import.meta.url), 'utf8');
 assert.match(html, /PREVIEW DE DESARROLLO/);
 assert.match(html, /productos, stock y tarifas de envío son datos sintéticos \(no oferta real\)/);
 assert.match(html, /pointer-events:none/);
@@ -22,6 +23,13 @@ assert.doesNotMatch(html, /\beyJ[A-Za-z0-9_-]{16,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-
 assert.doesNotMatch(html, /<script\b[^>]*\bsrc\s*=\s*(["'])(?:https?:)?\/\//i);
 assert.doesNotMatch(html, /<link\b[^>]*\bhref\s*=\s*(["'])(?:https?:)?\/\//i);
 assert.doesNotMatch(html, /<a\b[^>]*\bhref\s*=\s*(["'])(?:https?:\/\/|\/\/|tel:|mailto:|javascript:)/i);
+assert.equal((html.match(/href="\/politica-privacidad\.html"/g) || []).length, 2, 'Catálogo/modal y checkout enlazan la página de privacidad.');
+for (const section of ['1. Responsable del tratamiento', '2. Datos que podemos recolectar', '3. Finalidades del tratamiento', '4. Autorización', '5. Encargados y terceros', '6. Seguridad', '7. Derechos del titular', '8. Consultas, reclamos y solicitudes', '9. Vigencia y cambios']) {
+  assert.ok(html.includes(section), `El modal conserva ${section}.`);
+  assert.ok(standalonePrivacyHtml.includes(section), `La página estática publica ${section}.`);
+}
+assert.ok(standalonePrivacyHtml.includes('Esta política es un texto informativo preparado para el funcionamiento actual del catálogo.'));
+assert.doesNotMatch(standalonePrivacyHtml, /<script\b|<iframe\b|https?:\/\//i);
 
 const adminHtml = await renderPreviewHtml({ mode: 'admin' });
 assert.match(adminHtml, /ADMIN DE PREVIEW/);
@@ -300,6 +308,16 @@ try {
     assert.equal(icon.readUInt32BE(20), size);
   }
   assert.equal((await fetch(actualBase + '/assets/pwa/icon-999.png')).status, 404);
+  const privacyResponse = await fetch(actualBase + '/politica-privacidad.html');
+  assert.equal(privacyResponse.status, 200);
+  assert.match(privacyResponse.headers.get('content-type'), /text\/html/);
+  const previewPrivacyHtml = await privacyResponse.text();
+  assert.match(previewPrivacyHtml, /PREVIEW DE DESARROLLO/);
+  assert.match(previewPrivacyHtml, /noindex,nofollow/);
+  assert.match(previewPrivacyHtml, /Política de Tratamiento de Datos Personales/);
+  assert.doesNotMatch(previewPrivacyHtml, /<script\b|<iframe\b|https?:\/\//i);
+  assert.equal((await fetch(actualBase + '/politica-privacidad.html', { method: 'POST', body: 'blocked' })).status, 403);
+  assert.equal((await fetch(actualBase + '/politica-desconocida.html')).status, 404);
   const adminResponse = await fetch(actualBase + '/admin-preview');
   assert.equal(adminResponse.status, 200);
   assert.match(await adminResponse.text(), /ADMIN DE PREVIEW/);
@@ -327,7 +345,7 @@ try {
   const routesResponse = await fetch(actualBase + '/manus-routes.json');
   assert.equal(routesResponse.status, 200);
   const routes = await routesResponse.json();
-  assert.deepEqual(routes.routes.map(route => route.path), ['/', '/storefront', '/admin-preview']);
+  assert.deepEqual(routes.routes.map(route => route.path), ['/', '/storefront', '/admin-preview', '/politica-privacidad.html']);
   assert.ok(routes.routes.every(route => typeof route.title === 'string'));
   const versionResponse = await fetch(actualBase + '/__version');
   const version = await versionResponse.json();
