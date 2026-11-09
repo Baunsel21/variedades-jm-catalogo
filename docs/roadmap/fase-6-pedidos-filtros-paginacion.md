@@ -1,6 +1,6 @@
 # Fase 6-S1 — Filtros y paginación visual de pedidos
 
-**Estado:** copia aislada desde `main` en la rama `feature/admin-orders-filters-mainline-2026-11`; no hereda checkout/cupones. El [PR #15](https://github.com/Baunsel21/variedades-jm-catalogo/pull/15) original continúa OPEN/DRAFT y apilado sobre la rama de cupones; no se modifica aquí. Esta copia aún no está publicada. No requiere ni añade migraciones.
+**Estado:** publicado por [PR #58](https://github.com/Baunsel21/variedades-jm-catalogo/pull/58), merge `4bf73a635ec421e678ba74573fdb17729f60a1ab`. GitHub Pages reportó `built` para ese commit; GET a `/admin.html` respondió HTTP 200 y el HTML oficial contiene los controles. El antiguo [PR #15](https://github.com/Baunsel21/variedades-jm-catalogo/pull/15), apilado sobre checkout/cupones, se cerró como duplicado; PR #14 quedó intacto. No requiere ni añade migraciones.
 
 ## Alcance
 
@@ -14,6 +14,6 @@ La lectura actual sigue trayendo `web_orders` en páginas técnicas de 1.000 fil
 
 ## Pruebas y entrega
 
-`node scripts/validate.mjs` incluye pruebas VM puras para frontera de fecha de Bogotá, normalización de acentos, filtros combinados, fechas inválidas, resultados vacíos, tramos/clamp de páginas y tamaño permitido. El mismo validador comprueba la presencia de controles accesibles, el aviso de error y el uso de la RPC segura. El validador y `git diff --check` pasan en la rama aislada. Chromium headless con 47 filas enteramente sintéticas se revisó a 1280×1120 y 390×1000; los filtros/tarjetas no desbordan y la segunda página muestra 21–40 de 47. Otro fixture sintético con cero filas y error de lectura muestra el mensaje de error y no “No hay pedidos registrados”.
+`node scripts/validate.mjs` incluye pruebas VM puras para frontera de fecha de Bogotá, normalización de acentos, filtros combinados, fechas inválidas, resultados vacíos, tramos/clamp de páginas y tamaño permitido. El mismo validador comprueba la presencia de controles accesibles, el aviso de error y el uso de la RPC segura. El validador y `git diff --check` pasaron antes del merge. Chromium headless con 47 filas enteramente sintéticas se revisó a 1280×1120 y 390×1000; los filtros/tarjetas no desbordan y la segunda página muestra 21–40 de 47. Otro fixture sintético con cero filas y error de lectura muestra el mensaje de error y no “No hay pedidos registrados”. La verificación oficial posterior al build confirma HTTP 200 y los identificadores de filtros en el admin servido.
 
-No se consultan tablas ni filas reales durante las pruebas locales, no se ejecuta SQL, no se altera Supabase, no se hacen pagos y no se cambia un estado de pedido. Las comprobaciones son sintéticas/locales; no se hizo una sesión autenticada ni un smoke test en producción. La lista sigue siendo `web_orders` y conserva su límite de lectura actual; la paginación server-side permanece fuera de este slice.
+No se consultaron tablas ni filas reales durante las pruebas locales, no se ejecutó SQL, no se alteró Supabase, no hubo pagos y no se cambió un estado de pedido. La verificación oficial fue solo GET estático; no se hizo una sesión autenticada ni un smoke test con filas reales. La lista sigue siendo `web_orders` y conserva su límite de lectura actual; la paginación server-side permanece fuera de este slice.
