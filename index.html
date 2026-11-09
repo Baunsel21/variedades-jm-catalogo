@@ -473,6 +473,8 @@ body{background:linear-gradient(180deg,#fffaf0 0%,#fff6e6 55%,#f8ecd7 100%);colo
 }
 .detailPurchaseActions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:18px}
 .detailAdd,.detailBuyNow{margin-top:0!important;width:100%;padding:14px;border-radius:13px;font-weight:950;font-size:16px;border:0;cursor:pointer}
+.detailShare{grid-column:1/-1;width:100%;padding:10px 14px;border:1px solid #d8c8c1;border-radius:11px;background:#fffaf5;color:#6f2538;font-weight:850;cursor:pointer}
+.detailShare:hover{background:#fff1eb}
 .detailAdd{background:linear-gradient(135deg,#e7193f,#a60d2a);color:#fff}
 .detailBuyNow{background:#fff;border:2px solid #d9163b;color:#b30f2e}
 .detailBuyNow:hover{background:#fff4f6}
@@ -1911,7 +1913,7 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
         <div id="detailPrice" class="detailPrice"></div>
         <div id="detailStockNotice" class="detailStockNotice" hidden></div>
         <div id="detailVariants" class="detailVariants"></div>
-        <div class="detailPurchaseActions"><button id="detailAdd" class="detailAdd" type="button" onclick="detailAddToCart(event)">🛒 Agregar al carrito</button><button id="detailBuyNow" class="detailBuyNow" type="button" onclick="detailBuyNow(event)">⚡ Comprar ahora</button></div>
+        <div class="detailPurchaseActions"><button id="detailAdd" class="detailAdd" type="button" onclick="detailAddToCart(event)">🛒 Agregar al carrito</button><button id="detailBuyNow" class="detailBuyNow" type="button" onclick="detailBuyNow(event)">⚡ Comprar ahora</button><button id="detailShare" class="detailShare" type="button" onclick="shareCurrentProductLink()" aria-label="Copiar enlace de este producto">Compartir producto</button></div>
         <section class="detailShippingBenefits" aria-label="Información de envíos">
           <div class="detailShippingHeadline"><span aria-hidden="true">✈</span><div><b>Envíos a toda Colombia</b><small>Tu estilo llega hasta tu ciudad.</small></div></div>
           <div class="detailShippingRule"><span class="detailShippingIcon" aria-hidden="true">♥</span><div><b>Tarifa de envío en Cali</b><small>Se confirma al verificar la configuración vigente.</small></div></div>
@@ -4000,6 +4002,21 @@ function openDirectProductFromLocation(){
   openProductDetail(p.id,null,{fromDirectLink:true});
   return !!$('productDetailModal')?.classList.contains('open');
  }catch(error){console.debug('No se pudo abrir el producto enlazado.',error);return false}
+}
+async function shareCurrentProductLink(){
+ const id=String(detailProduct?.id??'').trim();
+ if(!id||id.length>128||/[\u0000-\u001f\u007f]/.test(id)){showToast('No se puede compartir esta ficha ahora.');return false}
+ const url=new URL('/',window.location.origin);
+ url.searchParams.set('producto',id);
+ url.hash='catalogo';
+ try{
+  await navigator.clipboard.writeText(url.href);
+  showToast('Enlace del producto copiado. No incluye carrito ni datos del cliente.');
+  return true;
+ }catch{
+  showToast(`No se pudo copiar. Enlace del producto: ${url.href}`);
+  return false;
+ }
 }
 
 function restoreCheckoutFromReservation(){
