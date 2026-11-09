@@ -1975,8 +1975,7 @@ let storefrontShippingSettingsLoadError=false;
 let checkoutShipping=0;
 
 function calculateStorefrontShipping(city,discountedSubtotal,settings=storefrontShippingSettings){
- const normalizedCity=String(city||'').trim();
- if(normalizedCity==='Cali')return 0;
+ if(canonicalLocalDeliveryCity(city)==='Cali')return 0;
  const fee=Number(settings?.national_shipping_cost);
  const threshold=settings?.free_shipping_threshold==null?null:Number(settings.free_shipping_threshold);
  if(threshold!==null&&Number.isSafeInteger(threshold)&&threshold>0&&Number(discountedSubtotal)>=threshold)return 0;
