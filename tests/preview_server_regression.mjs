@@ -9,6 +9,8 @@ import { createPreviewServer, DEMO_ADMIN_ROWS, DEMO_PRODUCTS, PREVIEW_ADMIN_CLIE
 const html = await renderPreviewHtml();
 const standalonePrivacyHtml = await readFile(new URL('../politica-privacidad.html', import.meta.url), 'utf8');
 const standaloneFaqHtml = await readFile(new URL('../preguntas-frecuentes.html', import.meta.url), 'utf8');
+const footerPolicyLinks = html.match(/<div class="footerPolicyLinks">([\s\S]*?)<\/div>/)?.[1] ?? '';
+const checkoutPrivacyNote = html.match(/<p class="checkoutPrivacyNote">([\s\S]*?)<\/p>/)?.[1] ?? '';
 assert.match(html, /PREVIEW DE DESARROLLO/);
 assert.match(html, /productos, stock y tarifas de envío son datos sintéticos \(no oferta real\)/);
 assert.match(html, /pointer-events:none/);
@@ -26,7 +28,9 @@ assert.doesNotMatch(html, /<link\b[^>]*\bhref\s*=\s*(["'])(?:https?:)?\/\//i);
 assert.doesNotMatch(html, /<a\b[^>]*\bhref\s*=\s*(["'])(?:https?:\/\/|\/\/|tel:|mailto:|javascript:)/i);
 assert.equal((html.match(/href="\/politica-privacidad\.html"/g) || []).length, 2, 'Catálogo/modal y checkout enlazan la página de privacidad.');
 assert.equal((html.match(/href="\/preguntas-frecuentes\.html"/g) || []).length, 3, 'Catálogo, modal y checkout enlazan la FAQ.');
-assert.equal((html.match(/href="\/cambios-devoluciones\.html"/g) || []).length, 1, 'El pie de la tienda de preview enlaza la página informativa nueva.');
+assert.equal((html.match(/href="\/cambios-devoluciones\.html"/g) || []).length, 2, 'Pie y checkout enlazan la página informativa nueva.');
+assert.ok(footerPolicyLinks.includes('href="/cambios-devoluciones.html"'), 'El footer mantiene el enlace de cambios y devoluciones.');
+assert.ok(checkoutPrivacyNote.includes('href="/cambios-devoluciones.html"'), 'El checkout permite consultar la política antes de continuar.');
 for (const section of ['1. Responsable del tratamiento', '2. Datos que podemos recolectar', '3. Finalidades del tratamiento', '4. Autorización', '5. Encargados y terceros', '6. Seguridad', '7. Derechos del titular', '8. Consultas, reclamos y solicitudes', '9. Vigencia y cambios']) {
   assert.ok(html.includes(section), `El modal conserva ${section}.`);
   assert.ok(standalonePrivacyHtml.includes(section), `La página estática publica ${section}.`);
