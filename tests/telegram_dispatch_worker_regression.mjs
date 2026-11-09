@@ -33,7 +33,7 @@ function rpcNameFromUrl(url) {
   return new URL(url).pathname.split("/").at(-1);
 }
 
-function rpcFetcher({ rows = [], telegramStatus = 200, telegramJson = { ok: true, result: { message_id: 919191 } }, networkFail = false, projectUrl = env.SUPABASE_URL, env: envOverride = env } = {}) {
+function rpcFetcher({ rows = [], telegramStatus = 200, telegramJson = { ok: true, result: { message_id: 919191 } }, networkFail = false, projectUrl = env.SUPABASE_URL, claimFailure = false, env: envOverride = env } = {}) {
   const calls = [];
   const loggerEvents = [];
   const fetcher = async (url, options = {}) => {
@@ -45,6 +45,7 @@ function rpcFetcher({ rows = [], telegramStatus = 200, telegramJson = { ok: true
       if (name === "get_sirevya_telegram_project_url") return Response.json(projectUrl);
       if (name === "claim_sirevya_telegram_notifications") {
         calls.at(-1).args = args;
+        if (claimFailure) return new Response("synthetic claim failure", { status: 503 });
         return Response.json(rows);
       }
       if (name === "complete_sirevya_telegram_notification") {
@@ -154,6 +155,27 @@ assert.equal(formatTelegramNotification({ event_type: "unknown.event", payload: 
   const tooLarge = await handler(oversized);
   assert.equal(tooLarge.status, 413);
   assert.equal(calls.some((call) => call.url.includes("claim_sirevya_telegram_notifications")), false);
+}
+
+// Any post-authentication stop releases the scheduler lock without contacting Telegram.
+{
+  const invalidCredentialEnv = { ...env, TELEGRAM_BOT_TOKEN: "" };
+  const invalidCredentials = rpcFetcher({ rows: [orderRow], env: invalidCredentialEnv });
+  const response = await invalidCredentials.handler(request());
+  assert.equal(response.status, 503);
+  assert.equal(invalidCredentials.calls.some((call) => rpcNameFromUrl(call.url) === "claim_sirevya_telegram_notifications"), false);
+  assert.equal(invalidCredentials.calls.filter((call) => rpcNameFromUrl(call.url) === "release_sirevya_telegram_dispatch_lock").length, 1);
+  assert.equal(invalidCredentials.calls.some((call) => call.url.startsWith("https://api.telegram.org/")), false);
+}
+
+// A claim RPC failure also releases the scheduler lock and never sends a partial batch.
+{
+  const failedClaim = rpcFetcher({ rows: [orderRow], claimFailure: true });
+  const response = await failedClaim.handler(request());
+  assert.equal(response.status, 503);
+  assert.equal(failedClaim.calls.some((call) => rpcNameFromUrl(call.url) === "claim_sirevya_telegram_notifications"), true);
+  assert.equal(failedClaim.calls.filter((call) => rpcNameFromUrl(call.url) === "release_sirevya_telegram_dispatch_lock").length, 1);
+  assert.equal(failedClaim.calls.some((call) => call.url.startsWith("https://api.telegram.org/")), false);
 }
 
 // Successful dispatch uses only the two approved secrets, sends allowlisted text, and marks the outbox row.
