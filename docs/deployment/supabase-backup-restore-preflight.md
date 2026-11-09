@@ -2,60 +2,111 @@
 
 ## Alcance y estado comprobado
 
-Este procedimiento prepara un respaldo lógico de los esquemas de aplicación y una restauración de ensayo aislada, antes de cualquier migración de riesgo. No es evidencia de que ya exista un backup, ni autoriza aplicar una migración en producción.
+Este procedimiento prepara un respaldo lógico de los esquemas de aplicación y un ensayo de restauración aislado antes de cualquier migración de riesgo. No es evidencia de que ya exista un backup real de Sirevya ni autoriza aplicar una migración en producción.
 
-Consulta de solo lectura del 9 de noviembre de 2026: proyecto `hnlbbtnfmbnbkcgegufa`, PostgreSQL 17.6, plan de organización Free; `pg_cron` 1.6.4 y Vault 0.3.1 están instalados. `pg_net` 0.20.4 y `http` 1.6 están disponibles en el catálogo, pero no instalados. La documentación de Supabase indica que los backups automáticos diarios son para Pro/Team/Enterprise y recomienda exportes periódicos con CLI para Free. Por tanto, no se debe asumir que hay un backup automático reciente.
+Consulta read-only del 9 de noviembre de 2026: el proyecto Sirevya usa PostgreSQL 17.6 y la organización está en plan Free. `pg_cron` 1.6.4 y Vault 0.3.1 están instalados. `pg_net` 0.20.4 y `http` 1.6 están disponibles, pero no instalados. Supabase indica que los backups automáticos diarios cubren planes Pro, Team y Enterprise; en Free recomienda exportar periódicamente con CLI. No se debe presumir que existe un backup automático reciente. [1]
 
-El entorno Sandbox actual solo tiene `psql` 16; no tiene Supabase CLI ni Docker. No se exportaron datos, no se recibió ni mostró una contraseña de base de datos y no se intentó restaurar producción. La prueba de restauración descrita abajo debe ejecutarse en una estación controlada con PostgreSQL/Supabase local versión 17 y Docker, sin crear un proyecto remoto.
+En este Sandbox hay PostgreSQL/`psql`/`pg_dump` 16.15, pero no Supabase CLI, Docker ni cliente PostgreSQL 17. Se hizo un smoke test local sintético en PG16: se exportaron por separado esquema y datos de una tabla con dos filas ficticias, se validaron los SHA-256, se restauró en otra base temporal con `psql --single-transaction` y `ON_ERROR_STOP`, y los conteos origen/destino coincidieron. Las bases y dumps temporales se eliminaron. Esto prueba el mecanismo básico de `psql`, no una restauración de Sirevya ni compatibilidad con PG17. No se adquirió ni mostró una credencial de producción.
 
-## 1. Preparar un destino privado
+## Herramientas y acción que faltan
 
-Ejecutar desde una estación confiable, con disco cifrado, acceso restringido y espacio libre suficiente. No guardar los archivos dentro del checkout Git, en la carpeta de descargas del navegador, en Preview, en GitHub ni en una conversación. Los dumps contienen datos de clientes y pedidos.
+La prueba real requiere una computadora de escritorio confiable, porque la app Android no ofrece un terminal local apropiado para manejar dumps con PII. En esa computadora se necesitan Supabase CLI v3, Docker Desktop o un runtime compatible, `psql` de PostgreSQL 17 y la URI de base de datos obtenida por el operador desde el panel Supabase. En el Sandbox actual faltan el CLI, Docker, el cliente PG17 y esa URI privada. No se debe pegar la URI ni los dumps en chat, GitHub o Preview.
 
-Use Supabase CLI actual y Docker. Obtenga la cadena de conexión desde el panel de Supabase; no la envíe por chat, no la escriba en un archivo versionado, no active `set -x` y no publique capturas que la muestren. Use una terminal de operador privada y elimine su variable de entorno al finalizar.
+Instala el CLI desde sus fuentes oficiales. En macOS o Linux con Homebrew:
+
+```sh
+brew install supabase/tap/supabase
+```
+
+En Windows PowerShell:
+
+```powershell
+scoop bucket add supabase https://github.com/supabase/scoop-bucket.git
+scoop install supabase
+```
+
+En Linux también se distribuyen paquetes `.deb`, `.rpm` y `.apk` en la página oficial de releases. Para ejecutar el stack local completo se necesita Docker Desktop o un runtime compatible. Instala PostgreSQL 17 desde el distribuidor oficial del sistema operativo y confirma que `psql --version` indique la versión mayor 17. [2]
+
+A partir de CLI v3, `db dump` apunta por defecto al stack local. Pasa siempre `--remote` con la URI privada para seleccionar la base remota de lectura. La opción antigua `--db-url` aún existe, pero está deprecada. No ejecutes `supabase db dump` sin `--remote`. [3]
+
+## 1. Preparar destino privado y conexión
+
+Los ejemplos de shell son Bash (Linux, macOS o WSL); no ejecutes estos bloques directamente en PowerShell ni en Android. Trabaja en una computadora de operador con disco cifrado, acceso restringido y espacio libre suficiente. Los archivos deben quedar fuera del checkout Git, Descargas, Preview y sincronizadores públicos. No actives `set -x` ni grabación de sesión.
 
 ```sh
 set +x
+set -euo pipefail
 umask 077
 export BACKUP_DIR="$HOME/secure-backups/sirevya-preflight-$(date -u +%Y%m%dT%H%M%SZ)"
 mkdir -p "$BACKUP_DIR"
-cd "$BACKUP_DIR"
-# Cargar SIREVYA_DB_URL desde el gestor seguro del operador; nunca imprimirla.
+chmod 700 "$BACKUP_DIR"
+cd /path/to/variedades-jm-catalogo
+test -f supabase/config.toml
+supabase --version
+docker --version
+docker info >/dev/null
+psql --version
+# Carga SIREVYA_DB_URL desde el gestor seguro del operador; nunca la imprimas.
 ```
 
-Si la conexión directa no es alcanzable desde esa estación, utilice el Session Pooler indicado por el panel. No cambie el password de producción solo para esta operación. Si el operador no puede obtener una conexión de solo lectura a la base, deténgase: no sustituya el respaldo por un checkout de Git ni por una consulta parcial.
+Usa una terminal privada. La URI aparecerá como argumento del proceso CLI, así que ejecútalo en una computadora de operador confiable y no compartida. Si la conexión directa no es alcanzable desde esa estación, usa el Session Pooler que muestre el panel. No cambies la contraseña de producción solo para esta operación. Si no puedes obtener una URI de base de datos de forma privada, detente; no reemplaces el respaldo por un checkout Git ni una consulta parcial. No es necesario ejecutar `supabase login` para estos comandos cuando se usa la URI directa.
 
-## 2. Exportar usando Supabase CLI
+## 2. Exportar con Supabase CLI
 
-Los comandos deben apuntar al proyecto de producción solo para leer. No use `db reset`, `migration up`, `apply_migration` ni comandos de restauración contra esa URL.
+Ejecuta desde el root del repositorio, donde está `supabase/config.toml`. Estos comandos leen la base remota. En CLI v3, `--remote` selecciona explícitamente el destino remoto. No uses `db reset`, `migration up`, `db push`, `apply_migration` ni comandos de restauración contra la URL de producción. [3] [4]
 
 ```sh
-supabase db dump --db-url "$SIREVYA_DB_URL" -f "$BACKUP_DIR/roles.sql" --role-only
-supabase db dump --db-url "$SIREVYA_DB_URL" -f "$BACKUP_DIR/schema.sql"
-supabase db dump --db-url "$SIREVYA_DB_URL" -f "$BACKUP_DIR/data.sql" --use-copy --data-only \
+supabase db dump --remote="$SIREVYA_DB_URL" -f "$BACKUP_DIR/roles.sql" --role-only
+supabase db dump --remote="$SIREVYA_DB_URL" -f "$BACKUP_DIR/schema.sql"
+supabase db dump --remote="$SIREVYA_DB_URL" -f "$BACKUP_DIR/data.sql" --use-copy --data-only \
   -x "storage.buckets_vectors" -x "storage.vector_indexes"
 
 test -s "$BACKUP_DIR/roles.sql"
 test -s "$BACKUP_DIR/schema.sql"
 test -s "$BACKUP_DIR/data.sql"
-sha256sum roles.sql schema.sql data.sql > SHA256SUMS
-sha256sum -c SHA256SUMS
+if command -v sha256sum >/dev/null 2>&1; then
+  HASH=(sha256sum)
+elif command -v shasum >/dev/null 2>&1; then
+  HASH=(shasum -a 256)
+else
+  echo "Falta sha256sum/shasum; detente sin borrar los dumps." >&2
+  exit 1
+fi
+(cd "$BACKUP_DIR" && "${HASH[@]}" roles.sql schema.sql data.sql > SHA256SUMS && "${HASH[@]}" -c SHA256SUMS)
 ```
 
-`supabase db dump` aplica filtros para Supabase; la documentación advierte que un `pg_dump` crudo puede incluir esquemas internos. El dump lógico no es un backup íntegro del proyecto: no incluye los objetos binarios de Storage, configuración de Auth, Edge Functions, API keys ni configuración/extensiones administradas. Los esquemas internos como `auth`, `storage` y los creados por extensiones se excluyen. En particular, no cuente con estos archivos para recuperar secretos de Vault ni los secretos de Edge Functions. No exporte ni copie secretos a este repositorio.
+En macOS, si falta `sha256sum`, el bloque usa `shasum -a 256` automáticamente. No cambies el orden ni edites manualmente `SHA256SUMS`. Guarda un manifiesto con ref del proyecto, hora UTC, versión de CLI, versión de PostgreSQL, SHA de `main` y tamaño/hash de cada archivo. No incluyas URI, contraseña, tokens, valores de filas ni PII. Cifra el conjunto y guárdalo fuera del equipo; conserva el hash de verificación por un canal protegido.
 
-Guarde un manifiesto junto con los archivos, con el ref del proyecto, hora UTC, versión de Supabase CLI, versión PostgreSQL, SHA de `main` y los tamaños/hashes de los tres dumps. El manifiesto no debe contener URL de conexión, password, tokens, payloads de pedidos ni filas. Cifre el conjunto antes de almacenarlo fuera del equipo y conserve el hash de verificación por un canal protegido.
+El dump lógico no es una copia íntegra de todo Supabase. No incluye bytes de Storage, configuración de Auth, funciones Edge, API keys, credenciales ni configuración administrada por la plataforma. Los esquemas `auth`, `storage` y los creados por extensiones no se tratan como un respaldo completo. Las personalizaciones propias en `auth`/`storage` deben revisarse aparte. Vault no incluye la clave raíz en los dumps; no copies secretos al repositorio. [1] [4]
 
-## 3. Restaurar en una instancia local desechable
+## 3. Crear un destino local aislado
 
-Levante una instancia local aislada de Supabase/PostgreSQL 17 con Docker. Use una base vacía dedicada, por ejemplo `sirevya_restore`, accesible solo por loopback. Compruebe host, puerto, base y versión antes de cargar. La URL de destino debe ser local; nunca reutilice `SIREVYA_DB_URL` como destino.
+En una carpeta scratch vacía, fuera del repositorio, inicia un proyecto Supabase local nuevo. No uses una base que contenga datos reales ni el checkout del producto; así evitas ejecutar migraciones candidatas automáticamente. El runtime utiliza recursos locales del equipo y no crea otro proyecto Supabase facturable. [2]
 
 ```sh
-psql "$SIREVYA_LOCAL_RESTORE_URL" -Atc \
-  "select current_database(), version(), inet_server_addr(), inet_server_port();"
+mkdir -p "$HOME/sirevya-restore-scratch"
+cd "$HOME/sirevya-restore-scratch"
+supabase init
+# En el config.toml local, confirma [db].major_version = 17 antes de iniciar.
+supabase start
+supabase status
 ```
 
-La restauración debe detenerse si el host no es `localhost`, `127.0.0.1` o `::1`, si no es la base local desechable elegida, o si la versión mayor no es 17. Use el orden documentado por Supabase, con errores fatales ante cualquier sentencia fallida:
+Confirma el valor que realmente reporta `supabase status`; no asumas que el puerto está libre. La URI local predeterminada suele ser `postgresql://postgres:postgres@127.0.0.1:54322/postgres`, pero usa la que informa el CLI:
+
+```sh
+export SIREVYA_LOCAL_RESTORE_URL='postgresql://postgres:postgres@127.0.0.1:54322/postgres'
+psql "$SIREVYA_LOCAL_RESTORE_URL" -Atc \
+  "select current_database(), current_setting('server_version_num')::int / 10000, inet_server_addr(), inet_server_port();"
+```
+
+Detente si el destino no termina en loopback (`localhost`, `127.0.0.1` o `::1`), si no es la base scratch recién iniciada o si `server_version_num` no confirma versión mayor 17. No ejecutes `supabase start` desde el checkout del producto para este ensayo.
+
+Antes de restaurar, confirma qué extensiones requiere el esquema y que el destino local tenga los paquetes correspondientes. Las extensiones, esquemas administrados, funciones Edge y secretos no se presumen restaurados por los tres dumps. Usa valores/stubs Vault sintéticos; no copies tokens Telegram/Wompi ni credenciales de producción. [4]
+
+## 4. Restaurar y verificar
+
+Usa el orden documentado por Supabase: roles, esquema, desactivación temporal de triggers para la carga y datos. `ON_ERROR_STOP` y la transacción única hacen que un error detenga el ensayo. El destino debe ser local; nunca reutilices `SIREVYA_DB_URL` como `--dbname`. [4]
 
 ```sh
 psql \
@@ -68,34 +119,35 @@ psql \
   --dbname "$SIREVYA_LOCAL_RESTORE_URL"
 ```
 
-La repetición de roles personalizados con `LOGIN` puede requerir una contraseña local independiente; los dumps no contienen sus passwords. No reutilice ni registre credenciales de producción para roles locales.
+La prueba solo pasa si los checksums fueron válidos, el restore terminó con código cero, el host/versión son correctos y existen `public.products`, `public.orders`, `public.web_orders`, `public.inventory_reservations`, `public.inventory_movements` y `public.store_settings`. Ejecuta esta consulta de solo lectura en origen y destino y compara los conteos agregados. Ejecuta el scan de origen fuera de hora pico y guarda solo los números, nunca filas:
 
-## 4. Verificar el ensayo de restauración
+```sql
+SELECT 'products' AS table_name, count(*)::bigint AS row_count FROM public.products
+UNION ALL SELECT 'orders', count(*)::bigint FROM public.orders
+UNION ALL SELECT 'web_orders', count(*)::bigint FROM public.web_orders
+UNION ALL SELECT 'inventory_reservations', count(*)::bigint FROM public.inventory_reservations
+UNION ALL SELECT 'inventory_movements', count(*)::bigint FROM public.inventory_movements
+UNION ALL SELECT 'store_settings', count(*)::bigint FROM public.store_settings
+ORDER BY table_name;
+```
 
-La restauración solo cuenta como aprobada si todos los puntos pasan:
+Si un número no coincide, no edites la copia para forzar coincidencia: corrige el proceso y repite en una base scratch vacía. Confirma además que las políticas/RLS, funciones, triggers e índices de aplicación esperados existen. Revisa extensiones, Vault, `pg_cron`, `pg_net` y secretos por separado. Una restauración lógica que termina sin error no demuestra que Auth, Storage binario, configuración de Edge o scheduler hayan sido clonados.
 
-1. `sha256sum -c SHA256SUMS` retorna éxito antes de restaurar.
-2. La carga completa termina con código cero y `ON_ERROR_STOP`; no se aceptan errores ignorados ni restauraciones parciales.
-3. El destino sigue siendo local, y `version()` confirma PostgreSQL 17.
-4. Existen las tablas críticas de aplicación: `public.products`, `public.orders`, `public.web_orders`, `public.inventory_reservations`, `public.inventory_movements` y `public.store_settings`.
-5. El operador ejecuta las mismas consultas de conteo, de solo lectura, sobre origen y destino y compara los resultados. No exporta valores de filas ni PII al log. Si el número no coincide, no modifica manualmente el destino para forzar coincidencia: corrige el proceso de dump/restore y repite en una base vacía.
-6. Las políticas/RLS, funciones, triggers e índices de aplicación existen en el destino según el manifiesto de objetos previo. Los estados de extensiones, Vault, `pg_cron`, `pg_net` y los secretos se verifican por separado; no se presumen restaurados por el dump lógico.
-7. Tras la restauración, se aplica en esa instancia local únicamente la migración candidata que se pretende evaluar y se ejecutan sus regresiones. Se confirma que ninguna URL de producción, Telegram, Wompi ni webhook se invoca. Para Vault se usan stubs/secretos sintéticos, nunca el token real.
+Solo después de verificar la copia, aplica en ella la migración candidata que se evalúa y ejecuta sus regresiones con fixtures sintéticas. Ninguna URL de producción, Telegram, Wompi o webhook debe ser invocada. Para Telegram, los stubs locales no sustituyen la validación de la extensión real `pg_cron`/Vault/`pg_net`.
 
-Conserve solo evidencia redactada: fecha, versiones, resultado PASS/FAIL, hashes y conteos agregados. No adjunte los SQL dumps, connection strings, credenciales ni filas al PR.
+Conserva evidencia redactada: fecha, versiones, PASS/FAIL, hashes, conteos agregados y nombres de comandos. No adjuntes dumps, URI, credenciales, payloads ni filas a GitHub.
 
-## 5. Gate antes de aplicar una migración de riesgo
+## 5. Gate antes de migraciones o Edge deploy sensibles
 
-No ejecutar una migración en producción hasta que un operador autorizado complete y comunique estos resultados: (a) los tres dumps existen y pasan su checksum; (b) la restauración completa a una instancia local aislada PG17 tuvo éxito; (c) se conservaron y compararon conteos de tablas de negocio y objetos de esquema; (d) las regresiones del cambio pasan sobre la instancia restaurada; y (e) existe un plan de rollback específico que no borre ni altere datos de pedidos, inventario o configuración compartida.
+No aplicar una migración de riesgo en producción ni desplegar una Edge Function que modifique flujos compartidos hasta que un operador autorizado complete y comunique: (a) dump roles/schema/data con checksums válidos; (b) restore completo en scratch aislado PostgreSQL 17; (c) conteos y objetos de esquema comparados; (d) regresiones sobre la copia restaurada; y (e) plan de rollback que no borre ni altere pedidos, inventario ni configuración compartida.
 
-El plan Free no aporta en este momento evidencia de backup diario automático. La ruta sin costo adicional de un proyecto es CLI + restauración local con Docker en una estación confiable. Crear un proyecto de staging/clone, habilitar PITR o cambiar el plan puede generar cargos; no hacerlo sin autorización separada y evaluación del precio.
+El plan Free no confirma backup diario automático. El camino sin proyecto Supabase nuevo es CLI + restauración local con Docker. Crear staging/clone, habilitar PITR o cambiar el plan puede generar cargos; no hacerlo sin autorización separada y evaluación de precio. Una restauración **in-place** sobre producción puede reemplazar datos recientes y causar indisponibilidad; no se usa como prueba. [1]
 
-Para el candidato Telegram, el ensayo local debe verificar las extensiones disponibles en la instancia y la compatibilidad real de `pg_cron`, Vault y `pg_net` antes de considerar producción. El listado de extensiones de producción prueba disponibilidad del paquete, no que `pg_net` ya esté instalado ni que el scheduler esté listo.
+**Acción manual que falta:** ejecuta las secciones 1–4 desde un PC/Mac/Linux confiable. No compartas la URI ni los archivos. Comunica solo si el dump pasó checksums, si PG17 restauró sin errores, la versión local y los conteos agregados comparados. El Sandbox actual no puede ejecutar ese ensayo real porque no tiene Docker, Supabase CLI, cliente PG17 ni acceso privado a la URI.
 
-## Fuentes oficiales
+## References
 
-- [Database Backups](https://supabase.com/docs/guides/platform/backups)
-- [Backup and Restore using the CLI](https://supabase.com/docs/guides/platform/migrating-within-supabase/backup-restore)
-- [Supabase CLI `db dump`](https://supabase.com/docs/reference/cli/supabase-db-dump)
-- [Restoring a downloaded backup locally](https://supabase.com/docs/guides/local-development/restoring-downloaded-backup)
-- [Restore to a new project](https://supabase.com/docs/guides/platform/clone-project)
+[1]: https://supabase.com/docs/guides/platform/backups "Supabase Database Backups"
+[2]: https://supabase.com/docs/guides/local-development/cli/getting-started "Supabase CLI installation and local stack"
+[3]: https://supabase.com/changelog/supabase-cli-v3 "Supabase CLI v3 defaults and remote flags"
+[4]: https://supabase.com/docs/guides/platform/migrating-within-supabase/backup-restore "Supabase Backup and Restore using the CLI"
