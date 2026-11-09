@@ -1750,7 +1750,6 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
 
 
 <section class="categoryPanel" id="catalogo"><h2 class="categoryTitle">Categorías</h2><p class="categoryHint">Selecciona una categoría para ver sus productos.</p><div id="categoryButtons" class="categoryButtons"></div><select id="category" onchange="selectCategory(this.value)" style="display:none"><option value="">Todas las categorías</option></select></section>
-<div id="directCategoryBar" class="directCategoryBar" aria-live="polite"><span id="directCategoryName" class="directCategoryName">Categoría</span><button type="button" class="backAllBtn" onclick="showAllCatalog()">Ver todos los productos</button></div>
 <div class="catalogSearchRow" id="catalogSearchRow">
   <input id="search" class="search" placeholder="Buscar productos..." oninput="handleSearchInput()" aria-label="Buscar productos">
 </div>
@@ -2460,19 +2459,11 @@ function elegantProductTitle(value){
  return raw.toLocaleLowerCase('es-CO').replace(/(^|[\s\-_/])([\p{L}\p{N}])/gu,(match,space,letter)=>space+letter.toLocaleUpperCase('es-CO'));
 }
 
-function setDirectCategoryMode(cat){
- const direct=!!cat;
- document.body.classList.toggle('directMode',direct);
- const bar=$('directCategoryBar'), name=$('directCategoryName');
- if(bar)bar.classList.toggle('show',direct);
- if(name)name.textContent=cat||'Categoría';
-}
 function showAllCatalog(){
  const url=new URL(window.location.href);
  url.searchParams.delete('categoria');url.hash='';
  history.replaceState(null,'',url.pathname+(url.search?url.search:''));
  const category=$('category');if(category)category.value='';
- setDirectCategoryMode('');
  updateCategoryButtons();
  render();
  // Regresa al inicio real del documento, no al ancla <main id="inicio">.
@@ -2504,7 +2495,6 @@ function handleSearchInput(){
    if(exact && $('category').value!==exact){
      $('category').value=exact;
      updateCategoryUrl(exact);
-     setDirectCategoryMode(exact);
      updateCategoryButtons();
       }
  }
@@ -2527,7 +2517,6 @@ function renderCategoryButtons(cats){
 function selectCategory(cat){
  $('category').value=cat;
  updateCategoryUrl(cat);
- setDirectCategoryMode(cat);
  updateCategoryButtons();
  render();
  const target=$('grid');
@@ -3704,7 +3693,6 @@ function clearCatalogFilters(){
  selectedCatalogColorNames.clear();
  selectedCatalogSizes.clear();
  selectedCatalogSizeNames.clear();
- setDirectCategoryMode('');
  updateCategoryButtons();
   render();
   toggleFilterPanel(false);
@@ -5196,7 +5184,6 @@ function applyCatalogCategories(cats,initial=false,preserveSavedOrder=false){
  const fromUrl=initial?categoryFromUrl(clean):'';
  const wanted=clean.find(c=>normalizeText(c)===normalizeText(previous))||fromUrl||'';
  if(sel)sel.value=wanted;
- setDirectCategoryMode(wanted);
  updateCategoryButtons();
  renderHeroProducts();
  return changed;
