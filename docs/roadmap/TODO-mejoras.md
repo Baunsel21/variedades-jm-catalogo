@@ -52,7 +52,7 @@ Cada criterio se conserva hasta que exista evidencia en código, Supabase y prue
 - [ ] Notificaciones del admin avisan nuevos pedidos, stock bajo, pagos aprobados con conciliación pendiente y reservas próximas a vencer; pueden silenciarse/configurarse y no contienen PII innecesaria.
 - [ ] Telegram usa un bot conectado desde funciones server-side y un chat configurado; notifica nuevos pedidos, pedidos pagados, pendientes y cancelados, errores de pago, eventos Wompi, problemas de inventario y reservas/liberaciones importantes. Incluye control de duplicados, reintentos, registro de errores, prueba de conexión y mensaje de prueba; una opción de activar/desactivar desde el admin se agrega solo si puede hacerse de forma segura.
   - El token nunca aparece en el frontend ni GitHub; el token y `chat_id` se guardan en secretos de Supabase. No marcar este outcome como terminado hasta que el mensaje de prueba se reciba en el chat.
-  - Estado: el usuario confirmó que configuró los secretos de Telegram; no se inspeccionaron sus valores. La función de mensaje fijo y el botón de prueba están implementados y probados localmente en esta rama, pero no se desplegaron ni se envió el mensaje. No hay recepción confirmada; dispatcher durable, eventos de negocio y activación persistente siguen pendientes.
+  - Estado: el usuario confirmó que configuró los secretos; no se inspeccionaron sus valores. El endpoint `telegram-test` (versión 1, `verify_jwt=true`) y el botón oficial están desplegados. No se invocó la función ni se envió el mensaje; falta confirmar su recepción. Dispatcher durable, eventos de negocio y activación persistente siguen pendientes.
 
 ## Fase 7: Trazabilidad, importación y exportación
 
