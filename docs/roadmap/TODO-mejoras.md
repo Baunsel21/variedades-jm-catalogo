@@ -50,6 +50,8 @@ Cada criterio se conserva hasta que exista evidencia en código, Supabase y prue
 - [ ] Cédula obligatoria: validación server-side antes de pedido COD o checkout Wompi nuevo; envío como `legal-id`; replay legacy exacto mantiene idempotencia y el documento no aparece en logs.
   - Candidato en PR #50 DRAFT: UI/Edge y trigger COD; regresiones Node/PostgreSQL sintéticas, chequeo TypeScript y validador PASS. La UI solo está en preview, POST 403; no se aplicó migración ni se desplegó Edge. No hubo pedidos/pagos reales; el criterio sigue abierto.
 
+> Cobertura local adicional (2026-11-09): `tests/checkout_quote_fail_closed_regression.mjs` ejecuta los handlers actuales con respuestas de cotización error/null/incompletas para PSE, COD y el segundo chequeo Wompi; verifica cero llamada a la Edge de pago, cero RPC de creación COD y cero liberación de reservas previas. No realiza red, pago ni escritura.
+
 ## Fase 6: Dashboard, clientes y logística
 
 > Avance parcial: los filtros y paginación visual de pedidos `web_orders` se publicaron por [PR #58](https://github.com/Baunsel21/variedades-jm-catalogo/pull/58), merge `4bf73a6`; Pages reportó `built` para ese commit y el admin oficial respondió HTTP 200 con los controles nuevos. PR #15, que era la copia apilada sobre cupones, se cerró como duplicado; PR #14 no se modificó. Pruebas locales y Chromium sintético desktop/móvil/error pasan. No integra Wompi/`orders` ni toca estados logísticos; dashboard completo, clientes, logística/notificaciones y paginación server-side siguen abiertos.
