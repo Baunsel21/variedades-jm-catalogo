@@ -20,9 +20,11 @@ button{cursor:pointer;border:0}
 .hidden{display:none!important}
 .app{min-height:100vh}
 .sidebar{
-  position:fixed;left:0;top:0;bottom:0;width:245px;background:#15131c;color:#fff;padding:22px 15px;
-  display:flex;flex-direction:column;z-index:20
+  position:fixed;left:0;top:0;width:245px;height:100vh;height:100dvh;background:#15131c;color:#fff;padding:22px 15px;
+  display:flex;flex-direction:column;z-index:20;overflow:hidden
 }
+.sidebarHeader{flex:0 0 auto}
+.sidebarNav{flex:1 1 auto;min-height:0;min-width:0;overflow-y:auto;overscroll-behavior-y:contain;-webkit-overflow-scrolling:touch;scrollbar-width:thin;scrollbar-color:#5d5967 transparent;touch-action:pan-y}
 .brand{display:flex;align-items:center;gap:11px;padding:3px 10px 24px}
 .logo{width:60px;height:60px;border-radius:50%;background:#111827;border:2px solid rgba(255,255,255,.18);display:grid;place-items:center;overflow:hidden;font-size:24px;font-weight:900;box-shadow:0 4px 14px rgba(0,0,0,.18)}
 .brand b{font-size:20px}.brand small{display:block;color:#aaa8b7;font-size:11px;margin-top:2px}
@@ -34,7 +36,7 @@ button{cursor:pointer;border:0}
   padding:12px;border-radius:12px;margin:2px 0;font-weight:700
 }
 .navbtn:hover,.navbtn.active{background:linear-gradient(135deg,#2563eb,#3b82f6);color:#fff}
-.sidebarBottom{margin-top:auto}
+.sidebarBottom{margin-top:auto;flex:0 0 auto}
 .main{margin-left:245px;min-height:100vh}
 .topbar{
   position:sticky;top:0;z-index:10;background:rgba(246,247,251,.92);backdrop-filter:blur(14px);
@@ -102,7 +104,7 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
 .mobileMenu{display:none}.sidebarOverlay{display:none;position:fixed;inset:0;background:#09070e66;z-index:15}.sidebar.open{width:245px;padding:22px 15px}.sidebarClose{display:none}
 @media(max-width:1100px){.cards{grid-template-columns:repeat(2,1fr)}.productGrid{grid-template-columns:repeat(3,1fr)}.sectionGrid{grid-template-columns:1fr}}
 @media(max-width:780px){
- .sidebar{width:0;padding:0;overflow:hidden;transition:width .2s ease}.sidebar.open{width:245px;padding:22px 15px;overflow-y:auto}.sidebar.open .sidebarClose{display:block;margin-left:auto;background:#2a2733;color:#fff}
+ .sidebar{width:0;padding:0;overflow:hidden;transition:width .2s ease}.sidebar.open{width:245px;padding:22px 15px}.sidebar.open .sidebarClose{display:block;margin-left:auto;background:#2a2733;color:#fff}
  .main{margin-left:0}.mobileMenu{display:block}.content{padding:18px 14px 35px}.topbar{padding:12px 14px}.topActions .hideMobile{display:none}
  .cards,.productGrid{grid-template-columns:repeat(2,1fr)}.salesCatalog{grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.grid{grid-template-columns:1fr}.hero h2{font-size:23px}.kpis{grid-template-columns:1fr}
 }
@@ -295,8 +297,12 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
 
 <div id="app" class="app hidden">
   <aside class="sidebar">
-    <div class="brand"><div class="logo">✦</div><div><b>Variedades JM</b><small>Gestión del negocio</small></div></div>
-    <button class="iconbtn sidebarClose" onclick="closeSidebar()">✕ Cerrar menú</button><div class="navtitle">Principal</div>
+    <div class="sidebarHeader">
+      <div class="brand"><div class="logo">✦</div><div><b>Variedades JM</b><small>Gestión del negocio</small></div></div>
+      <button class="iconbtn sidebarClose" onclick="closeSidebar()">✕ Cerrar menú</button>
+    </div>
+    <nav class="sidebarNav" aria-label="Navegación del administrador">
+    <div class="navtitle">Principal</div>
     <button class="navbtn active" data-view="inicio" onclick="show('inicio',this)">🏠 <span>Inicio</span></button>
     <button class="navbtn" data-view="inventario" onclick="show('inventario',this)">📦 <span>Inventario</span></button>
     <button class="navbtn" data-view="ventas" onclick="show('ventas',this)">🛒 <span>Ventas</span></button>
@@ -311,6 +317,7 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
     <button class="navbtn" data-view="producto" onclick="show('producto',this)">➕ <span>Nuevo producto</span></button>
     <button class="navbtn" data-view="csvPreview" onclick="show('csvPreview',this)">🧾 <span>Importación CSV · vista previa</span></button>
     <button class="navbtn" data-view="config" onclick="show('config',this)">⚙️ <span>Configuración</span></button>
+    </nav>
     <div class="sidebarBottom"><button class="navbtn" onclick="logout()">🚪 <span>Cerrar sesión</span></button></div>
   </aside>
 
