@@ -19,6 +19,7 @@ Cada criterio se conserva hasta que exista evidencia en código, Supabase y prue
 - [ ] El administrador puede crear/editar/desactivar una tarifa por ciudad o zona, una tarifa general alternativa y umbral de envío gratis; se muestran ciudades sin regla con la tarifa de respaldo. Ciudad/Cali se normaliza con acentos, mayúsculas, espacios y alias documentados.
 - [ ] La disponibilidad de contraentrega sigue bajo sus controles actuales por ciudad; tarifas y medios de pago no se contradicen. Cambiar una regla de entrega no altera pedidos ya creados ni reservas activas.
   - Avance (2026-11-09): la prevalidación del navegador canonicaliza Cali, Santiago de Cali y Cali Valle del Cauca igual que la RPC `storefront_cod_city_allowed`; regresión sintética PASS. No habilita ciudades nuevas, no escribe reglas y la cotización del servidor sigue siendo la autoridad.
+  - Avance frontend adicional: `calculateStorefrontShipping` usa la misma canonicalización para esos alias, evitando mostrar la tarifa nacional donde la cotización del servidor aplica envío gratis. El cambio no altera reglas ni RPCs; el validador cubre aliases y los límites del umbral.
 - [ ] La cotización rechaza o maneja explícitamente ciudad vacía/no reconocida y nunca confía en el importe enviado por el navegador.
 
 ## Fase 3: Catálogo, búsqueda y conversión
