@@ -1796,6 +1796,7 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
     <div id="checkoutValidationSummary" class="checkoutValidationSummary" role="alert" aria-live="assertive" hidden></div>
     <div class="checkoutGrid">
       <label for="customerName">Nombre completo *</label><input id="customerName" type="text" autocomplete="name" placeholder="Tu nombre" required aria-describedby="checkoutErrorCustomerName"><small id="checkoutErrorCustomerName" class="checkoutFieldError"></small>
+      <label for="customerCedulaType">Tipo de documento *</label><select id="customerCedulaType" required aria-describedby="checkoutErrorCustomerCedulaType"><option value="">Selecciona el tipo de documento</option><option value="CC">Cédula de ciudadanía (CC)</option><option value="CE">Cédula de extranjería (CE)</option><option value="NIT">NIT</option><option value="PP">Pasaporte (PP)</option><option value="TI">Tarjeta de identidad (TI)</option><option value="DNI">Documento Nacional de Identidad (DNI)</option><option value="RG">Registro Geral (RG)</option><option value="OTHER">Otro documento</option></select><small id="checkoutErrorCustomerCedulaType" class="checkoutFieldError"></small>
       <label for="customerCedula">Cédula o documento de identidad *</label><input id="customerCedula" type="text" maxlength="60" autocomplete="off" placeholder="Número de cédula o documento" required aria-describedby="checkoutErrorCustomerCedula"><small id="checkoutErrorCustomerCedula" class="checkoutFieldError"></small>
       <label for="customerPhone">Teléfono *</label><input id="customerPhone" type="tel" autocomplete="tel" placeholder="300 000 0000" required aria-describedby="checkoutErrorCustomerPhone"><small id="checkoutErrorCustomerPhone" class="checkoutFieldError"></small>
       <label for="customerEmail">Correo electrónico *</label><input id="customerEmail" type="email" autocomplete="email" placeholder="correo@ejemplo.com" required aria-describedby="checkoutErrorCustomerEmail"><small id="checkoutErrorCustomerEmail" class="checkoutFieldError"></small>
@@ -4439,10 +4440,10 @@ function getRegion(city){
  return regions[city]||'Colombia';
 }
 function buildOrderPayload(){
- const name=$('customerName').value.trim(),cedula=$('customerCedula').value.trim(),phone=$('customerPhone').value.trim(),
+ const name=$('customerName').value.trim(),cedula=$('customerCedula').value.trim(),cedulaType=$('customerCedulaType').value,phone=$('customerPhone').value.trim(),
        email=$('customerEmail').value.trim(),city=checkoutCityValue(),address=$('customerAddress').value.trim(),
        neighborhood=$('customerNeighborhood').value.trim();
- const payload={name,cedula,phone,email,city,address,neighborhood,payment:selectedPayment(),
+ const payload={name,cedula,cedula_type:cedulaType,phone,email,city,address,neighborhood,payment:selectedPayment(),
          environment:'production',
          shipping:checkoutShipping,
          items:getCheckoutItems().map(x=>({id:x.id,name:x.name,code:x.code,qty:x.qty,price:comboPriceForItem(x),color:x.color||'',size:x.size||''}))};
@@ -4680,6 +4681,7 @@ async function payWithWompi(payload){
    'redirect-url':new URL(window.location.pathname,window.location.origin).href,
   'customer-data:full-name':payload.name,
   'customer-data:legal-id':payload.cedula,
+  'customer-data:legal-id-type':payload.cedula_type,
   'customer-data:phone-number':payload.phone,
    'customer-data:email':payload.email,
    'customer-data:phone-number-prefix':'+57',
@@ -4819,7 +4821,7 @@ async function saveContraEntregaOrder(payload){
    clearCODOrderReference(clientReference);
    if(!checkoutCart){cart=[];saveWompiCart();}
    checkoutCart=null;clearPendingWompiReference();closeCheckout();
-   ['customerName','customerCedula','customerPhone','customerEmail','customerCity','customerCityOther','customerAddress','customerNeighborhood'].forEach(id=>{if($(id))$(id).value=''});
+   ['customerName','customerCedulaType','customerCedula','customerPhone','customerEmail','customerCity','customerCityOther','customerAddress','customerNeighborhood'].forEach(id=>{if($(id))$(id).value=''});
    handleCityChange();renderCart();$('orderSuccess')?.classList.add('open');void refreshInventoryStatus(true);return true;
  }catch(error){
    console.error('No se pudo guardar el pedido contra entrega:',error);
@@ -4830,7 +4832,7 @@ async function saveContraEntregaOrder(payload){
    if(btn){btn.disabled=false;btn.textContent='✅ Confirmar pedido'}
   }
 }
-const checkoutValidationFieldIds=['customerName','customerCedula','customerPhone','customerEmail','customerCity','customerCityOther','customerAddress','customerNeighborhood'];
+const checkoutValidationFieldIds=['customerName','customerCedulaType','customerCedula','customerPhone','customerEmail','customerCity','customerCityOther','customerAddress','customerNeighborhood'];
 function checkoutErrorElement(fieldId){
  const id=String(fieldId||'');
  if(!id.startsWith('customer'))return null;
@@ -4851,7 +4853,7 @@ function clearCheckoutFieldError(id){
  if(summary&&summary.hidden===false){
   const remaining=getCheckoutValidationErrors();
   const byId=new Map(remaining.map(error=>[error.id,error]));
-  ['customerName','customerCedula','customerPhone','customerEmail','customerCity','customerCityOther','customerAddress','customerNeighborhood'].forEach(fieldId=>{
+  ['customerName','customerCedulaType','customerCedula','customerPhone','customerEmail','customerCity','customerCityOther','customerAddress','customerNeighborhood'].forEach(fieldId=>{
    const field=$(fieldId),message=checkoutErrorElement(fieldId),error=byId.get(fieldId);
    if(error){
     if(field)field.setAttribute('aria-invalid','true');
@@ -4872,6 +4874,7 @@ function clearCheckoutFieldError(id){
 function getCheckoutValidationErrors(){
  const errors=[];
  const name=$('customerName')?.value.trim()||'';
+ const cedulaType=$('customerCedulaType')?.value||'';
  const cedula=$('customerCedula')?.value.trim()||'';
  const phone=$('customerPhone')?.value.trim()||'';
  const email=$('customerEmail')?.value.trim()||'';
@@ -4880,6 +4883,7 @@ function getCheckoutValidationErrors(){
  const address=$('customerAddress')?.value.trim()||'';
  const neighborhood=$('customerNeighborhood')?.value.trim()||'';
  if(!name)errors.push({id:'customerName',label:'Nombre completo',message:'Escribe tu nombre completo.'});
+ if(!cedulaType)errors.push({id:'customerCedulaType',label:'Tipo de documento',message:'Selecciona el tipo de documento.'});
  if(!cedula)errors.push({id:'customerCedula',label:'Cédula',message:'Escribe tu número de cédula o documento de identidad.'});
  else if(cedula.length>60||/[\u0000-\u001f\u007f-\u009f]/.test(cedula))errors.push({id:'customerCedula',label:'Cédula',message:'Escribe un documento válido de hasta 60 caracteres.'});
  if(!phone)errors.push({id:'customerPhone',label:'Teléfono',message:'Escribe un teléfono de contacto.'});
@@ -4917,11 +4921,11 @@ function displayCheckoutValidation(errors){
 }
 document.addEventListener('input',event=>{
  const id=event.target?.id||'';
- if(['customerName','customerCedula','customerPhone','customerEmail','customerCity','customerCityOther','customerAddress','customerNeighborhood'].includes(id))clearCheckoutFieldError(id);
+ if(['customerName','customerCedulaType','customerCedula','customerPhone','customerEmail','customerCity','customerCityOther','customerAddress','customerNeighborhood'].includes(id))clearCheckoutFieldError(id);
 });
 document.addEventListener('change',event=>{
  const id=event.target?.id||'';
- if(['customerName','customerCedula','customerPhone','customerEmail','customerCity','customerCityOther','customerAddress','customerNeighborhood'].includes(id))clearCheckoutFieldError(id);
+ if(['customerName','customerCedulaType','customerCedula','customerPhone','customerEmail','customerCity','customerCityOther','customerAddress','customerNeighborhood'].includes(id))clearCheckoutFieldError(id);
  if(event.target?.name==='paymentMethod')updateShipping();
 });
 

@@ -39,7 +39,7 @@ function extractFunction(source, name) {
 }
 
 const validationFields = {
-  customerName: { value: 'Cliente Sintético' }, customerCedula: { value: '   ' },
+  customerName: { value: 'Cliente Sintético' }, customerCedulaType: { value: 'CC' }, customerCedula: { value: '   ' },
   customerPhone: { value: '3000000000' }, customerEmail: { value: 'synthetic@example.test', checkValidity: () => true },
   customerCity: { value: 'Cali' }, customerCityOther: { value: '' }, customerAddress: { value: 'Calle sintética 1' },
   customerNeighborhood: { value: 'Barrio sintético' },
@@ -51,6 +51,9 @@ assert.deepEqual(errors.map(error => error.id), ['customerCedula'], 'Cédula vac
 validationFields.customerCedula.value = ' CC-12345678 ';
 errors = JSON.parse(JSON.stringify(validationContext.getCheckoutValidationErrors()));
 assert.deepEqual(errors, [], 'Un documento no vacío se acepta sin restringirlo a solo dígitos.');
+validationFields.customerCedulaType.value = '';
+assert.deepEqual(JSON.parse(JSON.stringify(validationContext.getCheckoutValidationErrors().map(error => error.id))), ['customerCedulaType'], 'El tipo de documento también es obligatorio para Wompi.');
+validationFields.customerCedulaType.value = 'CC';
 validationFields.customerCedula.value = 'X'.repeat(61);
 assert.equal(validationContext.getCheckoutValidationErrors()[0].id, 'customerCedula');
 for (const invalidControl of ['12\n34', '12\u007f34', '12\u008034']) {
@@ -60,17 +63,22 @@ for (const invalidControl of ['12\n34', '12\u007f34', '12\u008034']) {
 
 const cleanupSummary = { hidden: false, textContent: 'error' };
 const cleanupField = { removed: [], removeAttribute(name) { this.removed.push(name); } };
+const cleanupTypeField = { removed: [], removeAttribute(name) { this.removed.push(name); } };
 const cleanupMessage = { textContent: 'Escribe tu documento.', style: { display: 'block' } };
+const cleanupTypeMessage = { textContent: 'Selecciona un tipo.', style: { display: 'block' } };
 const cleanupContext = vm.createContext({
-  $: id => id === 'checkoutValidationSummary' ? cleanupSummary : id === 'customerCedula' ? cleanupField : null,
-  checkoutErrorElement: id => id === 'customerCedula' ? cleanupMessage : null,
+  $: id => id === 'checkoutValidationSummary' ? cleanupSummary : id === 'customerCedulaType' ? cleanupTypeField : id === 'customerCedula' ? cleanupField : null,
+  checkoutErrorElement: id => id === 'customerCedulaType' ? cleanupTypeMessage : id === 'customerCedula' ? cleanupMessage : null,
 });
-vm.runInContext(`const checkoutValidationFieldIds=['customerName','customerCedula','customerPhone','customerEmail','customerCity','customerCityOther','customerAddress','customerNeighborhood'];\n${extractFunction(index, 'clearCheckoutValidation')}`, cleanupContext);
+vm.runInContext(`const checkoutValidationFieldIds=['customerName','customerCedulaType','customerCedula','customerPhone','customerEmail','customerCity','customerCityOther','customerAddress','customerNeighborhood'];\n${extractFunction(index, 'clearCheckoutValidation')}`, cleanupContext);
 cleanupContext.clearCheckoutValidation();
 assert.equal(cleanupSummary.hidden, true);
 assert.deepEqual(cleanupField.removed, ['aria-invalid']);
+assert.deepEqual(cleanupTypeField.removed, ['aria-invalid']);
 assert.equal(cleanupMessage.textContent, '');
+assert.equal(cleanupTypeMessage.textContent, '');
 assert.equal(cleanupMessage.style.display, 'none', 'Cerrar/reabrir checkout limpia el error viejo de cédula.');
+assert.equal(cleanupTypeMessage.style.display, 'none', 'Cerrar/reabrir checkout limpia el error viejo del tipo de documento.');
 
 const orderFields = { ...validationFields, customerCedula: { value: '  CC-987654  ' } };
 const orderContext = vm.createContext({
@@ -82,16 +90,19 @@ const orderContext = vm.createContext({
 vm.runInContext(extractFunction(index, 'buildOrderPayload'), orderContext);
 const payload = JSON.parse(JSON.stringify(orderContext.buildOrderPayload()));
 assert.equal(payload.cedula, 'CC-987654', 'buildOrderPayload conserva el valor recortado para el servidor.');
+assert.equal(payload.cedula_type, 'CC', 'buildOrderPayload conserva el tipo requerido por Wompi.');
 assert.equal(payload.payment, 'PSE');
 
+assert.match(index, /id="customerCedulaType"[^>]*required[^>]*aria-describedby="checkoutErrorCustomerCedulaType"/);
 assert.match(index, /id="customerCedula"[^>]*required[^>]*aria-describedby="checkoutErrorCustomerCedula"/);
 assert.match(index, /id="checkoutErrorCustomerCedula"/);
 assert.doesNotMatch(index, /Cédula \(opcional\)|Cédula es opcional|La cédula es opcional/);
 assert.match(index, /'customer-data:legal-id':payload\.cedula/);
 assert.doesNotMatch(index, /if\(payload\.cedula\)fields\['customer-data:legal-id'\]/);
+assert.match(index, /'customer-data:legal-id-type':payload\.cedula_type/);
 assert.match(index, /p_customer_cedula:payload\.cedula/);
 assert.match(index, /if\(payment!=='Contra entrega'\)\{payWithWompi\(payload\);return\}/, 'PSE/Nequi/tarjeta conservan la ruta común Wompi.');
-assert.ok(index.includes("const checkoutValidationFieldIds=['customerName','customerCedula'"));
+assert.ok(index.includes("const checkoutValidationFieldIds=['customerName','customerCedulaType','customerCedula'"));
 assert.ok(index.includes(String.raw`\u007f-\u009f`), 'La regex de UI cubre los controles C1 además de C0/DEL.');
 
 const parsePos = edge.indexOf('parseCheckoutCedula(body?.cedula ?? body?.customer_cedula)');
@@ -113,4 +124,4 @@ assert.match(migration, /CUSTOMER_CEDULA_REQUIRED/);
 assert.match(migration, /CREATE TRIGGER[\s\S]*ON public\.web_orders/);
 assert.doesNotMatch(migration, /ALTER TABLE public\.orders|NOT NULL/);
 
-console.log('PASS checkout_cedula_regression: UI required/cleanup, C1 controls, payload, server gate, legacy replay, Wompi legal-id and COD trigger contract.');
+console.log('PASS checkout_cedula_regression: UI required/cleanup, C1 controls, payload legal-id/type, server gate, legacy replay and COD trigger contract.');
