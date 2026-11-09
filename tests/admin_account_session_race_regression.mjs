@@ -180,7 +180,7 @@ const startLoader = run(startSource, {
   $: elementFor,
   document: { querySelector: () => null },
   localStorage: { setItem() {} },
-  startAdminCatalogRealtime() {}, loadAdminBrandForUser() {}, publicWorkerImage: value => value, applyBrand() {}, setDateText() {},
+  startAdminCatalogRealtime() {}, loadAdminBrandForUser() {}, publicWorkerImage: value => value, applyBrand() {}, setDateText() {}, refreshTelegramTestButton() {},
   cargarTodo: (userId, epoch) => { loadedSessions.push([userId, epoch]); return loadedSessions.length === 1 ? firstDashboardLoad.promise : Promise.resolve(true); },
   setInventoryMode() {}, inventoryMode: 'all',
   brandName: 'Variedades JM', brandIcon: '', brandIconPath: '',

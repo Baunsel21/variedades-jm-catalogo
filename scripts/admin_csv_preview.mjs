@@ -1,4 +1,4 @@
-import { DEFAULT_LIMITS, previewProductsCsv } from './fase7_csv_preview.mjs';
+import { DEFAULT_LIMITS, PRODUCT_COLUMNS, previewProductsCsv } from './fase7_csv_preview.mjs';
 
 const MAX_VISIBLE_ROWS = 50;
 const MAX_VISIBLE_ERRORS = 100;
@@ -8,6 +8,7 @@ const CURRENCY_FORMAT = new Intl.NumberFormat('es-CO', {
   maximumFractionDigits: 0,
 });
 let previewGeneration = 0;
+let lastPreviewResult = null;
 
 export async function previewCsvFile(file, existingCodes = []) {
   if (!file || typeof file.arrayBuffer !== 'function') {
@@ -25,6 +26,98 @@ export async function previewCsvFile(file, existingCodes = []) {
   return previewProductsCsv(bytes, { existingCodes });
 }
 
+const REPORT_FILENAME = 'sirevya-csv-preview-validation.csv';
+const REPORT_COLUMNS = Object.freeze([
+  'tipo', 'bytes_entrada', 'limite_bytes', 'limite_filas', 'filas_datos',
+  'filas_validas', 'filas_invalidas', 'errores_totales', 'fila', 'campo',
+  'codigo', 'mensaje', 'puede_aplicar', 'dry_run', 'escritura_realizada',
+]);
+const REPORTABLE_FIELDS = new Set(PRODUCT_COLUMNS);
+const HEADER_ERROR_MESSAGES = Object.freeze({
+  UNKNOWN_HEADER: 'La cabecera no pertenece al contrato CSV permitido.',
+  DUPLICATE_HEADER: 'Hay una cabecera duplicada; revisa los nombres de columnas.',
+  VARIANT_DATA_NOT_SUPPORTED: 'La cabecera sugiere variantes, que no están admitidas en esta vista previa.',
+});
+
+function reportCell(value) {
+  const text = String(value ?? '');
+  const spreadsheetSafe = /^\s*[=+\-@]/.test(text) ? `'${text}` : text;
+  return `"${spreadsheetSafe.replace(/"/g, '""')}"`;
+}
+
+function reportCount(value, fallback = '') {
+  const count = Number(value);
+  return Number.isSafeInteger(count) && count >= 0 ? count : fallback;
+}
+
+function reportErrorDetails(error) {
+  const rawCode = String(error?.code ?? '');
+  const code = /^[A-Z][A-Z0-9_]{0,79}$/.test(rawCode) ? rawCode : 'VALIDATION_ERROR';
+  const isHeaderError = Object.prototype.hasOwnProperty.call(HEADER_ERROR_MESSAGES, code);
+  const field = REPORTABLE_FIELDS.has(error?.field) ? error.field : isHeaderError ? 'cabecera' : '';
+  const message = HEADER_ERROR_MESSAGES[code] ?? String(error?.message ?? code ?? 'Error de validación.');
+  return { code, field, message };
+}
+
+export function buildCsvPreviewReportCsv(result) {
+  if (!result || result.canCommit !== false || result.writePerformed !== false || result.dryRun !== true) {
+    throw new TypeError('El reporte solo acepta resultados dry-run sin escritura.');
+  }
+
+  const summary = result.summary || {};
+  const limits = summary.limits || DEFAULT_LIMITS;
+  const errors = Array.isArray(result.errors) ? result.errors : [];
+  const rows = [
+    REPORT_COLUMNS,
+    [
+      'RESUMEN',
+      reportCount(summary.inputBytes),
+      reportCount(limits.maxBytes),
+      reportCount(limits.maxRows),
+      reportCount(summary.dataRows),
+      reportCount(summary.validRows, Array.isArray(result.rows) ? result.rows.length : 0),
+      reportCount(summary.invalidRows),
+      reportCount(summary.errorCount, errors.length),
+      '', '', '', '', false, true, false,
+    ],
+    ...errors.map(error => {
+      const details = reportErrorDetails(error);
+      return [
+        'ERROR', '', '', '', '', '', '', '',
+        reportCount(error?.row), details.field, details.code, details.message,
+        false, true, false,
+      ];
+    }),
+  ];
+
+  return `\uFEFF${rows.map(row => row.map(reportCell).join(',')).join('\r\n')}\r\n`;
+}
+
+export function downloadCsvPreviewReport(result, documentRef = globalThis.document, browserRef = globalThis) {
+  const csv = buildCsvPreviewReportCsv(result);
+  if (!documentRef?.createElement || !documentRef.body?.appendChild ||
+      typeof browserRef?.Blob !== 'function' || typeof browserRef?.URL?.createObjectURL !== 'function') {
+    throw new TypeError('La descarga local no está disponible en este navegador.');
+  }
+
+  const blob = new browserRef.Blob([csv], { type: 'text/csv;charset=utf-8' });
+  const objectUrl = browserRef.URL.createObjectURL(blob);
+  const link = documentRef.createElement('a');
+  link.href = objectUrl;
+  link.download = REPORT_FILENAME;
+  link.hidden = true;
+  documentRef.body.appendChild(link);
+  try {
+    link.click();
+  } finally {
+    link.remove?.();
+    const revoke = () => browserRef.URL.revokeObjectURL?.(objectUrl);
+    if (typeof browserRef.setTimeout === 'function') browserRef.setTimeout(revoke, 0);
+    else revoke();
+  }
+  return { fileName: REPORT_FILENAME, csv };
+}
+
 function formatCop(value) {
   return CURRENCY_FORMAT.format(value);
 }
@@ -40,6 +133,10 @@ export function renderCsvPreviewResult(result, documentRef = globalThis.document
   if (!result || result.canCommit !== false || result.writePerformed !== false || result.dryRun !== true) {
     throw new TypeError('La interfaz solo acepta resultados dry-run sin escritura.');
   }
+
+  lastPreviewResult = result;
+  const reportButton = documentRef.getElementById('csvPreviewDownloadReport');
+  if (reportButton) reportButton.disabled = false;
 
   const rows = Array.isArray(result.rows) ? result.rows : [];
   const errors = Array.isArray(result.errors) ? result.errors : [];
@@ -107,6 +204,9 @@ export function renderCsvPreviewResult(result, documentRef = globalThis.document
 }
 
 function resetCsvPreviewUi(documentRef) {
+  lastPreviewResult = null;
+  const reportButton = documentRef.getElementById('csvPreviewDownloadReport');
+  if (reportButton) reportButton.disabled = true;
   for (const id of ['csvPreviewSummary', 'csvPreviewErrorsNote', 'csvPreviewRowsNote']) {
     const node = documentRef.getElementById(id);
     if (node) node.textContent = '';
@@ -121,12 +221,14 @@ function resetCsvPreviewUi(documentRef) {
   if (tableBody) tableBody.replaceChildren();
 }
 
-function initializeCsvPreviewUi() {
-  const documentRef = globalThis.document;
+export function initializeCsvPreviewUi(documentRef = globalThis.document, browserRef = globalThis) {
+  lastPreviewResult = null;
   const fileInput = documentRef?.getElementById('csvProductFile');
   const previewButton = documentRef?.getElementById('csvPreviewButton');
   const clearButton = documentRef?.getElementById('csvPreviewClear');
   if (!fileInput || !previewButton || !clearButton) return;
+  const downloadButton = documentRef.getElementById('csvPreviewDownloadReport');
+  if (downloadButton) downloadButton.disabled = true;
 
   fileInput.addEventListener('change', () => {
     previewGeneration += 1;
@@ -139,6 +241,8 @@ function initializeCsvPreviewUi() {
   previewButton.addEventListener('click', async () => {
     const file = fileInput.files?.[0];
     const generation = ++previewGeneration;
+    lastPreviewResult = null;
+    if (downloadButton) downloadButton.disabled = true;
     const status = documentRef.getElementById('csvPreviewStatus');
     if (!file) {
       if (status) status.textContent = 'Selecciona un archivo CSV antes de previsualizar.';
@@ -161,6 +265,17 @@ function initializeCsvPreviewUi() {
     }
   });
 
+  downloadButton?.addEventListener('click', () => {
+    if (!lastPreviewResult) return;
+    const status = documentRef.getElementById('csvPreviewStatus');
+    try {
+      downloadCsvPreviewReport(lastPreviewResult, documentRef, browserRef);
+      if (status) status.textContent = 'Reporte descargado localmente. No se importó ni se envió ningún dato.';
+    } catch {
+      if (status) status.textContent = 'No se pudo generar el reporte local. El CSV no se envió ni se guardó.';
+    }
+  });
+
   clearButton.addEventListener('click', () => {
     previewGeneration += 1;
     fileInput.value = '';
@@ -171,8 +286,8 @@ function initializeCsvPreviewUi() {
 
 if (typeof document !== 'undefined') {
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initializeCsvPreviewUi, { once: true });
+    document.addEventListener('DOMContentLoaded', () => initializeCsvPreviewUi(document, globalThis), { once: true });
   } else {
-    initializeCsvPreviewUi();
+    initializeCsvPreviewUi(document, globalThis);
   }
 }
