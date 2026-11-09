@@ -25,6 +25,7 @@ Cada criterio se conserva hasta que exista evidencia en código, Supabase y prue
   - Avance parcial: categoría, color, talla, disponibilidad y orden se conservan en el URL; el rango de precio se retiró a solicitud del negocio. Ofertas y parte de las órdenes aún dependen de datos/backend.
 - [x] Se retiró el bloque de rango de precio y sus acciones Limpiar/Compartir; se conservan el orden por precio, categorías, favoritos y compartir producto.
 - [ ] La ficha permite ver galería/zoom, variantes, guía de tallas, stock, relacionados, disponibilidad, código y tiempo estimado si está configurado. Fallos de imagen muestran un fallback útil.
+  - Subcriterio verificado: las tarjetas de productos relacionados pasan su ID a la apertura de ficha correspondiente y evitan bubbling al catálogo; regresión sintética sin compras ni navegación comercial.
 - [ ] CTA “Comprar ahora” y WhatsApp contextual preservan la variante elegida, reutilizan la validación actual y nunca saltan la cotización, la reserva ni el checkout seguros.
 - [ ] La lista de deseos funciona para visitantes y persiste localmente con una clave nueva namespaced; no cambia, borra ni reutiliza ninguna clave de carrito/reserva Wompi/COD.
 - [ ] El carrito se recupera después de cerrar/recargar, informa cambios de precio/stock y no genera una segunda reserva para el mismo carrito ni extiende por sí solo la reserva de 10 minutos.
