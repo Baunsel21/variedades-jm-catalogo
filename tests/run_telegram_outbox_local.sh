@@ -4,6 +4,15 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DB="sirevya_telegram_local_${RANDOM}_$$"
 EXTENSION_DIR="$(pg_config --sharedir)/extension"
+PG_VERSION="$(pg_config --version | awk '{print $2}')"
+PG_MAJOR="${PG_VERSION%%.*}"
+if [[ -z "${PGPORT:-}" ]]; then
+  PGPORT="$(pg_lsclusters --no-header "$PG_MAJOR" | awk 'NR == 1 {print $3}')"
+fi
+if [[ -z "$PGPORT" ]]; then
+  printf 'No local PostgreSQL cluster found for pg_config major version %s.\n' "$PG_MAJOR" >&2
+  exit 1
+fi
 MOCK_EXT_DIR="$ROOT/tests/fixtures/local_extensions"
 MIGRATION="$ROOT/supabase/migrations/20261109055000_telegram_notification_outbox.sql"
 SCHEDULER_MIGRATION="$ROOT/supabase/migrations/20261109055100_telegram_notification_scheduler.sql"
@@ -14,7 +23,7 @@ SCHEDULER_REGRESSION="$ROOT/tests/telegram_scheduler_local_regression.sql"
 MOCKS_INSTALLED=0
 
 cleanup() {
-  sudo -u postgres dropdb --if-exists "$DB" >/dev/null 2>&1 || true
+  sudo -u postgres dropdb --if-exists --port="$PGPORT" "$DB" >/dev/null 2>&1 || true
   if [[ "$MOCKS_INSTALLED" -eq 1 ]]; then
     sudo rm -f \
       "$EXTENSION_DIR/pg_net.control" "$EXTENSION_DIR/pg_net--1.0.sql" \
@@ -36,11 +45,11 @@ sudo install -m 0644 "$MOCK_EXT_DIR/pg_cron.control" "$EXTENSION_DIR/pg_cron.con
 sudo install -m 0644 "$MOCK_EXT_DIR/pg_cron--1.0.sql" "$EXTENSION_DIR/pg_cron--1.0.sql"
 
 sudo service postgresql start >/dev/null
-pg_isready -q -h /var/run/postgresql
-sudo -u postgres createdb "$DB"
+pg_isready -q -h /var/run/postgresql -p "$PGPORT"
+sudo -u postgres createdb --port="$PGPORT" "$DB"
 run_sql() {
   local file="$1"
-  sudo -u postgres psql -X -q -v ON_ERROR_STOP=1 -d "$DB" < "$file"
+  sudo -u postgres psql -X -q -v ON_ERROR_STOP=1 --port="$PGPORT" -d "$DB" < "$file"
 }
 
 run_sql "$FIXTURE"

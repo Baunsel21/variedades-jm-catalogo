@@ -34,7 +34,12 @@ Cuando ese gate esté verificado, la secuencia prevista es:
 
 1. Revisar en el proyecto real el esquema/extensiones, permisos y contratos de columnas inmediatamente antes de aplicar. No sustituir ni editar la función `wompi-webhook`.
 2. Aplicar primero `20261109055000_telegram_notification_outbox.sql` y luego `20261109055100_telegram_notification_scheduler.sql` mediante el flujo de migración aprobado. La segunda instala `pg_net` si falta y programa un tick por minuto; el ajuste queda desactivado inicialmente.
-3. Desplegar `telegram-dispatch` con `verify_jwt=false`, porque la función valida el secreto server-to-server recuperado desde Vault antes de reclamar eventos. Mantener `TELEGRAM_BOT_TOKEN` y `TELEGRAM_CHAT_ID` solo en secretos Edge. Nunca copiar secretos a Git, SQL de la migración, HTML ni logs.
+3. El repositorio no versiona `supabase/config.toml`; no confíes en el comentario de `index.ts` para configurar JWT. Solo después de superar el gate, CLI v3 debe desplegar esta función individual con verificación JWT desactivada; `--no-verify-jwt` es obligatorio porque el scheduler autentica mediante el secreto server-to-server que el handler compara con Vault:
+   ```sh
+   export SUPABASE_PROJECT_REF="<project-ref-del-proyecto>"
+   supabase functions deploy telegram-dispatch --no-verify-jwt --remote="$SUPABASE_PROJECT_REF" --yes
+   ```
+   No uses un `functions deploy` genérico ni despliegues otra función con esta opción. El gateway dejará invocar el endpoint sin JWT, así que el handler debe rechazar secreto ausente/incorrecto antes de cualquier RPC; las regresiones del worker cubren esa guarda. Mantén `TELEGRAM_BOT_TOKEN` y `TELEGRAM_CHAT_ID` solo en secretos Edge. Nunca copies secretos a Git, SQL de la migración, HTML ni logs.
    El worker exige el body exacto `{ action: "dispatch", lock_token: "<uuid>" }` y compara la URL de Vault con `SUPABASE_URL` antes de reclamar. Tras procesar el lote intenta liberar el lock global usando ese UUID; si cae o falla, el lease vence por sí solo. No reemplazar el token de dispatch por la service-role key.
 4. Consultar estado como admin. `scheduler_ready` comprueba cron, pg_net y Vault. Confirmar por herramientas de despliegue que `telegram-dispatch` está `ACTIVE` en el SHA esperado, `verify_jwt=false`, y que reutiliza los secretos Telegram ya probados en el proyecto. Solo después, mediante el canal de release con `service_role`, ejecutar `set_sirevya_telegram_dispatcher_ready(true)`. El procedimiento no debe imprimir ni exportar valores secretos. Este booleano es una atestación operativa de release, no un health-check continuo del Edge Function; el RPC no verifica por sí solo SHA, configuración ni secretos del worker. Si se pausa/retira el worker o se rotan sus secretos, el release operator debe borrar la marca con `set_sirevya_telegram_dispatcher_ready(false)`, que apaga además el toggle. Sin el marcador, o si `scheduler_ready` deja de ser cierto, admin, cron y claim bloquean activación/envío.
 5. Activar solo después del marcador y de la revisión del estado como admin. Si se desactiva, puede completarse el lote ya reclamado; comprobar que nuevas solicitudes cron cesan. Validar eventos con mecanismo sintético autorizado; no crear pedidos, pagos ni movimientos de inventario reales. La suite incluida crea una base PostgreSQL desechable con mocks que no hacen red y revierte los datos de negocio de prueba.
@@ -44,10 +49,12 @@ Cuando ese gate esté verificado, la secuencia prevista es:
 Ejecutar `tests/run_telegram_outbox_local.sh` en un entorno Linux con PostgreSQL local y `sudo`. Crea una base efímera, instala temporalmente mocks SQL de `pg_cron`/`pg_net`, aplica cada migración dos veces, verifica eventos, privacidad, grants/RLS, token stale, lote/lease, gate de readiness, reintentos, dead-letter, ACL de esquema/funciones net y llamada scheduler mock; no contacta Supabase, Telegram ni otros destinos de red. El script elimina la base y los archivos de extensión falsos al terminar.
 La cobertura actual añade: bloqueo de URL Supabase equivocada antes del claim, exclusión de ticks solapados, rechazo de token de lock antiguo, recuperación por vencimiento y parseo seguro de números inválidos. Los mocks no validan la instalación real de `pg_net` ni una ejecución Edge de producción.
 
-También ejecutar `node tests/telegram_dispatch_worker_regression.mjs`, `node tests/telegram_admin_ui_regression.mjs`, `node tests/telegram_test_edge_regression.mjs` y `node scripts/validate.mjs` antes de revisión/publicación.
+También ejecutar `node tests/telegram_dispatch_deploy_config_regression.mjs`, `node tests/telegram_dispatch_worker_regression.mjs`, `node tests/telegram_admin_ui_regression.mjs`, `node tests/telegram_test_edge_regression.mjs` y `node scripts/validate.mjs` antes de revisión/publicación.
 
 ## Referencias oficiales
 
+- Supabase, despliegue de Edge Functions: https://supabase.com/docs/guides/functions/deploy
+- Supabase CLI, `functions deploy` flags: https://supabase.com/docs/reference/cli/supabase-functions-deploy
 - Supabase, pg_net: https://supabase.com/docs/guides/database/extensions/pg_net
 - Supabase, scheduled Edge Functions: https://supabase.com/docs/guides/functions/schedule-functions
 - Supabase, extensión http: https://supabase.com/docs/guides/database/extensions/http
