@@ -16,6 +16,7 @@ Cada criterio se conserva hasta que exista evidencia en código, Supabase y prue
 - [ ] El administrador puede crear/editar/desactivar una tarifa por ciudad o zona, una tarifa general alternativa y umbral de envío gratis; se muestran ciudades sin regla con la tarifa de respaldo. Ciudad/Cali se normaliza con acentos, mayúsculas, espacios y alias documentados.
 - [ ] La disponibilidad de contraentrega sigue bajo sus controles actuales por ciudad; tarifas y medios de pago no se contradicen. Cambiar una regla de entrega no altera pedidos ya creados ni reservas activas.
 - [ ] La cotización rechaza o maneja explícitamente ciudad vacía/no reconocida y nunca confía en el importe enviado por el navegador.
+  - Avance sincronizado a preview desde PR #11: UI de reglas por ciudad/zona y tarifa propia Cali prevalece sobre fallback gratis en el código; sin regla se conserva el fallback. Regresiones de UI/copy y validador pasan con fixtures; no se copió/aplicó SQL, no se guardan reglas (POST 403) ni se conectan pedidos/pagos reales. El backend sigue en draft y fase 2 permanece abierta.
 
 ## Fase 3: Catálogo, búsqueda y conversión
 

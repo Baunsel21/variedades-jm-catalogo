@@ -39,23 +39,44 @@ try{
  assert.equal(context.safeCSVCell('Cali'),'"Cali"');
  assert.ok(admin.includes("${esc(({home:'Pantalla de inicio'"),'Etiqueta de promoción escapada');
 
- const shippingMatch=catalog.match(/function calculateStorefrontShipping\([\s\S]*?\n\}/);
- assert.ok(shippingMatch,'Cálculo de tarifa local aislado');
- const shippingContext=vm.createContext({
-  DEFAULT_STOREFRONT_SHIPPING_SETTINGS:{national_shipping_cost:15000,free_shipping_threshold:130000,free_shipping_in_cali:true},
-  storefrontShippingSettings:{national_shipping_cost:15000,free_shipping_threshold:130000,free_shipping_in_cali:true}
- });
- vm.runInContext(shippingMatch[0],shippingContext);
- const calcShipping=shippingContext.calculateStorefrontShipping;
- assert.equal(calcShipping('Cali',129999),0,'Cali sigue gratis');
+	 const shippingMatch=catalog.match(/function calculateStorefrontShipping\([\s\S]*?\n\}/);
+	 assert.ok(shippingMatch,'Cálculo de tarifa local aislado');
+	 const shippingContext=vm.createContext({
+	  DEFAULT_STOREFRONT_SHIPPING_SETTINGS:{national_shipping_cost:15000,free_shipping_threshold:130000,free_shipping_in_cali:true},
+	  storefrontShippingSettings:{national_shipping_cost:15000,free_shipping_threshold:130000,free_shipping_in_cali:true}
+	 });
+	 shippingContext.normalizeDeliveryCity=value=>String(value||'').trim().normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[,.]+/g,' ').replace(/\s+/g,' ').trim();
+	 shippingContext.canonicalLocalDeliveryCity=value=>['cali','santiago de cali','cali valle del cauca'].includes(shippingContext.normalizeDeliveryCity(value))?'Cali':'';
+	 const destinationKeyMatch=catalog.match(/function storefrontShippingDestinationKey\([\s\S]*?\n\}/);
+	 assert.ok(destinationKeyMatch,'Clave canónica de destinos de envío');
+	 vm.runInContext(destinationKeyMatch[0],shippingContext);
+	 const resolverMatch=catalog.match(/function resolveStorefrontShippingRule\([\s\S]*?\n\}/);
+	 assert.ok(resolverMatch,'Resolutor local de tarifa por destino');
+	 vm.runInContext(resolverMatch[0],shippingContext);
+	 vm.runInContext(shippingMatch[0],shippingContext);
+	 const calcShipping=shippingContext.calculateStorefrontShipping;
+	 assert.equal(calcShipping('Cali',129999),0,'Cali sigue gratis');
  assert.equal(calcShipping('Bogotá',129999),15000,'Tarifa actual justo bajo el umbral');
  assert.equal(calcShipping('Bogotá',130000),0,'Umbral exacto actual');
  assert.equal(calcShipping('Bogotá',130001),0,'Por encima del umbral actual');
  assert.equal(calcShipping('Bogotá',149999,{national_shipping_cost:17500,free_shipping_threshold:150000}),17500,'Tarifa administrativa actualizada');
  assert.equal(calcShipping('Bogotá',150000,{national_shipping_cost:17500,free_shipping_threshold:150000}),0,'Umbral administrativo actualizado');
- assert.equal(calcShipping('Bogotá',999999,{national_shipping_cost:17500,free_shipping_threshold:null}),17500,'El umbral puede desactivarse');
- assert.ok(!catalog.includes('$15.000')&&!catalog.includes('$130.000'),'HTML inicial no muestra tarifas antiguas mientras carga Supabase');
- assert.ok(catalog.includes('cartQuote.discount_total==null')&&catalog.includes('authoritativeComboQuote.discount_total==null'),'Checkout y Wompi rechazan cotizaciones parciales');
+	 assert.equal(calcShipping('Bogotá',999999,{national_shipping_cost:17500,free_shipping_threshold:null}),17500,'El umbral puede desactivarse');
+	 const cityZoneSettings={national_shipping_cost:15000,free_shipping_threshold:130000,destination_rules:[
+	  {id:'zone-1',scope:'zone',name:'Zona prioritaria',priority:100,shipping_cost:15000,free_shipping_threshold:50000,destinations:['Bogotá','Chía']},
+	  {id:'city-1',scope:'city',name:'Bogotá',priority:0,shipping_cost:25000,free_shipping_threshold:null,destinations:['Bogotá']}
+	 ]};
+	 assert.equal(shippingContext.resolveStorefrontShippingRule('BOGOTA',cityZoneSettings).kind,'city','La regla city prevalece sobre zona');
+	 assert.equal(calcShipping('Bogotá',100000,cityZoneSettings),25000,'Tarifa de ciudad específica');
+	 assert.equal(calcShipping('Chía',49999,cityZoneSettings),15000,'Tarifa de zona bajo el mínimo');
+	 assert.equal(calcShipping('Chía',50000,cityZoneSettings),0,'Umbral exacto de zona');
+	 const caliCitySettings={national_shipping_cost:15000,free_shipping_threshold:130000,free_shipping_in_cali:false,destination_rules:[
+	  {id:'city-cali',scope:'city',name:'Cali',priority:0,shipping_cost:12000,free_shipping_threshold:null,destinations:['Cali']}
+	 ]};
+	 assert.equal(calcShipping('Santiago de Cali',100000,caliCitySettings),12000,'Alias Cali usa la tarifa Ciudad explícita');
+	 assert.equal(calcShipping('Cali Valle del Cauca',999999,cityZoneSettings),0,'Sin regla, Cali conserva el fallback gratis');
+	 assert.ok(!catalog.includes('$15.000')&&!catalog.includes('$130.000'),'HTML inicial no muestra tarifas antiguas mientras carga Supabase');
+	 assert.ok(catalog.includes('cartQuote.discount_total==null')&&catalog.includes('authoritativeComboQuote.discount_total==null'),'Checkout y Wompi rechazan cotizaciones parciales');
  assert.ok(catalog.includes('row?.national_shipping_cost==null')&&admin.includes('row?.national_shipping_cost==null'),'RPCs rechazan fee NULL en vez de tratarlo como $0');
  assert.ok(catalog.includes("const rules=document.querySelectorAll('.detailShippingBenefits .detailShippingRule');")&&catalog.includes('const caliShippingRule=rules[0]')&&catalog.includes('const otherCityShippingRule=rules[1]'),'Los beneficios de Cali y otros destinos se actualizan por separado');
  assert.ok(catalog.includes('data-shipping-policy')&&catalog.includes("document.querySelector('.jmTickerTrack [data-shipping-policy]')"),'El ticker se actualiza por selector estable al activar/desactivar el umbral');
@@ -65,10 +86,10 @@ try{
  const caliHeading={textContent:'Tarifa de envío en Cali'},caliCopy={textContent:'Se confirma al verificar la configuración vigente.'};
  const otherHeading={textContent:''},otherCopy={textContent:''};
  const detailRules=[{querySelector:s=>s==='b'?caliHeading:caliCopy},{querySelector:s=>s==='b'?otherHeading:otherCopy}];
- const copyContext=vm.createContext({storefrontShippingSettings:{national_shipping_cost:17500,free_shipping_threshold:null},storefrontShippingSettingsLoaded:false,storefrontShippingSettingsLoadError:false,
- storefrontShippingPolicyText:()=> 'Envío gratis en Cali; tarifa nacional vigente.',money:value=>`COP ${value}`,$:()=>paymentNote,
- document:{querySelector:s=>({'.jmTickerTrack [data-shipping-policy]':ticker,'.benefits .benefit:nth-child(1) small':caliBenefit,'.benefits .benefit:nth-child(2) small':benefit,'.cartShippingFoot span:first-child':foot,'.cartShippingTrack':null}[s]??null),
- querySelectorAll:s=>s==='.detailShippingBenefits .detailShippingRule'?detailRules:[]}});
+	 const copyContext=vm.createContext({storefrontShippingSettings:{national_shipping_cost:17500,free_shipping_threshold:null,free_shipping_in_cali:true,destination_rules:[]},storefrontShippingSettingsLoaded:false,storefrontShippingSettingsLoadError:false,
+	 storefrontShippingPolicyText:()=> 'Envío gratis en Cali; tarifa nacional vigente.',money:value=>`COP ${value}`,$:()=>paymentNote,
+	 document:{querySelector:s=>({'.jmTickerTrack [data-shipping-policy]':ticker,'.benefits .benefit:nth-child(1) small':caliBenefit,'.benefits .benefit:nth-child(2) small':benefit,'.cartShippingFoot span:first-child':foot,'.cartShippingTrack':null}[s]??null),
+	 querySelectorAll:s=>s==='.detailShippingBenefits .detailShippingRule'?detailRules:[]}});
  vm.runInContext(copyMatch[0],copyContext);
  copyContext.updateStorefrontShippingCopy();
  assert.equal(caliBenefit.textContent,'Tarifa por confirmar','No se promete Cali gratis antes de verificar la configuración');
@@ -114,12 +135,12 @@ try{
  assert.ok(Number.isNaN(blankForm.fee),'Tarifa vacía no se convierte en $0');
  assert.ok(Number.isNaN(blankForm.threshold),'Umbral activo vacío se rechaza');
  fields.shippingNationalCost.value='0';fields.shippingFreeThresholdEnabled.checked=false;
- const zeroAndNoThreshold=adminContext.readStorefrontShippingAdminForm();
- assert.equal(zeroAndNoThreshold.fee,0,'Tarifa cero es válida cuando se ingresa explícitamente');
- assert.equal(zeroAndNoThreshold.threshold,null,'Umbral desactivado se representa como NULL');
- assert.ok(admin.includes('row.free_shipping_in_cali!==true'),'Respuesta de guardado valida la regla Cali');
+	 const zeroAndNoThreshold=adminContext.readStorefrontShippingAdminForm();
+	 assert.equal(zeroAndNoThreshold.fee,0,'Tarifa cero es válida cuando se ingresa explícitamente');
+	 assert.equal(zeroAndNoThreshold.threshold,null,'Umbral desactivado se representa como NULL');
+	 assert.ok(admin.includes("typeof row.free_shipping_in_cali!=='boolean'"),'Respuesta de guardado valida que la regla Cali sea booleana');
 
- const shippingMigration=read('supabase/migrations/20261108060000_configurable_storefront_shipping.sql');
+	 const shippingMigration=read('supabase/migrations/20261108060000_configurable_storefront_shipping.sql');
  const shippingAclMigration=read('supabase/migrations/20261108060050_restrict_admin_shipping_rpc.sql');
  const codGuardMigration=read('supabase/migrations/20261108060100_cod_checkout_quote_guard.sql');
  const wompiFunction=read('supabase/functions/wompi-create-checkout/index.ts');
