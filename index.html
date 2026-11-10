@@ -1563,19 +1563,15 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
 .sirevyaPromoCard[data-size="micro"][data-shape="circle"] .sirevyaPromoCta{max-width:105px;min-height:20px;padding:3px 5px;font-size:7px}
 .sirevyaPromoCard[data-size="micro"][data-shape="circle"] .sirevyaPromoFoot{font-size:4.5px;margin-top:2px}
 @media(max-width:480px){.sirevyaPromoCard[data-size="micro"]{width:min(48vw,152px);padding:9px 8px 7px}.sirevyaPromoCard[data-size="micro"][data-shape="circle"]{width:min(37vw,132px,42vh);height:min(37vw,132px,42vh);max-height:min(37vw,132px,42vh);padding:17px 11px 8px}}
-/* Ticker compacto y visible en celulares; permite pausar o desplazarse con movimiento reducido. */
+/* Ticker móvil: autoplay por defecto; la única excepción es reduced-motion explícito. */
 @media(max-width:700px){
- .jmTicker{display:block!important;max-width:100vw!important;padding:0 8px!important}
- .jmTickerTrack{padding:7px 0!important;font-size:clamp(10px,2.8vw,12px)!important;animation-duration:30s!important;gap:0!important}
+ .jmTicker{display:block!important;max-width:100vw!important;padding:0 8px!important;overflow:hidden!important}
+ .jmTickerTrack{padding:7px 0!important;font-size:clamp(10px,2.8vw,12px)!important;gap:0!important;-webkit-animation:jmTickerMove 28s linear infinite!important;animation:jmTickerMove 28s linear infinite!important;animation-play-state:running!important;backface-visibility:hidden;-webkit-backface-visibility:hidden}
  .jmTickerSequence{gap:clamp(18px,5vw,28px)!important;padding-right:clamp(18px,5vw,28px)!important}
-}
-@media(max-width:700px) and (prefers-reduced-motion:no-preference){
- .jmTicker{overflow:hidden!important}
- .jmTickerTrack{-webkit-animation:jmTickerMove 30s linear infinite!important;animation-name:jmTickerMove!important;animation-duration:30s!important;animation-timing-function:linear!important;animation-iteration-count:infinite!important;animation-play-state:running!important;backface-visibility:hidden;-webkit-backface-visibility:hidden}
 }
 @media(hover:hover) and (pointer:fine){.jmTicker:hover .jmTickerTrack{animation-play-state:paused}}
 .jmTicker:focus-within .jmTickerTrack{animation-play-state:paused}
-@media(prefers-reduced-motion:reduce){.jmTicker{overflow-x:auto!important;scrollbar-width:none}.jmTickerTrack{animation:none!important;transform:none!important}}
+@media(prefers-reduced-motion:reduce){.jmTicker{overflow-x:auto!important;scrollbar-width:none}.jmTickerTrack{-webkit-animation:none!important;animation:none!important;transform:none!important;-webkit-transform:none!important}}
 /* WhatsApp: contraste alto, etiqueta breve y huella compacta sin animación continua. */
 .waHelpFloat{position:fixed;right:max(12px,env(safe-area-inset-right));bottom:max(12px,env(safe-area-inset-bottom));z-index:260;display:flex;align-items:center;gap:6px;min-height:40px;max-width:calc(100vw - 24px);padding:5px 9px 5px 6px;background:#fffaf3!important;color:#302b27!important;box-shadow:0 4px 14px rgba(44,30,20,.09)!important;border:1px solid rgba(123,23,48,.16)!important;border-radius:14px!important;text-decoration:none;transition:transform .16s ease,background-color .16s ease,box-shadow .16s ease}
 .waHelpIcon{display:grid;place-items:center;width:25px;height:25px;flex:0 0 25px;border-radius:0;background:transparent!important;color:#25d366;font-size:0}
@@ -6251,11 +6247,11 @@ if ('serviceWorker' in navigator) {
 <script>
 function evaluateTickerPhysicalProbe(input){
  const positions=(Array.isArray(input.positions)?input.positions:[]).filter(Number.isFinite);
- const transitions=positions.slice(1).filter((value,index)=>Math.abs(value-positions[index])>0.5).length;
+ const transitions=positions.slice(1).filter((value,index)=>Math.abs(value-positions[index])>0.05).length;
  const excursion=positions.length>1?Math.max(...positions)-Math.min(...positions):0;
  if(input.reducedMotion){
   const pass=input.animationName==='none'&&input.hasOverflow;
-  return {pass,summary:pass?'Movimiento reducido respetado; los mensajes siguen desplazables.':'Movimiento reducido no verificado; revisa que el ticker sea desplazable.'};
+  return {pass,summary:pass?'La preferencia de movimiento reducido está activa: el autoplay se desactiva intencionalmente y este estado NO demuestra movimiento automático.':'Movimiento reducido activo, pero los mensajes no quedaron accesibles para desplazamiento.'};
  }
  const duration=parseFloat(input.animationDuration)||0;
  const pass=input.animationName==='jmTickerMove'&&duration>0&&input.animationIterationCount==='infinite'&&input.animationPlayState==='running'&&input.hasOverflow&&transitions>=4&&excursion>2;
@@ -6265,7 +6261,8 @@ function runTickerPhysicalDiagnostic(){
  if(new URLSearchParams(location.search).get('verificarTicker')!=='1')return;
  const ticker=document.querySelector('.jmTicker');
  const track=document.querySelector('.jmTickerTrack');
- if(!ticker||!track)return;
+ const tickerMessage=track?.querySelector('.jmTickerSequence span');
+ if(!ticker||!track||!tickerMessage)return;
  const panel=document.createElement('section');
  panel.setAttribute('role','status');panel.setAttribute('aria-live','polite');
  panel.style.cssText='display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 14px;background:#fffaf3;color:#302b27;border-bottom:1px solid #d9c69d;font:600 13px/1.45 system-ui,sans-serif';
@@ -6280,12 +6277,12 @@ function runTickerPhysicalDiagnostic(){
  const hasOverflow=ticker.clientWidth>0&&ticker.scrollWidth>ticker.clientWidth+1;
  if(reduced){
   const result=evaluateTickerPhysicalProbe({reducedMotion:true,animationName:style.animationName,hasOverflow});
-  status.textContent=`${result.pass?'PASS':'REVISAR'} — ${result.summary}`;status.style.color=result.pass?'#17633b':'#8a4b00';return;
+  status.textContent=`${result.pass?'MOVIMIENTO REDUCIDO ACTIVO':'REVISAR'} — ${result.summary}`;status.style.color=result.pass?'#8a4b00':'#a32435';return;
  }
  const positions=[];let samples=0;
  timer=setInterval(()=>{
   if(document.hidden){clearInterval(timer);status.textContent='Vuelve a esta pestaña y actualiza para repetir la medición.';return}
-  positions.push(track.getBoundingClientRect().left);samples++;
+  positions.push(tickerMessage.getBoundingClientRect().left);samples++;
   if(samples<8)return;
   clearInterval(timer);timer=0;
   const current=getComputedStyle(track);
