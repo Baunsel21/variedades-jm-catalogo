@@ -85,6 +85,18 @@ for (const ending of ['\n', '\r\n', '']) {
   assert.ok(negative.errors.some(error => error.field === 'quantity' && error.code === 'INVALID_INTEGER'));
   assert.equal(negative.rows.length, 0);
 
+  const quantityBoundary = previewProductsCsv(
+    `${header}\nP-014,Límite,Ropa,9007199254740991,9007199254740991,2147483647\n` +
+      'P-015,Fuera de rango,Ropa,1,2,2147483648\n',
+  );
+  assert.equal(quantityBoundary.rows.length, 1);
+  assert.equal(quantityBoundary.rows[0].quantity, 2147483647);
+  assert.equal(quantityBoundary.rows[0].cost, Number.MAX_SAFE_INTEGER);
+  assert.equal(quantityBoundary.rows[0].sale_price, Number.MAX_SAFE_INTEGER);
+  assert.ok(quantityBoundary.errors.some(
+    error => error.row === 3 && error.field === 'quantity' && error.code === 'INTEGER_OUT_OF_RANGE',
+  ));
+
   const huge = previewProductsCsv(
     `${header}\nP-012,Grande,Ropa,999999999999999999999999,25000,1\n`,
   );
@@ -121,7 +133,7 @@ for (const ending of ['\n', '\r\n', '']) {
 // Contrato v2 opt-in: enlaces HTTPS y variantes compatibles con el catálogo.
 {
   const variants = [
-    { color: 'Rojo', size: 'S', stock: 2, color_hex: '#AA0022', image_path: 'https://cdn.example.test/rojo-s.jpg' },
+    { color: 'Rojo', size: 'S', stock: 2, color_hex: '#AA0022', image_path: 'https://cdn.example.test:0001/rojo-s.jpg' },
     { color: 'Rojo', size: 'M', stock: 1 },
   ];
   const variantsCell = JSON.stringify(variants).replace(/"/g, '""');
@@ -131,7 +143,7 @@ for (const ending of ['\n', '\r\n', '']) {
   assert.equal(result.rows.length, 1);
   assert.equal(result.rows[0].image_url, 'https://cdn.example.test/product.jpg');
   assert.deepEqual(result.rows[0].variants, [
-    { color: 'Rojo', size: 'S', stock: 2, color_hex: '#aa0022', image_path: 'https://cdn.example.test/rojo-s.jpg' },
+    { color: 'Rojo', size: 'S', stock: 2, color_hex: '#aa0022', image_path: 'https://cdn.example.test:0001/rojo-s.jpg' },
     { color: 'Rojo', size: 'M', stock: 1 },
   ]);
   assert.equal(result.dryRun, true);
@@ -144,6 +156,15 @@ for (const ending of ['\n', '\r\n', '']) {
   assert.ok(badImage.errors.some(error => error.code === 'IMAGE_URL_INVALID' && error.field === 'image_url'));
   const credentialImage = previewProductsCsv(`${headerV2}\nSKU-CRED,Base,Ropa,1,2,1,https://user:pass@cdn.example.test/x.jpg,[]`, { schemaVersion: 2 });
   assert.ok(credentialImage.errors.some(error => error.code === 'IMAGE_URL_INVALID'));
+  for (const imageUrl of ['https://cdn.example.test:/x.jpg', 'https://cdn.example.test:0/x.jpg', 'https://cdn.example.test:65536/x.jpg']) {
+    const invalidPort = previewProductsCsv(`${headerV2}\nSKU-BAD-PORT,Base,Ropa,1,2,1,${imageUrl},[]`, { schemaVersion: 2 });
+    assert.ok(invalidPort.errors.some(error => error.code === 'IMAGE_URL_INVALID' && error.field === 'image_url'), `${imageUrl} debe rechazarse como puerto HTTPS inválido`);
+  }
+  const invalidVariantPorts = previewProductsCsv(
+    `${headerV2}\nSKU-V-BAD-PORT,Base,Ropa,1,2,1,,"[{""color"":""Rojo"",""size"":""S"",""stock"":1,""image_path"":""https://cdn.example.test:/variant.jpg""}]"`,
+    { schemaVersion: 2 },
+  );
+  assert.ok(invalidVariantPorts.errors.some(error => error.code === 'VARIANTS_INVALID'), 'image_path no permite autoridad HTTPS con puerto vacío');
 
   const invalidJson = previewProductsCsv(`${headerV2}\nSKU-JSON,Base,Ropa,1,2,1,,"[not-json]"`, { schemaVersion: 2 });
   assert.ok(invalidJson.errors.some(error => error.code === 'VARIANTS_INVALID'));

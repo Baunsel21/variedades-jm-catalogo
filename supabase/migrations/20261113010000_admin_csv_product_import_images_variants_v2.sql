@@ -77,6 +77,8 @@ DECLARE
   v_name text;
   v_category text;
   v_image_url text;
+  -- Validación sintáctica local; no resuelve hosts ni realiza solicitudes de red.
+  v_https_url_pattern CONSTANT text := '^https://([^:/?#@[:space:]]+|\[[0-9A-Fa-f:.]+\])(:0*([1-9]|[1-9][0-9]|[1-9][0-9]{2}|[1-9][0-9]{3}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5]))?(/[^[:space:]]*)?(\?[^[:space:]]*)?(#[^[:space:]]*)?$';
   v_cost_text text;
   v_sale_text text;
   v_quantity_text text;
@@ -193,7 +195,7 @@ BEGIN
     END IF;
 
     IF octet_length(v_image_url) > 2048 OR v_image_url ~ '[[:cntrl:][:space:]]'
-       OR (v_image_url <> '' AND v_image_url !~* '^https://[^/@[:space:]?#]+(/[^[:space:]]*)?(\?[^[:space:]]*)?(#[^[:space:]]*)?$') THEN
+       OR (v_image_url <> '' AND v_image_url !~* v_https_url_pattern) THEN
       v_errors := v_errors || jsonb_build_array(jsonb_build_object(
         'row', v_row.ordinality + 1, 'field', 'image_url', 'code', 'IMAGE_URL_INVALID',
         'message', 'image_url debe estar vacío o ser una URL HTTPS sin credenciales.'
@@ -297,7 +299,7 @@ BEGIN
       END IF;
       IF coalesce(v_variant_value->>'image_path', '') <> '' AND
          (octet_length(v_variant_value->>'image_path') > 2048 OR (v_variant_value->>'image_path') ~ '[[:cntrl:][:space:]]'
-          OR (v_variant_value->>'image_path') !~* '^https://[^/@[:space:]?#]+(/[^[:space:]]*)?(\?[^[:space:]]*)?(#[^[:space:]]*)?$') THEN
+          OR (v_variant_value->>'image_path') !~* v_https_url_pattern) THEN
         v_errors := v_errors || jsonb_build_array(jsonb_build_object(
           'row', v_row.ordinality + 1, 'field', 'variants', 'code', 'VARIANTS_INVALID',
           'message', 'image_path solo admite una URL HTTPS sin credenciales.'
