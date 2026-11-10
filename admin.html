@@ -291,6 +291,19 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
 .codCitiesOptions .codAllCitiesOption{border-color:#be9aab;background:#fff1f6;font-weight:850}
 @media(max-width:680px){.codCitiesOptions{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}.codCitiesOptions label{padding:8px 6px;font-size:11px}}
 </style>
+<style id="sirevyaFloatingCampaignAdminStyles">
+.floatingCampaignAdminBox{margin-top:18px;padding:14px;border:1px solid #eadcc4;border-radius:18px;background:linear-gradient(145deg,#fffdf8,#fff);box-shadow:0 8px 24px rgba(74,48,22,.06)}
+.floatingCampaignTiming{grid-template-columns:repeat(2,minmax(0,1fr));max-width:620px}
+.floatingPromoAdminButtons{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:12px}
+.floatingPromoAdminButton{min-width:0;margin:0;padding:12px;border:1px solid #e8dfd4;border-radius:14px;background:#fff}
+.floatingPromoAdminButton legend{padding:0 5px;color:#704b13;font-weight:800;font-family:Georgia,serif}
+.floatingPromoAdminButton label{display:flex;flex-direction:column;gap:4px;margin:8px 0;color:#514a43;font-size:12px;font-weight:700}
+.floatingPromoAdminButton input:not([type=color]),.floatingPromoAdminButton select{box-sizing:border-box;width:100%;min-width:0;margin:0;padding:8px;border:1px solid #ddd1c0;border-radius:9px;background:#fff;color:#302a24;font:inherit}
+.floatingPromoAdminButton input[type=color]{width:100%;height:34px;padding:2px;border:1px solid #ddd1c0;border-radius:8px;background:#fff}
+.floatingPromoAdminBox .promoAdminHelp{margin-top:12px}
+@media(max-width:900px){.floatingPromoAdminButtons{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:620px){.floatingCampaignAdminBox{padding:10px}.floatingCampaignTiming,.floatingPromoAdminButtons{grid-template-columns:1fr}.floatingPromoAdminButton{padding:10px}}
+</style>
 </head>
 <body>
 
@@ -681,6 +694,39 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
             <p class="promoAdminHelp">Las fechas se interpretan como hora de Colombia (America/Bogota), sin depender de la zona del dispositivo. El popup es informativo y no cambia precios ni tarifas; evita prometer beneficios que no estén respaldados por una regla vigente. Puedes cambiar forma, tamaño, posición, paleta, animación, demora y duración. Respeta la preferencia de reducir movimiento. El botón admite #catalogo, #inicio, #contactanos o enlaces HTTP/HTTPS.</p>
             <div class="promoAdminActions"><button type="button" class="primary" id="saveSeasonalPromoBtn" onclick="saveSeasonalPromoSettings()" disabled>💾 Guardar promoción</button><button type="button" class="softbtn" onclick="previewSeasonalPromo()">👁️ Ver ventana previa</button><button type="button" class="softbtn" onclick="applySeasonalPromoSuggestedCopy()">✨ Usar textos sugeridos</button><button type="button" class="softbtn" onclick="loadSeasonalPromoSettingsAdmin(true)">↻ Recargar ajustes</button></div>
             <div id="seasonalPromoSettingsStatus" class="promoAdminStatus" role="status" aria-live="polite">Preparando configuración de promoción…</div>
+            <section class="floatingCampaignAdminBox" id="floatingPromotionsSettingsBox" aria-labelledby="floatingPromotionsHeading">
+              <div class="rowBetween" style="align-items:flex-start;gap:12px;flex-wrap:wrap">
+                <div style="flex:1;min-width:220px"><h3 id="floatingPromotionsHeading" style="margin-bottom:7px">✨ Campaña flotante de categorías</h3><p class="muted" style="margin-top:0">Configura una campaña global con tres botones que llevan a categorías reales del catálogo. Los cambios solo guardan preferencias visuales; no alteran precios, descuentos ni inventario.</p></div>
+                <label class="promoAdminToggle"><input type="checkbox" id="floatingPromoEnabled" disabled> Activar campaña</label>
+              </div>
+              <div class="promoAdminGrid floatingCampaignTiming">
+                <label>Intervalo entre apariciones (segundos)<input type="number" id="floatingPromoIntervalSeconds" min="10" max="7200" step="1" value="20" disabled></label>
+                <label>Duración visible (segundos)<input type="number" id="floatingPromoVisibleSeconds" min="1" max="30" step="1" value="3" disabled></label>
+              </div>
+              <div class="floatingPromoAdminButtons">
+                <fieldset class="floatingPromoAdminButton" data-floating-promo-key="best_selling"><legend>Botón 1 · Más vendido</legend>
+                  <label>Texto<input data-field="label" maxlength="32" value="Más vendido" disabled></label><label>Icono<input data-field="icon" maxlength="8" value="👑" disabled></label>
+                  <label>Categoría de destino<select data-field="target_category" disabled><option value="">Selecciona una categoría…</option></select></label><label>Orden<select data-field="sort_order" disabled><option value="1">1</option><option value="2">2</option><option value="3">3</option></select></label>
+                  <label>Estilo<select data-field="appearance" disabled><option value="gold">Dorado</option><option value="solid">Sólido</option><option value="outline">Contorno</option></select></label>
+                  <label>Fondo<input data-field="background_color" type="color" value="#fff8e7" disabled></label><label>Texto<input data-field="text_color" type="color" value="#5d4012" disabled></label><label>Acento<input data-field="accent_color" type="color" value="#c6a15b" disabled></label>
+                </fieldset>
+                <fieldset class="floatingPromoAdminButton" data-floating-promo-key="trending"><legend>Botón 2 · Tendencia</legend>
+                  <label>Texto<input data-field="label" maxlength="32" value="Tendencia" disabled></label><label>Icono<input data-field="icon" maxlength="8" value="🔥" disabled></label>
+                  <label>Categoría de destino<select data-field="target_category" disabled><option value="">Selecciona una categoría…</option></select></label><label>Orden<select data-field="sort_order" disabled><option value="1">1</option><option value="2">2</option><option value="3">3</option></select></label>
+                  <label>Estilo<select data-field="appearance" disabled><option value="gold">Dorado</option><option value="solid">Sólido</option><option value="outline">Contorno</option></select></label>
+                  <label>Fondo<input data-field="background_color" type="color" value="#fff8e7" disabled></label><label>Texto<input data-field="text_color" type="color" value="#5d4012" disabled></label><label>Acento<input data-field="accent_color" type="color" value="#c6a15b" disabled></label>
+                </fieldset>
+                <fieldset class="floatingPromoAdminButton" data-floating-promo-key="top_product"><legend>Botón 3 · Producto Top</legend>
+                  <label>Texto<input data-field="label" maxlength="32" value="Producto Top" disabled></label><label>Icono<input data-field="icon" maxlength="8" value="⭐" disabled></label>
+                  <label>Categoría de destino<select data-field="target_category" disabled><option value="">Selecciona una categoría…</option></select></label><label>Orden<select data-field="sort_order" disabled><option value="1">1</option><option value="2">2</option><option value="3">3</option></select></label>
+                  <label>Estilo<select data-field="appearance" disabled><option value="gold">Dorado</option><option value="solid">Sólido</option><option value="outline">Contorno</option></select></label>
+                  <label>Fondo<input data-field="background_color" type="color" value="#fff8e7" disabled></label><label>Texto<input data-field="text_color" type="color" value="#5d4012" disabled></label><label>Acento<input data-field="accent_color" type="color" value="#c6a15b" disabled></label>
+                </fieldset>
+              </div>
+              <p class="promoAdminHelp">Los destinos se validan contra categorías existentes con productos. El panel se oculta automáticamente en checkout y en ventanas de producto, se cierra según la duración elegida y respeta el cierre del visitante hasta que guardes una nueva versión.</p>
+              <div class="promoAdminActions"><button type="button" class="primary" id="saveFloatingPromotionsBtn" onclick="saveFloatingPromotionsAdmin()" disabled>💾 Guardar campaña</button><button type="button" class="softbtn" id="reloadFloatingPromotionsBtn" onclick="loadFloatingPromotionsAdmin(true)">↻ Recargar campaña</button></div>
+              <div id="floatingPromotionsSettingsStatus" class="promoAdminStatus" role="status" aria-live="polite">La campaña se cargará al abrir Configuración.</div>
+            </section>
           </div>
           <div class="box" style="grid-column:1/-1" id="storefrontCombosAdminBox">
             <div class="rowBetween" style="align-items:flex-start;gap:12px;flex-wrap:wrap"><div style="flex:1;min-width:220px"><h3 style="margin-bottom:7px">🧩 Promociones de un producto con otro</h3><p class="muted" style="margin-top:0">Crea un combo de dos productos concretos o de dos categorías. El descuento se aplica automáticamente al carrito por cada pareja válida de una unidad de cada lado. Puedes fijar un porcentaje, una rebaja en pesos o el precio final de la pareja. Las mismas unidades no reciben dos descuentos de combo.</p></div></div>
@@ -1814,6 +1860,7 @@ function lockAdminPanel(message='Tu sesión terminó. Vuelve a entrar.'){
 	 storefrontCouponsAdminLoaded=false;storefrontCouponsAdmin=[];storefrontCouponSaving=false;storefrontCouponEditingId='';resetStorefrontCouponForm();setStorefrontCouponFormDisabled(true);
 	 resetStorefrontCouponFeatureSettingsAdmin();
 	 seasonalPromoSettingsLoaded=false;seasonalPromoSettingsOriginal=null;seasonalPromoSaving=false;
+	 floatingPromotionsSettingsLoaded=false;floatingPromotionsSaving=false;
 	 resetTelegramAutomaticState();
 	 if(seasonalPromoAutoCloseTimer){clearTimeout(seasonalPromoAutoCloseTimer);seasonalPromoAutoCloseTimer=null;}
  ['listaPedidos','listaProductos','listaVentas','listaClientes','listaProveedores','listaGastos','listaMovimientos','wompiReconciliationList'].forEach(id=>{const el=$(id);if(el)el.textContent='';});
@@ -1839,10 +1886,12 @@ function lockAdminPanel(message='Tu sesión terminó. Vuelve a entrar.'){
  if(typeof updateStorefrontShippingAdminForm==='function')updateStorefrontShippingAdminForm();
  if(typeof setStorefrontComboFormDisabled==='function')setStorefrontComboFormDisabled(true);
  if(typeof renderStorefrontCombosAdminList==='function')renderStorefrontCombosAdminList();
- if(typeof resetStorefrontCouponForm==='function')resetStorefrontCouponForm();
- if(typeof setStorefrontCouponFormDisabled==='function')setStorefrontCouponFormDisabled(true);
- if(typeof setSeasonalPromoFormDisabled==='function')setSeasonalPromoFormDisabled(true);
- const seasonalReload=[...document.querySelectorAll('#seasonalPromoSettingsBox button')].find(button=>button.textContent.includes('Recargar'));if(seasonalReload)seasonalReload.disabled=false;
+	 if(typeof resetStorefrontCouponForm==='function')resetStorefrontCouponForm();
+	 if(typeof setStorefrontCouponFormDisabled==='function')setStorefrontCouponFormDisabled(true);
+	 if(typeof setSeasonalPromoFormDisabled==='function')setSeasonalPromoFormDisabled(true);
+	 if(typeof setFloatingPromoFormDisabled==='function')setFloatingPromoFormDisabled(true);
+	 const seasonalReload=[...document.querySelectorAll('#seasonalPromoSettingsBox button')].find(button=>button.textContent.includes('Recargar'));if(seasonalReload)seasonalReload.disabled=false;
+	 const floatingPromoReload=$('reloadFloatingPromotionsBtn');if(floatingPromoReload)floatingPromoReload.disabled=false;
  const currentField=$('adminCurrentPasswordField');if(currentField)currentField.classList.remove('hidden');
  loginMsg(message);
 }
@@ -2120,8 +2169,9 @@ function show(id,btn){
    if(!storefrontShippingAdminLoaded)void loadStorefrontShippingSettingsAdmin(false);
    if(!storefrontShippingRulesAdminLoaded)void loadStorefrontShippingRulesAdmin(false);
    if(!seasonalPromoSettingsLoaded)void loadSeasonalPromoSettingsAdmin();
+   if(!floatingPromotionsSettingsLoaded)void loadFloatingPromotionsAdmin(false);
    void loadStorefrontProductCombosAdmin();
-	   void loadTelegramAutomaticStatus(false);
+   void loadTelegramAutomaticStatus(false);
 	   if(!storefrontCouponsAdminLoaded)void loadStorefrontCouponsAdmin();
 	   void loadStorefrontCouponFeatureSettingsAdmin(true);
  }
@@ -4511,6 +4561,110 @@ const SIREVYA_PROMO_PRESETS={
  festive:{background_color:'#101f36',accent_color:'#83dcff',text_color:'#ffffff',popup_size:'small',popup_position:'center',animation_style:'falling',eyebrow:'CELEBRA CON SIREVYA',title:'La temporada se viste de estilo',message:'Descubre piezas para celebrar a tu manera.',button_label:'Ver catálogo'}
 };
 let seasonalPromoSettingsLoaded=false,seasonalPromoSettingsOriginal=null,seasonalPromoSaving=false,seasonalPromoAutoCloseTimer=null;
+const FLOATING_PROMO_BUTTON_KEYS=['best_selling','trending','top_product'];
+let floatingPromotionsSettingsLoaded=false,floatingPromotionsSaving=false;
+function setFloatingPromoStatus(message,kind=''){
+ const el=$('floatingPromotionsSettingsStatus');if(!el)return;
+ el.textContent=message;el.classList.toggle('promoStatusError',kind==='error');el.classList.toggle('promoStatusOk',kind==='ok');
+}
+function setFloatingPromoFormDisabled(disabled){
+ document.querySelectorAll('#floatingPromotionsSettingsBox input,#floatingPromotionsSettingsBox select').forEach(el=>{el.disabled=disabled});
+ const save=$('saveFloatingPromotionsBtn');if(save)save.disabled=disabled||floatingPromotionsSaving;
+ const reload=$('reloadFloatingPromotionsBtn');if(reload)reload.disabled=false;
+}
+function floatingPromoProductCategories(){
+ return [...new Set((Array.isArray(productos)?productos:[]).map(product=>String(product?.category||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'es',{sensitivity:'base'}));
+}
+function populateFloatingPromoCategorySelect(select,selected=''){
+ if(!select)return;
+ const current=String(selected||'').trim(),categories=floatingPromoProductCategories();
+ select.replaceChildren();
+ const placeholder=document.createElement('option');placeholder.value='';placeholder.textContent='Selecciona una categoría…';select.appendChild(placeholder);
+ categories.forEach(category=>{const option=document.createElement('option');option.value=category;option.textContent=category;select.appendChild(option)});
+ if(current&&!categories.includes(current)){const stale=document.createElement('option');stale.value=current;stale.textContent=`${current} (sin productos; elige otra)`;stale.disabled=true;select.appendChild(stale)}
+ select.value=current;
+}
+function applyFloatingPromoSettings(campaign){
+ if(!campaign||!Array.isArray(campaign.buttons)||campaign.buttons.length!==3)throw new Error('La configuración no contiene exactamente tres botones.');
+ const byKey=new Map(campaign.buttons.map(button=>[String(button?.key||''),button]));
+ if(FLOATING_PROMO_BUTTON_KEYS.some(key=>!byKey.has(key)))throw new Error('La campaña no contiene los tres botones esperados.');
+ $('floatingPromoEnabled').checked=campaign.enabled===true;
+ $('floatingPromoIntervalSeconds').value=String(Number(campaign.interval_seconds)||20);
+ $('floatingPromoVisibleSeconds').value=String(Number(campaign.visible_seconds)||3);
+ document.querySelectorAll('.floatingPromoAdminButton[data-floating-promo-key]').forEach(fieldset=>{
+  const key=fieldset.dataset.floatingPromoKey,button=byKey.get(key);if(!button)return;
+  fieldset.querySelectorAll('[data-field]').forEach(field=>{
+   const name=field.dataset.field,value=button[name];
+   if(name==='target_category')populateFloatingPromoCategorySelect(field,value);
+   else if(name==='sort_order')field.value=String(Number(value)||1);
+   else if(name==='appearance')field.value=['gold','solid','outline'].includes(value)?value:'gold';
+   else if(['background_color','text_color','accent_color'].includes(name))field.value=/^#[0-9a-f]{6}$/i.test(String(value||''))?String(value).toLowerCase():'#fff8e7';
+   else field.value=String(value??'');
+  });
+ });
+}
+function readFloatingPromoSettingsForm(){
+ const interval=Number($('floatingPromoIntervalSeconds')?.value),visible=Number($('floatingPromoVisibleSeconds')?.value);
+ if(!Number.isInteger(interval)||interval<10||interval>7200)throw new Error('El intervalo debe estar entre 10 y 7200 segundos.');
+ if(!Number.isInteger(visible)||visible<1||visible>30)throw new Error('La duración visible debe estar entre 1 y 30 segundos.');
+ const buttons=[...document.querySelectorAll('.floatingPromoAdminButton[data-floating-promo-key]')].map(fieldset=>{
+  const item={key:fieldset.dataset.floatingPromoKey};
+  fieldset.querySelectorAll('[data-field]').forEach(field=>{item[field.dataset.field]=field.value});
+  item.label=String(item.label||'').trim();item.icon=String(item.icon||'').trim();item.target_category=String(item.target_category||'').trim();item.sort_order=Number(item.sort_order);
+  if(!item.label||item.label.length>32||!item.icon||item.icon.length>8)throw new Error('Cada botón requiere un texto e icono cortos.');
+  if(!['gold','solid','outline'].includes(item.appearance))throw new Error('Selecciona un estilo válido para cada botón.');
+  for(const color of ['background_color','text_color','accent_color'])if(!/^#[0-9a-f]{6}$/i.test(item[color]||''))throw new Error('Todos los colores deben usar formato HEX.');
+  if($('floatingPromoEnabled')?.checked&&!floatingPromoProductCategories().includes(item.target_category))throw new Error('Cada botón activado debe llevar a una categoría vigente con productos.');
+  return item;
+ });
+ if(buttons.length!==3||new Set(buttons.map(item=>item.key)).size!==3||new Set(buttons.map(item=>item.sort_order)).size!==3||buttons.some(item=>![1,2,3].includes(item.sort_order)))throw new Error('Conserva los tres botones y asigna un orden único del 1 al 3.');
+ return {enabled:!!$('floatingPromoEnabled')?.checked,interval_seconds:interval,visible_seconds:visible,buttons};
+}
+async function loadFloatingPromotionsAdmin(showStatus=true){
+ const userId=adminSessionUserId,authEpoch=adminAuthEpoch;
+ floatingPromotionsSettingsLoaded=false;setFloatingPromoFormDisabled(true);
+ if(!sb||!adminSessionAuthorized||!userId){if(showStatus)setFloatingPromoStatus('Se requiere una sesión administrativa válida.','error');return false}
+ if(showStatus)setFloatingPromoStatus('Consultando la campaña guardada en Supabase…');
+ try{
+  const {data,error}=await sb.rpc('get_public_storefront_floating_promotions');
+  if(!adminAuthOperationStillCurrent(userId,authEpoch))return false;
+  if(error)throw error;
+  const result=Array.isArray(data)?data[0]:data;
+  if(result?.success!==true||!result.campaign)throw new Error(result?.message||'El RPC no devolvió una configuración válida.');
+  applyFloatingPromoSettings(result.campaign);floatingPromotionsSettingsLoaded=true;setFloatingPromoFormDisabled(false);
+  setFloatingPromoStatus('Configuración cargada desde Supabase. La campaña sigue desactivada hasta que la habilites y guardes.','ok');
+  return true;
+ }catch(error){
+  if(!adminAuthOperationStillCurrent(userId,authEpoch))return false;
+  setFloatingPromoStatus('No se pudo consultar la campaña; el formulario permanece bloqueado. Confirma que la migración candidata esté aplicada. Detalle: '+String(error?.message||error),'error');
+  return false;
+ }
+}
+async function saveFloatingPromotionsAdmin(){
+ if(!sb||!adminSessionAuthorized||!adminSessionUserId)return setFloatingPromoStatus('Vuelve a validar la sesión administrativa.','error');
+ if(!floatingPromotionsSettingsLoaded)return setFloatingPromoStatus('Recarga la configuración antes de guardar.','error');
+ const userId=adminSessionUserId,authEpoch=adminAuthEpoch;let config;
+ try{config=readFloatingPromoSettingsForm()}catch(error){return setFloatingPromoStatus(String(error?.message||error),'error')}
+ floatingPromotionsSaving=true;setFloatingPromoFormDisabled(true);setFloatingPromoStatus('Guardando la campaña en Supabase…');
+ try{
+  const {data,error}=await sb.rpc('admin_save_storefront_floating_promotions',{p_config:config});
+  if(!adminAuthOperationStillCurrent(userId,authEpoch))return false;
+  if(error)throw error;
+  const result=Array.isArray(data)?data[0]:data;
+  if(result?.success!==true||!result.campaign)throw new Error(result?.message||'Supabase no confirmó la campaña.');
+  applyFloatingPromoSettings(result.campaign);
+  try{localStorage.setItem('sirevya_public_catalog_changed',JSON.stringify({type:'floating-promotions-changed',at:Date.now()}))}catch{}
+  setFloatingPromoStatus(`Campaña guardada. Versión ${Number(result.campaign.campaign_version)||0}; los cierres anteriores se restablecerán al verla.`, 'ok');
+  return true;
+ }catch(error){
+  if(!adminAuthOperationStillCurrent(userId,authEpoch))return false;
+  setFloatingPromoStatus('No se guardó ningún cambio. Verifica la migración, los permisos de administrador y las categorías. Detalle: '+String(error?.message||error),'error');
+  return false;
+ }finally{
+  floatingPromotionsSaving=false;
+  if(adminAuthOperationStillCurrent(userId,authEpoch))setFloatingPromoFormDisabled(!floatingPromotionsSettingsLoaded);
+ }
+}
 function seasonalPromoFieldValue(){
  const style=$('seasonalPromoStyle')?.value||'halloween';
  const background=$('seasonalPromoBackgroundColor')?.value||SIREVYA_PROMO_PRESETS[style].background_color;

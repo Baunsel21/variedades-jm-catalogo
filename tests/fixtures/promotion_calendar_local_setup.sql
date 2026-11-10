@@ -17,6 +17,31 @@ CREATE TABLE public.store_settings(
   id smallint PRIMARY KEY,
   admin_user_id uuid REFERENCES auth.users(id)
 );
+CREATE TABLE public.storefront_promotion_settings(
+  id smallint PRIMARY KEY,
+  enabled boolean NOT NULL DEFAULT false,
+  style text NOT NULL DEFAULT 'elegant',
+  eyebrow varchar(48) NOT NULL DEFAULT '',
+  title varchar(90) NOT NULL DEFAULT '',
+  message varchar(240) NOT NULL DEFAULT '',
+  button_label varchar(32) NOT NULL DEFAULT 'Ver catálogo',
+  button_url varchar(300) NOT NULL DEFAULT '#catalogo',
+  background_color varchar(7) NOT NULL DEFAULT '#17131d',
+  accent_color varchar(7) NOT NULL DEFAULT '#d7b779',
+  text_color varchar(7) NOT NULL DEFAULT '#ffffff',
+  popup_size text NOT NULL DEFAULT 'small',
+  popup_shape text NOT NULL DEFAULT 'rounded',
+  popup_position text NOT NULL DEFAULT 'center',
+  animation_style text NOT NULL DEFAULT 'sparkle',
+  animate boolean NOT NULL DEFAULT true,
+  delay_ms integer NOT NULL DEFAULT 1600,
+  visible_duration_ms integer NOT NULL DEFAULT 3000,
+  display_frequency text NOT NULL DEFAULT 'once_per_session',
+  start_at timestamptz,
+  end_at timestamptz,
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  updated_by uuid REFERENCES auth.users(id)
+);
 CREATE TABLE public.storefront_shipping_settings(
   id smallint PRIMARY KEY,
   national_shipping_cost bigint NOT NULL,
@@ -58,6 +83,8 @@ CREATE TABLE public.storefront_product_combos(
 );
 
 INSERT INTO auth.users(id) VALUES ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');
+INSERT INTO public.storefront_promotion_settings(id,updated_by)
+VALUES (1,'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');
 INSERT INTO public.store_settings(id,admin_user_id)
 VALUES (1,'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');
 INSERT INTO public.storefront_shipping_settings(id,national_shipping_cost,free_shipping_threshold)

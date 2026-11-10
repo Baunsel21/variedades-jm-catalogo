@@ -1,0 +1,76 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import vm from 'node:vm';
+
+const root = new URL('../', import.meta.url);
+const index = readFileSync(new URL('index.html', root), 'utf8');
+const admin = readFileSync(new URL('admin.html', root), 'utf8');
+const migration = readFileSync(new URL('supabase/migrations/20261112010000_storefront_floating_promotions.sql', root), 'utf8');
+
+const normalizerStart = index.indexOf('function normalizeFloatingPromoCampaign(payload){');
+const normalizerEnd = index.indexOf('\nfunction floatingPromoCampaignCategoriesExist', normalizerStart);
+assert.ok(normalizerStart >= 0 && normalizerEnd > normalizerStart, 'normalizador de campaña pública presente');
+const normalizerSource = index.slice(normalizerStart, normalizerEnd);
+
+const buttons = [
+  { key: 'best_selling', label: 'Más vendido', icon: '👑', background_color: '#fff8e7', text_color: '#5d4012', accent_color: '#c6a15b', appearance: 'gold', target_category: 'Accesorios', sort_order: 1 },
+  { key: 'trending', label: 'Tendencia', icon: '🔥', background_color: '#fff8e7', text_color: '#5d4012', accent_color: '#c6a15b', appearance: 'solid', target_category: 'Pulseras', sort_order: 2 },
+  { key: 'top_product', label: 'Producto Top', icon: '⭐', background_color: '#fff8e7', text_color: '#5d4012', accent_color: '#c6a15b', appearance: 'outline', target_category: 'Collares', sort_order: 3 },
+];
+function normalize(payload, { catalogLoaded = true } = {}) {
+  const context = vm.createContext({
+    FLOATING_PROMO_KEYS: ['best_selling', 'trending', 'top_product'],
+    productos: [
+      { category: 'Accesorios' },
+      { category: 'Pulseras' },
+      { category: 'Collares' },
+    ],
+    catalogInitialLoadComplete: catalogLoaded,
+    input: payload,
+  });
+  vm.runInContext(`${normalizerSource}\nglobalThis.output = normalizeFloatingPromoCampaign(input);`, context);
+  return context.output;
+}
+
+const valid = normalize({ success: true, campaign: { enabled: true, interval_seconds: 20, visible_seconds: 3, campaign_version: 4, buttons: [...buttons].reverse() } });
+assert.equal(valid.enabled, true);
+assert.equal(valid.campaign_version, '4');
+assert.deepEqual(Array.from(valid.buttons, button => button.key), ['best_selling', 'trending', 'top_product'], 'orden final por sort_order');
+assert.equal(normalize({ success: false, campaign: { enabled: true, buttons } }), null, 'respuesta RPC fallida no se muestra');
+assert.equal(normalize({ success: true, campaign: { enabled: true, interval_seconds: 20, visible_seconds: 3, campaign_version: 4, buttons: buttons.map((button, i) => i === 0 ? { ...button, target_category: 'No existe' } : button) } }), null, 'destino inexistente falla cerrado tras cargar el catálogo');
+assert.equal(normalize({ success: true, campaign: { enabled: true, interval_seconds: 20, visible_seconds: 3, campaign_version: 4, buttons: buttons.map((button, i) => i === 0 ? { ...button, target_category: 'Aún no cargada' } : button) } }, { catalogLoaded: false })?.enabled, true, 'una respuesta temprana espera a la carga del catálogo y se revalida antes de mostrarse');
+assert.equal(normalize({ success: true, campaign: { enabled: true, interval_seconds: 20, visible_seconds: 3, campaign_version: 4, buttons: buttons.map((button, i) => i === 1 ? { ...button, accent_color: 'url(javascript:alert(1))' } : button) } }), null, 'color no HEX falla cerrado');
+assert.equal(normalize({ success: true, campaign: { enabled: true, interval_seconds: 20, visible_seconds: 3, campaign_version: 4, buttons: buttons.map((button, i) => i === 2 ? { ...button, sort_order: 2 } : button) } }), null, 'orden duplicado falla cerrado');
+assert.equal(normalize({ success: true, campaign: { enabled: false, interval_seconds: 20, visible_seconds: 3, campaign_version: 0, buttons: buttons.map(button => ({ ...button, target_category: '' })) } })?.enabled, false, 'configuración de inicio permanece apagada');
+
+assert.equal((index.match(/id="floatingPromoWidget"/g) || []).length, 1, 'un solo nodo flotante global');
+assert.equal((admin.match(/class="floatingPromoAdminButton"/g) || []).length, 3, 'admin configura exactamente tres botones');
+assert.match(index, /get_public_storefront_floating_promotions/);
+assert.match(index, /FLOATING_PROMO_DISMISSAL_KEY='sirevya_floating_promo_dismissed_v1'/);
+assert.match(index, /localStorage\.setItem\(FLOATING_PROMO_DISMISSAL_KEY,String\(version\)\)/, 'el cierre persiste por versión de campaña');
+assert.match(index, /if\(floatingPromoIsBlocked\(\)\)/, 'no aparece sobre checkout, carrito, ficha o popup estacional');
+assert.match(index, /selectCategory\(currentOption\.value\)/, 'el botón usa el enrutador existente de categorías');
+assert.match(index, /prefers-reduced-motion:reduce/, 'los estilos respetan movimiento reducido');
+assert.match(index, /grid-template-columns:repeat\(4,minmax\(0,1fr\)\)!important/, 'beneficios del footer se mantienen en cuatro columnas en escritorio');
+assert.match(index, /grid-template-columns:repeat\(2,minmax\(0,1fr\)\)!important/, 'beneficios del footer pasan a dos columnas en móvil');
+assert.match(index, /grid-template-columns:1fr!important/, 'beneficios del footer pasan a una columna en pantallas muy estrechas');
+assert.match(index, /<div class="name">\$\{esc\(elegantProductTitle\(p\.name\)\)\}<\/div>/, 'tarjeta usa la presentación refinada sin mutar el nombre almacenado');
+const renderStart = index.indexOf('function renderFloatingPromoWidget(campaign){');
+const renderEnd = index.indexOf('\nfunction scheduleFloatingPromoCycle', renderStart);
+assert.ok(renderStart >= 0 && renderEnd > renderStart);
+assert.doesNotMatch(index.slice(renderStart, renderEnd), /innerHTML/, 'el copy administrable se inserta como texto, no HTML');
+assert.match(index, /floatingPromoCampaignCategoriesExist\(campaign\)/, 'categorías vuelven a validarse antes de mostrar la campaña');
+
+assert.match(admin, /get_public_storefront_floating_promotions/);
+assert.match(admin, /admin_save_storefront_floating_promotions/);
+assert.match(admin, /adminAuthOperationStillCurrent\(userId,authEpoch\)/, 'lectura/escritura se descartan si cambia la sesión');
+assert.match(admin, /el formulario permanece bloqueado/, 'RPC no disponible deja controles fail-closed');
+assert.match(admin, /floating-promotions-changed/, 'admin anuncia los cambios guardados al catálogo');
+assert.match(migration, /ALTER TABLE public\.storefront_promotion_settings[\s\S]*ADD COLUMN IF NOT EXISTS floating_buttons_config jsonb/);
+assert.doesNotMatch(migration, /CREATE TABLE/i, 'la configuración reutiliza el singleton existente y no crea una tabla duplicada');
+assert.match(migration, /auth\.uid\(\) IS DISTINCT FROM v_admin_user_id/);
+assert.match(migration, /REVOKE ALL ON FUNCTION public\.admin_save_storefront_floating_promotions\(jsonb\) FROM PUBLIC, anon, authenticated/);
+assert.match(migration, /GRANT EXECUTE ON FUNCTION public\.admin_save_storefront_floating_promotions\(jsonb\) TO authenticated/);
+assert.match(migration, /v_enabled AND \(v_category = '' OR NOT EXISTS/);
+
+console.log('floating_promotions_ui_regression: PASS (three buttons, existing category router, dismissal version, admin fail-closed, visual breakpoints)');
