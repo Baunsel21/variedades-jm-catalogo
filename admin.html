@@ -135,6 +135,11 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
 .orderActions{display:flex;gap:7px;flex-wrap:wrap;margin-top:12px}
 .orderActions .action{font-weight:800}
 .orderStatusSelect{width:auto;min-width:145px;padding:8px 10px}
+.orderTrackingSummary{margin-top:10px;padding:9px 11px;border:1px solid #ead9aa;background:#fffaf0;border-radius:11px;font-size:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.orderTrackingSummary strong{color:#72500b}.orderTrackingLink{font-weight:800;color:var(--primary);text-decoration:underline;text-underline-offset:2px}
+.orderTrackingModal .modal{width:min(620px,100%)}.orderTrackingForm{display:grid;gap:10px}.orderTrackingForm label{display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--muted);font-weight:800}.orderTrackingForm input{min-width:0}
+.orderTrackingHistory{margin-top:16px;border-top:1px solid var(--border);padding-top:12px}.orderTrackingHistoryList{display:grid;gap:8px;max-height:250px;overflow:auto}.orderTrackingEvent{padding:9px 10px;background:var(--surface2);border-radius:10px;font-size:12px}.orderTrackingEvent time{display:block;color:var(--muted);font-size:10px;margin-bottom:4px}
+#ordersTrackingStatus[hidden]{display:none}
 @media(max-width:780px){.ordersSummary{grid-template-columns:repeat(2,1fr)}.orderFilters{grid-template-columns:repeat(2,minmax(0,1fr))}.orderFilterSearch{grid-column:1/-1}.orderHead{flex-direction:column}}
 @media(max-width:460px){.orderFilters{grid-template-columns:1fr}.orderFilterSearch{grid-column:auto}.orderPagination{align-items:flex-start;flex-direction:column}}
 
@@ -494,7 +499,21 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
     </div>
     <div id="ordersLoadStatus" class="status err" role="alert" hidden></div>
     <div id="ordersResultsSummary" class="orderResultsSummary" role="status" aria-live="polite"></div>
+    <div id="ordersTrackingStatus" class="status err" role="status" aria-live="polite" hidden></div>
     <div id="listaPedidos"><div class="empty">Cargando pedidos...</div></div>
+  </div>
+  <div id="orderTrackingModal" class="modalBack orderTrackingModal" aria-hidden="true">
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="orderTrackingTitle" tabindex="-1">
+      <div class="modalHead"><h2 id="orderTrackingTitle">Seguimiento del pedido</h2><button type="button" class="softbtn" data-order-tracking-close aria-label="Cerrar seguimiento">Cerrar</button></div>
+      <p id="orderTrackingOrderLabel" class="muted"></p>
+      <form id="orderTrackingForm" class="orderTrackingForm" novalidate>
+        <label>Transportadora<input id="orderTrackingCarrier" type="text" maxlength="120" autocomplete="organization" required></label>
+        <label>Número de guía<input id="orderTrackingNumber" type="text" maxlength="120" autocomplete="off" required></label>
+        <label>Enlace HTTPS de seguimiento (opcional)<input id="orderTrackingUrl" type="url" maxlength="2048" placeholder="https://..." autocomplete="url"></label>
+        <div class="rowBetween"><button type="button" class="softbtn" data-order-tracking-history>Cargar historial</button><button id="orderTrackingSave" class="primary" type="submit">Guardar guía</button></div>
+      </form>
+      <div class="orderTrackingHistory"><h3>Historial de cambios del pedido</h3><div id="orderTrackingHistoryStatus" class="muted" role="status" aria-live="polite">Aún no se ha consultado el historial.</div><div id="orderTrackingHistoryList" class="orderTrackingHistoryList"></div></div>
+    </section>
   </div>
 </section>
 
@@ -896,6 +915,7 @@ let moduleLoadErrors={};
 let adminDeferredModuleLoaded={clients:false,suppliers:false,expenses:false,movements:false,orders:false};
 let adminDeferredModuleInFlight={};
 let pedidos=[];
+let webOrderTrackingById=Object.create(null),webOrderTrackingRpcState='unknown',webOrderTrackingRequestToken=0,webOrderHistoryRequestToken=0,webOrderTrackingSaveToken=0,orderTrackingReturnFocus=null;
 let pedidosPage=1,pedidosPageSize=20,pedidosLoadError='',ordersFacetOptionsSignature='';
 let brandName="Variedades JM";
 let brandIcon="";
@@ -1912,6 +1932,10 @@ let availabilityRefreshBusy=false,availabilityRefreshToken=0,storefrontMarketing
 function lockAdminPanel(message='Tu sesión terminó. Vuelve a entrar.'){
  adminAuthEpoch++;
  availabilityRefreshToken++;availabilityRefreshBusy=false;storefrontMarketingMetricsToken++;storefrontMarketingMetricsBusy=false;editingProductImageLoadToken++;floatingPromotionsRequestToken++;
+ webOrderTrackingRequestToken++;webOrderHistoryRequestToken++;webOrderTrackingSaveToken++;webOrderTrackingById=Object.create(null);webOrderTrackingRpcState='unknown';orderTrackingReturnFocus=null;
+ const trackingModal=$('orderTrackingModal');if(trackingModal){trackingModal.classList.remove('show');trackingModal.setAttribute('aria-hidden','true');trackingModal.removeAttribute('data-order-id');}
+ ['orderTrackingCarrier','orderTrackingNumber','orderTrackingUrl','orderTrackingHistoryList'].forEach(id=>{const field=$(id);if(field)field.textContent='';if(field&&'value'in field)field.value='';});
+ const trackingSaveButton=$('orderTrackingSave');if(trackingSaveButton)trackingSaveButton.disabled=false;
  adminSessionAuthorized=false;adminSessionUserId='';adminPasswordRecoveryMode=false;
  brandName='Variedades JM';brandIcon='';brandIconPath='';
  if(typeof clearLegacyAdminBrandCache==='function')clearLegacyAdminBrandCache();
@@ -2480,6 +2504,7 @@ async function cargarPedidos(){
       setOrdersUpdatedAt();
       renderPedidos();
       renderInicio();
+      void loadWebOrderTracking();
       return true;
     }catch(fetchError){
       if(!isCurrent())return false;
@@ -2502,6 +2527,137 @@ async function cargarPedidos(){
   });
   cargarPedidosInFlight.set(requestKey,loadPromise);
   try{return await loadPromise}finally{if(cargarPedidosInFlight.get(requestKey)===loadPromise)cargarPedidosInFlight.delete(requestKey)}
+}
+
+function updateOrderTrackingStatus(){
+ const status=$('ordersTrackingStatus');if(!status)return;
+ const messages={
+  loading:'Consultando disponibilidad del módulo de seguimiento…',
+  missing:'El seguimiento y la bitácora aún no están instalados en Supabase. La gestión normal de pedidos sigue disponible.',
+  error:'No se pudo consultar el módulo de seguimiento. No se habilitó ningún guardado.',
+ };
+ const message=messages[webOrderTrackingRpcState]||'';
+ status.hidden=!message;status.textContent=message;status.className=`status${webOrderTrackingRpcState==='missing'||webOrderTrackingRpcState==='error'?' err':''}`;
+}
+function isValidWebOrderId(value){return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value||''));}
+function safeOrderTrackingUrl(value){
+ const text=String(value||'').trim();if(!text)return '';
+ try{const url=new URL(text);return url.protocol==='https:'&&!url.username&&!url.password&&text.length<=2048&&!/[\s\u0000-\u001f]/.test(text)?url.href:'';}catch{return '';}
+}
+function normalizeOrderTrackingRpcRows(data){
+ let rows=data;if(typeof rows==='string'){try{rows=JSON.parse(rows)}catch{return []}}
+ if(!Array.isArray(rows))return [];
+ return rows.filter(row=>row&&isValidWebOrderId(row.web_order_id)).map(row=>({
+  web_order_id:String(row.web_order_id),carrier_name:String(row.carrier_name||''),tracking_number:String(row.tracking_number||''),
+  tracking_url:safeOrderTrackingUrl(row.tracking_url),created_at:String(row.created_at||''),updated_at:String(row.updated_at||''),
+ }));
+}
+function isMissingOrderTrackingRpc(error){return error?.code==='PGRST202'||/could not find the function|function .* does not exist|schema cache/i.test(String(error?.message||''));}
+async function loadWebOrderTracking(){
+ const userId=adminSessionUserId,authEpoch=adminAuthEpoch,token=++webOrderTrackingRequestToken;
+ const isCurrent=()=>token===webOrderTrackingRequestToken&&adminAuthOperationStillCurrent(userId,authEpoch);
+ if(!sb||!isCurrent())return false;
+ webOrderTrackingRpcState='loading';updateOrderTrackingStatus();renderPedidos();
+ try{
+  const {data,error}=await sb.rpc('admin_list_web_order_tracking',{p_limit:5000});
+  if(!isCurrent())return false;
+  try{await assertCurrentAdminAuthorization(userId,authEpoch)}catch(authError){if(isCurrent())lockAdminPanel('No se pudo confirmar la autorización para consultar el seguimiento.');return false;}
+  if(!isCurrent())return false;
+  if(error){webOrderTrackingById=Object.create(null);webOrderTrackingRpcState=isMissingOrderTrackingRpc(error)?'missing':'error';updateOrderTrackingStatus();renderPedidos();return false;}
+  webOrderTrackingById=Object.create(null);
+  for(const row of normalizeOrderTrackingRpcRows(data))webOrderTrackingById[row.web_order_id]=row;
+  webOrderTrackingRpcState='ready';updateOrderTrackingStatus();renderPedidos();return true;
+ }catch(error){
+  if(!isCurrent())return false;
+  webOrderTrackingById=Object.create(null);webOrderTrackingRpcState='error';updateOrderTrackingStatus();renderPedidos();return false;
+ }
+}
+function orderTrackingEventSummary(event){
+ const type=String(event?.event_type||'');
+ if(type==='order_created')return `Pedido creado${event.after_status?` · ${event.after_status}`:''}`;
+ if(type==='status_changed')return `Estado: ${event.before_status||'—'} → ${event.after_status||'—'}`;
+ const carrier=String(event.after_carrier_name||event.before_carrier_name||'');
+ const number=String(event.after_tracking_number||event.before_tracking_number||'');
+ return `${type==='tracking_created'?'Guía registrada':'Guía actualizada'}${carrier?` · ${carrier}`:''}${number?` · ${number}`:''}`;
+}
+function renderOrderTrackingHistory(data){
+ const host=$('orderTrackingHistoryList'),status=$('orderTrackingHistoryStatus');if(!host)return;
+ const rows=Array.isArray(data)?data:[];
+ host.innerHTML=rows.map(event=>{
+  const date=event.created_at?new Date(event.created_at).toLocaleString('es-CO',{timeZone:'America/Bogota'}):'';
+  const url=safeOrderTrackingUrl(event.after_tracking_url);
+  return `<article class="orderTrackingEvent"><time>${esc(date)}</time><strong>${esc(orderTrackingEventSummary(event))}</strong>${url?` · <a class="orderTrackingLink" href="${esc(url)}" target="_blank" rel="noopener noreferrer">Consultar</a>`:''}</article>`;
+ }).join('');
+ if(status)status.textContent=rows.length?`${rows.length} cambio(s) recientes; alcance: pedido web y guía.`:'No hay cambios registrados desde que el módulo se active.';
+}
+async function loadOrderTrackingHistory(orderId){
+ const modal=$('orderTrackingModal');if(!modal?.classList.contains('show')||!isValidWebOrderId(orderId)||webOrderTrackingRpcState!=='ready')return false;
+ const userId=adminSessionUserId,authEpoch=adminAuthEpoch,token=++webOrderHistoryRequestToken;
+ const isCurrent=()=>token===webOrderHistoryRequestToken&&adminAuthOperationStillCurrent(userId,authEpoch)&&modal.dataset.orderId===orderId;
+ const status=$('orderTrackingHistoryStatus'),list=$('orderTrackingHistoryList');if(status)status.textContent='Cargando historial…';if(list)list.textContent='';
+ try{
+  const {data,error}=await sb.rpc('admin_list_web_order_change_history',{p_order_id:orderId,p_limit:50});
+  if(!isCurrent())return false;
+  try{await assertCurrentAdminAuthorization(userId,authEpoch)}catch(authError){if(isCurrent())lockAdminPanel('No se pudo confirmar la autorización para consultar el historial.');return false;}
+  if(!isCurrent())return false;
+  if(error){if(status)status.textContent='No se pudo cargar el historial. No se cambió ningún dato.';return false;}
+  let rows=data;if(typeof rows==='string'){try{rows=JSON.parse(rows)}catch{rows=[]}}
+  if(!Array.isArray(rows)){if(status)status.textContent='La respuesta del historial no tiene el formato esperado.';return false;}
+  renderOrderTrackingHistory(rows);return true;
+ }catch(error){if(isCurrent()&&status)status.textContent='No se pudo cargar el historial. No se cambió ningún dato.';return false;}
+}
+function openOrderTracking(orderId,trigger){
+ if(webOrderTrackingRpcState!=='ready'){toast('El módulo de seguimiento aún no está disponible.');return false;}
+ if(!isValidWebOrderId(orderId))return false;
+ const order=pedidos.find(row=>String(row.id)===String(orderId));if(!order)return false;
+ const modal=$('orderTrackingModal');if(!modal)return false;
+ orderTrackingReturnFocus=trigger||document.activeElement;modal.dataset.orderId=String(orderId);modal.classList.add('show');modal.setAttribute('aria-hidden','false');
+ const ref=String(order.client_reference||String(order.id).slice(0,8));
+ $('orderTrackingTitle').textContent='Seguimiento del pedido';$('orderTrackingOrderLabel').textContent=`Pedido ${ref} · ${String(order.customer_city||'Ciudad no especificada')}`;
+ const current=webOrderTrackingById[orderId]||{};
+ $('orderTrackingCarrier').value=current.carrier_name||'';$('orderTrackingNumber').value=current.tracking_number||'';$('orderTrackingUrl').value=current.tracking_url||'';
+ $('orderTrackingHistoryList').textContent='';$('orderTrackingHistoryStatus').textContent='Consultando cambios…';
+ modal.querySelector('[data-order-tracking-close]')?.focus();void loadOrderTrackingHistory(orderId);return true;
+}
+function closeOrderTracking(){
+ const modal=$('orderTrackingModal');if(!modal)return;
+ const orderId=String(modal.dataset.orderId||'');modal.classList.remove('show');modal.setAttribute('aria-hidden','true');modal.removeAttribute('data-order-id');webOrderHistoryRequestToken++;
+ ['orderTrackingCarrier','orderTrackingNumber','orderTrackingUrl'].forEach(id=>{const input=$(id);if(input)input.value='';});
+ const previous=orderTrackingReturnFocus;orderTrackingReturnFocus=null;const replacement=orderId?[...document.querySelectorAll('button[data-order-action="tracking"][data-order-id]')].find(button=>button.dataset.orderId===orderId):null;const target=previous?.isConnected?previous:replacement;if(target?.isConnected)target.focus();
+}
+async function saveOrderTracking(event){
+ event?.preventDefault?.();
+ const modal=$('orderTrackingModal'),orderId=String(modal?.dataset.orderId||'');
+ if(webOrderTrackingRpcState!=='ready'||!isValidWebOrderId(orderId)){toast('Seguimiento no disponible; no se guardó ningún cambio.');return false;}
+ const carrier=String($('orderTrackingCarrier')?.value||'').trim(),number=String($('orderTrackingNumber')?.value||'').trim(),rawUrl=String($('orderTrackingUrl')?.value||'').trim();
+ const url=rawUrl?safeOrderTrackingUrl(rawUrl):'';
+ if(!carrier||carrier.length>120||/[\u0000-\u001f]/.test(carrier)||!number||number.length>120||/[\u0000-\u001f]/.test(number)||rawUrl&&!url){toast('Revisa transportadora, número y enlace HTTPS.');return false;}
+ const userId=adminSessionUserId,authEpoch=adminAuthEpoch,saveToken=++webOrderTrackingSaveToken,isCurrent=()=>saveToken===webOrderTrackingSaveToken&&adminAuthOperationStillCurrent(userId,authEpoch);
+ const button=$('orderTrackingSave');if(button)button.disabled=true;
+ try{
+  try{await assertCurrentAdminAuthorization(userId,authEpoch)}catch(authError){if(isCurrent())lockAdminPanel('No se pudo confirmar la autorización para guardar la guía.');return false;}
+  if(!isCurrent())return false;
+  const {data,error}=await sb.rpc('admin_set_web_order_tracking',{p_order_id:orderId,p_carrier_name:carrier,p_tracking_number:number,p_tracking_url:url||null});
+  if(!isCurrent())return false;
+  try{await assertCurrentAdminAuthorization(userId,authEpoch)}catch(authError){if(isCurrent())lockAdminPanel('No se pudo confirmar la autorización después de guardar.');return false;}
+  if(!isCurrent())return false;
+  if(error){if(isMissingOrderTrackingRpc(error)){webOrderTrackingRpcState='missing';webOrderTrackingById=Object.create(null);updateOrderTrackingStatus();renderPedidos();}toast('No se guardó la guía. El módulo puede requerir su migración.');return false;}
+  const result=Array.isArray(data)?data[0]:data;
+  if(result?.ok!==true){const messages={TRACKING_URL_INVALID:'El enlace debe ser HTTPS.',TRACKING_FIELDS_INVALID:'Transportadora y número de guía son obligatorios.',WEB_ORDER_NOT_FOUND:'El pedido ya no está disponible.'};toast(messages[result?.code]||'No se guardó la guía.');return false;}
+  toast(result.changed?'Seguimiento guardado.':'No hubo cambios en la guía.');
+  void loadWebOrderTracking();void loadOrderTrackingHistory(orderId);return true;
+ }catch(error){if(isCurrent())toast('No se guardó la guía. Intenta actualizar el módulo.');return false;}
+ finally{if(isCurrent()&&button)button.disabled=false;}
+}
+function handleOrderTrackingDialogKeydown(event){
+ const modal=$('orderTrackingModal');if(!modal?.classList.contains('show'))return;
+ if(event.key==='Escape'){event.preventDefault();closeOrderTracking();return;}
+ if(event.key!=='Tab')return;
+ const items=[...modal.querySelectorAll('button:not([disabled]),input:not([disabled]),a[href],select:not([disabled]),textarea:not([disabled])')].filter(el=>el.getClientRects().length);
+ if(!items.length){event.preventDefault();modal.querySelector('[role="dialog"]')?.focus();return;}
+ const first=items[0],last=items[items.length-1];
+ if(event.shiftKey&&document.activeElement===first){event.preventDefault();last.focus();}
+ else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus();}
 }
 
 function pedidoEstado(p){
@@ -2680,6 +2836,8 @@ function renderPedidos(){
     const subtotal=Number(p.subtotal)||0;
     const pay=p.payment_method||"—";
     const allowedStatuses=estadosPedidoPermitidos(status);
+    const tracking=webOrderTrackingById[String(p.id)]||null;
+    const trackingUrl=tracking?safeOrderTrackingUrl(tracking.tracking_url):'';
     return `<div class="orderCard">
       <div class="orderHead">
         <div>
@@ -2695,10 +2853,12 @@ function renderPedidos(){
         <div class="muted" style="font-size:12px">💳 ${esc(pay)} • Subtotal ${money(subtotal)} • Envío ${shipping===0?"GRATIS":money(shipping)}</div>
         <div style="font-size:20px;font-weight:900">${money(total)}</div>
       </div>
+      ${tracking?`<div class="orderTrackingSummary"><strong>🚚 ${esc(tracking.carrier_name)}</strong><span>Guía: ${esc(tracking.tracking_number)}</span>${trackingUrl?`<a class="orderTrackingLink" href="${esc(trackingUrl)}" target="_blank" rel="noopener noreferrer">Consultar envío</a>`:''}</div>`:''}
       <div class="orderActions">
         ${status==="pendiente"?`<button type="button" class="primary" data-order-action="confirm" data-order-id="${esc(p.id)}">✅ Confirmar</button>`:""}
         ${status==="pendiente"?`<button type="button" class="dangerbtn" data-order-action="reject" data-order-id="${esc(p.id)}">❌ Rechazar</button>`:""}
         ${p.customer_phone?`<button type="button" class="action" data-order-action="whatsapp" data-phone="${esc(p.customer_phone)}" data-name="${esc(p.customer_name||"")}">💬 WhatsApp</button>`:""}
+        <button type="button" class="softbtn" data-order-action="tracking" data-order-id="${esc(p.id)}" aria-label="Seguimiento e historial del pedido ${esc(String(p.id||'').slice(0,8))}" ${webOrderTrackingRpcState==='ready'?'':'disabled'}>🚚 Guía / historial</button>
         <select class="orderStatusSelect" data-order-id="${esc(p.id)}" aria-label="Cambiar estado del pedido ${esc(String(p.id||'').slice(0,8))}">
           ${allowedStatuses.map(s=>`<option value="${s}" ${s===status?"selected":""}>${pedidoEstadoLabel(s)}</option>`).join("")}
         </select>
@@ -4703,12 +4863,20 @@ document.addEventListener("DOMContentLoaded",()=>{
       if(action==='confirm'&&id)void confirmarPedido(id);
       else if(action==='reject'&&id)void rechazarPedido(id);
       else if(action==='whatsapp')whatsappPedido(button.dataset.phone||'',button.dataset.name||'');
+      else if(action==='tracking'&&id)openOrderTracking(id,button);
     });
     ordersBox.addEventListener('change',event=>{
       const select=event.target.closest('select.orderStatusSelect[data-order-id]');
       if(select&&ordersBox.contains(select))void cambiarEstadoPedido(select.dataset.orderId,select.value);
     });
   }
+  const trackingModal=$('orderTrackingModal'),trackingForm=$('orderTrackingForm');
+  trackingModal?.addEventListener('click',event=>{
+    if(event.target===trackingModal||event.target.closest('[data-order-tracking-close]')){closeOrderTracking();return;}
+    if(event.target.closest('[data-order-tracking-history]'))void loadOrderTrackingHistory(String(trackingModal.dataset.orderId||''));
+  });
+  trackingForm?.addEventListener('submit',event=>void saveOrderTracking(event));
+  window.addEventListener('keydown',handleOrderTrackingDialogKeydown);
   const paymentToggle=$("onlinePaymentsToggle");if(paymentToggle)paymentToggle.addEventListener("change",updateOnlinePaymentAdminLabel);
   const combosHost=$("storefrontCombosAdminList");if(combosHost)combosHost.addEventListener('click',event=>{const edit=event.target.closest('[data-combo-admin-edit]'),del=event.target.closest('[data-combo-admin-delete]');if(edit)editStorefrontCombo(edit.dataset.comboAdminEdit);if(del)void deleteStorefrontProductCombo(del.dataset.comboAdminDelete)});
   const couponsHost=$("storefrontCouponsAdminList");if(couponsHost)couponsHost.addEventListener('click',event=>{const edit=event.target.closest('[data-coupon-admin-edit]');if(edit)editStorefrontCoupon(edit.dataset.couponAdminEdit)});
