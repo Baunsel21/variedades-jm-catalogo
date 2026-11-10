@@ -139,26 +139,41 @@ FOR EACH ROW EXECUTE FUNCTION public._log_web_order_tracking_change();
 REVOKE ALL ON FUNCTION public._log_web_order_change() FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public._log_web_order_tracking_change() FROM PUBLIC, anon, authenticated, service_role;
 
-CREATE OR REPLACE FUNCTION public.admin_list_web_order_tracking(p_limit integer DEFAULT 1000)
+DROP FUNCTION IF EXISTS public.admin_list_web_order_tracking(integer);
+CREATE OR REPLACE FUNCTION public.admin_list_web_order_tracking(p_order_ids uuid[])
 RETURNS jsonb
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public, pg_temp
 AS $$
 DECLARE
-  v_limit integer := greatest(1, least(coalesce(p_limit, 1000), 5000));
+  v_order_count integer;
   v_result jsonb;
 BEGIN
   IF auth.uid() IS NULL OR public.is_store_admin() IS DISTINCT FROM true THEN
     RAISE EXCEPTION USING ERRCODE = '42501', MESSAGE = 'ORDER_TRACKING_ADMIN_REQUIRED';
   END IF;
+  IF p_order_ids IS NULL THEN
+    RAISE EXCEPTION USING ERRCODE = '22023', MESSAGE = 'ORDER_TRACKING_ORDER_IDS_REQUIRED';
+  END IF;
+  v_order_count := coalesce(cardinality(p_order_ids), 0);
+  IF v_order_count > 5000 THEN
+    RAISE EXCEPTION USING ERRCODE = '22023', MESSAGE = 'ORDER_TRACKING_ORDER_IDS_LIMIT_EXCEEDED';
+  END IF;
+  IF v_order_count > 0 AND array_ndims(p_order_ids) IS DISTINCT FROM 1 THEN
+    RAISE EXCEPTION USING ERRCODE = '22023', MESSAGE = 'ORDER_TRACKING_ORDER_IDS_INVALID';
+  END IF;
+  IF array_position(p_order_ids, NULL::uuid) IS NOT NULL THEN
+    RAISE EXCEPTION USING ERRCODE = '22023', MESSAGE = 'ORDER_TRACKING_ORDER_IDS_INVALID';
+  END IF;
   SELECT coalesce(jsonb_agg(to_jsonb(q) ORDER BY q.updated_at DESC), '[]'::jsonb)
   INTO v_result
   FROM (
-    SELECT web_order_id, carrier_name, tracking_number, tracking_url, created_at, updated_at
-    FROM public.web_order_tracking
-    ORDER BY updated_at DESC
-    LIMIT v_limit
+    SELECT t.web_order_id, t.carrier_name, t.tracking_number, t.tracking_url, t.created_at, t.updated_at
+    FROM public.web_order_tracking t
+    JOIN public.web_orders o ON o.id = t.web_order_id
+    WHERE t.web_order_id = ANY(p_order_ids)
+    ORDER BY t.updated_at DESC
   ) q;
   RETURN v_result;
 END;
@@ -255,10 +270,10 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.admin_list_web_order_tracking(integer) FROM PUBLIC, anon, service_role;
+REVOKE ALL ON FUNCTION public.admin_list_web_order_tracking(uuid[]) FROM PUBLIC, anon, service_role;
 REVOKE ALL ON FUNCTION public.admin_list_web_order_change_history(uuid, integer) FROM PUBLIC, anon, service_role;
 REVOKE ALL ON FUNCTION public.admin_set_web_order_tracking(uuid, text, text, text) FROM PUBLIC, anon, service_role;
-GRANT EXECUTE ON FUNCTION public.admin_list_web_order_tracking(integer) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.admin_list_web_order_tracking(uuid[]) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.admin_list_web_order_change_history(uuid, integer) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.admin_set_web_order_tracking(uuid, text, text, text) TO authenticated;
 COMMENT ON TABLE public.web_order_tracking IS 'One current carrier/tracking record per web_order. Writes only through admin RPC.';

@@ -17,7 +17,7 @@ Ambas tablas habilitan RLS y solo conceden SELECT a `authenticated` bajo `public
 
 ## RPCs
 
-- `admin_list_web_order_tracking(p_limit integer default 1000)`: lectura de guías actuales, limitada a 5.000.
+- `admin_list_web_order_tracking(p_order_ids uuid[])`: devuelve guías solo para IDs de pedidos web existentes enviados por el panel. Rechaza arrays nulos, multidimensionales, con elementos nulos o con más de 5.000 UUIDs; no trunca resultados silenciosamente.
 - `admin_list_web_order_change_history(p_order_id uuid, p_limit integer default 50)`: lectura del historial de un pedido, limitada a 200.
 - `admin_set_web_order_tracking(p_order_id uuid, p_carrier_name text, p_tracking_number text, p_tracking_url text default null)`: alta/edición idempotente de guía; solo HTTPS, sin espacios, credenciales o control characters. Un guardado idéntico no crea otro evento.
 
@@ -25,11 +25,11 @@ Dos triggers registran la creación y los cambios futuros de estado en `web_orde
 
 ## Panel administrativo
 
-Dentro de la vista existente Pedidos, cada tarjeta muestra una guía cuando está disponible. El diálogo reutilizable permite editarla y consultar el historial. El control permanece deshabilitado si la RPC no está disponible; el fallo se muestra sin afectar la lista ni la actualización normal de pedidos. La UI verifica la época de autenticación y descarta respuestas obsoletas al cerrar/cambiar sesión. Los enlaces de tracking se abren solo si se validan como HTTPS y con `noopener noreferrer`.
+Dentro de la vista existente Pedidos, cada tarjeta muestra una guía cuando está disponible. El diálogo reutilizable permite editarla y consultar el historial. El control permanece deshabilitado si la RPC no está disponible o la lista supera el límite seguro; el fallo se muestra sin afectar la lista ni la actualización normal de pedidos. Tras guardar, la UI espera la actualización del listado y luego del historial; cualquier fallo de recarga oculta el historial previo. También verifica la época de autenticación y descarta respuestas obsoletas al cerrar/cambiar sesión. Los enlaces de tracking se abren solo si se validan como HTTPS y con `noopener noreferrer`.
 
 ## Pruebas
 
-`bash tests/run_order_tracking_audit_local.sh` aplica la migración en una base PostgreSQL 17 scratch descartable y ejecuta `tests/order_tracking_audit_local_regression.sql`. Prueba RLS, roles, alta/edición idempotente, URL inválida, orden inexistente, triggers de estado, límites de lectura, ausencia de backfill y cleanup. `node tests/order_tracking_admin_ui_regression.mjs` cubre el contrato admin y se incluye en `scripts/validate.mjs`.
+`bash tests/run_order_tracking_audit_local.sh` aplica la migración en una base PostgreSQL 17 scratch descartable y ejecuta `tests/order_tracking_audit_local_regression.sql`. Prueba RLS, roles, alta/edición idempotente, URL inválida, orden inexistente, triggers de estado, scope y límites del UUID array, ausencia de backfill y cleanup. `node tests/order_tracking_admin_ui_regression.mjs` prueba en VM la secuencia list→history tras guardar, el descarte de auth epoch obsoleto y la limpieza de historial ante fallos; también cubre el contrato admin y se incluye en `scripts/validate.mjs`.
 
 Estas pruebas no conectan con Supabase, una API de transportadora ni la tienda real. No prueban activación productiva, credenciales de transportadoras ni la restauración de una copia real.
 
