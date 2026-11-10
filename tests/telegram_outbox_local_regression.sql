@@ -83,8 +83,8 @@ END
 $assert_unlinked_reservation_waits$;
 
 -- New Wompi order and explicit pending payment; repeated identical status produces no duplicate.
-INSERT INTO public.orders (id, reference, customer_name, phone, city, address, items, total, payment_method, payment_status, order_status)
-VALUES ('00000000-0000-4000-8000-000000000001', 'JM-TEST-001', 'PRIVATE PERSON DO NOT EXPORT', '3000000001', 'Cali', 'PRIVATE ADDRESS', '[{"code":"SKU-10","name":"Synthetic Shirt","qty":2},{"code":"SKU-11","name":"Synthetic Shoes","qty":1}]', 130000, 'wompi', 'PENDING', 'new');
+INSERT INTO public.orders (id, reference, customer_name, phone, city, address, neighborhood, items, subtotal, shipping, total, payment_method, payment_status, order_status)
+VALUES ('00000000-0000-4000-8000-000000000001', 'JM-TEST-001', 'PRIVATE PERSON DO NOT EXPORT', '3000000001', 'Cali', 'Calle Sintetica 10-20', 'Centro de Prueba', '[{"code":"SKU-10","name":"Synthetic Shirt","qty":2,"color":"Negro","size":"M"},{"code":"SKU-11","name":"Synthetic Shoes","qty":1}]', 120000, 10000, 130000, 'wompi', 'PENDING', 'new');
 UPDATE public.orders SET city = 'Cali' WHERE id = '00000000-0000-4000-8000-000000000001';
 UPDATE public.orders SET payment_status = 'PENDING' WHERE id = '00000000-0000-4000-8000-000000000001';
 UPDATE public.orders SET payment_status = 'APPROVED' WHERE id = '00000000-0000-4000-8000-000000000001';
@@ -92,8 +92,8 @@ UPDATE public.orders SET payment_status = 'DECLINED' WHERE id = '00000000-0000-4
 UPDATE public.orders SET payment_status = 'DECLINED' WHERE id = '00000000-0000-4000-8000-000000000001';
 UPDATE public.orders SET payment_status = 'ERROR' WHERE id = '00000000-0000-4000-8000-000000000001';
 UPDATE public.orders SET payment_status = 'VOIDED', order_status = 'CANCELLED' WHERE id = '00000000-0000-4000-8000-000000000001';
-INSERT INTO public.orders (id, reference, customer_name, phone, address, items, total, payment_method, payment_status, order_status)
-VALUES ('00000000-0000-4000-8000-000000000003', 'JM-TEST-METHOD', 'PRIVATE METHOD NAME', '3000000003', 'PRIVATE METHOD ADDRESS', '[]', 5000, 'CUSTOMER PHONE 3015550000', 'PENDING', 'new');
+INSERT INTO public.orders (id, reference, customer_name, phone, city, address, items, total, payment_method, payment_status, order_status)
+VALUES ('00000000-0000-4000-8000-000000000003', 'JM-TEST-METHOD', 'PRIVATE METHOD NAME', '3000000003', 'Cali', 'Calle Sintetica 3-5', '[]', 5000, 'CUSTOMER PHONE 3015550000', 'PENDING', 'new');
 
 -- More than 50 order lines must not make the business INSERT fail the outbox CHECK.
 INSERT INTO public.orders (id, reference, items, total, payment_method, payment_status, order_status)
@@ -120,9 +120,9 @@ VALUES (
    FROM generate_series(1, 52) AS line_number)
 );
 
--- COD/new web order and cancellation, without exposing customer fields.
-INSERT INTO public.web_orders (id, customer_name, customer_cedula, customer_phone, customer_email, customer_city, customer_address, note, payment_method, total, status, client_reference, inventory_reference, items)
-VALUES ('00000000-0000-4000-8000-000000000002', 'PRIVATE COD NAME', '123456789', '3000000002', 'cod@example.test', 'Palmira', 'COD PRIVATE ADDRESS', 'PRIVATE NOTE', 'Contra entrega', 75000, 'pendiente', 'COD-TEST-002', 'RES-TEST-1', '[{"code":"SKU-10","name":"Synthetic Shirt","qty":1}]');
+-- COD/new web order and cancellation, without exporting email, identity document, or note.
+INSERT INTO public.web_orders (id, customer_name, customer_cedula, customer_phone, customer_email, customer_city, customer_address, customer_neighborhood, note, payment_method, subtotal, shipping, total, status, client_reference, inventory_reference, items)
+VALUES ('00000000-0000-4000-8000-000000000002', 'PRIVATE COD NAME', '123456789', '3000000002', 'cod@example.test', 'Palmira', 'Carrera Sintetica 5-10', 'Barrio de Prueba', 'PRIVATE NOTE', 'Contra entrega', 70000, 5000, 75000, 'pendiente', 'COD-TEST-002', 'RES-TEST-1', '[{"code":"SKU-10","name":"Synthetic Shirt","qty":1,"color":"Azul","size":"S"}]');
 UPDATE public.web_orders SET status = 'cancelado' WHERE id = '00000000-0000-4000-8000-000000000002';
 
 -- Inventory threshold and movement events.
@@ -189,9 +189,9 @@ BEGIN
   IF (SELECT count(*) FROM public.sirevya_telegram_outbox WHERE event_type = 'reservation.whatsapp_confirmed') <> 1 THEN RAISE EXCEPTION 'unexpected WhatsApp confirmation count'; END IF;
   IF EXISTS (
     SELECT 1 FROM public.sirevya_telegram_outbox
-     WHERE payload ?| ARRAY['customer_cedula','customer_phone','customer_email','customer_address','customer_city','customer_neighborhood','note','items','name','phone','address','email','cedula']
-        OR payload::text ILIKE '%PRIVATE ADDRESS%'
-        OR payload::text ILIKE '%COD PRIVATE ADDRESS%'
+     WHERE payload ?| ARRAY['customer_cedula','customer_email','customer_address','customer_city','customer_neighborhood','note','items','name','phone','address','email','cedula']
+        OR (event_type <> 'order.created' AND (payload ? 'customer_phone' OR payload ? 'delivery_address'))
+        OR payload::text ILIKE '%cod@example.test%'
         OR payload::text ILIKE '%PRIVATE NOTE%'
         OR payload::text ILIKE '%PRIVATE MOTIVE DO NOT EXPORT%'
         OR payload::text ILIKE '%CUSTOMER PHONE 3015550000%'
@@ -203,9 +203,14 @@ BEGIN
        AND payload->>'reference' = 'JM-TEST-001'
        AND payload->>'order_reference' = 'JM-TEST-001'
        AND payload->>'customer_name' = 'PRIVATE PERSON DO NOT EXPORT'
+       AND payload->>'customer_phone' = '3000000001'
+       AND payload->>'delivery_address' = 'Calle Sintetica 10-20, Centro de Prueba'
        AND payload->>'city' = 'Cali'
+       AND (payload->>'subtotal_cop')::bigint = 120000
+       AND (payload->>'shipping_cop')::bigint = 10000
+       AND (payload->>'total_cop')::bigint = 130000
        AND (payload->>'total_units')::integer = 3
-       AND payload->'products' @> '[{"code":"SKU-10","name":"Synthetic Shirt","quantity":2},{"code":"SKU-11","name":"Synthetic Shoes","quantity":1}]'::jsonb
+       AND payload->'products' @> '[{"code":"SKU-10","name":"Synthetic Shirt","quantity":2,"variant":"Negro / M"},{"code":"SKU-11","name":"Synthetic Shoes","quantity":1}]'::jsonb
   ) THEN RAISE EXCEPTION 'order payload did not normalize customer, city and products'; END IF;
   IF NOT EXISTS (
     SELECT 1 FROM public.sirevya_telegram_outbox
@@ -231,7 +236,11 @@ BEGIN
        AND payload->>'city' = 'Palmira'
        AND payload->>'order_status' = 'PENDIENTE'
        AND payload->>'payment_method' = 'Contra entrega'
-       AND payload->'products' @> '[{"code":"SKU-10","name":"Synthetic Shirt","quantity":1}]'::jsonb
+       AND payload->>'customer_phone' = '3000000002'
+       AND payload->>'delivery_address' = 'Carrera Sintetica 5-10, Barrio de Prueba'
+       AND payload->>'subtotal_cop' = '70000'
+       AND payload->>'shipping_cop' = '5000'
+       AND payload->'products' @> '[{"code":"SKU-10","name":"Synthetic Shirt","quantity":1,"variant":"Azul / S"}]'::jsonb
   ) THEN RAISE EXCEPTION 'COD order did not include its short commercial reference'; END IF;
   IF NOT EXISTS (
     SELECT 1 FROM public.sirevya_telegram_outbox

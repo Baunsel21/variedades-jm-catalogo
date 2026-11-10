@@ -49,6 +49,7 @@ assert.match(admin, /sb\.rpc\('get_public_storefront_floating_promotions'\)/);
 assert.match(admin, /20261112010000_storefront_floating_promotions\.sql/);
 assert.match(admin, /el formulario queda bloqueado y no muestra valores simulados/);
 assert.match(admin, /floatingPromotionsSettingsLoaded=false;setFloatingPromoFormDisabled\(true\)/, 'un getter ausente deja el formulario cerrado sin crear una campaña local');
+assert.match(admin, /clearFloatingPromoSettingsForm\(\);\s*const missingRpc/, 'un error de carga borra los valores no confirmados en Supabase');
 assert.match(index, /get_public_storefront_floating_promotions/);
 assert.match(index, /FLOATING_PROMO_DISMISSAL_KEY='sirevya_floating_promo_dismissed_v1'/);
 assert.match(index, /localStorage\.setItem\(FLOATING_PROMO_DISMISSAL_KEY,String\(version\)\)/, 'el cierre persiste por versión de campaña');
@@ -105,11 +106,38 @@ assert.match(migration, /REVOKE ALL ON FUNCTION public\.admin_save_storefront_fl
 assert.match(migration, /GRANT EXECUTE ON FUNCTION public\.admin_save_storefront_floating_promotions\(jsonb\) TO authenticated/);
 assert.match(migration, /v_enabled AND \(v_category = '' OR NOT EXISTS/);
 
+const clearStart = admin.indexOf('function clearFloatingPromoSettingsForm(){');
+const clearEnd = admin.indexOf('\nfunction floatingPromoProductCategories', clearStart);
+assert.ok(clearStart >= 0 && clearEnd > clearStart, 'helper de borrado para estado desconocido presente');
+const unavailableFields = [
+  { type: 'checkbox', checked: true, hidden: false },
+  { type: 'text', value: 'Más vendido', hidden: false },
+  { type: 'number', value: '20', hidden: false },
+  { type: 'color', value: '#fff8e7', hidden: false },
+  { type: 'select-one', tagName: 'SELECT', value: 'Accesorios', selectedIndex: 1, hidden: false },
+];
+const unavailableBox = {
+  attributes: {},
+  setAttribute(name, value) { this.attributes[name] = value; },
+  querySelectorAll(selector) { assert.equal(selector, 'input,select'); return unavailableFields; },
+};
+const clearContext = vm.createContext({ $(id) { return id === 'floatingPromotionsSettingsBox' ? unavailableBox : null; } });
+vm.runInContext(`${admin.slice(clearStart, clearEnd)}\nglobalThis.clearUnavailable = clearFloatingPromoSettingsForm;`, clearContext);
+clearContext.clearUnavailable();
+assert.equal(unavailableBox.attributes['data-settings-unavailable'], 'true');
+assert.equal(unavailableFields[0].checked, false);
+assert.equal(unavailableFields[1].value, '');
+assert.equal(unavailableFields[2].value, '');
+assert.equal(unavailableFields[3].hidden, true, 'sin datos cargados no se muestra un color predeterminado como persistido');
+assert.equal(unavailableFields[4].value, '');
+assert.equal(unavailableFields[4].selectedIndex, -1);
+
 const adminLoadStart = admin.indexOf('async function loadFloatingPromotionsAdmin(showStatus=true){');
 const adminLoadEnd = admin.indexOf('\nasync function saveFloatingPromotionsAdmin', adminLoadStart);
 assert.ok(adminLoadStart >= 0 && adminLoadEnd > adminLoadStart, 'loader admin de campaña presente');
 const adminLoadSource = admin.slice(adminLoadStart, adminLoadEnd);
 assert.match(adminLoadSource, /requestToken===floatingPromotionsRequestToken/, 'el token descarta lecturas superadas');
+assert.match(adminLoadSource, /if\(!hadSettings\)clearFloatingPromoSettingsForm\(\)/, 'la carga inicial borra los defaults antes de consultar Supabase');
 assert.match(admin.slice(admin.indexOf('async function saveFloatingPromotionsAdmin'), admin.indexOf('function seasonalPromoFieldValue')),
   /floatingPromotionsRequestToken\+\+/, 'guardar invalida cualquier respuesta de lectura pendiente');
 assert.match(admin.slice(admin.indexOf('function lockAdminPanel'), admin.indexOf('function setAdmin')), /floatingPromotionsRequestToken\+\+/,
@@ -126,6 +154,7 @@ const campaignRequestContext = vm.createContext({
   sb: { rpc: () => new Promise(resolve => pendingCampaignReads.push(resolve)) },
   adminAuthOperationStillCurrent: (userId, epoch) => userId === 'admin-user' && epoch === 7,
   setFloatingPromoFormDisabled() {},
+  clearFloatingPromoSettingsForm() {},
   setFloatingPromoStatus() {},
   applyFloatingPromoSettings(campaign) { appliedCampaignVersions.push(Number(campaign.campaign_version)); },
 });

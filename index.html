@@ -1676,7 +1676,10 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
 
 
 <style id="sirevyaCouponCheckoutStyles">
-.checkoutCouponBox{margin:12px 0 4px;padding:13px;border:1px solid #ead9cb;border-radius:14px;background:#fffaf3;color:#352923}.checkoutCouponTitle{margin:0 0 4px;color:#7b1730;font-size:14px;font-weight:900}.checkoutCouponHelp{margin:0 0 9px;color:#796b62;font-size:11px;line-height:1.4}.checkoutCouponRow{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:7px;align-items:end}.checkoutCouponRow label{display:flex;flex-direction:column;gap:5px;color:#51443c;font-size:12px;font-weight:800}.checkoutCouponRow input{width:100%;min-width:0;border:1px solid #ded0c6;border-radius:10px;padding:10px 11px;background:#fff;color:#302822;text-transform:uppercase;letter-spacing:.06em}.checkoutCouponRow button{border:1px solid #7b1730;border-radius:10px;padding:10px 12px;background:#7b1730;color:#fff;font-size:12px;font-weight:900}.checkoutCouponRow button[data-coupon-action="remove"]{background:#fff;color:#7b1730;border-color:#cfaeba}.checkoutCouponRow button:disabled{opacity:.55;cursor:not-allowed}.checkoutCouponStatus{min-height:17px;margin-top:8px;color:#796b62;font-size:11px;line-height:1.4}.checkoutCouponStatus[data-kind="success"]{color:#16845d;font-weight:800}.checkoutCouponStatus[data-kind="error"]{color:#a51d3b;font-weight:800}.checkoutCouponStatus[data-kind="pending"]{color:#7b1730;font-weight:800}.checkoutTotalsBreakdown{display:grid;gap:5px;margin-top:11px;padding:10px 0;border-top:1px solid #eee3dc;color:#76685f;font-size:12px}.checkoutTotalsBreakdown>div{display:flex;justify-content:space-between;gap:12px}.checkoutTotalsBreakdown strong{color:#7b1730}.checkoutTotalsBreakdown [hidden]{display:none!important}.checkoutCouponBox [hidden]{display:none!important}@media(max-width:430px){.checkoutCouponRow{grid-template-columns:1fr 1fr}.checkoutCouponRow label{grid-column:1/-1}.checkoutCouponRow button{width:100%}}
+.checkoutCouponBox{margin:8px 0 4px;padding:13px;border:1px solid #ead9cb;border-radius:14px;background:#fffaf3;color:#352923}.checkoutCouponTitle{margin:0 0 4px;color:#7b1730;font-size:14px;font-weight:900}.checkoutCouponHelp{margin:0 0 9px;color:#796b62;font-size:11px;line-height:1.4}.checkoutCouponRow{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:7px;align-items:end}.checkoutCouponRow label{display:flex;flex-direction:column;gap:5px;color:#51443c;font-size:12px;font-weight:800}.checkoutCouponRow input{width:100%;min-width:0;border:1px solid #ded0c6;border-radius:10px;padding:10px 11px;background:#fff;color:#302822;text-transform:uppercase;letter-spacing:.06em}.checkoutCouponRow button{border:1px solid #7b1730;border-radius:10px;padding:10px 12px;background:#7b1730;color:#fff;font-size:12px;font-weight:900}.checkoutCouponRow button[data-coupon-action="remove"]{background:#fff;color:#7b1730;border-color:#cfaeba}.checkoutCouponRow button:disabled{opacity:.55;cursor:not-allowed}.checkoutCouponStatus{min-height:17px;margin-top:8px;color:#796b62;font-size:11px;line-height:1.4}.checkoutCouponStatus[data-kind="success"]{color:#16845d;font-weight:800}.checkoutCouponStatus[data-kind="error"]{color:#a51d3b;font-weight:800}.checkoutCouponStatus[data-kind="pending"]{color:#7b1730;font-weight:800}.checkoutTotalsBreakdown{display:grid;gap:5px;margin-top:11px;padding:10px 0;border-top:1px solid #eee3dc;color:#76685f;font-size:12px}.checkoutTotalsBreakdown>div{display:flex;justify-content:space-between;gap:12px}.checkoutTotalsBreakdown strong{color:#7b1730}.checkoutTotalsBreakdown [hidden]{display:none!important}.checkoutCouponBox[hidden],.checkoutCouponBox [hidden]{display:none!important}@media(max-width:430px){.checkoutCouponRow{grid-template-columns:1fr 1fr}.checkoutCouponRow label{grid-column:1/-1}.checkoutCouponRow button{width:100%}}
+</style>
+<style id="checkoutCouponTriggerStyles">
+.checkoutCouponTriggerWrap{margin:9px 0 0}.checkoutCouponTriggerWrap[hidden],.checkoutCouponTrigger[hidden]{display:none!important}.checkoutCouponTrigger{display:inline-flex;align-items:center;gap:10px;min-height:44px;padding:8px 14px;border:1px solid #dedede;border-radius:14px;background:#fff;color:#171717;font:inherit;font-size:15px;font-weight:600;line-height:1.2;cursor:pointer;transition:border-color .18s ease,box-shadow .18s ease,transform .18s ease}.checkoutCouponTrigger:hover{border-color:#b9a98f;box-shadow:0 3px 12px rgba(30,20,15,.07);transform:translateY(-1px)}.checkoutCouponTrigger:focus-visible{outline:3px solid rgba(123,23,48,.28);outline-offset:2px}.checkoutCouponTrigger svg{width:22px;height:22px;flex:none}@media(prefers-reduced-motion:reduce){.checkoutCouponTrigger{transition:none}.checkoutCouponTrigger:hover{transform:none}}
 </style>
 <style id="sirevyaCampaignFooterPresentation">
 /* Refinamiento visual aislado: títulos de catálogo y los cuatro beneficios existentes. */
@@ -1845,6 +1848,13 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
       <label for="customerAddress">Dirección *</label><input id="customerAddress" type="text" autocomplete="street-address" placeholder="Calle, carrera, número, etc." required aria-describedby="checkoutErrorCustomerAddress"><small id="checkoutErrorCustomerAddress" class="checkoutFieldError"></small>
       <label for="customerNeighborhood">Barrio / referencia *</label><input id="customerNeighborhood" type="text" placeholder="Barrio, conjunto o referencia" required aria-describedby="checkoutErrorCustomerNeighborhood"><small id="checkoutErrorCustomerNeighborhood" class="checkoutFieldError"></small>
       <div class="shippingBox"><div class="shippingLine"><span>🚚 Envío</span><span id="shippingValue">Selecciona una ciudad</span></div><div id="shippingNote" class="shippingSmall">La tarifa se confirma al verificar la configuración vigente.</div></div>
+      <label>Forma de pago</label>
+      <div class="paymentOptions">
+        <label class="paymentOption onlinePaymentOption"><input type="radio" name="paymentMethod" value="PSE" checked> 🏦 <span><b>Pago en línea · PSE o Nequi</b><small>Continuar a Wompi para elegir el medio disponible.</small></span></label>
+        <label class="paymentOption onlinePaymentOption"><input type="radio" name="paymentMethod" value="Tarjeta"> 💳 <span><b>Tarjeta, Bancolombia y otros medios</b><small>Pago seguro mediante Wompi; allí confirmas el medio.</small></span></label>
+        <label class="paymentOption paymentContraEntrega"><input type="radio" name="paymentMethod" value="Contra entrega" disabled> 💵 <span><b>Pago contra entrega</b><small id="contraEntregaNote">Disponible según las ciudades habilitadas por la tienda.</small></span></label>
+      </div>
+      <div class="checkoutCouponTriggerWrap" id="checkoutCouponTriggerWrap" hidden><button id="checkoutCouponToggle" class="checkoutCouponTrigger" type="button" aria-expanded="false" aria-controls="checkoutCouponBox" onclick="toggleCheckoutCouponPanel()" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3.4 13.4V4h9.4l7.8 7.8a1.2 1.2 0 0 1 0 1.6Z"/><circle cx="7.5" cy="7.5" r="1.1"/></svg><span>Agregar descuento</span></button></div>
       <section id="checkoutCouponBox" class="checkoutCouponBox" aria-labelledby="checkoutCouponTitle" hidden>
         <h3 id="checkoutCouponTitle" class="checkoutCouponTitle">🏷️ ¿Tienes un cupón?</h3>
         <p class="checkoutCouponHelp">Un cupón por carrito. No se combina con descuentos de combo. El servidor cotiza descuento y envío; el límite por cliente se confirma al reservar.</p>
@@ -1855,12 +1865,6 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
         </div>
         <div id="couponStatus" class="checkoutCouponStatus" role="status" aria-live="polite">Ingresa un código y pulsa Aplicar.</div>
       </section>
-      <label>Forma de pago</label>
-      <div class="paymentOptions">
-        <label class="paymentOption onlinePaymentOption"><input type="radio" name="paymentMethod" value="PSE" checked> 🏦 <span><b>Pago en línea · PSE o Nequi</b><small>Continuar a Wompi para elegir el medio disponible.</small></span></label>
-        <label class="paymentOption onlinePaymentOption"><input type="radio" name="paymentMethod" value="Tarjeta"> 💳 <span><b>Tarjeta, Bancolombia y otros medios</b><small>Pago seguro mediante Wompi; allí confirmas el medio.</small></span></label>
-        <label class="paymentOption paymentContraEntrega"><input type="radio" name="paymentMethod" value="Contra entrega" disabled> 💵 <span><b>Pago contra entrega</b><small id="contraEntregaNote">Disponible según las ciudades habilitadas por la tienda.</small></span></label>
-      </div>
       <section id="checkoutItemSummary" class="checkoutItemSummary" aria-label="Resumen de tu compra" aria-live="polite" hidden>
         <h3 class="checkoutSummaryTitle">🛍️ Resumen de tu compra</h3>
         <div id="checkoutSummaryItems" class="checkoutSummaryItems"></div>
@@ -2038,15 +2042,18 @@ let checkoutCouponRequestToken=0;
 let checkoutCouponReservationReference='',checkoutCouponReservationFingerprint='';
 let checkoutServerQuote=null;
 let checkoutServerQuoteFingerprint='';
-let storefrontCouponSettingsLoaded=false,storefrontCouponsEnabled=false,storefrontCouponToggleSupported=false,storefrontCouponSettingsPromise=null,storefrontCouponSettingsRequestToken=0;
+let storefrontCouponSettingsLoaded=false,storefrontCouponsEnabled=false,storefrontCouponToggleSupported=false,storefrontCouponSettingsPromise=null,storefrontCouponSettingsRequestToken=0,checkoutCouponPanelOpen=false;
 
 function syncStorefrontCouponControls(){
- const available=storefrontCouponSettingsLoaded&&storefrontCouponsEnabled,box=$('checkoutCouponBox'),input=$('couponCode');
- if(box)box.hidden=!available;
+ const available=storefrontCouponSettingsLoaded&&storefrontCouponsEnabled,wrap=$('checkoutCouponTriggerWrap'),toggle=$('checkoutCouponToggle'),box=$('checkoutCouponBox'),input=$('couponCode');
+ if(wrap)wrap.hidden=!available;
+ if(toggle){toggle.hidden=!available;toggle.setAttribute('aria-expanded',String(available&&checkoutCouponPanelOpen))}
+ if(box)box.hidden=!available||!checkoutCouponPanelOpen;
  if(input)input.disabled=!available;
  document.querySelectorAll('[data-coupon-action]').forEach(button=>{button.disabled=!available});
 }
-function clearCouponIfUnavailable(){if(!storefrontCouponSettingsLoaded||!storefrontCouponsEnabled){const input=$('couponCode');if(checkoutCouponCode||input?.value){clearCheckoutCouponState(true);if($('checkoutModal')?.classList.contains('open'))updateShipping();}}}
+function toggleCheckoutCouponPanel(){if(!storefrontCouponSettingsLoaded||!storefrontCouponsEnabled)return false;checkoutCouponPanelOpen=!checkoutCouponPanelOpen;syncStorefrontCouponControls();if(checkoutCouponPanelOpen)$('couponCode')?.focus();return true}
+function clearCouponIfUnavailable(){if(!storefrontCouponSettingsLoaded||!storefrontCouponsEnabled){checkoutCouponPanelOpen=false;syncStorefrontCouponControls();const input=$('couponCode');if(checkoutCouponCode||input?.value){clearCheckoutCouponState(true);if($('checkoutModal')?.classList.contains('open'))updateShipping();}}}
 async function refreshStorefrontCouponSettings(force=false){
  if(storefrontCouponSettingsPromise&&!force)return storefrontCouponSettingsPromise;
  if(storefrontCouponSettingsLoaded&&!force)return storefrontCouponsEnabled;

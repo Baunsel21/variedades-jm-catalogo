@@ -165,6 +165,11 @@ function safeProductName(value) {
   return name && !validUuid(name) ? name : "";
 }
 
+function safePhone(value) {
+  const phone = safeSingleLine(value, 40);
+  return /\d{7,}/.test(phone) && /^[0-9+()\s.-]+$/.test(phone) ? phone : "";
+}
+
 function formatCop(value) {
   const amount = Number(value);
   if (!Number.isSafeInteger(amount) || amount < 0) return "";
@@ -211,11 +216,12 @@ export function formatTelegramNotification(row) {
     if (!product || typeof product !== "object" || Array.isArray(product)) continue;
     const code = safeProductCode(product.code);
     const name = safeProductName(product.name);
+    const variant = safeSingleLine(product.variant, 80);
     const quantity = Number(product.quantity ?? product.qty);
     if (!Number.isSafeInteger(quantity) || quantity < 1) continue;
     computedUnits += quantity;
     const productLabel = [code, name].filter(Boolean).join(" — ") || "Producto sin identificación";
-    productLines.push(`- ${productLabel}: ${quantity}`);
+    productLines.push(`- ${productLabel}${variant ? ` · Variante: ${variant}` : ""} · Cantidad: ${quantity}`);
   }
 
   if (productLines.length === 0 && eventType.startsWith("reservation.")) {
@@ -224,7 +230,7 @@ export function formatTelegramNotification(row) {
     const quantity = Number(payload.quantity ?? payload.total_units);
     if ((code || name) && Number.isSafeInteger(quantity) && quantity > 0) {
       computedUnits = quantity;
-      productLines.push(`- ${[code, name].filter(Boolean).join(" — ")}: ${quantity}`);
+      productLines.push(`- ${[code, name].filter(Boolean).join(" — ")} · Cantidad: ${quantity}`);
     }
   }
 
@@ -256,12 +262,20 @@ export function formatTelegramNotification(row) {
   if (units > 0) lines.push(`Total de unidades: ${units}`);
 
   if (eventType === "order.created") {
+    const phone = safePhone(payload.customer_phone);
+    const deliveryAddress = safeSingleLine(payload.delivery_address, 200);
     const method = safeSingleLine(payload.payment_method, 40);
     const payment = safeSingleLine(payload.payment_status, 32);
     const order = safeSingleLine(payload.order_status, 32);
+    if (phone) lines.push(`Teléfono: ${phone}`);
+    if (deliveryAddress) lines.push(`Dirección: ${deliveryAddress}`);
     if (method) lines.push(`Medio: ${method}`);
     if (payment) lines.push(`Estado de pago: ${payment}`);
     if (order) lines.push(`Estado del pedido: ${order}`);
+    const subtotal = formatCop(payload.subtotal_cop);
+    const shipping = formatCop(payload.shipping_cop);
+    if (subtotal) lines.push(`Subtotal: ${subtotal}`);
+    if (shipping) lines.push(`Envío: ${shipping}`);
     const amount = formatCop(payload.total_cop);
     if (amount) lines.push(`Total: ${amount}`);
   } else if (eventType.startsWith("payment.")) {
