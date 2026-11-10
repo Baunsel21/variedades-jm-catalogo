@@ -66,9 +66,26 @@ BEGIN
 END
 $assert_admin_toggle$;
 
+-- Products exist before the Wompi reservation. The reservation event is deliberately
+-- created before the order and must remain unclaimable until the order is linked.
+INSERT INTO public.products (id, code, name, quantity)
+VALUES ('00000000-0000-4000-8000-000000000010', 'SKU-10', 'Synthetic Shirt', 5),
+       ('00000000-0000-4000-8000-000000000011', 'SKU-11', 'Synthetic Shoes', 4);
+INSERT INTO public.inventory_reservations (id, product_id, quantity, reference, status, expires_at)
+VALUES ('00000000-0000-4000-8000-000000000030', '00000000-0000-4000-8000-000000000010', 2, 'JM-TEST-001', 'active', now() + interval '10 minutes'),
+       ('00000000-0000-4000-8000-000000000031', '00000000-0000-4000-8000-000000000011', 1, 'JM-TEST-001', 'active', now() + interval '10 minutes');
+DO $assert_unlinked_reservation_waits$
+BEGIN
+  IF (SELECT count(*) FROM public.claim_sirevya_telegram_notifications(5, 600)) <> 0 THEN
+    RAISE EXCEPTION 'unlinked reservation.created was claimed before its order existed';
+  END IF;
+END
+$assert_unlinked_reservation_waits$;
+
 -- New Wompi order and explicit pending payment; repeated identical status produces no duplicate.
-INSERT INTO public.orders (id, reference, customer_name, phone, address, items, total, payment_method, payment_status, order_status)
-VALUES ('00000000-0000-4000-8000-000000000001', 'JM-TEST-001', 'PRIVATE PERSON DO NOT EXPORT', '3000000001', 'PRIVATE ADDRESS', '[{"name":"PRIVATE ITEM"}]', 130000, 'wompi', 'PENDING', 'new');
+INSERT INTO public.orders (id, reference, customer_name, phone, city, address, items, total, payment_method, payment_status, order_status)
+VALUES ('00000000-0000-4000-8000-000000000001', 'JM-TEST-001', 'PRIVATE PERSON DO NOT EXPORT', '3000000001', 'Cali', 'PRIVATE ADDRESS', '[{"code":"SKU-10","name":"Synthetic Shirt","qty":2},{"code":"SKU-11","name":"Synthetic Shoes","qty":1}]', 130000, 'wompi', 'PENDING', 'new');
+UPDATE public.orders SET city = 'Cali' WHERE id = '00000000-0000-4000-8000-000000000001';
 UPDATE public.orders SET payment_status = 'PENDING' WHERE id = '00000000-0000-4000-8000-000000000001';
 UPDATE public.orders SET payment_status = 'APPROVED' WHERE id = '00000000-0000-4000-8000-000000000001';
 UPDATE public.orders SET payment_status = 'DECLINED' WHERE id = '00000000-0000-4000-8000-000000000001';
@@ -79,14 +96,11 @@ INSERT INTO public.orders (id, reference, customer_name, phone, address, items, 
 VALUES ('00000000-0000-4000-8000-000000000003', 'JM-TEST-METHOD', 'PRIVATE METHOD NAME', '3000000003', 'PRIVATE METHOD ADDRESS', '[]', 5000, 'CUSTOMER PHONE 3015550000', 'PENDING', 'new');
 
 -- COD/new web order and cancellation, without exposing customer fields.
-INSERT INTO public.web_orders (id, customer_name, customer_cedula, customer_phone, customer_email, customer_address, note, payment_method, total, status, client_reference)
-VALUES ('00000000-0000-4000-8000-000000000002', 'PRIVATE COD NAME', '123456789', '3000000002', 'cod@example.test', 'COD PRIVATE ADDRESS', 'PRIVATE NOTE', 'Contra entrega', 75000, 'pendiente', 'COD-TEST-002');
+INSERT INTO public.web_orders (id, customer_name, customer_cedula, customer_phone, customer_email, customer_city, customer_address, note, payment_method, total, status, client_reference, inventory_reference, items)
+VALUES ('00000000-0000-4000-8000-000000000002', 'PRIVATE COD NAME', '123456789', '3000000002', 'cod@example.test', 'Palmira', 'COD PRIVATE ADDRESS', 'PRIVATE NOTE', 'Contra entrega', 75000, 'pendiente', 'COD-TEST-002', 'RES-TEST-1', '[{"code":"SKU-10","name":"Synthetic Shirt","qty":1}]');
 UPDATE public.web_orders SET status = 'cancelado' WHERE id = '00000000-0000-4000-8000-000000000002';
 
 -- Inventory threshold and movement events.
-INSERT INTO public.products (id, code, name, quantity)
-VALUES ('00000000-0000-4000-8000-000000000010', 'SKU-10', 'Synthetic Shirt', 5),
-       ('00000000-0000-4000-8000-000000000011', 'SKU-11', 'Synthetic Shoes', 4);
 UPDATE public.products SET quantity = 0 WHERE id = '00000000-0000-4000-8000-000000000010';
 UPDATE public.products SET quantity = 3 WHERE id = '00000000-0000-4000-8000-000000000010';
 UPDATE public.products SET quantity = 2 WHERE id = '00000000-0000-4000-8000-000000000010';
@@ -95,15 +109,15 @@ VALUES ('00000000-0000-4000-8000-000000000020', '00000000-0000-4000-8000-0000000
 
 -- Multiple reservation lines with one reference generate one idempotent event per transition.
 INSERT INTO public.inventory_reservations (id, product_id, quantity, reference, status, expires_at)
-VALUES ('00000000-0000-4000-8000-000000000030', '00000000-0000-4000-8000-000000000010', 1, 'RES-TEST-1', 'active', now() + interval '10 minutes'),
-       ('00000000-0000-4000-8000-000000000031', '00000000-0000-4000-8000-000000000011', 2, 'RES-TEST-1', 'active', now() + interval '10 minutes');
-UPDATE public.inventory_reservations SET status = 'RELEASED' WHERE reference = 'RES-TEST-1';
+VALUES ('00000000-0000-4000-8000-000000000032', '00000000-0000-4000-8000-000000000010', 1, 'RES-TEST-1', 'active', now() + interval '10 minutes'),
+       ('00000000-0000-4000-8000-000000000033', '00000000-0000-4000-8000-000000000011', 2, 'RES-TEST-1', 'active', now() + interval '10 minutes');
+UPDATE public.inventory_reservations SET status = 'RELEASED' WHERE reference = 'JM-TEST-001';
 INSERT INTO public.inventory_reservations (id, product_id, quantity, reference, status, expires_at)
-VALUES ('00000000-0000-4000-8000-000000000032', '00000000-0000-4000-8000-000000000010', 1, 'RES-TEST-WA', 'WHATSAPP_RESERVED', '9999-12-31 23:59:59+00');
-UPDATE public.inventory_reservations SET status = 'WHATSAPP_CONFIRMED' WHERE id = '00000000-0000-4000-8000-000000000032';
+VALUES ('00000000-0000-4000-8000-000000000034', '00000000-0000-4000-8000-000000000010', 1, 'RES-TEST-WA', 'WHATSAPP_RESERVED', '9999-12-31 23:59:59+00');
+UPDATE public.inventory_reservations SET status = 'WHATSAPP_CONFIRMED' WHERE id = '00000000-0000-4000-8000-000000000034';
 INSERT INTO public.inventory_reservations (id, product_id, quantity, reference, status, expires_at)
-VALUES ('00000000-0000-4000-8000-000000000033', '00000000-0000-4000-8000-000000000011', 1, 'RES-TEST-EXPIRE', 'active', now() - interval '1 minute');
-UPDATE public.inventory_reservations SET status = 'EXPIRED' WHERE id = '00000000-0000-4000-8000-000000000033';
+VALUES ('00000000-0000-4000-8000-000000000035', '00000000-0000-4000-8000-000000000011', 1, 'RES-TEST-EXPIRE', 'active', now() - interval '1 minute');
+UPDATE public.inventory_reservations SET status = 'EXPIRED' WHERE id = '00000000-0000-4000-8000-000000000035';
 
 DO $assert_events$
 DECLARE
@@ -128,26 +142,62 @@ BEGIN
   IF (SELECT count(*) FROM public.sirevya_telegram_outbox WHERE event_type = 'inventory.stockout') <> 1 THEN RAISE EXCEPTION 'unexpected inventory.stockout count'; END IF;
   IF (SELECT count(*) FROM public.sirevya_telegram_outbox WHERE event_type = 'inventory.restocked') <> 1 THEN RAISE EXCEPTION 'unexpected inventory.restocked count'; END IF;
   IF (SELECT count(*) FROM public.sirevya_telegram_outbox WHERE event_type = 'inventory.movement') <> 1 THEN RAISE EXCEPTION 'unexpected inventory.movement count'; END IF;
-  IF (SELECT count(*) FROM public.sirevya_telegram_outbox WHERE event_type = 'reservation.created') <> 2 THEN RAISE EXCEPTION 'reservation reference was not deduplicated'; END IF;
+  IF (SELECT count(*) FROM public.sirevya_telegram_outbox WHERE event_type = 'reservation.created') <> 3 THEN RAISE EXCEPTION 'reservation reference was not deduplicated'; END IF;
   IF (SELECT count(*) FROM public.sirevya_telegram_outbox WHERE event_type = 'reservation.released') <> 1 THEN RAISE EXCEPTION 'reservation release was not deduplicated'; END IF;
   IF (SELECT count(*) FROM public.sirevya_telegram_outbox WHERE event_type = 'reservation.expired') <> 1 THEN RAISE EXCEPTION 'unexpected reservation.expired count'; END IF;
   IF (SELECT count(*) FROM public.sirevya_telegram_outbox WHERE event_type = 'reservation.whatsapp_reserved') <> 1 THEN RAISE EXCEPTION 'unexpected WhatsApp reservation count'; END IF;
   IF (SELECT count(*) FROM public.sirevya_telegram_outbox WHERE event_type = 'reservation.whatsapp_confirmed') <> 1 THEN RAISE EXCEPTION 'unexpected WhatsApp confirmation count'; END IF;
   IF EXISTS (
     SELECT 1 FROM public.sirevya_telegram_outbox
-     WHERE payload ?| ARRAY['customer_name','customer_cedula','customer_phone','customer_email','customer_address','note','items','name','phone','address']
-        OR payload::text ILIKE '%PRIVATE PERSON DO NOT EXPORT%'
-        OR payload::text ILIKE '%PRIVATE COD NAME%'
+     WHERE payload ?| ARRAY['customer_cedula','customer_phone','customer_email','customer_address','customer_city','customer_neighborhood','note','items','name','phone','address','email','cedula']
         OR payload::text ILIKE '%PRIVATE ADDRESS%'
+        OR payload::text ILIKE '%COD PRIVATE ADDRESS%'
+        OR payload::text ILIKE '%PRIVATE NOTE%'
         OR payload::text ILIKE '%PRIVATE MOTIVE DO NOT EXPORT%'
         OR payload::text ILIKE '%CUSTOMER PHONE 3015550000%'
   ) THEN RAISE EXCEPTION 'PII or arbitrary values leaked into outbox'; END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM public.sirevya_telegram_outbox
+     WHERE source_id = '00000000-0000-4000-8000-000000000001'
+       AND event_type = 'order.created'
+       AND payload->>'reference' = 'JM-TEST-001'
+       AND payload->>'customer_name' = 'PRIVATE PERSON DO NOT EXPORT'
+       AND payload->>'city' = 'Cali'
+       AND (payload->>'total_units')::integer = 3
+       AND payload->'products' @> '[{"code":"SKU-10","name":"Synthetic Shirt","quantity":2},{"code":"SKU-11","name":"Synthetic Shoes","quantity":1}]'::jsonb
+  ) THEN RAISE EXCEPTION 'order payload did not normalize customer, city and products'; END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM public.sirevya_telegram_outbox
+     WHERE event_type = 'reservation.created'
+       AND payload->>'reference' = 'JM-TEST-001'
+       AND payload->>'order_reference' = 'JM-TEST-001'
+       AND payload->>'customer_name' = 'PRIVATE PERSON DO NOT EXPORT'
+       AND payload->>'city' = 'Cali'
+       AND (payload->>'total_units')::integer = 3
+       AND payload->'products' @> '[{"code":"SKU-10","name":"Synthetic Shirt","quantity":2},{"code":"SKU-11","name":"Synthetic Shoes","quantity":1}]'::jsonb
+  ) THEN RAISE EXCEPTION 'Wompi reservation was not linked to its order'; END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM public.sirevya_telegram_outbox
+     WHERE event_type = 'reservation.created'
+       AND payload->>'reference' = 'RES-TEST-1'
+       AND payload->>'order_reference' = 'COD-TEST-002'
+       AND payload->>'inventory_reference' = 'RES-TEST-1'
+       AND payload->>'city' = 'Palmira'
+       AND (payload->>'total_units')::integer = 3
+  ) THEN RAISE EXCEPTION 'COD reservation did not link by inventory_reference'; END IF;
   IF NOT EXISTS (
     SELECT 1 FROM public.sirevya_telegram_outbox
      WHERE source_id = '00000000-0000-4000-8000-000000000003'
        AND event_type = 'order.created'
        AND payload->>'payment_method' = 'sin especificar'
   ) THEN RAISE EXCEPTION 'untrusted payment method was not normalized'; END IF;
+  BEGIN
+    INSERT INTO public.sirevya_telegram_outbox (dedupe_key, event_type, source_table, source_id, payload)
+    VALUES ('synthetic-telegram-arbitrary-key', 'order.created', 'orders', 'allowlist-test', '{"arbitrary":"must reject"}'::jsonb);
+    RAISE EXCEPTION 'arbitrary payload key unexpectedly accepted';
+  EXCEPTION WHEN check_violation THEN
+    NULL;
+  END;
   IF has_table_privilege('anon', 'public.sirevya_telegram_outbox', 'SELECT')
      OR has_table_privilege('authenticated', 'public.sirevya_telegram_outbox', 'SELECT') THEN
     RAISE EXCEPTION 'outbox table is directly readable by client roles';

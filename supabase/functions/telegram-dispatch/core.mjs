@@ -147,8 +147,12 @@ function safeSingleLine(value, maxLength = 100) {
 }
 
 function safeReference(value) {
-  const reference = String(value ?? "").trim();
-  return /^[A-Za-z0-9._-]{1,80}$/.test(reference) ? reference : "Sin referencia";
+  const reference = String(value ?? "")
+    .replace(/[\u0000-\u001f\u007f]/g, "")
+    .replace(/[^A-Za-z0-9._-]/g, "")
+    .slice(0, 80);
+  if (!reference || validUuid(reference)) return "Sin referencia";
+  return reference;
 }
 
 function formatCop(value) {
@@ -170,6 +174,35 @@ export function formatTelegramNotification(row) {
     : {};
   const reference = safeReference(payload.reference);
   const lines = [title, `Referencia: ${reference}`];
+
+  const customerName = safeSingleLine(payload.customer_name, 120);
+  const city = safeSingleLine(payload.city, 80);
+  const orderReference = payload.order_reference ? safeReference(payload.order_reference) : "";
+  const inventoryReference = payload.inventory_reference ? safeReference(payload.inventory_reference) : "";
+  const products = Array.isArray(payload.products) ? payload.products : [];
+  const productLines = [];
+  let computedUnits = 0;
+  for (const product of products) {
+    if (!product || typeof product !== "object" || Array.isArray(product)) continue;
+    const code = safeSingleLine(product.code, 60);
+    const name = safeSingleLine(product.name, 100);
+    const quantity = Number(product.quantity ?? product.qty);
+    if (!Number.isSafeInteger(quantity) || quantity < 1) continue;
+    computedUnits += quantity;
+    const productLabel = [code, name].filter(Boolean).join(" — ");
+    if (productLabel) productLines.push(`- ${productLabel}: ${quantity}`);
+  }
+
+  if (customerName) lines.push(`Cliente: ${customerName}`);
+  if (city) lines.push(`Ciudad: ${city}`);
+  if (orderReference && orderReference !== reference) lines.push(`Pedido: ${orderReference}`);
+  if (inventoryReference && inventoryReference !== reference) lines.push(`Reserva: ${inventoryReference}`);
+  if (productLines.length > 0) {
+    lines.push("Productos:", ...productLines);
+  }
+  const totalUnits = Number(payload.total_units);
+  const units = Number.isSafeInteger(totalUnits) && totalUnits >= 0 ? totalUnits : computedUnits;
+  if (units > 0) lines.push(`Total de unidades: ${units}`);
 
   if (eventType === "order.created") {
     const method = safeSingleLine(payload.payment_method, 40);
@@ -198,10 +231,22 @@ export function formatTelegramNotification(row) {
     if (Number.isSafeInteger(quantity)) lines.push(`Cantidad: ${quantity}`);
   } else if (eventType.startsWith("reservation.")) {
     const status = safeSingleLine(payload.reservation_status, 32);
+    const method = safeSingleLine(payload.payment_method, 40);
+    const payment = safeSingleLine(payload.payment_status, 32);
+    const order = safeSingleLine(payload.order_status, 32);
+    const amount = formatCop(payload.total_cop);
+    if (method) lines.push(`Medio: ${method}`);
+    if (payment) lines.push(`Estado de pago: ${payment}`);
+    if (order) lines.push(`Estado del pedido: ${order}`);
+    if (amount) lines.push(`Total: ${amount}`);
     if (status) lines.push(`Estado: ${status}`);
   } else if (eventType === "order.cancelled") {
     const status = safeSingleLine(payload.order_status, 32);
+    const method = safeSingleLine(payload.payment_method, 40);
+    const amount = formatCop(payload.total_cop);
+    if (method) lines.push(`Medio: ${method}`);
     if (status) lines.push(`Estado: ${status}`);
+    if (amount) lines.push(`Total: ${amount}`);
   }
 
   return lines.join("\n").slice(0, 3800);

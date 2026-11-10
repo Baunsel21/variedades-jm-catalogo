@@ -15,6 +15,7 @@ if [[ -z "$PGPORT" ]]; then
 fi
 MOCK_EXT_DIR="$ROOT/tests/fixtures/local_extensions"
 MIGRATION="$ROOT/supabase/migrations/20261109055000_telegram_notification_outbox.sql"
+PROFESSIONAL_PAYLOAD_MIGRATION="$ROOT/supabase/migrations/20261111010000_telegram_notifications_professional_payload.sql"
 SCHEDULER_MIGRATION="$ROOT/supabase/migrations/20261109055100_telegram_notification_scheduler.sql"
 FIXTURE="$ROOT/tests/fixtures/telegram_outbox_schema.sql"
 REGRESSION="$ROOT/tests/telegram_outbox_local_regression.sql"
@@ -57,6 +58,8 @@ run_sql "$SCHEDULER_SETUP"
 run_sql "$MIGRATION"
 # Applying the same candidate twice checks that its DDL is rerunnable in isolation.
 run_sql "$MIGRATION"
+run_sql "$PROFESSIONAL_PAYLOAD_MIGRATION"
+run_sql "$PROFESSIONAL_PAYLOAD_MIGRATION"
 run_sql "$SCHEDULER_MIGRATION"
 run_sql "$SCHEDULER_MIGRATION"
 run_sql "$REGRESSION"

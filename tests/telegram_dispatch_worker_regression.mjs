@@ -88,8 +88,15 @@ const orderRow = {
     reference: "JM-TEST-042",
     payment_method: "wompi",
     payment_status: "PENDING",
+    order_status: "NEW",
     total_cop: 130000,
     customer_name: "NOMBRE PRIVADO",
+    city: "Cali",
+    products: [
+      { code: "SKU-1", name: "Camisa sintética", quantity: 2 },
+      { code: "SKU-2", name: "Zapatos sintéticos", quantity: 1 },
+    ],
+    total_units: 3,
     customer_phone: "3001112233",
     customer_email: "private@example.test",
     customer_address: "DIRECCION PRIVADA",
@@ -97,14 +104,38 @@ const orderRow = {
   attempt_count: 1,
 };
 
-// Formatter is allowlist-only: it ignores PII and arbitrary nested fields.
+// Formatter is allowlist-only: it includes only the explicitly approved customer
+// name/city fields and ignores all other PII and arbitrary nested fields.
 const formatted = formatTelegramNotification(orderRow);
 assert.match(formatted, /Nuevo pedido/);
 assert.match(formatted, /JM-TEST-042/);
 assert.match(formatted, /PENDING/);
-for (const privateValue of ["NOMBRE PRIVADO", "3001112233", "private@example.test", "DIRECCION PRIVADA"]) {
+assert.match(formatted, /Cliente: NOMBRE PRIVADO/);
+assert.match(formatted, /Ciudad: Cali/);
+assert.match(formatted, /SKU-1/);
+assert.match(formatted, /Camisa sintética/);
+assert.match(formatted, /Total de unidades: 3/);
+for (const privateValue of ["3001112233", "private@example.test", "DIRECCION PRIVADA"]) {
   assert.equal(formatted.includes(privateValue), false);
 }
+const reservationFormatted = formatTelegramNotification({
+  event_type: "reservation.released",
+  payload: {
+    reference: "RES-TEST-1",
+    order_reference: "COD-TEST-002",
+    reservation_status: "RELEASED",
+    customer_name: "NOMBRE PRIVADO",
+    city: "Cali",
+    products: [{ code: "SKU-10", name: "Synthetic Shirt", quantity: 4 }],
+    total_units: 4,
+    customer_phone: "3001112233",
+  },
+});
+assert.match(reservationFormatted, /Reserva de inventario liberada/);
+assert.match(reservationFormatted, /Pedido: COD-TEST-002/);
+assert.match(reservationFormatted, /SKU-10/);
+assert.equal(reservationFormatted.includes("3001112233"), false);
+assert.equal(formatTelegramNotification({ event_type: "reservation.created", payload: { reference: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" } }).includes("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"), false);
 assert.equal(formatTelegramNotification({ event_type: "unknown.event", payload: {} }), "");
 
 // Invalid origin is rejected before the secret lookup, and cannot produce a send.
@@ -200,7 +231,10 @@ assert.equal(formatTelegramNotification({ event_type: "unknown.event", payload: 
   assert.equal(telegramCall.url.endsWith(botToken + "/sendMessage"), true);
   assert.equal(telegramCall.telegramBody.chat_id, chatId);
   assert.equal(telegramCall.telegramBody.disable_web_page_preview, true);
-  for (const privateValue of ["NOMBRE PRIVADO", "3001112233", "private@example.test", "DIRECCION PRIVADA"]) {
+  assert.equal(telegramCall.telegramBody.text.includes("Cliente: NOMBRE PRIVADO"), true);
+  assert.equal(telegramCall.telegramBody.text.includes("Ciudad: Cali"), true);
+  assert.equal(telegramCall.telegramBody.text.includes("SKU-1"), true);
+  for (const privateValue of ["3001112233", "private@example.test", "DIRECCION PRIVADA"]) {
     assert.equal(telegramCall.telegramBody.text.includes(privateValue), false);
   }
   assert.equal(calls.some((call) => rpcNameFromUrl(call.url) === "complete_sirevya_telegram_notification"), true);

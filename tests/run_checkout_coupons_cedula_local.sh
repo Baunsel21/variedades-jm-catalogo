@@ -33,7 +33,10 @@ run_sql "$ROOT/supabase/migrations/20261108090000_storefront_combo_calendar_prio
 run_sql "$ROOT/supabase/migrations/20261109090000_require_customer_cedula.sql"
 run_sql "$ROOT/tests/fixtures/checkout_coupons_cedula_local_rpcs.sql"
 run_sql "$ROOT/supabase/migrations/20261109120000_storefront_coupons.sql"
+run_sql "$ROOT/supabase/migrations/20261110010000_storefront_coupon_feature_toggle.sql"
+run_sql "$ROOT/supabase/migrations/20261110010000_storefront_coupon_feature_toggle.sql"
 run_sql "$ROOT/tests/coupons_regression.sql"
+run_sql "$ROOT/tests/storefront_coupon_feature_toggle_regression.sql"
 run_sql "$ROOT/tests/checkout_cedula_local_regression.sql"
 
 # El runner solo anuncia éxito después de confirmar que el scratch se eliminó.
