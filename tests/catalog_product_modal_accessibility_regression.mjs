@@ -61,6 +61,7 @@ const helpers = helperNames.map(extractFunction).join('\n');
 const openSource = extractFunction('openProductDetail');
 const closeSource = extractFunction('closeProductDetail');
 const buyNowSource = extractFunction('detailBuyNow');
+const imageEntranceSource = extractFunction('animateProductDetailImageEntrance');
 
 assert.match(html, /<div class="productDetailBox" role="dialog" aria-modal="true" aria-labelledby="detailName">/);
 assert.match(html, /id="detailName" class="detailName" role="heading" aria-level="2" tabindex="-1"/);
@@ -68,6 +69,8 @@ assert.match(html, /id="catalogo" tabindex="-1"/);
 assert.match(html, /document\.addEventListener\('keydown',handleProductDetailKeydown\)/);
 assert.match(openSource, /captureProductDetailReturnFocus\(event\)/);
 assert.match(openSource, /focusProductDetailDialog\(\)/);
+assert.match(openSource, /animateProductDetailImageEntrance\(detailMainImage,p\.id,image\)/);
+assert.match(html, /#productDetailModal #detailName:focus-visible\s*\{[^}]*outline:none!important;[^}]*border:0!important;[^}]*box-shadow:none!important;/);
 assert.match(closeSource, /restoreProductDetailReturnFocus\(/);
 assert.match(buyNowSource, /closeProductDetail\(null,\{restoreFocus:false\}\)/);
 assert.match(buyNowSource, /customerName.*focus/);
@@ -180,4 +183,67 @@ const focusCount = focused.length;
 context.restoreProductDetailReturnFocus(false);
 assert.equal(focused.length, focusCount, 'Al pasar de la ficha a checkout no se restaura foco a un overlay cerrado.');
 
-console.log('OK catalog_product_modal_accessibility_regression: diálogo etiquetado, foco inicial/retorno, Tab trap, Escape y transición a checkout sin red.');
+const entranceLoadHandlers = new Set();
+const entranceAnimations = [];
+let cancelledEntranceAnimations = 0;
+let reduceDetailMotion = false;
+const entranceImage = {
+  src: '', currentSrc: '', complete: false, naturalWidth: 0,
+  addEventListener(type, handler) { assert.equal(type, 'load'); entranceLoadHandlers.add(handler); },
+  removeEventListener(type, handler) { assert.equal(type, 'load'); entranceLoadHandlers.delete(handler); },
+  animate(frames, options) {
+    const animation = { frames, options, cancel() { cancelledEntranceAnimations += 1; } };
+    entranceAnimations.push(animation);
+    return animation;
+  },
+};
+const openDetailModal = { classList: { contains: name => name === 'open' } };
+const entranceContext = vm.createContext({
+  $: id => id === 'productDetailModal' ? openDetailModal : null,
+  detailProduct: { id: '' },
+  window: { matchMedia(query) { assert.equal(query, '(prefers-reduced-motion: reduce)'); return { matches: reduceDetailMotion }; } },
+  requestAnimationFrame(callback) { callback(); },
+});
+vm.runInNewContext(imageEntranceSource, entranceContext);
+function prepareProductImage(id, src, alreadyLoaded = false) {
+  entranceContext.detailProduct = { id };
+  entranceImage.src = src;
+  entranceImage.currentSrc = src;
+  entranceImage.complete = alreadyLoaded;
+  entranceImage.naturalWidth = alreadyLoaded ? 800 : 0;
+  entranceContext.animateProductDetailImageEntrance(entranceImage, id, src);
+}
+function finishProductImageLoad() {
+  entranceImage.complete = true;
+  entranceImage.naturalWidth = 800;
+  entranceImage.currentSrc = entranceImage.src;
+  for (const handler of [...entranceLoadHandlers]) {
+    entranceLoadHandlers.delete(handler);
+    handler();
+  }
+}
+
+prepareProductImage('A', 'product-a.webp');
+const staleLoadHandler = [...entranceLoadHandlers][0];
+assert.ok(staleLoadHandler, 'La primera apertura espera a que cargue su foto.');
+prepareProductImage('B', 'product-b.webp');
+assert.equal(entranceLoadHandlers.has(staleLoadHandler), false, 'Abrir otro producto cancela la espera anterior.');
+assert.equal(entranceLoadHandlers.size, 1);
+finishProductImageLoad();
+assert.equal(entranceAnimations.length, 1, 'La imagen del segundo producto se anima al cargar.');
+assert.equal(entranceAnimations[0].options.duration, 900);
+assert.equal(entranceAnimations[0].options.easing, 'cubic-bezier(.22,.61,.36,1)');
+assert.equal(entranceAnimations[0].frames[0].opacity, .12);
+assert.equal(entranceAnimations[0].frames[0].transform, 'scale(.997)');
+
+prepareProductImage('C', 'product-c.webp');
+assert.equal(cancelledEntranceAnimations, 1, 'El cambio consecutivo cancela la animación anterior sin acumular efectos.');
+finishProductImageLoad();
+assert.equal(entranceAnimations.length, 2, 'La tercera apertura recibe la misma transición.');
+assert.equal(entranceAnimations[1].options.duration, 900);
+reduceDetailMotion = true;
+prepareProductImage('D', 'product-d.webp', true);
+assert.equal(entranceAnimations.length, 2, 'Movimiento reducido omite la animación de entrada.');
+assert.equal(cancelledEntranceAnimations, 2);
+
+console.log('OK catalog_product_modal_accessibility_regression: diálogo, foco limpio, entrada A→B→C, 900 ms, movimiento reducido, Tab trap, Escape y transición a checkout sin red.');
