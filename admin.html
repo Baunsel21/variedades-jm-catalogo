@@ -533,6 +533,13 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
 
       <section id="reportes" class="view">
         <div class="rowBetween" style="align-items:flex-start;flex-wrap:wrap;gap:12px"><div><h2 style="margin:0">📊 Reportes</h2><p class="muted">Resumen de ventas, ingresos y rentabilidad.</p></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="softbtn" type="button" onclick="exportSalesReportCSV()">📄 Exportar ventas CSV</button><button class="softbtn" type="button" onclick="refreshStorefrontMarketingMetrics()">↻ Actualizar métricas</button></div></div>
+        <div class="box" style="margin-top:14px;display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;align-items:end">
+          <label for="reportFromDate">Desde<input id="reportFromDate" type="date"></label>
+          <label for="reportToDate">Hasta<input id="reportToDate" type="date"></label>
+          <button id="clearReportDateFilters" type="button" class="softbtn">Limpiar fechas</button>
+          <p id="reportDateFilterStatus" class="muted" role="status" aria-live="polite" style="grid-column:1/-1;margin:0">Sin filtro por fecha. Los datos de ventas provienen únicamente del punto de venta.</p>
+          <p class="muted" style="grid-column:1/-1;margin:0">Los indicadores y el CSV abarcan ventas POS activas y gastos según su fecha registrada. No agregan pedidos web ni conciliaciones Wompi; la rentabilidad neta aparece solo tras cargar gastos.</p>
+        </div>
         <div class="cards">
           <div class="card stat"><small>Ventas</small><div class="num" id="rVentas">0</div><div class="sub">Registros</div></div>
           <div class="card stat"><small>Ingresos</small><div class="num" id="rIngresos">$0</div><div class="sub">Total vendido</div></div>
@@ -3945,12 +3952,24 @@ async function agregarCliente(){
  const {error}=await sb.from("clients").insert({name:n,phone:$("cTelefono").value.trim(),note:$("cNota").value.trim()});
  if(error)alert(error.message);else{$("cNombre").value="";$("cTelefono").value="";$("cNota").value="";toast("Cliente guardado");await cargarTodo()}
 }
+function summarizeClientPosHistory(sales,clientId){
+ const records=(Array.isArray(sales)?sales:[]).filter(sale=>sale&&!sale.archived_at&&sale.client_id!=null&&String(sale.client_id)===String(clientId||''));
+ const number=value=>Number.isFinite(Number(value))?Number(value):0;
+ const units=records.reduce((sum,sale)=>sum+number(sale.quantity),0);
+ const revenue=records.reduce((sum,sale)=>sum+number(sale.quantity)*number(sale.sale_price),0);
+ const latest=[...records].sort((a,b)=>String(b.sale_date||b.created_at||'').localeCompare(String(a.sale_date||a.created_at||''))).slice(0,5);
+ return {recordCount:records.length,units,revenue,latest};
+}
+function renderClientPosHistory(clientId){
+ const summary=summarizeClientPosHistory(ventas,clientId);
+ const recent=summary.latest.map(sale=>`<li style="margin:4px 0"><b>${esc(sale.product_code||'')} ${sale.product_code?'— ':''}${esc(sale.product_name||'Producto')}</b><br><span class="muted">${esc(sale.sale_date||String(sale.created_at||'').slice(0,10)||'Fecha sin dato')} · ${Number(sale.quantity)||0} × ${money(sale.sale_price)}</span></li>`).join('');
+ return `<details class="clientPosHistory" style="margin-top:10px;border-top:1px solid var(--border);padding-top:9px"><summary>Historial POS · ${summary.recordCount} registro(s) · ${summary.units} unidades · ${money(summary.revenue)}</summary><p class="muted" style="font-size:11px">Solo ventas POS activas vinculadas por la relación clients.id → sales.client_id. No se unen pedidos web por nombre o teléfono.</p>${recent?`<ol style="margin:7px 0;padding-left:22px">${recent}</ol>`:'<p class="muted">Sin ventas POS activas vinculadas a este cliente.</p>'}</details>`;
+}
 function renderClientes(){
  const host=$("listaClientes");if(!host)return;
  if(moduleLoadErrors.clients){host.innerHTML=`<div class="alert"><b>No se pudieron cargar los clientes.</b><br>${esc(moduleLoadErrors.clients)}</div>`;return;}
- host.innerHTML=clientes.map(c=>`<div class="card listItem" style="padding:15px;margin-bottom:9px"><div class="rowBetween"><div><b>${esc(c.name)}</b><div class="muted">📞 ${esc(c.phone||"Sin teléfono")}</div>${c.note?`<div class="muted">📝 ${esc(c.note)}</div>`:""}</div><span class="badge ok">Cliente</span></div></div>`).join("")||'<div class="empty card">No hay clientes registrados.</div>';
+ host.innerHTML=clientes.map(c=>`<div class="card listItem" style="padding:15px;margin-bottom:9px"><div class="rowBetween"><div><b>${esc(c.name)}</b><div class="muted">📞 ${esc(c.phone||"Sin teléfono")}</div>${c.note?`<div class="muted">📝 ${esc(c.note)}</div>`:""}</div><span class="badge ok">Cliente</span></div>${renderClientPosHistory(c.id)}</div>`).join("")||'<div class="empty card">No hay clientes registrados.</div>';
 }
-
 async function agregarProveedor(){
  const name=$("prNombre").value.trim();if(!name)return alert("Escribe el nombre del proveedor.");
  const {error}=await sb.from("suppliers").insert({name,phone:$("prTelefono").value.trim(),contact:$("prContacto").value.trim(),note:$("prNota").value.trim()});
@@ -4060,18 +4079,44 @@ function reciboVenta(id){
  const w=window.open("","_blank","width=480,height=650");if(!w)return;
  w.document.write(`<html><head><title>Recibo ${esc(v.product_code)}</title><style>body{font-family:Arial;padding:25px;color:#222}h1{text-align:center}hr{border:0;border-top:1px dashed #aaa;margin:20px 0}.r{display:flex;justify-content:space-between;margin:10px 0}.total{font-size:24px;font-weight:bold}</style></head><body><h1>Variedades JM</h1><p style="text-align:center">Comprobante de venta</p><hr><div class="r"><b>Producto</b><span>${esc(v.product_code)}</span></div><div class="r"><span>${esc(v.product_name)}</span><span>${v.quantity} × ${money(v.sale_price)}</span></div><div class="r"><b>Fecha</b><span>${v.sale_date}</span></div><hr><div class="r total"><span>TOTAL</span><span>${money(total)}</span></div><p>Ganancia estimada: ${money(gain)}</p><hr><p style="text-align:center">Gracias por tu compra ❤️</p><script>window.print()<\/script></body></html>`);w.document.close();
 }
-function renderReportes(){
- const ing=ventas.reduce((s,v)=>s+Number(v.quantity)*Number(v.sale_price),0),cost=ventas.reduce((s,v)=>s+Number(v.quantity)*Number(v.cost_price),0),inv=productos.reduce((s,p)=>s+Number(p.quantity)*Number(p.cost_price),0),gt=gastos.reduce((s,g)=>s+Number(g.amount),0);
- $("rVentas").textContent=ventas.length;$("rIngresos").textContent=money(ing);$("rCostos").textContent=money(cost);$("rGanancia").textContent=money(ing-cost);$("rGastos").textContent=money(gt);$("rNeta").textContent=money(ing-cost-gt);$("inventoryValue").textContent=money(inv);
- // No presentar $0 en gastos/ganancia neta hasta consultar esa tabla.
- if(moduleLoadErrors.expenses||!adminDeferredModuleLoaded.expenses){$("rGastos").textContent="—";$("rNeta").textContent="—";}
- const soldByProduct=new Map();(ventas||[]).forEach(sale=>{const key=String(sale.product_id||sale.product_code||sale.product_name||'Producto');const entry=soldByProduct.get(key)||{name:sale.product_name||'Producto',code:sale.product_code||'',quantity:0,revenue:0,profit:0};const qty=Number(sale.quantity)||0,price=Number(sale.sale_price)||0,cost=Number(sale.cost_price)||0;entry.quantity+=qty;entry.revenue+=qty*price;entry.profit+=qty*(price-cost);soldByProduct.set(key,entry)});
- const best=[...soldByProduct.values()].sort((a,b)=>b.quantity-a.quantity||b.revenue-a.revenue).slice(0,8);const bestHost=$("bestSellingProducts");if(bestHost)bestHost.innerHTML=best.map((row,i)=>`<div class="listItem"><div class="rowBetween"><div><b>${i+1}. ${esc(row.code?row.code+' — ':'')}${esc(row.name)}</b><div class="muted">${row.quantity} unidades vendidas · Ingresos ${money(row.revenue)}</div></div><b>${money(row.profit)}</b></div></div>`).join('')||'<div class="empty">Los productos más vendidos aparecerán al registrar ventas.</div>';
- const c={};productos.forEach(p=>c[p.category]=(c[p.category]||0)+Number(p.quantity));
- const max=Math.max(...Object.values(c),1);
- $("cats").innerHTML=Object.entries(c).map(([k,v])=>`<div class="listItem"><div class="rowBetween"><b>${esc(k)}</b><span>${v} unidades</span></div><div class="progress"><span style="width:${Math.max(4,(v/max)*100)}%"></span></div></div>`).join("")||'<div class="empty">Sin datos.</div>';
+function isValidAdminReportDate(value){
+ const key=String(value||'').trim(),match=key.match(/^(\d{4})-(\d{2})-(\d{2})$/);if(!match)return false;
+ const date=new Date(Date.UTC(Number(match[1]),Number(match[2])-1,Number(match[3])));
+ return Number.isFinite(date.getTime())&&date.toISOString().slice(0,10)===key;
 }
-
+function getAdminReportDateRange(){
+ const from=String($("reportFromDate")?.value||'').trim(),to=String($("reportToDate")?.value||'').trim();
+ const valid=(!from||isValidAdminReportDate(from))&&(!to||isValidAdminReportDate(to))&&(!from||!to||from<=to);
+ return {from,to,valid};
+}
+function filterAdminReportRows(rows,dateField,range=getAdminReportDateRange()){
+ const source=Array.isArray(rows)?rows:[];if(!range.valid)return [];
+ if(!range.from&&!range.to)return source.filter(row=>!row?.archived_at);
+ return source.filter(row=>{
+  if(!row||row.archived_at)return false;
+  const value=row[dateField]||row.created_at||'',key=String(value).slice(0,10);
+  return isValidAdminReportDate(key)&&(!range.from||key>=range.from)&&(!range.to||key<=range.to);
+ });
+}
+function getAdminReportData(){
+ const range=getAdminReportDateRange();
+ return {range,sales:filterAdminReportRows(ventas,'sale_date',range),expenses:filterAdminReportRows(gastos,'expense_date',range)};
+}
+function clearAdminReportDateFilters(){
+ const from=$("reportFromDate"),to=$("reportToDate");if(from)from.value='';if(to)to.value='';renderReportes();
+}
+function renderReportes(){
+ const {range,sales:reportSales,expenses:reportExpenses}=getAdminReportData();
+ const ing=reportSales.reduce((sum,sale)=>sum+(Number(sale.quantity)||0)*(Number(sale.sale_price)||0),0),cost=reportSales.reduce((sum,sale)=>sum+(Number(sale.quantity)||0)*(Number(sale.cost_price)||0),0),inv=productos.reduce((sum,product)=>sum+(Number(product.quantity)||0)*(Number(product.cost_price)||0),0),gt=reportExpenses.reduce((sum,expense)=>sum+(Number(expense.amount)||0),0);
+ $("rVentas").textContent=reportSales.length;$("rIngresos").textContent=money(ing);$("rCostos").textContent=money(cost);$("rGanancia").textContent=money(ing-cost);$("rGastos").textContent=money(gt);$("rNeta").textContent=money(ing-cost-gt);$("inventoryValue").textContent=money(inv);
+ const status=$("reportDateFilterStatus");if(status){if(!range.valid)status.textContent='Rango de fechas no válido. No se calcularon ventas ni gastos para evitar mostrar un período distinto.';else if(moduleLoadErrors.expenses)status.textContent='Ventas POS activas según la fecha registrada. No se pudieron cargar gastos; los valores netos quedan sin calcular.';else if(!adminDeferredModuleLoaded.expenses)status.textContent='Ventas POS activas según la fecha registrada. Los gastos se consultan al abrir Reportes.';else status.textContent=range.from||range.to?`Período aplicado: ${range.from||'inicio'} a ${range.to||'hoy'}. Ventas POS y gastos, según la fecha almacenada.`:'Sin filtro por fecha: ventas POS activas y gastos cargados.';}
+ if(moduleLoadErrors.expenses||!adminDeferredModuleLoaded.expenses){$("rGastos").textContent="—";$("rNeta").textContent="—";}
+ const soldByProduct=new Map();reportSales.forEach(sale=>{const key=String(sale.product_id||sale.product_code||sale.product_name||'Producto');const entry=soldByProduct.get(key)||{name:sale.product_name||'Producto',code:sale.product_code||'',quantity:0,revenue:0,profit:0};const qty=Number(sale.quantity)||0,price=Number(sale.sale_price)||0,saleCost=Number(sale.cost_price)||0;entry.quantity+=qty;entry.revenue+=qty*price;entry.profit+=qty*(price-saleCost);soldByProduct.set(key,entry)});
+ const best=[...soldByProduct.values()].sort((a,b)=>b.quantity-a.quantity||b.revenue-a.revenue).slice(0,8);const bestHost=$("bestSellingProducts");if(bestHost)bestHost.innerHTML=best.map((row,index)=>`<div class="listItem"><div class="rowBetween"><div><b>${index+1}. ${esc(row.code?row.code+' — ':'')}${esc(row.name)}</b><div class="muted">${row.quantity} unidades vendidas · Ingresos ${money(row.revenue)}</div></div><b>${money(row.profit)}</b></div></div>`).join('')||'<div class="empty">Los productos más vendidos aparecerán al registrar ventas.</div>';
+ const categories={};productos.forEach(product=>categories[product.category]=(categories[product.category]||0)+Number(product.quantity));
+ const max=Math.max(...Object.values(categories),1);
+ $("cats").innerHTML=Object.entries(categories).map(([category,quantity])=>`<div class="listItem"><div class="rowBetween"><b>${esc(category)}</b><span>${quantity} unidades</span></div><div class="progress"><span style="width:${Math.max(4,(quantity/max)*100)}%"></span></div></div>`).join("")||'<div class="empty">Sin datos.</div>';
+}
 async function limpiarVentas(){
   if(!ventas.length){toast("No hay ventas activas para archivar");return}
   const ok=confirm("ARCHIVAR VENTAS\n\nLas ventas activas dejarán de aparecer en los reportes, pero no se borrarán.\n\nPodrás restaurar el último archivo desde este panel.\n\n¿Quieres continuar?");
@@ -4545,10 +4590,12 @@ function safeCSVCell(value){
  return '"'+text.replace(/"/g,'""')+'"';
 }
 function exportSalesReportCSV(){
+ const {range,sales}=getAdminReportData();if(!range.valid){toast('Corrige el rango de fechas antes de exportar.');return false;}
  const head=['Fecha','Código','Producto','Cantidad','Costo unidad','Venta unidad','Ingreso','Ganancia bruta estimada'];
- const rows=(ventas||[]).map(v=>{const qty=Number(v.quantity)||0,sale=Number(v.sale_price)||0,cost=Number(v.cost_price)||0;return [v.sale_date||v.created_at||'',v.product_code||'',v.product_name||'',qty,cost,sale,qty*sale,qty*(sale-cost)]});
+ const rows=sales.map(sale=>{const qty=Number(sale.quantity)||0,salePrice=Number(sale.sale_price)||0,cost=Number(sale.cost_price)||0;return [sale.sale_date||sale.created_at||'',sale.product_code||'',sale.product_name||'',qty,cost,salePrice,qty*salePrice,qty*(salePrice-cost)]});
  const content=[head,...rows].map(row=>row.map(safeCSVCell).join(';')).join('\n');
- downloadFile('sirevya_reporte_ventas.csv','\uFEFF'+content,'text/csv;charset=utf-8');toast('Reporte de ventas descargado');
+ const suffix=range.from||range.to?`_${range.from||'inicio'}_${range.to||'hoy'}`:'';
+ downloadFile(`sirevya_reporte_ventas${suffix}.csv`,'\uFEFF'+content,'text/csv;charset=utf-8');toast(`Reporte POS descargado (${rows.length} registros)`);return true;
 }
 function requireBackupAcknowledgement(actionLabel){
  const ok=confirm('Antes de '+actionLabel+', descarga primero “Copia de respaldo → Descargar respaldo JSON” desde Configuración. El JSON incluye las referencias de fotos, pero no los archivos binarios de R2.\n\n¿Ya descargaste y verificaste un respaldo reciente?');if(!ok)return false;
@@ -4586,6 +4633,8 @@ setInterval(()=>{void revalidateAdminAuthorization();},60000);
 document.addEventListener("visibilitychange",()=>{if(!document.hidden){void revalidateAdminAuthorization();if(adminViewNeedsLiveAvailability())refreshPublicAvailability();}});
 document.addEventListener("DOMContentLoaded",()=>{
   initAdminColorPalette();
+  const reportFrom=$("reportFromDate"),reportTo=$("reportToDate"),reportClear=$("clearReportDateFilters");
+  reportFrom?.addEventListener('change',renderReportes);reportTo?.addEventListener('change',renderReportes);reportClear?.addEventListener('click',clearAdminReportDateFilters);
   document.addEventListener('click',handleInventoryProductAction);
   window.addEventListener('keydown',handleProductModalKeydown);
   const ordersBox=$("listaPedidos");
