@@ -6248,4 +6248,51 @@ if ('serviceWorker' in navigator) {
     .catch(error => console.warn('[PWA] No se pudo activar el shell sin conexión.', error));
 }
 </script>
+<script>
+function evaluateTickerPhysicalProbe(input){
+ const positions=(Array.isArray(input.positions)?input.positions:[]).filter(Number.isFinite);
+ const transitions=positions.slice(1).filter((value,index)=>Math.abs(value-positions[index])>0.5).length;
+ const excursion=positions.length>1?Math.max(...positions)-Math.min(...positions):0;
+ if(input.reducedMotion){
+  const pass=input.animationName==='none'&&input.hasOverflow;
+  return {pass,summary:pass?'Movimiento reducido respetado; los mensajes siguen desplazables.':'Movimiento reducido no verificado; revisa que el ticker sea desplazable.'};
+ }
+ const duration=parseFloat(input.animationDuration)||0;
+ const pass=input.animationName==='jmTickerMove'&&duration>0&&input.animationIterationCount==='infinite'&&input.animationPlayState==='running'&&input.hasOverflow&&transitions>=4&&excursion>2;
+ return {pass,summary:pass?`Movimiento continuo detectado (${excursion.toFixed(1)} px en 2.1 s).`:'No se confirmó movimiento continuo. Mantén la página activa y vuelve a probar.'};
+}
+function runTickerPhysicalDiagnostic(){
+ if(new URLSearchParams(location.search).get('verificarTicker')!=='1')return;
+ const ticker=document.querySelector('.jmTicker');
+ const track=document.querySelector('.jmTickerTrack');
+ if(!ticker||!track)return;
+ const panel=document.createElement('section');
+ panel.setAttribute('role','status');panel.setAttribute('aria-live','polite');
+ panel.style.cssText='display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 14px;background:#fffaf3;color:#302b27;border-bottom:1px solid #d9c69d;font:600 13px/1.45 system-ui,sans-serif';
+ const title=document.createElement('strong');title.textContent='Prueba del ticker';title.style.cssText='color:#785410';
+ const status=document.createElement('span');status.textContent='Midiendo durante 2,1 segundos; mantén esta pestaña visible.';status.style.flex='1 1 190px';
+ const close=document.createElement('button');close.type='button';close.textContent='Cerrar';close.setAttribute('aria-label','Cerrar resultado de la prueba del ticker');close.style.cssText='padding:6px 10px;border:1px solid #d9c69d;border-radius:999px;background:#fff;color:#302b27;font:inherit;cursor:pointer';
+ panel.append(title,status,close);ticker.insertAdjacentElement('afterend',panel);
+ let timer=0;
+ close.addEventListener('click',()=>{if(timer)clearInterval(timer);panel.remove()},{once:true});
+ const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+ const style=getComputedStyle(track);
+ const hasOverflow=ticker.clientWidth>0&&ticker.scrollWidth>ticker.clientWidth+1;
+ if(reduced){
+  const result=evaluateTickerPhysicalProbe({reducedMotion:true,animationName:style.animationName,hasOverflow});
+  status.textContent=`${result.pass?'PASS':'REVISAR'} — ${result.summary}`;status.style.color=result.pass?'#17633b':'#8a4b00';return;
+ }
+ const positions=[];let samples=0;
+ timer=setInterval(()=>{
+  if(document.hidden){clearInterval(timer);status.textContent='Vuelve a esta pestaña y actualiza para repetir la medición.';return}
+  positions.push(track.getBoundingClientRect().left);samples++;
+  if(samples<8)return;
+  clearInterval(timer);timer=0;
+  const current=getComputedStyle(track);
+  const result=evaluateTickerPhysicalProbe({reducedMotion:false,animationName:current.animationName,animationDuration:current.animationDuration,animationIterationCount:current.animationIterationCount,animationPlayState:current.animationPlayState,hasOverflow:ticker.clientWidth>0&&ticker.scrollWidth>ticker.clientWidth+1,positions});
+  status.textContent=`${result.pass?'PASS':'REVISAR'} — ${result.summary}`;status.style.color=result.pass?'#17633b':'#a32435';
+ },300);
+}
+runTickerPhysicalDiagnostic();
+</script>
 </body></html>
