@@ -149,6 +149,13 @@ try {
     console.log(`ticker-motion width=${width}: moved ${result.textExcursion.toFixed(1)}px in 2.2s (${result.changedSamples} changing frames)`);
   }
 
+  await measure(390, false);
+  const focused = await cdp('Runtime.evaluate', { expression: `(() => { const ticker=document.querySelector('.jmTicker'); const track=ticker?.querySelector('.jmTickerTrack'); if(!ticker||!track)return null; ticker.tabIndex=0; ticker.focus(); return {focusWithin:ticker.matches(':focus-within'),playState:getComputedStyle(track).animationPlayState}; })()`, returnByValue: true });
+  assert.equal(focused.result?.value?.focusWithin, true, 'mobile ticker can receive focus for the accessible pause');
+  assert.equal(focused.result?.value?.playState, 'paused', 'focus-within pauses autoplay at 390px');
+  const resumed = await cdp('Runtime.evaluate', { expression: `(() => { const ticker=document.querySelector('.jmTicker'); ticker?.blur(); return getComputedStyle(ticker?.querySelector('.jmTickerTrack')).animationPlayState; })()`, returnByValue: true });
+  assert.equal(resumed.result?.value, 'running', 'removing focus resumes normal autoplay at 390px');
+
   const reduced = await measure(390, true);
   assert.ok(reduced && !reduced.error, 'reduced-motion probe returned a measurement');
   assert.equal(reduced.reducedMotion, true, 'explicit reduced-motion preference is recognized');

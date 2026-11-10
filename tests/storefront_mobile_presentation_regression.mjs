@@ -13,13 +13,15 @@ assert.doesNotMatch(source, /\.jmTicker\s*\{[^}]*display\s*:\s*none/i,
 assert.match(source, /@media\(max-width:700px\)\{\s*\.jmTicker\{display:block!important/,
   'El ticker aparece explícitamente en móvil.');
 assert.ok(tickerStyleStart >= 0 && tickerStyleEnd > tickerStyleStart, 'Las reglas específicas del ticker móvil están presentes.');
-assert.match(tickerStyles, /@media\(max-width:700px\)\{[\s\S]*?\.jmTickerTrack\{[^}]*-webkit-animation:jmTickerMove 28s linear infinite!important;animation:jmTickerMove 28s linear infinite!important;[^}]*animation-play-state:running!important/,
-  'El ticker móvil fuerza autoplay continuo por defecto y usa la misma duración base de escritorio.');
+assert.match(tickerStyles, /@media\(max-width:700px\)\{[\s\S]*?\.jmTickerTrack\{[^}]*-webkit-animation-name:jmTickerMove!important;[^}]*animation-duration:28s!important/,
+  'El ticker móvil mantiene autoplay continuo por defecto sin fijar el play-state mediante shorthand.');
+assert.doesNotMatch(tickerStyles, /animation-play-state\s*:\s*running\s*!important/i,
+  'La regla móvil no bloquea las pausas de hover/foco con una prioridad superior.');
 assert.doesNotMatch(tickerStyles, /prefers-reduced-motion:no-preference/,
   'El autoplay normal no depende de que el navegador reconozca la palabra clave no-preference.');
-assert.match(source, /@media\(hover:hover\) and \(pointer:fine\)\{\.jmTicker:hover \.jmTickerTrack\{animation-play-state:paused\}\}/,
+assert.match(source, /@media\(hover:hover\) and \(pointer:fine\)\{\.jmTicker:hover \.jmTickerTrack\{-webkit-animation-play-state:paused;animation-play-state:paused\}\}/,
   'Solo un puntero fino con hover real puede pausar el ticker; el hover pegajoso táctil no lo detiene.');
-assert.match(source, /\.jmTicker:focus-within \.jmTickerTrack\{animation-play-state:paused\}/,
+assert.match(source, /\.jmTicker:focus-within \.jmTickerTrack\{-webkit-animation-play-state:paused;animation-play-state:paused\}/,
   'La pausa por foco de teclado se conserva para accesibilidad.');
 assert.match(tickerStyles, /@media\(prefers-reduced-motion:reduce\)\{\.jmTicker\{overflow-x:auto!important;scrollbar-width:none\}\.jmTickerTrack\{-webkit-animation:none!important;animation:none!important;transform:none!important;-webkit-transform:none!important\}/,
   'Con movimiento reducido, ambas animaciones se detienen y los mensajes siguen accesibles mediante desplazamiento.');
@@ -39,8 +41,8 @@ assert.match(source, /\.jmTickerTrack\{display:flex;width:max-content;gap:0/);
 assert.match(source, /\.jmTickerSequence\{display:inline-flex;align-items:center;flex:0 0 auto;gap:48px;padding-right:48px;white-space:nowrap\}/);
 assert.match(source, /@keyframes jmTickerMove\{from\{transform:translate3d\(0,0,0\)\}to\{transform:translate3d\(-50%,0,0\)\}\}/);
 assert.match(source, /@-webkit-keyframes jmTickerMove\{from\{-webkit-transform:translate3d\(0,0,0\)\}to\{-webkit-transform:translate3d\(-50%,0,0\)\}\}/);
-assert.ok(source.includes('.jmTickerTrack{padding:7px 0!important;font-size:clamp(10px,2.8vw,12px)!important;gap:0!important;-webkit-animation:jmTickerMove 28s linear infinite!important;animation:jmTickerMove 28s linear infinite!important;animation-play-state:running!important;backface-visibility:hidden;-webkit-backface-visibility:hidden}'),
-  'La separación móvil heredada no crea un hueco adicional entre las secuencias.');
+assert.ok(source.includes('.jmTickerTrack{padding:7px 0!important;font-size:clamp(10px,2.8vw,12px)!important;gap:0!important;-webkit-animation-name:jmTickerMove!important;-webkit-animation-duration:28s!important;-webkit-animation-timing-function:linear!important;-webkit-animation-iteration-count:infinite!important;animation-name:jmTickerMove!important;animation-duration:28s!important;animation-timing-function:linear!important;animation-iteration-count:infinite!important;backface-visibility:hidden;-webkit-backface-visibility:hidden}'),
+  'La separación móvil no añade huecos y permite que las reglas accesibles pausen el autoplay.');
 assert.match(source, /\.jmTickerSequence\{gap:clamp\(18px,5vw,28px\)!important;padding-right:clamp\(18px,5vw,28px\)!important\}/,
   'La separación se adapta a móvil sin cortar palabras.');
 const normalizeTickerSequence = html => html.replace(/<span[^>]*>/g, '<span>').replace(/\s+/g, ' ').trim();
