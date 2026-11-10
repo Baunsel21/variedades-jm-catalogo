@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import {
+  buildTelegramReplyMarkup,
   createTelegramDispatchHandler,
   formatTelegramNotification,
 } from "../supabase/functions/telegram-dispatch/core.mjs";
@@ -90,14 +91,20 @@ const orderRow = {
     payment_status: "PENDING",
     order_status: "NEW",
     subtotal_cop: 118000,
+    discount_cop: 5000,
+    coupon_code: "MODA10",
+    coupon_discount_cop: 5000,
     shipping_cop: 12000,
     total_cop: 130000,
+    created_at: "2026-11-10T15:00:00Z",
+    delivery_mode: "Envío a domicilio",
+    admin_order_id: syntheticId,
     customer_name: "NOMBRE PRIVADO",
     city: "Cali",
     customer_phone: "3001112233",
     delivery_address: "Calle Sintetica 12-34, Barrio de Prueba",
     products: [
-      { code: "SKU-1", name: "Camisa sintética", quantity: 2, variant: "Negro / M" },
+      { code: "SKU-1", name: "Camisa sintética", quantity: 2, variant: "Negro / M", unit_price_cop: 58000 },
       { code: "SKU-2", name: "Zapatos sintéticos", quantity: 1 },
     ],
     total_units: 3,
@@ -116,6 +123,11 @@ assert.match(formatted, /Cliente: NOMBRE PRIVADO/);
 assert.match(formatted, /Ciudad: Cali/);
 assert.match(formatted, /SKU-1.*Camisa sintética.*Variante: Negro \/ M.*Cantidad: 2/);
 assert.match(formatted, /Total de unidades: 3/);
+assert.match(formatted, /Fecha y hora: .*\(Colombia\)/);
+assert.match(formatted, /58[.,]000.*c\/u/);
+assert.match(formatted, /Descuentos: /);
+assert.match(formatted, /Cupón: MODA10/);
+assert.match(formatted, /Entrega: Envío a domicilio/);
 assert.match(formatted, /Teléfono: 3001112233/);
 assert.match(formatted, /Dirección: Calle Sintetica 12-34, Barrio de Prueba/);
 assert.match(formatted, /Subtotal: /);
@@ -123,6 +135,67 @@ assert.match(formatted, /Envío: /);
 assert.match(formatted, /Total: /);
 for (const privateValue of ["private@example.test", "DIRECCION PRIVADA"]) {
   assert.equal(formatted.includes(privateValue), false);
+}
+assert.equal(formatted.includes(syntheticId), false, "el UUID no aparece en el texto del pedido");
+const codFormatted = formatTelegramNotification({
+  event_type: "order.created",
+  payload: { order_reference: "COD-TEST-002", payment_method: "Contra entrega", payment_status: "PENDING", order_status: "PENDIENTE" },
+});
+assert.match(codFormatted, /Pedido contraentrega recibido/);
+assert.match(codFormatted, /Cobro: contraentrega al recibir/);
+assert.doesNotMatch(codFormatted, /Estado de pago: PENDING/);
+assert.deepEqual(buildTelegramReplyMarkup(orderRow), {
+  inline_keyboard: [[
+    { text: "Abrir pedido", url: `https://sirevya.com.co/admin.html?web_order=${syntheticId}` },
+    { text: "Contactar cliente", url: "https://wa.me/573001112233" },
+  ]],
+});
+assert.deepEqual(buildTelegramReplyMarkup({
+  event_type: "order.tracking_created",
+  payload: {
+    admin_order_id: syntheticId,
+    customer_phone: "+57 300 111 2233",
+    tracking_url: "https://carrier.example.test/track/SAFE123",
+  },
+}), {
+  inline_keyboard: [[
+    { text: "Abrir pedido", url: `https://sirevya.com.co/admin.html?web_order=${syntheticId}` },
+    { text: "Rastrear envío", url: "https://carrier.example.test/track/SAFE123" },
+    { text: "Contactar cliente", url: "https://wa.me/573001112233" },
+  ]],
+});
+const trackingText = formatTelegramNotification({
+  event_type: "order.tracking_created",
+  payload: {
+    order_reference: "COD-TEST-002",
+    customer_name: "Cliente de prueba",
+    customer_phone: "3001112233",
+    city: "Palmira",
+    order_status: "PENDIENTE",
+    carrier_name: "Transportadora Sintética",
+    tracking_number: "GUIA-SYNTH-002",
+    products: [{ code: "SKU-10", name: "Camisa sintética", quantity: 1, variant: "Azul / S" }],
+    total_units: 1,
+    total_cop: 75000,
+  },
+});
+assert.match(trackingText, /Guía de envío generada/);
+assert.match(trackingText, /Pedido: COD-TEST-002/);
+assert.match(trackingText, /Transportadora Sintética/);
+assert.match(trackingText, /GUIA-SYNTH-002/);
+assert.match(trackingText, /Cliente de prueba/);
+assert.match(trackingText, /Palmira/);
+assert.match(trackingText, /SKU-10.*Camisa sintética.*Cantidad: 1/);
+assert.match(trackingText, /Total: /);
+assert.doesNotMatch(trackingText, /aaaaaaaa-aaaa/);
+assert.match(formatTelegramNotification({ event_type: "order.shipped", payload: { order_reference: "JM-042", order_status: "ENVIADO" } }), /Pedido enviado.*Pedido: JM-042.*ENVIADO/s);
+assert.match(formatTelegramNotification({ event_type: "order.delivered", payload: { order_reference: "JM-042", order_status: "ENTREGADO" } }), /Pedido entregado.*Pedido: JM-042.*ENTREGADO/s);
+assert.equal(buildTelegramReplyMarkup({
+  event_type: "order.tracking_created",
+  payload: { tracking_url: "javascript:alert(1)", customer_phone: "no-es-un-telefono" },
+}), null, "no crea botones con destinos inseguros o datos inválidos");
+for (const trackingUrl of ["https://user:pass@carrier.example.test/track", "https://192.168.1.10/track", "http://carrier.example.test/track"]) {
+  assert.equal(buildTelegramReplyMarkup({ event_type: "order.tracking_created", payload: { tracking_url: trackingUrl } }), null, `rechaza destino inseguro: ${trackingUrl}`);
 }
 const paymentWithoutContact = formatTelegramNotification({ ...orderRow, event_type: "payment.approved" });
 assert.doesNotMatch(paymentWithoutContact, /Teléfono:|Dirección:/, "los estados de pago no repiten datos de entrega");
@@ -348,6 +421,9 @@ assert.equal(formatTelegramNotification({ event_type: "unknown.event", payload: 
   assert.equal(telegramCall.telegramBody.text.includes("Teléfono: 3001112233"), true);
   assert.equal(telegramCall.telegramBody.text.includes("Dirección: Calle Sintetica 12-34, Barrio de Prueba"), true);
   assert.equal(telegramCall.telegramBody.text.includes("private@example.test"), false);
+  assert.equal(telegramCall.telegramBody.text.includes(syntheticId), false);
+  assert.equal(telegramCall.telegramBody.reply_markup.inline_keyboard[0][0].text, "Abrir pedido");
+  assert.equal(telegramCall.telegramBody.reply_markup.inline_keyboard[0][1].text, "Contactar cliente");
   assert.equal(calls.some((call) => rpcNameFromUrl(call.url) === "complete_sirevya_telegram_notification"), true);
   const allDiagnostics = JSON.stringify({ loggerEvents, response: result });
   assert.equal(allDiagnostics.includes(botToken), false);

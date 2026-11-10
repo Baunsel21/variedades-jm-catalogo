@@ -48,8 +48,12 @@ CREATE TABLE public.orders (
   neighborhood text,
   items jsonb,
   subtotal bigint,
+  discount_total bigint,
   shipping bigint,
   total bigint,
+  coupon_code text,
+  coupon_discount_total bigint,
+  delivery_method text,
   payment_method text,
   payment_status text,
   transaction_id text,
@@ -69,7 +73,10 @@ CREATE TABLE public.web_orders (
   customer_neighborhood text,
   note text,
   payment_method text,
+  payment_status text,
   subtotal bigint,
+  coupon_code text,
+  coupon_discount_total bigint,
   shipping bigint,
   total bigint,
   items jsonb,
@@ -78,7 +85,8 @@ CREATE TABLE public.web_orders (
   client_reference text,
   inventory_reference text,
   inventory_state text,
-  discount_total bigint
+  discount_total bigint,
+  delivery_method text
 );
 
 CREATE TABLE public.products (

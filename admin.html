@@ -2287,7 +2287,11 @@ async function startApp(){
   const securityEmail=$('securityAccountEmail');if(securityEmail)securityEmail.textContent=user.email||"Cuenta de negocio";
  loadAdminBrandForUser(user);
   $("vFecha").value=new Date().toISOString().slice(0,10);$("gFecha").value=new Date().toISOString().slice(0,10);setDateText();
-  void cargarTodo(user.id,authEpoch).then(()=>{if(adminAuthOperationStillCurrent(user.id,authEpoch))setInventoryMode(inventoryMode,false)}).catch(loadError=>{
+  void cargarTodo(user.id,authEpoch).then(()=>{
+   if(!adminAuthOperationStillCurrent(user.id,authEpoch))return;
+   setInventoryMode(inventoryMode,false);
+   if(!adminPasswordRecoveryMode)consumeTelegramWebOrderDeepLink();
+  }).catch(loadError=>{
    if(!adminAuthOperationStillCurrent(user.id,authEpoch))return;
    console.error('No se pudo cargar el dashboard administrativo:',loadError);
    lockAdminPanel('No se pudieron cargar los datos. Comprueba la conexión y vuelve a entrar.');
@@ -2302,6 +2306,19 @@ async function startApp(){
   adminStartBusy=false;
   if(adminStartPending){adminStartPending=false;setTimeout(()=>{void startApp();},0);}
  }
+}
+function consumeTelegramWebOrderDeepLink(){
+ let url;
+ try{url=new URL(window.location.href)}catch{return false}
+ if(url.origin!=='https://sirevya.com.co')return false;
+ const orderId=url.searchParams.get('web_order');
+ if(!isValidWebOrderId(orderId))return false;
+ const search=$('buscarPedido');if(!search)return false;
+ search.value=orderId;pedidosPage=1;
+ url.searchParams.delete('web_order');
+ try{window.history.replaceState(window.history.state,document.title,`${url.pathname}${url.search}${url.hash}`)}catch{}
+ show('pedidos',document.querySelector('.navbtn[data-view="pedidos"]'));
+ return true;
 }
 function setDateText(){const d=new Date();$("todayText").textContent=d.toLocaleDateString("es-CO",{weekday:"long",day:"numeric",month:"long",year:"numeric"})}
 function show(id,btn){

@@ -23,7 +23,7 @@ SET search_path TO 'pg_catalog', 'public'
 AS $function$
   SELECT coalesce(
     jsonb_typeof(p_payload) = 'object'
-    AND public._sirevya_telegram_payload_key_count(p_payload) <= 19
+    AND public._sirevya_telegram_payload_key_count(p_payload) <= 29
     AND NOT EXISTS (
       SELECT 1
         FROM pg_catalog.jsonb_object_keys(p_payload) AS top_key(key_name)
@@ -33,7 +33,9 @@ AS $function$
          'payment_method', 'payment_status', 'order_status',
          'reservation_status', 'subtotal_cop', 'shipping_cop', 'total_cop',
          'products', 'total_units', 'omitted_products',
-         'product_code', 'product_name', 'movement_type', 'quantity'
+         'product_code', 'product_name', 'movement_type', 'quantity',
+         'created_at', 'discount_cop', 'coupon_code', 'coupon_discount_cop',
+         'delivery_mode', 'admin_order_id', 'carrier_name', 'tracking_number', 'tracking_url'
        ]::text[])
     )
     AND (
@@ -52,11 +54,11 @@ AS $function$
           SELECT 1
             FROM pg_catalog.jsonb_array_elements(p_payload->'products') AS product_line(value)
            WHERE jsonb_typeof(product_line.value) <> 'object'
-              OR public._sirevya_telegram_payload_key_count(product_line.value) > 4
+              OR public._sirevya_telegram_payload_key_count(product_line.value) > 5
               OR EXISTS (
                 SELECT 1
                   FROM pg_catalog.jsonb_object_keys(product_line.value) AS line_key(key_name)
-                 WHERE line_key.key_name <> ALL (ARRAY['code', 'name', 'quantity', 'variant']::text[])
+                 WHERE line_key.key_name <> ALL (ARRAY['code', 'name', 'quantity', 'variant', 'unit_price_cop']::text[])
               )
         )
       )
@@ -82,6 +84,18 @@ ALTER TABLE public.sirevya_telegram_outbox
       'worker_internal','db_completion','reservation_unlinked'
     )
   );
+
+ALTER TABLE public.sirevya_telegram_outbox
+  DROP CONSTRAINT IF EXISTS sirevya_telegram_outbox_event_type_check;
+ALTER TABLE public.sirevya_telegram_outbox
+  ADD CONSTRAINT sirevya_telegram_outbox_event_type_check CHECK (event_type IN (
+    'order.created', 'order.cancelled', 'order.status_changed', 'order.shipped',
+    'order.tracking_created', 'order.tracking_updated', 'order.delivered',
+    'payment.pending', 'payment.approved', 'payment.rejected', 'payment.error', 'payment.voided',
+    'inventory.stockout', 'inventory.restocked', 'inventory.movement',
+    'reservation.created', 'reservation.released', 'reservation.expired',
+    'reservation.whatsapp_reserved', 'reservation.whatsapp_confirmed'
+  ));
 
 CREATE OR REPLACE FUNCTION public._sirevya_telegram_clean_text(p_value text, p_max integer)
 RETURNS text
@@ -139,6 +153,7 @@ DECLARE
   v_name text;
   v_variant text;
   v_quantity integer;
+  v_unit_price numeric;
   v_total_units bigint := 0;
   v_product_count integer := 0;
   v_omitted_products bigint := 0;
@@ -158,6 +173,12 @@ BEGIN
       concat_ws(' / ', NULLIF(btrim(v_item->>'color'), ''), NULLIF(btrim(v_item->>'size'), '')),
       80
     );
+    v_unit_price := public._sirevya_telegram_safe_numeric(
+      coalesce(v_item->>'unit_price_cop', v_item->>'unit_price', v_item->>'price', v_item->>'sale_price')
+    );
+    IF v_unit_price < 0 OR trunc(v_unit_price) <> v_unit_price OR v_unit_price > 2147483647 THEN
+      v_unit_price := NULL;
+    END IF;
     v_total_units := v_total_units + v_quantity;
     IF v_product_count < 50 THEN
       v_products := v_products || jsonb_build_array(
@@ -165,7 +186,8 @@ BEGIN
           'code', NULLIF(v_code, ''),
           'name', NULLIF(v_name, ''),
           'quantity', v_quantity,
-          'variant', NULLIF(v_variant, '')
+          'variant', NULLIF(v_variant, ''),
+          'unit_price_cop', v_unit_price
         ))
       );
       v_product_count := v_product_count + 1;
@@ -425,6 +447,10 @@ DECLARE
     WHEN 'pse' THEN 'PSE'
     WHEN 'tarjeta' THEN 'Tarjeta'
     WHEN 'contra entrega' THEN 'Contra entrega'
+    WHEN 'contraentrega' THEN 'Contra entrega'
+    WHEN 'cash_on_delivery' THEN 'Contra entrega'
+    WHEN 'cash on delivery' THEN 'Contra entrega'
+    WHEN 'cod' THEN 'Contra entrega'
     ELSE 'sin especificar'
   END;
   v_payment_status text := public._sirevya_telegram_clean_text(upper(v_row->>'payment_status'), 32);
@@ -441,11 +467,21 @@ DECLARE
   v_subtotal numeric := public._sirevya_telegram_safe_numeric(v_row->>'subtotal');
   v_shipping numeric := public._sirevya_telegram_safe_numeric(v_row->>'shipping');
   v_total numeric := public._sirevya_telegram_safe_numeric(v_row->>'total');
+  v_discount numeric := public._sirevya_telegram_safe_numeric(coalesce(v_row->>'discount_total', v_row->>'discount_cop'));
+  v_coupon_discount numeric := public._sirevya_telegram_safe_numeric(v_row->>'coupon_discount_total');
+  v_coupon_code text := public._sirevya_telegram_clean_text(v_row->>'coupon_code', 64);
+  v_created_at text := public._sirevya_telegram_clean_text(v_row->>'created_at', 40);
+  v_delivery_mode text := public._sirevya_telegram_clean_text(
+    coalesce(nullif(v_row->>'delivery_method', ''), nullif(v_row->>'delivery_type', ''),
+      CASE WHEN lower(btrim(coalesce(v_row->>'payment_method', ''))) IN ('contra entrega','contraentrega','cash_on_delivery','cash on delivery','cod')
+        THEN 'Contra entrega' ELSE 'Envío a domicilio' END), 40
+  );
   v_summary jsonb := public._sirevya_telegram_order_product_summary(v_row->'items');
   v_payload jsonb;
   v_old_payment_status text;
   v_old_order_status text;
   v_payment_event text;
+  v_order_event text;
 BEGIN
   v_payload := jsonb_strip_nulls(jsonb_build_object(
     'reference', v_reference,
@@ -457,9 +493,14 @@ BEGIN
     'payment_method', v_method,
     'payment_status', NULLIF(v_payment_status, ''),
     'order_status', NULLIF(v_order_status, ''),
+    'created_at', NULLIF(v_created_at, ''),
     'subtotal_cop', v_subtotal,
+    'discount_cop', v_discount,
+    'coupon_code', NULLIF(v_coupon_code, ''),
+    'coupon_discount_cop', v_coupon_discount,
     'shipping_cop', v_shipping,
     'total_cop', v_total,
+    'delivery_mode', NULLIF(v_delivery_mode, ''),
     'products', v_summary->'products',
     'total_units', v_summary->'total_units',
     'omitted_products', v_summary->'omitted_products'
@@ -469,7 +510,7 @@ BEGIN
     PERFORM public._enqueue_sirevya_telegram_notification(
       'order:' || v_id || ':created', 'order.created', TG_TABLE_NAME, v_id, v_payload
     );
-    IF TG_TABLE_NAME = 'orders' AND v_payment_status = 'PENDING' THEN
+    IF TG_TABLE_NAME = 'orders' AND v_payment_status = 'PENDING' AND v_method <> 'Contra entrega' THEN
       PERFORM public._enqueue_sirevya_telegram_notification(
         'order:' || v_id || ':payment:PENDING', 'payment.pending', TG_TABLE_NAME, v_id,
         v_payload - ARRAY['customer_phone', 'delivery_address']::text[]
@@ -502,7 +543,8 @@ BEGIN
       WHEN 'CANCELED' THEN 'payment.voided'
       ELSE NULL
     END;
-    IF v_payment_event IS NOT NULL THEN
+    IF v_payment_event IS NOT NULL
+       AND NOT (v_method = 'Contra entrega' AND v_payment_event = 'payment.pending') THEN
       PERFORM public._enqueue_sirevya_telegram_notification(
         'order:' || v_id || ':payment:' || v_payment_status,
         v_payment_event, TG_TABLE_NAME, v_id,
@@ -516,6 +558,22 @@ BEGIN
      AND v_order_status IN ('CANCELLED','CANCELED','CANCELADO','CANCELADA','ANULADO','ANULADA') THEN
     PERFORM public._enqueue_sirevya_telegram_notification(
       'order:' || v_id || ':cancelled', 'order.cancelled', TG_TABLE_NAME, v_id,
+      v_payload - ARRAY['customer_phone', 'delivery_address']::text[]
+    );
+  END IF;
+
+  IF TG_TABLE_NAME = 'orders'
+     AND v_order_status IS DISTINCT FROM v_old_order_status
+     AND v_order_status NOT IN ('CANCELLED','CANCELED','CANCELADO','CANCELADA','ANULADO','ANULADA') THEN
+    v_order_event := CASE
+      WHEN v_order_status IN ('DELIVERED','ENTREGADO','ENTREGADA') THEN 'order.delivered'
+      WHEN v_order_status IN ('SHIPPED','SENT','ENVIADO','ENVIADA','DESPACHADO','DESPACHADA','IN_TRANSIT','EN_TRANSITO')
+        THEN 'order.shipped'
+      ELSE 'order.status_changed'
+    END;
+    PERFORM public._enqueue_sirevya_telegram_notification(
+      'order:' || v_id || ':status:' || coalesce(v_order_status, 'UNKNOWN') || ':' || txid_current()::text,
+      v_order_event, TG_TABLE_NAME, v_id,
       v_payload - ARRAY['customer_phone', 'delivery_address']::text[]
     );
   END IF;
@@ -551,6 +609,10 @@ DECLARE
     WHEN 'pse' THEN 'PSE'
     WHEN 'tarjeta' THEN 'Tarjeta'
     WHEN 'contra entrega' THEN 'Contra entrega'
+    WHEN 'contraentrega' THEN 'Contra entrega'
+    WHEN 'cash_on_delivery' THEN 'Contra entrega'
+    WHEN 'cash on delivery' THEN 'Contra entrega'
+    WHEN 'cod' THEN 'Contra entrega'
     ELSE 'sin especificar'
   END;
   v_status text := public._sirevya_telegram_clean_text(upper(v_row->>'status'), 32);
@@ -567,9 +629,23 @@ DECLARE
   v_subtotal numeric := public._sirevya_telegram_safe_numeric(v_row->>'subtotal');
   v_shipping numeric := public._sirevya_telegram_safe_numeric(v_row->>'shipping');
   v_total numeric := public._sirevya_telegram_safe_numeric(v_row->>'total');
+  v_discount numeric := public._sirevya_telegram_safe_numeric(coalesce(v_row->>'discount_total', v_row->>'discount_cop'));
+  v_coupon_discount numeric := public._sirevya_telegram_safe_numeric(v_row->>'coupon_discount_total');
+  v_coupon_code text := public._sirevya_telegram_clean_text(v_row->>'coupon_code', 64);
+  v_created_at text := public._sirevya_telegram_clean_text(v_row->>'created_at', 40);
+  v_admin_order_id text := CASE
+    WHEN v_id ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' THEN v_id
+    ELSE NULL
+  END;
+  v_delivery_mode text := public._sirevya_telegram_clean_text(
+    coalesce(nullif(v_row->>'delivery_method', ''), nullif(v_row->>'delivery_type', ''),
+      CASE WHEN lower(btrim(coalesce(v_row->>'payment_method', ''))) IN ('contra entrega','contraentrega','cash_on_delivery','cash on delivery','cod')
+        THEN 'Contra entrega' ELSE 'Envío a domicilio' END), 40
+  );
   v_summary jsonb := public._sirevya_telegram_order_product_summary(v_row->'items');
   v_payload jsonb;
   v_old_status text;
+  v_order_event text;
 BEGIN
   v_payload := jsonb_strip_nulls(jsonb_build_object(
     'reference', v_reference,
@@ -582,9 +658,15 @@ BEGIN
     'payment_method', v_method,
     'payment_status', NULLIF(v_payment_status, ''),
     'order_status', NULLIF(v_status, ''),
+    'created_at', NULLIF(v_created_at, ''),
     'subtotal_cop', v_subtotal,
+    'discount_cop', v_discount,
+    'coupon_code', NULLIF(v_coupon_code, ''),
+    'coupon_discount_cop', v_coupon_discount,
     'shipping_cop', v_shipping,
     'total_cop', v_total,
+    'delivery_mode', NULLIF(v_delivery_mode, ''),
+    'admin_order_id', v_admin_order_id,
     'products', v_summary->'products',
     'total_units', v_summary->'total_units',
     'omitted_products', v_summary->'omitted_products'
@@ -610,6 +692,20 @@ BEGIN
      AND v_status IN ('CANCELLED','CANCELED','CANCELADO','CANCELADA','ANULADO','ANULADA') THEN
     PERFORM public._enqueue_sirevya_telegram_notification(
       'web-order:' || v_id || ':cancelled', 'order.cancelled', 'web_orders', v_id,
+      v_payload - ARRAY['customer_phone', 'delivery_address']::text[]
+    );
+  END IF;
+  IF v_status IS DISTINCT FROM v_old_status
+     AND v_status NOT IN ('CANCELLED','CANCELED','CANCELADO','CANCELADA','ANULADO','ANULADA') THEN
+    v_order_event := CASE
+      WHEN v_status IN ('DELIVERED','ENTREGADO','ENTREGADA') THEN 'order.delivered'
+      WHEN v_status IN ('SHIPPED','SENT','ENVIADO','ENVIADA','DESPACHADO','DESPACHADA','IN_TRANSIT','EN_TRANSITO')
+        THEN 'order.shipped'
+      ELSE 'order.status_changed'
+    END;
+    PERFORM public._enqueue_sirevya_telegram_notification(
+      'web-order:' || v_id || ':status:' || coalesce(v_status, 'UNKNOWN') || ':' || txid_current()::text,
+      v_order_event, 'web_orders', v_id,
       v_payload - ARRAY['customer_phone', 'delivery_address']::text[]
     );
   END IF;

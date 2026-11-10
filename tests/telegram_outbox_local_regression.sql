@@ -83,17 +83,21 @@ END
 $assert_unlinked_reservation_waits$;
 
 -- New Wompi order and explicit pending payment; repeated identical status produces no duplicate.
-INSERT INTO public.orders (id, reference, customer_name, phone, city, address, neighborhood, items, subtotal, shipping, total, payment_method, payment_status, order_status)
-VALUES ('00000000-0000-4000-8000-000000000001', 'JM-TEST-001', 'PRIVATE PERSON DO NOT EXPORT', '3000000001', 'Cali', 'Calle Sintetica 10-20', 'Centro de Prueba', '[{"code":"SKU-10","name":"Synthetic Shirt","qty":2,"color":"Negro","size":"M"},{"code":"SKU-11","name":"Synthetic Shoes","qty":1}]', 120000, 10000, 130000, 'wompi', 'PENDING', 'new');
+INSERT INTO public.orders (id, reference, customer_name, phone, city, address, neighborhood, items, subtotal, discount_total, shipping, total, coupon_code, coupon_discount_total, delivery_method, payment_method, payment_status, order_status)
+VALUES ('00000000-0000-4000-8000-000000000001', 'JM-TEST-001', 'PRIVATE PERSON DO NOT EXPORT', '3000000001', 'Cali', 'Calle Sintetica 10-20', 'Centro de Prueba', '[{"code":"SKU-10","name":"Synthetic Shirt","qty":2,"price":50000,"color":"Negro","size":"M"},{"code":"SKU-11","name":"Synthetic Shoes","qty":1,"price":20000}]', 120000, 8000, 10000, 130000, 'SYNTH-3000', 3000, 'Mensajería', 'wompi', 'PENDING', 'new');
 UPDATE public.orders SET city = 'Cali' WHERE id = '00000000-0000-4000-8000-000000000001';
 UPDATE public.orders SET payment_status = 'PENDING' WHERE id = '00000000-0000-4000-8000-000000000001';
 UPDATE public.orders SET payment_status = 'APPROVED' WHERE id = '00000000-0000-4000-8000-000000000001';
 UPDATE public.orders SET payment_status = 'DECLINED' WHERE id = '00000000-0000-4000-8000-000000000001';
 UPDATE public.orders SET payment_status = 'DECLINED' WHERE id = '00000000-0000-4000-8000-000000000001';
 UPDATE public.orders SET payment_status = 'ERROR' WHERE id = '00000000-0000-4000-8000-000000000001';
+UPDATE public.orders SET order_status = 'PREPARANDO' WHERE id = '00000000-0000-4000-8000-000000000001';
+UPDATE public.orders SET order_status = 'ENVIADO' WHERE id = '00000000-0000-4000-8000-000000000001';
 UPDATE public.orders SET payment_status = 'VOIDED', order_status = 'CANCELLED' WHERE id = '00000000-0000-4000-8000-000000000001';
 INSERT INTO public.orders (id, reference, customer_name, phone, city, address, items, total, payment_method, payment_status, order_status)
 VALUES ('00000000-0000-4000-8000-000000000003', 'JM-TEST-METHOD', 'PRIVATE METHOD NAME', '3000000003', 'Cali', 'Calle Sintetica 3-5', '[]', 5000, 'CUSTOMER PHONE 3015550000', 'PENDING', 'new');
+INSERT INTO public.orders (id, reference, customer_name, phone, city, items, total, payment_method, payment_status, order_status)
+VALUES ('00000000-0000-4000-8000-000000000005', 'COD-TEST-ORDERS', 'PRIVATE COD ORDER', '3000000005', 'Palmira', '[]', 75000, 'Contra entrega', 'PENDING', 'new');
 
 -- More than 50 order lines must not make the business INSERT fail the outbox CHECK.
 INSERT INTO public.orders (id, reference, items, total, payment_method, payment_status, order_status)
@@ -119,10 +123,19 @@ VALUES (
    ) ORDER BY line_number)
    FROM generate_series(1, 52) AS line_number)
 );
+UPDATE public.web_orders SET status = 'PREPARANDO' WHERE id = '00000000-0000-4000-8000-000000000041';
+UPDATE public.web_orders SET status = 'ENVIADO' WHERE id = '00000000-0000-4000-8000-000000000041';
+UPDATE public.web_orders SET status = 'ENTREGADO' WHERE id = '00000000-0000-4000-8000-000000000041';
 
 -- COD/new web order and cancellation, without exporting email, identity document, or note.
-INSERT INTO public.web_orders (id, customer_name, customer_cedula, customer_phone, customer_email, customer_city, customer_address, customer_neighborhood, note, payment_method, subtotal, shipping, total, status, client_reference, inventory_reference, items)
-VALUES ('00000000-0000-4000-8000-000000000002', 'PRIVATE COD NAME', '123456789', '3000000002', 'cod@example.test', 'Palmira', 'Carrera Sintetica 5-10', 'Barrio de Prueba', 'PRIVATE NOTE', 'Contra entrega', 70000, 5000, 75000, 'pendiente', 'COD-TEST-002', 'RES-TEST-1', '[{"code":"SKU-10","name":"Synthetic Shirt","qty":1,"color":"Azul","size":"S"}]');
+INSERT INTO public.web_orders (id, customer_name, customer_cedula, customer_phone, customer_email, customer_city, customer_address, customer_neighborhood, note, payment_method, payment_status, subtotal, discount_total, coupon_code, coupon_discount_total, shipping, total, delivery_method, status, client_reference, inventory_reference, items)
+VALUES ('00000000-0000-4000-8000-000000000002', 'PRIVATE COD NAME', '123456789', '3000000002', 'cod@example.test', 'Palmira', 'Carrera Sintetica 5-10', 'Barrio de Prueba', 'PRIVATE NOTE', 'Contra entrega', 'PENDING', 70000, 0, 'SYNTH-COD', 0, 5000, 75000, 'Contra entrega', 'pendiente', 'COD-TEST-002', 'RES-TEST-1', '[{"code":"SKU-10","name":"Synthetic Shirt","qty":1,"color":"Azul","size":"S","price":70000}]');
+INSERT INTO public.web_order_tracking (web_order_id, carrier_name, tracking_number, tracking_url)
+VALUES ('00000000-0000-4000-8000-000000000002', 'Transportadora Sintética', 'GUIA-SYNTH-001', 'https://tracking.example.test/GUIA-SYNTH-001');
+UPDATE public.web_order_tracking SET carrier_name = 'Transportadora Sintética', tracking_number = 'GUIA-SYNTH-002', tracking_url = 'https://tracking.example.test/GUIA-SYNTH-002'
+WHERE web_order_id = '00000000-0000-4000-8000-000000000002';
+UPDATE public.web_order_tracking SET carrier_name = 'Transportadora Sintética', tracking_number = 'GUIA-SYNTH-002', tracking_url = 'https://tracking.example.test/GUIA-SYNTH-002'
+WHERE web_order_id = '00000000-0000-4000-8000-000000000002';
 UPDATE public.web_orders SET status = 'cancelado' WHERE id = '00000000-0000-4000-8000-000000000002';
 
 -- Inventory threshold and movement events.
@@ -172,13 +185,19 @@ DECLARE
   v_expired_id uuid;
   v_expired_token uuid;
 BEGIN
-  IF (SELECT count(*) FROM public.sirevya_telegram_outbox WHERE event_type = 'order.created') <> 5 THEN RAISE EXCEPTION 'unexpected order.created count'; END IF;
+  IF (SELECT count(*) FROM public.sirevya_telegram_outbox WHERE event_type = 'order.created') <> 6 THEN RAISE EXCEPTION 'unexpected order.created count'; END IF;
   IF (SELECT count(*) FROM public.sirevya_telegram_outbox WHERE event_type = 'payment.pending') <> 2 THEN RAISE EXCEPTION 'unexpected payment.pending count'; END IF;
   IF (SELECT count(*) FROM public.sirevya_telegram_outbox WHERE event_type = 'payment.approved') <> 1 THEN RAISE EXCEPTION 'unexpected payment.approved count'; END IF;
   IF (SELECT count(*) FROM public.sirevya_telegram_outbox WHERE event_type = 'payment.rejected') <> 1 THEN RAISE EXCEPTION 'unexpected payment.rejected count'; END IF;
   IF (SELECT count(*) FROM public.sirevya_telegram_outbox WHERE event_type = 'payment.error') <> 1 THEN RAISE EXCEPTION 'unexpected payment.error count'; END IF;
   IF (SELECT count(*) FROM public.sirevya_telegram_outbox WHERE event_type = 'payment.voided') <> 1 THEN RAISE EXCEPTION 'unexpected payment.voided count'; END IF;
   IF (SELECT count(*) FROM public.sirevya_telegram_outbox WHERE event_type = 'order.cancelled') <> 2 THEN RAISE EXCEPTION 'unexpected order.cancelled count'; END IF;
+  IF (SELECT count(*) FROM public.sirevya_telegram_outbox WHERE event_type = 'order.status_changed') <> 2 THEN RAISE EXCEPTION 'order status change was not enqueued once'; END IF;
+  IF (SELECT count(*) FROM public.sirevya_telegram_outbox WHERE event_type = 'order.shipped') <> 2 THEN RAISE EXCEPTION 'shipment state was not enqueued once'; END IF;
+  IF (SELECT count(*) FROM public.sirevya_telegram_outbox WHERE event_type = 'order.delivered') <> 1 THEN RAISE EXCEPTION 'delivery confirmation was not enqueued once'; END IF;
+  IF (SELECT count(*) FROM public.sirevya_telegram_outbox WHERE event_type = 'order.tracking_created') <> 1 THEN RAISE EXCEPTION 'tracking creation was not enqueued once'; END IF;
+  IF (SELECT count(*) FROM public.sirevya_telegram_outbox WHERE event_type = 'order.tracking_updated') <> 1 THEN RAISE EXCEPTION 'tracking update was not deduplicated or captured'; END IF;
+  IF EXISTS (SELECT 1 FROM public.sirevya_telegram_outbox WHERE event_type = 'payment.pending' AND source_id = '00000000-0000-4000-8000-000000000005') THEN RAISE EXCEPTION 'COD was mislabeled as an online pending payment'; END IF;
   IF (SELECT count(*) FROM public.sirevya_telegram_outbox WHERE event_type = 'inventory.stockout') <> 1 THEN RAISE EXCEPTION 'unexpected inventory.stockout count'; END IF;
   IF (SELECT count(*) FROM public.sirevya_telegram_outbox WHERE event_type = 'inventory.restocked') <> 1 THEN RAISE EXCEPTION 'unexpected inventory.restocked count'; END IF;
   IF (SELECT count(*) FROM public.sirevya_telegram_outbox WHERE event_type = 'inventory.movement') <> 1 THEN RAISE EXCEPTION 'unexpected inventory.movement count'; END IF;
@@ -190,7 +209,7 @@ BEGIN
   IF EXISTS (
     SELECT 1 FROM public.sirevya_telegram_outbox
      WHERE payload ?| ARRAY['customer_cedula','customer_email','customer_address','customer_city','customer_neighborhood','note','items','name','phone','address','email','cedula']
-        OR (event_type <> 'order.created' AND (payload ? 'customer_phone' OR payload ? 'delivery_address'))
+        OR (event_type NOT IN ('order.created','order.tracking_created','order.tracking_updated') AND (payload ? 'customer_phone' OR payload ? 'delivery_address'))
         OR payload::text ILIKE '%cod@example.test%'
         OR payload::text ILIKE '%PRIVATE NOTE%'
         OR payload::text ILIKE '%PRIVATE MOTIVE DO NOT EXPORT%'
@@ -206,12 +225,17 @@ BEGIN
        AND payload->>'customer_phone' = '3000000001'
        AND payload->>'delivery_address' = 'Calle Sintetica 10-20, Centro de Prueba'
        AND payload->>'city' = 'Cali'
+       AND payload->>'delivery_mode' = 'Mensajería'
+       AND payload->>'coupon_code' = 'SYNTH-3000'
+       AND (payload->>'discount_cop')::bigint = 8000
+       AND (payload->>'coupon_discount_cop')::bigint = 3000
        AND (payload->>'subtotal_cop')::bigint = 120000
        AND (payload->>'shipping_cop')::bigint = 10000
        AND (payload->>'total_cop')::bigint = 130000
        AND (payload->>'total_units')::integer = 3
-       AND payload->'products' @> '[{"code":"SKU-10","name":"Synthetic Shirt","quantity":2,"variant":"Negro / M"},{"code":"SKU-11","name":"Synthetic Shoes","quantity":1}]'::jsonb
-  ) THEN RAISE EXCEPTION 'order payload did not normalize customer, city and products'; END IF;
+       AND payload->'products' @> '[{"code":"SKU-10","name":"Synthetic Shirt","quantity":2,"variant":"Negro / M","unit_price_cop":50000},{"code":"SKU-11","name":"Synthetic Shoes","quantity":1,"unit_price_cop":20000}]'::jsonb
+       AND payload ? 'created_at'
+  ) THEN RAISE EXCEPTION 'order payload did not normalize customer, date, coupon, city and products'; END IF;
   IF NOT EXISTS (
     SELECT 1 FROM public.sirevya_telegram_outbox
      WHERE source_id = '00000000-0000-4000-8000-000000000040'
@@ -237,11 +261,29 @@ BEGIN
        AND payload->>'order_status' = 'PENDIENTE'
        AND payload->>'payment_method' = 'Contra entrega'
        AND payload->>'customer_phone' = '3000000002'
+       AND payload->>'delivery_mode' = 'Contra entrega'
+       AND payload->>'coupon_code' = 'SYNTH-COD'
+       AND payload->>'admin_order_id' = '00000000-0000-4000-8000-000000000002'
        AND payload->>'delivery_address' = 'Carrera Sintetica 5-10, Barrio de Prueba'
        AND payload->>'subtotal_cop' = '70000'
        AND payload->>'shipping_cop' = '5000'
        AND payload->'products' @> '[{"code":"SKU-10","name":"Synthetic Shirt","quantity":1,"variant":"Azul / S"}]'::jsonb
   ) THEN RAISE EXCEPTION 'COD order did not include its short commercial reference'; END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM public.sirevya_telegram_outbox
+     WHERE event_type = 'order.tracking_created'
+       AND source_table = 'web_orders'
+       AND source_id = '00000000-0000-4000-8000-000000000002'
+       AND payload->>'admin_order_id' = '00000000-0000-4000-8000-000000000002'
+       AND payload->>'carrier_name' = 'Transportadora Sintética'
+       AND payload->>'tracking_number' = 'GUIA-SYNTH-001'
+       AND payload->>'tracking_url' = 'https://tracking.example.test/GUIA-SYNTH-001'
+       AND payload->>'customer_phone' = '3000000002'
+       AND payload->>'delivery_address' = 'Carrera Sintetica 5-10, Barrio de Prueba'
+  ) THEN RAISE EXCEPTION 'tracking notification omitted its real guide/working-action fields'; END IF;
+  IF (SELECT count(*) FROM public.sirevya_telegram_outbox WHERE event_type = 'order.tracking_updated' AND payload->>'tracking_number' = 'GUIA-SYNTH-002') <> 1 THEN
+    RAISE EXCEPTION 'same guide update was not idempotent';
+  END IF;
   IF NOT EXISTS (
     SELECT 1 FROM public.sirevya_telegram_outbox
      WHERE event_type = 'reservation.created'
