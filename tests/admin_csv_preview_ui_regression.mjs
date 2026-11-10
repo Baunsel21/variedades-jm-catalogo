@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { DEFAULT_LIMITS, PRODUCT_COLUMNS } from '../scripts/fase7_csv_preview.mjs';
 import {
+  CONSERVATIVE_MAX_IMPORT_PAYLOAD_BYTES,
   buildCsvPreviewReportCsv,
   initializeCsvPreviewUi,
   previewCsvFile,
@@ -97,6 +98,41 @@ const header = PRODUCT_COLUMNS.join(',');
   assert.equal(result.writePerformed, false);
   assert.equal(result.rows.length, 0);
   assert.ok(result.errors.some(error => error.code === 'EXISTING_CODE'));
+}
+
+// Los textos locales aplican el mismo límite octet_length que el RPC (no solo cantidad de caracteres).
+{
+  const exactUtf8Limit = 'é'.repeat(2048);
+  const exact = await previewCsvFile(csvFile(`${header}\nSKU-UTF8,"${exactUtf8Limit}",Accesorios,1,2,1`));
+  assert.equal(new TextEncoder().encode(exactUtf8Limit).byteLength, 4096);
+  assert.equal(exact.errors.length, 0, '4096 bytes UTF-8 exactos se admiten');
+
+  const tooLongAscii = await previewCsvFile(csvFile(`${header}\nSKU-LONG,"${'x'.repeat(4097)}",Accesorios,1,2,1`));
+  assert.ok(tooLongAscii.errors.some(error => error.code === 'CSV_TEXT_INVALID' && error.field === 'name'));
+  const tooLongUtf8 = await previewCsvFile(csvFile(`${header}\nSKU-LONG-UTF8,"${'é'.repeat(2049)}",Accesorios,1,2,1`));
+  assert.ok(tooLongUtf8.errors.some(error => error.code === 'CSV_TEXT_INVALID' && error.field === 'name'),
+    'el límite aplica a octetos UTF-8, no solo a caracteres');
+}
+
+// El contrato no admite fotos ni variantes: ambas rutas se rechazan antes de habilitar un import.
+{
+  const variants = await previewCsvFile(csvFile(`${[...PRODUCT_COLUMNS, 'variants'].join(',')}\nSKU-VARIANT,Corset,Accesorios,1,2,1,[]`));
+  assert.ok(variants.errors.some(error => error.code === 'VARIANT_DATA_NOT_SUPPORTED'));
+  const image = await previewCsvFile(csvFile(`${[...PRODUCT_COLUMNS, 'image_url'].join(',')}\nSKU-IMAGE,Corset,Accesorios,1,2,1,https://example.test/a.jpg`));
+  assert.ok(image.errors.some(error => error.code === 'UNKNOWN_HEADER'));
+  assert.equal(variants.canCommit, false);
+  assert.equal(image.canCommit, false);
+}
+
+// El tamaño de la solicitud se comprueba localmente antes de habilitar el commit.
+{
+  const rows = Array.from({ length: 250 }, (_, index) =>
+    `SKU-PAYLOAD-${index},"${'x'.repeat(4096)}",Accesorios,1,2,1`).join('\n');
+  const result = await previewCsvFile(csvFile(`${header}\n${rows}`));
+  assert.ok(result.summary.importPayloadBytes > CONSERVATIVE_MAX_IMPORT_PAYLOAD_BYTES);
+  assert.ok(result.errors.some(error => error.code === 'IMPORT_LIMIT_EXCEEDED' && error.field === 'archivo'));
+  assert.equal(result.canCommit, false);
+  assert.equal(result.writePerformed, false);
 }
 
 // Un archivo sobre 5 MB se rechaza antes de leer su contenido.
