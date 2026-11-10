@@ -305,6 +305,17 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
 @media(max-width:900px){.floatingPromoAdminButtons{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:620px){.floatingCampaignAdminBox{padding:10px}.floatingCampaignTiming,.floatingPromoAdminButtons{grid-template-columns:1fr}.floatingPromoAdminButton{padding:10px}}
 </style>
+<style id="sirevya-variant-mobile-labels-20261110">
+.variantAdminStockCell{min-width:0;display:grid;gap:4px}
+.variantMobileLabel{display:none}
+@media(max-width:700px){
+ .variantAdminHead{display:none!important}
+ .variantAdminRow{grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;gap:8px}
+ .variantAdminRow .variantPhotoCell{grid-column:1/-1;min-width:0}
+ .variantAdminStockCell{min-width:0}
+ .variantMobileLabel{display:block;margin:0 0 4px;color:var(--muted);font-size:10px;font-weight:800;line-height:1.25}
+}
+</style>
 </head>
 <body>
 
@@ -3431,11 +3442,11 @@ function renderVariantEditor(existing=variantDraft){
 	  const existingPhotoUrl=existingPhoto?getImageUrl(existingPhoto):'';
 	  const preview=existingPhoto?`<div class="variantPhotoPreview">${existingPhotoUrl?`<img src="${esc(existingPhotoUrl)}" alt="Foto guardada ${esc(displayColor)} / ${esc(sz)}" loading="lazy" decoding="async" onerror="this.style.opacity='.35';this.title='No se pudo cargar la vista previa'">`:''}<span class="variantCurrentPhoto">✓ Foto guardada</span></div>`:'';
 	  return `<div class="variantAdminRow">
-	    <div class="variantAdminCell variantAdminColorCell"><span class="variantColorPreview" data-color-name="${esc(displayColor)}" aria-label="Vista previa ${esc(displayColor)}" style="background:${esc(colorCss)}"></span><span>${esc(displayColor)}</span>${savedHex?`<small>${esc(savedHex)}</small>`:''}</div>
-     <div class="variantAdminCell">${esc(sz)}</div>
-     <input class="variantAdminStock" type="number" min="0" value="${Number(v.stock)||0}" data-var-color="${esc(colorValue)}" data-var-size="${esc(sz)}">
+	    <div class="variantAdminCell variantAdminColorCell"><span class="variantMobileLabel">Color / HEX</span><span class="variantColorPreview" data-color-name="${esc(displayColor)}" aria-label="Vista previa ${esc(displayColor)}" style="background:${esc(colorCss)}"></span><span>${esc(displayColor)}</span>${savedHex?`<small>${esc(savedHex)}</small>`:''}</div>
+     <div class="variantAdminCell"><span class="variantMobileLabel">Talla</span>${esc(sz)}</div>
+     <label class="variantAdminStockCell"><span class="variantMobileLabel">Stock</span><input class="variantAdminStock" type="number" min="0" value="${Number(v.stock)||0}" data-var-color="${esc(colorValue)}" data-var-size="${esc(sz)}"></label>
      <div class="variantPhotoCell">
-       <input class="variantColorPhoto" type="file" accept="image/*" data-var-photo-color="${esc(colorValue)}" data-var-photo-size="${esc(sz)}">
+       <span class="variantMobileLabel">Foto de esta referencia</span><input class="variantColorPhoto" type="file" accept="image/*" data-var-photo-color="${esc(colorValue)}" data-var-photo-size="${esc(sz)}">
        <div class="variantPhotoHint">Selecciona la foto correspondiente a ${esc(displayColor)} / ${esc(sz)}</div>
        ${preview}
      </div>
