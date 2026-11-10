@@ -105,4 +105,40 @@ assert.match(migration, /REVOKE ALL ON FUNCTION public\.admin_save_storefront_fl
 assert.match(migration, /GRANT EXECUTE ON FUNCTION public\.admin_save_storefront_floating_promotions\(jsonb\) TO authenticated/);
 assert.match(migration, /v_enabled AND \(v_category = '' OR NOT EXISTS/);
 
-console.log('floating_promotions_ui_regression: PASS (three buttons, existing category router, dismissal version, admin fail-closed, visual breakpoints)');
+const adminLoadStart = admin.indexOf('async function loadFloatingPromotionsAdmin(showStatus=true){');
+const adminLoadEnd = admin.indexOf('\nasync function saveFloatingPromotionsAdmin', adminLoadStart);
+assert.ok(adminLoadStart >= 0 && adminLoadEnd > adminLoadStart, 'loader admin de campaña presente');
+const adminLoadSource = admin.slice(adminLoadStart, adminLoadEnd);
+assert.match(adminLoadSource, /requestToken===floatingPromotionsRequestToken/, 'el token descarta lecturas superadas');
+assert.match(admin.slice(admin.indexOf('async function saveFloatingPromotionsAdmin'), admin.indexOf('function seasonalPromoFieldValue')),
+  /floatingPromotionsRequestToken\+\+/, 'guardar invalida cualquier respuesta de lectura pendiente');
+assert.match(admin.slice(admin.indexOf('function lockAdminPanel'), admin.indexOf('function setAdmin')), /floatingPromotionsRequestToken\+\+/,
+  'cerrar sesión invalida cargas pendientes');
+
+const pendingCampaignReads = [];
+const appliedCampaignVersions = [];
+const campaignRequestContext = vm.createContext({
+  adminSessionUserId: 'admin-user',
+  adminAuthEpoch: 7,
+  adminSessionAuthorized: true,
+  floatingPromotionsSettingsLoaded: false,
+  floatingPromotionsRequestToken: 0,
+  sb: { rpc: () => new Promise(resolve => pendingCampaignReads.push(resolve)) },
+  adminAuthOperationStillCurrent: (userId, epoch) => userId === 'admin-user' && epoch === 7,
+  setFloatingPromoFormDisabled() {},
+  setFloatingPromoStatus() {},
+  applyFloatingPromoSettings(campaign) { appliedCampaignVersions.push(Number(campaign.campaign_version)); },
+});
+vm.runInContext(`${adminLoadSource}\nglobalThis.loadCampaign = loadFloatingPromotionsAdmin;`, campaignRequestContext);
+const firstCampaignLoad = campaignRequestContext.loadCampaign(false);
+const secondCampaignLoad = campaignRequestContext.loadCampaign(false);
+assert.equal(pendingCampaignReads.length, 2);
+pendingCampaignReads[0]({ data: { success: true, campaign: { campaign_version: 1 } }, error: null });
+assert.equal(await firstCampaignLoad, false, 'la primera respuesta vieja se descarta');
+assert.deepEqual(appliedCampaignVersions, [], 'la respuesta superada no pisa el formulario');
+pendingCampaignReads[1]({ data: { success: true, campaign: { campaign_version: 2 } }, error: null });
+assert.equal(await secondCampaignLoad, true, 'la última lectura válida aplica');
+assert.deepEqual(appliedCampaignVersions, [2]);
+assert.equal(campaignRequestContext.floatingPromotionsSettingsLoaded, true);
+
+console.log('floating_promotions_ui_regression: PASS (three buttons, categories, dismissal, fail-closed, layout and admin load race)');

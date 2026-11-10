@@ -1876,12 +1876,12 @@ async function resetBrand(){
   toast(updateError?"Restaurado solo en este dispositivo":"Personalización restaurada en todos tus dispositivos");
   return !updateError;
 }
-let adminAuthSubscription=null,adminSessionAuthorized=false,adminSessionUserId='',adminAuthorizationBusy=false,adminAuthorizationPending=false,adminStartBusy=false,adminStartPending=false,adminAuthEpoch=0;
+let adminAuthSubscription=null,adminSessionAuthorized=false,adminSessionUserId='',adminAuthorizationBusy=false,adminAuthorizationPending=false,adminStartBusy=false,adminStartPending=false,adminAuthEpoch=0,floatingPromotionsRequestToken=0;
 let adminPasswordRecoveryMode=false;
 let availabilityRefreshBusy=false,availabilityRefreshToken=0,storefrontMarketingMetricsBusy=false,storefrontMarketingMetricsToken=0;
 function lockAdminPanel(message='Tu sesión terminó. Vuelve a entrar.'){
  adminAuthEpoch++;
- availabilityRefreshToken++;availabilityRefreshBusy=false;storefrontMarketingMetricsToken++;storefrontMarketingMetricsBusy=false;editingProductImageLoadToken++;
+ availabilityRefreshToken++;availabilityRefreshBusy=false;storefrontMarketingMetricsToken++;storefrontMarketingMetricsBusy=false;editingProductImageLoadToken++;floatingPromotionsRequestToken++;
  adminSessionAuthorized=false;adminSessionUserId='';adminPasswordRecoveryMode=false;
  brandName='Variedades JM';brandIcon='';brandIconPath='';
  if(typeof clearLegacyAdminBrandCache==='function')clearLegacyAdminBrandCache();
@@ -4664,12 +4664,14 @@ function readFloatingPromoSettingsForm(){
 }
 async function loadFloatingPromotionsAdmin(showStatus=true){
  const userId=adminSessionUserId,authEpoch=adminAuthEpoch;
+ const requestToken=++floatingPromotionsRequestToken;
+ const isCurrent=()=>requestToken===floatingPromotionsRequestToken&&adminAuthOperationStillCurrent(userId,authEpoch);
  floatingPromotionsSettingsLoaded=false;setFloatingPromoFormDisabled(true);
  if(!sb||!adminSessionAuthorized||!userId){if(showStatus)setFloatingPromoStatus('Se requiere una sesión administrativa válida.','error');return false}
  if(showStatus)setFloatingPromoStatus('Consultando la campaña guardada en Supabase…');
  try{
   const {data,error}=await sb.rpc('get_public_storefront_floating_promotions');
-  if(!adminAuthOperationStillCurrent(userId,authEpoch))return false;
+  if(!isCurrent())return false;
   if(error)throw error;
   const result=Array.isArray(data)?data[0]:data;
   if(result?.success!==true||!result.campaign)throw new Error(result?.message||'El RPC no devolvió una configuración válida.');
@@ -4677,7 +4679,7 @@ async function loadFloatingPromotionsAdmin(showStatus=true){
   setFloatingPromoStatus('Configuración cargada desde Supabase. La campaña sigue desactivada hasta que la habilites y guardes.','ok');
   return true;
  }catch(error){
-  if(!adminAuthOperationStillCurrent(userId,authEpoch))return false;
+  if(!isCurrent())return false;
   const missingRpc=String(error?.code||'')==='PGRST202';
   setFloatingPromoStatus(missingRpc?'Supabase no reconoce get_public_storefront_floating_promotions. Falta aplicar la migración 20261112010000_storefront_floating_promotions.sql; el formulario queda bloqueado y no muestra valores simulados.':'No se pudo consultar la campaña. Revisa la sesión y los permisos; el formulario permanece bloqueado.','error');
   return false;
@@ -4686,6 +4688,7 @@ async function loadFloatingPromotionsAdmin(showStatus=true){
 async function saveFloatingPromotionsAdmin(){
  if(!sb||!adminSessionAuthorized||!adminSessionUserId)return setFloatingPromoStatus('Vuelve a validar la sesión administrativa.','error');
  if(!floatingPromotionsSettingsLoaded)return setFloatingPromoStatus('Recarga la configuración antes de guardar.','error');
+ floatingPromotionsRequestToken++;
  const userId=adminSessionUserId,authEpoch=adminAuthEpoch;let config;
  try{config=readFloatingPromoSettingsForm()}catch(error){return setFloatingPromoStatus(String(error?.message||error),'error')}
  floatingPromotionsSaving=true;setFloatingPromoFormDisabled(true);setFloatingPromoStatus('Guardando la campaña en Supabase…');
