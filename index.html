@@ -1762,7 +1762,7 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
 
 
 
-<section class="categoryPanel" id="catalogo"><h2 class="categoryTitle">Categorías</h2><p class="categoryHint">Selecciona una categoría para ver sus productos.</p><div id="categoryButtons" class="categoryButtons"></div><select id="category" onchange="selectCategory(this.value)" style="display:none"><option value="">Todas las categorías</option></select></section>
+<section class="categoryPanel" id="catalogo" tabindex="-1"><h2 class="categoryTitle">Categorías</h2><p class="categoryHint">Selecciona una categoría para ver sus productos.</p><div id="categoryButtons" class="categoryButtons"></div><select id="category" onchange="selectCategory(this.value)" style="display:none"><option value="">Todas las categorías</option></select></section>
 <div class="catalogSearchRow" id="catalogSearchRow">
   <input id="search" class="search" placeholder="Buscar productos..." oninput="handleSearchInput()" aria-label="Buscar productos">
 </div>
@@ -1907,9 +1907,9 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
     <p style="margin-top:20px;font-size:11px;color:#777">Esta política es un texto informativo preparado para el funcionamiento actual del catálogo. Antes de publicar la tienda de forma definitiva, conviene verificar que los datos legales del responsable (por ejemplo, razón social o identificación tributaria, si aplica) coincidan exactamente con los de quien opera Sirevya.</p>
   </div>
 </div>
-
+</div>
 <div id="productDetailModal" class="productDetailModal" onclick="closeProductDetail(event)" aria-hidden="true">
-  <div class="productDetailBox" role="dialog" aria-modal="true" aria-label="Detalle del producto">
+  <div class="productDetailBox" role="dialog" aria-modal="true" aria-labelledby="detailName">
     <header class="detailSiteHeader" aria-label="Navegación de Sirevya">
       <div class="detailHeaderNavigation" aria-label="Volver y navegación">
         <button class="detailHeaderBack" type="button" aria-label="Volver al catálogo" title="Volver al catálogo" onclick="closeProductDetail()"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5M12 19l-7-7 7-7"/></svg></button>
@@ -1927,10 +1927,10 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
           <img id="detailImage" class="detailImage" alt="Producto" role="button" tabindex="0" aria-haspopup="dialog" aria-label="Ampliar galería del producto" onclick="openDetailGallery(event)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openDetailGallery(event)}" onload="clearImageFallback(this,'detailImageFallback')" onerror="showImageFallback(this,'detailImageFallback')" decoding="async">
           <div id="detailImageFallback" class="imageLoadFallback" role="status" aria-live="polite" hidden><span class="imageLoadFallbackIcon" aria-hidden="true">▧</span><strong>Imagen no disponible</strong><span data-image-fallback-message>No se pudo cargar la imagen del producto.</span></div>
         </div>
-        <div id="detailGalleryThumbs" class="detailGalleryThumbs"></div>
+      <div id="detailGalleryThumbs" class="detailGalleryThumbs"></div>
       </div>
       <div class="detailInfo">
-        <div id="detailName" class="detailName"></div>
+        <div id="detailName" class="detailName" role="heading" aria-level="2" tabindex="-1"></div>
         <div id="detailPrice" class="detailPrice"></div>
         <div id="detailStockNotice" class="detailStockNotice" hidden></div>
         <div id="detailVariants" class="detailVariants"></div>
@@ -3010,9 +3010,10 @@ function updateVariantAvailability(card,p){
 function renderVariantOptions(p){
  // La tarjeta principal solo muestra foto, nombre y precio. Las variantes de
  // color y talla se seleccionan dentro de la ficha al abrir el producto.
- return '';
+	return '';
 }
 let detailProduct=null;
+let productDetailReturnFocus=null;
 let productDetailHistoryActive=false;
 let productDetailOpenedFromDirectLink=false;
 function productDetailUrl(productId){const u=new URL(window.location.href);u.searchParams.set('producto',String(productId||''));return u.href}
@@ -3097,6 +3098,7 @@ function openProductDetail(id,event,options={}){
  const modal=$('productDetailModal');if(!modal)return;
  const alreadyOpen=modal.classList.contains('open');
  if(!alreadyOpen){
+  captureProductDetailReturnFocus(event);
   if(options.fromDirectLink){
    productDetailOpenedFromDirectLink=true;productDetailHistoryActive=false;
    try{const state=(history.state&&typeof history.state==='object'&&!Array.isArray(history.state))?{...history.state}:{ };state.sirevyaProductDetailOpen=true;state.sirevyaProductDetailId=String(p.id);history.replaceState(state,'',productDetailUrl(p.id))}catch{}
@@ -3127,6 +3129,7 @@ function openProductDetail(id,event,options={}){
  updateDetailStockNotice(p);
  modal.classList.add('open');modal.setAttribute('aria-hidden','false');document.body.style.overflow='hidden';
  resetProductDetailScroll(modal,p.id);
+ focusProductDetailDialog();
 }
 function returnToCatalogHome(event){
  if(event){event.preventDefault();event.stopPropagation()}
@@ -3786,10 +3789,11 @@ function detailBuyNow(event){
  checkoutCart=[{id:detailProduct.id,name:detailProduct.name,code:detailProduct.code,price:Number(detailProduct.sale_price)||0,qty:1,max:max,color:variants.color||'',size:variants.size||''}];
  clearCheckoutCouponState(true);
  clearCheckoutValidation();
- closeProductDetail();
+ closeProductDetail(null,{restoreFocus:false});
  updateShipping();
  $('checkoutModal').classList.add('open');
  document.body.style.overflow='hidden';
+ requestAnimationFrame(()=>{if($('checkoutModal')?.classList.contains('open'))$('customerName')?.focus({preventScroll:true})});
  // Cualquier ruta de compra directa debe refrescar también la lista de ciudades COD.
  // Antes solo se consultaban los pagos en línea y podía quedar la lista provisional [Cali].
  void Promise.all([
@@ -3808,7 +3812,54 @@ function closeProductDetail(event,options={}){
  if(wasOpen&&productDetailOpenedFromDirectLink&&!options.fromPopState){productDetailOpenedFromDirectLink=false;productDetailHistoryActive=false;cleanDirectProductUrl()}
  else if(options.fromPopState){productDetailOpenedFromDirectLink=false;productDetailHistoryActive=false}
  else if(wasOpen&&productDetailHistoryActive&&!options.skipHistory)popProductDetailHistory();
+ restoreProductDetailReturnFocus(wasOpen&&options.restoreFocus!==false&&!anotherOverlayOpen);
 }
+
+function productDetailFocusControl(element){
+ if(!element||typeof element.focus!=='function')return false;
+ const tag=String(element.tagName||'').toLowerCase();
+ return ['a','button','input','select','textarea','summary'].includes(tag)||Number(element.tabIndex)>=0;
+}
+function captureProductDetailReturnFocus(event){
+ const trigger=event?.currentTarget;
+ const nestedTrigger=event?.target?.closest?.('a[href],button:not([disabled]),[tabindex]:not([tabindex="-1"])');
+ const candidate=productDetailFocusControl(trigger)?trigger:productDetailFocusControl(nestedTrigger)?nestedTrigger:document.activeElement;
+ productDetailReturnFocus=productDetailFocusControl(candidate)?candidate:null;
+}
+function productDetailFocusableControls(modal){
+ const selector='a[href],button:not([disabled]),input:not([type="hidden"]):not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
+ return Array.from(modal?.querySelectorAll?.(selector)||[]).filter(element=>{
+  const style=typeof window!=='undefined'&&typeof window.getComputedStyle==='function'?window.getComputedStyle(element):null;
+  const hiddenParent=typeof element.closest==='function'&&element.closest('[hidden],[aria-hidden="true"]');
+  return !element.disabled&&!element.hidden&&element.getAttribute?.('aria-hidden')!=='true'&&!hiddenParent&&element.style?.display!=='none'&&style?.display!=='none'&&style?.visibility!=='hidden'&&(typeof element.getClientRects!=='function'||element.getClientRects().length>0);
+ });
+}
+function focusProductDetailDialog(){
+ const target=$('detailName')||$('productDetailModal')?.querySelector('.detailClose');
+ target?.focus?.({preventScroll:true});
+}
+function restoreProductDetailReturnFocus(shouldRestore){
+ const target=productDetailReturnFocus?.isConnected!==false?productDetailReturnFocus:null;
+ productDetailReturnFocus=null;
+ if(!shouldRestore)return;
+ const focusTarget=target||$('catalogo');
+ focusTarget?.focus?.({preventScroll:true});
+}
+function handleProductDetailKeydown(event){
+ const modal=$('productDetailModal');
+ if(!modal?.classList.contains('open'))return;
+ const otherOverlayOpen=$('galleryModal')?.classList.contains('open')||$('checkoutModal')?.classList.contains('open')||$('mobileMenu')?.classList.contains('open')||$('cartBar')?.classList.contains('cartOpen')||$('privacyModal')?.classList.contains('open')||$('orderSuccess')?.classList.contains('open');
+ if(otherOverlayOpen)return;
+ if(event.key==='Escape'){event.preventDefault();event.stopPropagation();closeProductDetail();return}
+ if(event.key!=='Tab')return;
+ const controls=productDetailFocusableControls(modal);
+ if(!controls.length){event.preventDefault();focusProductDetailDialog();return}
+ const first=controls[0],last=controls[controls.length-1],active=document.activeElement;
+ const isInside=typeof modal.contains==='function'?modal.contains(active):controls.includes(active);
+ if(event.shiftKey&&(active===first||!isInside)){event.preventDefault();last.focus({preventScroll:true})}
+ else if(!event.shiftKey&&(active===last||!isInside)){event.preventDefault();first.focus({preventScroll:true})}
+}
+document.addEventListener('keydown',handleProductDetailKeydown);
 
 function toggleHeaderSearch(){
  const row=$('catalogSearchRow'),btn=$('headerSearchBtn'),input=$('search');
