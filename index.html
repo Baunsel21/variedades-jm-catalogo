@@ -1567,7 +1567,8 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
  .jmTickerTrack{padding:7px 0!important;font-size:clamp(10px,2.8vw,12px)!important;animation-duration:30s!important;gap:0!important}
  .jmTickerSequence{gap:clamp(18px,5vw,28px)!important;padding-right:clamp(18px,5vw,28px)!important}
 }
-.jmTicker:hover .jmTickerTrack,.jmTicker:focus-within .jmTickerTrack{animation-play-state:paused}
+@media(hover:hover) and (pointer:fine){.jmTicker:hover .jmTickerTrack{animation-play-state:paused}}
+.jmTicker:focus-within .jmTickerTrack{animation-play-state:paused}
 @media(prefers-reduced-motion:reduce){.jmTicker{overflow-x:auto!important;scrollbar-width:none}.jmTickerTrack{animation:none!important;transform:none!important}}
 /* WhatsApp: contraste alto, etiqueta breve y huella compacta sin animación continua. */
 .waHelpFloat{position:fixed;right:max(12px,env(safe-area-inset-right));bottom:max(12px,env(safe-area-inset-bottom));z-index:260;display:flex;align-items:center;gap:6px;min-height:40px;max-width:calc(100vw - 24px);padding:5px 9px 5px 6px;background:#fffaf3!important;color:#302b27!important;box-shadow:0 4px 14px rgba(44,30,20,.09)!important;border:1px solid rgba(123,23,48,.16)!important;border-radius:14px!important;text-decoration:none;transition:transform .16s ease,background-color .16s ease,box-shadow .16s ease}

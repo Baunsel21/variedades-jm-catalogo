@@ -18,6 +18,10 @@ try{
    assert.equal(result.status,0,`${name}: ${result.stderr}`);
   }
  }
+ for(const regression of ['tests/admin_city_shipping_ui_regression.mjs','tests/telegram_admin_ui_regression.mjs','tests/storefront_mobile_presentation_regression.mjs']){
+  const result=spawnSync(process.execPath,[path.join(root,regression)],{cwd:root,encoding:'utf8'});
+  assert.equal(result.status,0,`${regression}: ${result.stderr||result.stdout}`);
+ }
  const sdk=html=>html.match(/<script src="(https:\/\/cdn\.jsdelivr\.net\/npm\/@supabase\/supabase-js@[^\"]+)" integrity="(sha384-[^\"]+)" crossorigin="anonymous"><\/script>/);
  assert.ok(sdk(admin)&&sdk(catalog),'SDK exacto e integridad obligatorios');
  assert.deepEqual(sdk(admin).slice(1),sdk(catalog).slice(1),'SDK idéntico en ambas superficies');

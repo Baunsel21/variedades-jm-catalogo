@@ -9,8 +9,10 @@ assert.doesNotMatch(source, /\.jmTicker\s*\{[^}]*display\s*:\s*none/i,
   'No hay una regla directa que oculte el ticker.');
 assert.match(source, /@media\(max-width:700px\)\{\s*\.jmTicker\{display:block!important/,
   'El ticker aparece explícitamente en móvil.');
-assert.match(source, /\.jmTicker:hover \.jmTickerTrack,\.jmTicker:focus-within \.jmTickerTrack\{animation-play-state:paused\}/,
-  'El movimiento se puede pausar al pasar el cursor o enfocar contenido.');
+assert.match(source, /@media\(hover:hover\) and \(pointer:fine\)\{\.jmTicker:hover \.jmTickerTrack\{animation-play-state:paused\}\}/,
+  'Solo un puntero fino con hover real puede pausar el ticker; el hover pegajoso táctil no lo detiene.');
+assert.match(source, /\.jmTicker:focus-within \.jmTickerTrack\{animation-play-state:paused\}/,
+  'La pausa por foco de teclado se conserva para accesibilidad.');
 assert.match(source, /@media\(prefers-reduced-motion:reduce\)\{\.jmTicker\{overflow-x:auto!important/,
   'Con movimiento reducido, los mensajes siguen accesibles mediante desplazamiento.');
 assert.match(source, /Tarifas según ciudad/);
