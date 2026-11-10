@@ -328,4 +328,60 @@ assert.match(reloadFailureStatuses.at(-1).message, /La regla se eliminó\. No se
 assert.equal(reloadFailureToastCalls, 0, 'No afirma que la lista se refrescó cuando falló el reload');
 assert.equal(reloadFailure.storefrontShippingRuleSaving, false);
 
+const persistedRule = { id: 'synthetic-city-rule', scope: 'city', name: 'Tarifa de prueba', priority: 2, shipping_cost: 9000, free_shipping_threshold: 100000, enabled: true, destinations: ['Manizales'] };
+const persistedRows = [structuredClone(persistedRule)];
+const shippingRpcCalls = [];
+const statusNode = { textContent: '', className: '' };
+const formNodes = {
+  shippingRulesAdminStatus: statusNode,
+  shippingRuleEditId: { value: '' }, shippingRuleScope: { value: 'city' }, shippingRuleName: { value: '', focus() {} },
+  shippingRuleDestinations: { value: '' }, shippingRulePriority: { value: '0' }, shippingRuleCost: { value: '' },
+  shippingRuleThresholdEnabled: { checked: false }, shippingRuleThreshold: { value: '' }, shippingRuleEnabled: { checked: true },
+  saveStorefrontShippingRuleBtn: { disabled: true, textContent: '' }, resetStorefrontShippingRuleBtn: { disabled: true },
+  refreshStorefrontShippingRulesBtn: { disabled: true },
+};
+const roundTrip = vm.createContext({
+  adminSessionUserId: 'synthetic-admin', adminAuthEpoch: 7,
+  adminAuthOperationStillCurrent(userId, epoch) { return userId === 'synthetic-admin' && epoch === 7; },
+  storefrontShippingRulesAdminLoaded: false, storefrontShippingRulesAdmin: [], storefrontShippingRuleSaving: false,
+  sb: { async rpc(name, args) {
+    shippingRpcCalls.push({ name, args });
+    if (name === 'admin_list_storefront_shipping_rules') return { data: persistedRows.map(row => structuredClone(row)), error: null };
+    if (name === 'admin_save_storefront_shipping_rule') {
+      const row = persistedRows.find(value => value.id === args.p_rule_id);
+      assert.ok(row, 'La prueba edita solo su fila sintética existente.');
+      Object.assign(row, { scope: args.p_scope, name: args.p_name, destinations: args.p_destinations, shipping_cost: args.p_shipping_cost, free_shipping_threshold: args.p_free_shipping_threshold, priority: args.p_priority, enabled: args.p_enabled });
+      return { data: { success: true, message: 'Regla sintética guardada.' }, error: null };
+    }
+    assert.fail(`RPC no prevista: ${name}`);
+  } },
+  $(id) { return formNodes[id] || null; },
+  renderStorefrontShippingRulesAdmin() {}, notifyPublicCatalogChanged() {}, toast() {},
+  setStorefrontShippingRulesAdminStatus(message, kind = '') { statusNode.textContent = message; statusNode.className = kind; },
+});
+vm.runInContext([
+  extractFunction('normalizeStorefrontShippingDestinationAdmin'),
+  extractFunction('readStorefrontShippingRuleAdminForm'),
+  extractFunction('validateStorefrontShippingRuleForm'),
+  extractFunction('updateStorefrontShippingRuleAdminForm'),
+  extractFunction('resetStorefrontShippingRuleForm'),
+  extractFunction('editStorefrontShippingRule'),
+  extractFunction('storefrontShippingRulesAdminUnavailableMessage'),
+  extractFunction('loadStorefrontShippingRulesAdmin'),
+  extractFunction('saveStorefrontShippingRule'),
+].join('\n'), roundTrip);
+assert.equal(await roundTrip.loadStorefrontShippingRulesAdmin(true), true, 'Carga inicial real de la UI usa la RPC de listado mockeada.');
+assert.equal(roundTrip.storefrontShippingRulesAdmin[0].shipping_cost, 9000);
+roundTrip.editStorefrontShippingRule('synthetic-city-rule');
+assert.equal(formNodes.shippingRuleCost.value, '9000', 'Editar hidrata tarifa que vino de la lectura.');
+formNodes.shippingRuleCost.value = '12500';
+formNodes.shippingRuleThreshold.value = '150000';
+roundTrip.updateStorefrontShippingRuleAdminForm();
+assert.equal(formNodes.saveStorefrontShippingRuleBtn.disabled, false, 'Un cambio válido habilita Guardar solo tras cargar el backend.');
+assert.equal(await roundTrip.saveStorefrontShippingRule(), true, 'La edición se persiste por la RPC mockeada y recarga la lista.');
+assert.equal(persistedRows[0].shipping_cost, 12500);
+assert.equal(persistedRows[0].free_shipping_threshold, 150000);
+assert.equal(roundTrip.storefrontShippingRulesAdmin[0].shipping_cost, 12500, 'La recarga refleja el valor persistido por el RPC sintético.');
+assert.deepEqual(shippingRpcCalls.map(call => call.name), ['admin_list_storefront_shipping_rules', 'admin_save_storefront_shipping_rule', 'admin_list_storefront_shipping_rules']);
+
 console.log('OK admin_city_shipping_ui_regression: búsqueda Unicode, reset de sesión, cargas obsoletas y RPC delete/reload con mocks, sin Supabase real.');
