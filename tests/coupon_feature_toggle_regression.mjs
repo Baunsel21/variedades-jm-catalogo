@@ -37,6 +37,8 @@ assert.doesNotMatch(couponListLoader, /storefrontCouponFeatureSettingsLoaded/, '
 assert.match(admin, /20261110010000_storefront_coupon_feature_toggle\.sql/);
 assert.match(store, /id="checkoutCouponBox"[^>]*hidden/);
 assert.match(store, /id="couponCode"[^>]*aria-describedby="couponStatus" disabled/);
+assert.match(store, /id="checkoutCouponToggle"[^>]*aria-expanded="false"[^>]*aria-controls="checkoutCouponBox"[^>]*hidden[^>]*>.*Agregar descuento/s);
+assert.ok(store.indexOf('class="paymentOptions"') < store.indexOf('id="checkoutCouponToggle"'), 'el botón compacto se muestra debajo de las opciones de pago');
 assert.doesNotMatch(store, /placeholder="EJ\. BIENVENIDA"/);
 assert.match(migration, /CREATE OR REPLACE FUNCTION public\.get_storefront_cart_quote_with_coupon\(/);
 assert.match(migration, /p_coupon_code text/);
@@ -46,7 +48,7 @@ assert.match(migration, /auth\.uid\(\) IS DISTINCT FROM \(SELECT s\.admin_user_i
 assert.doesNotMatch(migration, /\b(DELETE FROM|TRUNCATE|DROP TABLE|UPDATE public\.(orders|web_orders|storefront_coupons|storefront_coupon_redemptions))\b/i);
 
 const adminControls = {
-  storefrontCouponFeatureEnabled: { checked: false, disabled: true },
+  storefrontCouponFeatureEnabled: { checked: false, indeterminate: false, disabled: true },
   saveStorefrontCouponFeatureBtn: { disabled: true, textContent: '' },
   storefrontCouponFeatureStatus: { className: 'promoAdminStatus', textContent: '' },
 };
@@ -74,6 +76,7 @@ vm.runInNewContext([
 ].join('\n'), adminContext);
 assert.equal(await adminContext.loadStorefrontCouponFeatureSettingsAdmin(true), true);
 assert.equal(adminControls.storefrontCouponFeatureEnabled.checked, true);
+assert.equal(adminControls.storefrontCouponFeatureEnabled.indeterminate, false);
 assert.equal(adminControls.storefrontCouponFeatureEnabled.disabled, false);
 assert.equal(adminControls.saveStorefrontCouponFeatureBtn.disabled, true);
 adminControls.storefrontCouponFeatureEnabled.checked = false;
@@ -89,9 +92,10 @@ assert.equal(adminControls.saveStorefrontCouponFeatureBtn.disabled, true, 'El va
 response = { data: null, error: { code: 'PGRST202', message: 'schema cache' } };
 assert.equal(await adminContext.loadStorefrontCouponFeatureSettingsAdmin(true), false);
 assert.equal(adminControls.storefrontCouponFeatureEnabled.disabled, true);
-assert.equal(adminControls.storefrontCouponFeatureEnabled.checked, true, 'PGRST202 mantiene el comportamiento legacy activo sin habilitar controles de escritura.');
+assert.equal(adminControls.storefrontCouponFeatureEnabled.checked, false, 'PGRST202 no inventa un valor guardado para el toggle.');
+assert.equal(adminControls.storefrontCouponFeatureEnabled.indeterminate, true, 'PGRST202 muestra el estado global como desconocido.');
 assert.equal(adminControls.saveStorefrontCouponFeatureBtn.disabled, true, 'Sin RPC el admin no puede guardar ni inventar un estado.');
-assert.match(adminControls.storefrontCouponFeatureStatus.textContent, /Guardar permanece bloqueado/);
+assert.match(adminControls.storefrontCouponFeatureStatus.textContent, /Guardar permanecen bloqueados/);
 assert.match(adminControls.storefrontCouponFeatureStatus.textContent, /compatibilidad con los cupones actuales/);
 assert.match(adminControls.storefrontCouponFeatureStatus.textContent, /CRUD individual se carga mediante RPC separadas/);
 
@@ -107,7 +111,9 @@ assert.equal(adminControls.storefrontCouponFeatureEnabled.disabled, true);
 
 const storeControls = {
   checkoutCouponBox: { hidden: true },
-  couponCode: { value: '', disabled: true },
+  checkoutCouponTriggerWrap: { hidden: true },
+  checkoutCouponToggle: { hidden: true, expanded: 'false', setAttribute(name, value) { if (name === 'aria-expanded') this.expanded = value; } },
+  couponCode: { value: '', disabled: true, focused: false, focus() { this.focused = true; } },
   couponStatus: { textContent: '', removeAttribute(name) { if (name === 'data-kind') delete this.dataset?.kind; } },
   checkoutModal: { classList: { contains(name) { return name === 'open'; } } },
 };
@@ -121,24 +127,34 @@ const storeContext = {
   updateShipping() { shippingUpdates += 1; },
 };
 vm.runInNewContext([
-  "let checkoutCouponRequestToken=0,checkoutCouponCode='OLD',checkoutCouponQuote={discount_total:1},checkoutCouponQuoteFingerprint='old',checkoutCouponQuoteRequiresConfirmation=false,checkoutCouponReservationReference='ref',checkoutCouponReservationFingerprint='fp',checkoutServerQuote={total:1},checkoutServerQuoteFingerprint='old';",
+  "let checkoutCouponRequestToken=0,checkoutCouponPanelOpen=false,checkoutCouponCode='OLD',checkoutCouponQuote={discount_total:1},checkoutCouponQuoteFingerprint='old',checkoutCouponQuoteRequiresConfirmation=false,checkoutCouponReservationReference='ref',checkoutCouponReservationFingerprint='fp',checkoutServerQuote={total:1},checkoutServerQuoteFingerprint='old';",
   'let storefrontCouponSettingsLoaded=false,storefrontCouponsEnabled=false,storefrontCouponToggleSupported=false,storefrontCouponSettingsPromise=null,storefrontCouponSettingsRequestToken=0;',
   extractFunction(store, 'setCheckoutCouponStatus'),
   extractFunction(store, 'clearCheckoutServerQuote'),
   extractFunction(store, 'clearCheckoutCouponState'),
   extractFunction(store, 'syncStorefrontCouponControls'),
+  extractFunction(store, 'toggleCheckoutCouponPanel'),
   extractFunction(store, 'clearCouponIfUnavailable'),
   extractFunction(store, 'refreshStorefrontCouponSettings'),
 ].join('\n'), storeContext);
 assert.equal(await storeContext.refreshStorefrontCouponSettings(true), true);
-assert.equal(storeControls.checkoutCouponBox.hidden, false);
+assert.equal(storeControls.checkoutCouponTriggerWrap.hidden, false);
+assert.equal(storeControls.checkoutCouponToggle.hidden, false, 'El CTA aparece cuando los cupones están disponibles.');
+assert.equal(storeControls.checkoutCouponBox.hidden, true, 'El campo permanece plegado hasta que el cliente lo abre.');
+assert.equal(storeControls.checkoutCouponToggle.expanded, 'false');
 assert.equal(storeControls.couponCode.disabled, false);
 assert.ok(actions.every(button => !button.disabled));
+assert.equal(storeContext.toggleCheckoutCouponPanel(), true);
+assert.equal(storeControls.checkoutCouponBox.hidden, false);
+assert.equal(storeControls.checkoutCouponToggle.expanded, 'true');
+assert.equal(storeControls.couponCode.focused, true, 'Al abrir, el foco queda en el campo de cupón.');
 
 storeControls.couponCode.value = 'OLD';
 vm.runInNewContext("checkoutCouponCode='OLD'; checkoutCouponQuote={discount_total:1};", storeContext);
 storeResponse = { data: { success: true, coupons_enabled: false }, error: null };
 assert.equal(await storeContext.refreshStorefrontCouponSettings(true), false);
+assert.equal(storeControls.checkoutCouponTriggerWrap.hidden, true, 'No queda un espacio vacío cuando los cupones están desactivados.');
+assert.equal(storeControls.checkoutCouponToggle.hidden, true, 'El CTA desaparece cuando el ajuste persistido desactiva cupones.');
 assert.equal(storeControls.checkoutCouponBox.hidden, true);
 assert.equal(storeControls.couponCode.disabled, true);
 assert.equal(storeControls.couponCode.value, '');
@@ -150,7 +166,9 @@ storeControls.couponCode.value = 'STALE';
 vm.runInNewContext("checkoutCouponCode='STALE';", storeContext);
 storeResponse = { data: null, error: { code: 'PGRST202', message: 'schema cache' } };
 assert.equal(await storeContext.refreshStorefrontCouponSettings(true), true);
-assert.equal(storeControls.checkoutCouponBox.hidden, false, 'Si solo falta la nueva RPC, conserva el flujo de cupones previo.');
+assert.equal(storeControls.checkoutCouponTriggerWrap.hidden, false);
+assert.equal(storeControls.checkoutCouponToggle.hidden, false, 'Si solo falta la RPC nueva, conserva el flujo legacy de cupones.');
+assert.equal(storeControls.checkoutCouponBox.hidden, true, 'El panel legacy inicia plegado incluso en compatibilidad.');
 assert.equal(storeControls.couponCode.disabled, false);
 assert.equal(vm.runInNewContext('storefrontCouponToggleSupported', storeContext), false, 'El modo de compatibilidad no pretende que exista el toggle.');
 

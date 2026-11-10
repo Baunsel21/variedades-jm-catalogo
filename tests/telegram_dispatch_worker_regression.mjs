@@ -89,35 +89,43 @@ const orderRow = {
     payment_method: "wompi",
     payment_status: "PENDING",
     order_status: "NEW",
+    subtotal_cop: 118000,
+    shipping_cop: 12000,
     total_cop: 130000,
     customer_name: "NOMBRE PRIVADO",
     city: "Cali",
+    customer_phone: "3001112233",
+    delivery_address: "Calle Sintetica 12-34, Barrio de Prueba",
     products: [
-      { code: "SKU-1", name: "Camisa sintética", quantity: 2 },
+      { code: "SKU-1", name: "Camisa sintética", quantity: 2, variant: "Negro / M" },
       { code: "SKU-2", name: "Zapatos sintéticos", quantity: 1 },
     ],
     total_units: 3,
-    customer_phone: "3001112233",
     customer_email: "private@example.test",
-    customer_address: "DIRECCION PRIVADA",
   },
   attempt_count: 1,
 };
 
-// Formatter is allowlist-only: it includes only the explicitly approved customer
-// name/city fields and ignores all other PII and arbitrary nested fields.
+// New-order messages include only the requested delivery details; other PII and
+// arbitrary nested fields remain ignored.
 const formatted = formatTelegramNotification(orderRow);
 assert.match(formatted, /Nuevo pedido/);
 assert.match(formatted, /Pedido: JM-TEST-042/);
 assert.match(formatted, /PENDING/);
 assert.match(formatted, /Cliente: NOMBRE PRIVADO/);
 assert.match(formatted, /Ciudad: Cali/);
-assert.match(formatted, /SKU-1/);
-assert.match(formatted, /Camisa sintética/);
+assert.match(formatted, /SKU-1.*Camisa sintética.*Variante: Negro \/ M.*Cantidad: 2/);
 assert.match(formatted, /Total de unidades: 3/);
-for (const privateValue of ["3001112233", "private@example.test", "DIRECCION PRIVADA"]) {
+assert.match(formatted, /Teléfono: 3001112233/);
+assert.match(formatted, /Dirección: Calle Sintetica 12-34, Barrio de Prueba/);
+assert.match(formatted, /Subtotal: /);
+assert.match(formatted, /Envío: /);
+assert.match(formatted, /Total: /);
+for (const privateValue of ["private@example.test", "DIRECCION PRIVADA"]) {
   assert.equal(formatted.includes(privateValue), false);
 }
+const paymentWithoutContact = formatTelegramNotification({ ...orderRow, event_type: "payment.approved" });
+assert.doesNotMatch(paymentWithoutContact, /Teléfono:|Dirección:/, "los estados de pago no repiten datos de entrega");
 const reservationFormatted = formatTelegramNotification({
   event_type: "reservation.released",
   payload: {
@@ -169,7 +177,7 @@ const commercialReferenceFormatted = formatTelegramNotification({
   },
 });
 assert.match(commercialReferenceFormatted, /Pedido: COD-TEST-089/);
-assert.match(commercialReferenceFormatted, /SKU-TEST-1.*Body Chain de prueba: 2/);
+assert.match(commercialReferenceFormatted, /SKU-TEST-1.*Body Chain de prueba.*Cantidad: 2/);
 assert.match(commercialReferenceFormatted, /Total de unidades: 3/);
 assert.equal(commercialReferenceFormatted.includes("JMCOD-PRIVATE-TECH-0001"), false);
 assert.equal(commercialReferenceFormatted.includes("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"), false);
@@ -188,13 +196,12 @@ const truncatedFormatted = formatTelegramNotification({
     products: truncatedProducts,
     total_units: 53,
     omitted_products: 3,
-    customer_phone: "3001112233",
     customer_email: "private@example.test",
   },
 });
 assert.match(truncatedFormatted, /SKU-TRUNC-1/);
 assert.match(truncatedFormatted, /SKU-TRUNC-50/);
-assert.doesNotMatch(truncatedFormatted, /NOMBRE PRIVADO OMITIDO|aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa|3001112233|private@example\.test/);
+assert.doesNotMatch(truncatedFormatted, /NOMBRE PRIVADO OMITIDO|aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa|private@example\.test/);
 assert.match(truncatedFormatted, /Detalle de productos: se muestran 50 de 53 líneas; se omitieron 3 líneas adicionales\./);
 assert.match(truncatedFormatted, /Total de unidades: 53/);
 assert.equal(truncatedFormatted.includes("JMCOD-INTERNAL-REFERENCE"), false);
@@ -228,7 +235,7 @@ const legacyReservationFormatted = formatTelegramNotification({
     reservation_status: "ACTIVE",
   },
 });
-assert.match(legacyReservationFormatted, /SKU-LEGACY-1.*Body Chain de prueba: 2/);
+assert.match(legacyReservationFormatted, /SKU-LEGACY-1.*Body Chain de prueba.*Cantidad: 2/);
 assert.match(legacyReservationFormatted, /Total de unidades: 2/);
 assert.equal(legacyReservationFormatted.includes("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"), false);
 const technicalInventoryFormat = formatTelegramNotification({
@@ -338,9 +345,9 @@ assert.equal(formatTelegramNotification({ event_type: "unknown.event", payload: 
   assert.equal(telegramCall.telegramBody.text.includes("Cliente: NOMBRE PRIVADO"), true);
   assert.equal(telegramCall.telegramBody.text.includes("Ciudad: Cali"), true);
   assert.equal(telegramCall.telegramBody.text.includes("SKU-1"), true);
-  for (const privateValue of ["3001112233", "private@example.test", "DIRECCION PRIVADA"]) {
-    assert.equal(telegramCall.telegramBody.text.includes(privateValue), false);
-  }
+  assert.equal(telegramCall.telegramBody.text.includes("Teléfono: 3001112233"), true);
+  assert.equal(telegramCall.telegramBody.text.includes("Dirección: Calle Sintetica 12-34, Barrio de Prueba"), true);
+  assert.equal(telegramCall.telegramBody.text.includes("private@example.test"), false);
   assert.equal(calls.some((call) => rpcNameFromUrl(call.url) === "complete_sirevya_telegram_notification"), true);
   const allDiagnostics = JSON.stringify({ loggerEvents, response: result });
   assert.equal(allDiagnostics.includes(botToken), false);
