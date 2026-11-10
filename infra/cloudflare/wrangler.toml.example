@@ -1,0 +1,15 @@
+name = "sirevya-maintenance-gateway"
+main = "maintenance-worker.mjs"
+compatibility_date = "2026-11-10"
+workers_dev = false
+
+[vars]
+MAINTENANCE_MODE = "off"
+RETRY_AFTER_SECONDS = "3600"
+
+# Intentionally no routes/custom domains are configured in this candidate.
+# Add a route only after confirming that the current site origin is reachable
+# through an existing Cloudflare-proxied DNS record and the pass-through is verified.
+# [[routes]]
+# pattern = "sirevya.com.co/*"
+# zone_name = "sirevya.com.co"
