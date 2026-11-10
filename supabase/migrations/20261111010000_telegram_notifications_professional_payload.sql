@@ -301,6 +301,9 @@ DECLARE
   v_reference text := public._sirevya_telegram_clean_reference(
     coalesce(v_row->>'reference', v_row->>'client_reference', v_row->>'inventory_reference', '')
   );
+  v_order_reference text := public._sirevya_telegram_clean_reference(
+    coalesce(v_row->>'client_reference', v_row->>'order_reference', v_row->>'reference', v_row->>'inventory_reference', '')
+  );
   v_method text := CASE lower(btrim(coalesce(v_row->>'payment_method', '')))
     WHEN 'wompi' THEN 'Wompi'
     WHEN 'pse' THEN 'PSE'
@@ -309,9 +312,9 @@ DECLARE
     ELSE 'sin especificar'
   END;
   v_payment_status text := public._sirevya_telegram_clean_text(upper(v_row->>'payment_status'), 32);
-  v_order_status text := public._sirevya_telegram_clean_text(upper(v_row->>'order_status'), 32);
+  v_order_status text := public._sirevya_telegram_clean_text(upper(coalesce(v_row->>'order_status', v_row->>'status')), 32);
   v_customer_name text := public._sirevya_telegram_clean_text(v_row->>'customer_name', 120);
-  v_city text := public._sirevya_telegram_clean_text(v_row->>'city', 80);
+  v_city text := public._sirevya_telegram_clean_text(coalesce(v_row->>'city', v_row->>'customer_city'), 80);
   v_total numeric := public._sirevya_telegram_safe_numeric(v_row->>'total');
   v_summary jsonb := public._sirevya_telegram_order_product_summary(v_row->'items');
   v_payload jsonb;
@@ -321,6 +324,7 @@ DECLARE
 BEGIN
   v_payload := jsonb_strip_nulls(jsonb_build_object(
     'reference', v_reference,
+    'order_reference', NULLIF(v_order_reference, ''),
     'customer_name', NULLIF(v_customer_name, ''),
     'city', NULLIF(v_city, ''),
     'payment_method', v_method,
@@ -427,6 +431,7 @@ DECLARE
 BEGIN
   v_payload := jsonb_strip_nulls(jsonb_build_object(
     'reference', v_reference,
+    'order_reference', NULLIF(v_reference, ''),
     'inventory_reference', v_inventory_reference,
     'customer_name', NULLIF(v_customer_name, ''),
     'city', NULLIF(v_city, ''),

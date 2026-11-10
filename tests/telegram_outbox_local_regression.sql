@@ -161,11 +161,22 @@ BEGIN
      WHERE source_id = '00000000-0000-4000-8000-000000000001'
        AND event_type = 'order.created'
        AND payload->>'reference' = 'JM-TEST-001'
+       AND payload->>'order_reference' = 'JM-TEST-001'
        AND payload->>'customer_name' = 'PRIVATE PERSON DO NOT EXPORT'
        AND payload->>'city' = 'Cali'
        AND (payload->>'total_units')::integer = 3
        AND payload->'products' @> '[{"code":"SKU-10","name":"Synthetic Shirt","quantity":2},{"code":"SKU-11","name":"Synthetic Shoes","quantity":1}]'::jsonb
   ) THEN RAISE EXCEPTION 'order payload did not normalize customer, city and products'; END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM public.sirevya_telegram_outbox
+     WHERE source_id = '00000000-0000-4000-8000-000000000002'
+       AND event_type = 'order.created'
+       AND payload->>'order_reference' = 'COD-TEST-002'
+       AND payload->>'city' = 'Palmira'
+       AND payload->>'order_status' = 'PENDIENTE'
+       AND payload->>'payment_method' = 'Contra entrega'
+       AND payload->'products' @> '[{"code":"SKU-10","name":"Synthetic Shirt","quantity":1}]'::jsonb
+  ) THEN RAISE EXCEPTION 'COD order did not include its short commercial reference'; END IF;
   IF NOT EXISTS (
     SELECT 1 FROM public.sirevya_telegram_outbox
      WHERE event_type = 'reservation.created'
