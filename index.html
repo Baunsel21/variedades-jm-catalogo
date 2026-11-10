@@ -1953,7 +1953,7 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
         <h3>Tu compra, con acompañamiento</h3>
         <p>Te orientamos sobre disponibilidad, tallas, colores, envíos y opciones de pago antes de confirmar tu pedido.</p>
       </div>
-      <a class="detailPersonalizedLink" href="https://wa.me/573025469983?text=Hola%2C%20necesito%20asesor%C3%ADa%20sobre%20un%20producto%20de%20Sirevya." target="_blank" rel="noopener noreferrer">
+      <a id="detailPersonalizedLink" class="detailPersonalizedLink" href="https://wa.me/573025469983?text=Hola%2C%20necesito%20asesor%C3%ADa%20sobre%20un%20producto%20de%20Sirevya." target="_blank" rel="noopener noreferrer" onclick="refreshDetailWhatsAppLink(this)">
         Consultar por WhatsApp <span aria-hidden="true">↗</span>
       </a>
     </section>
@@ -3797,10 +3797,32 @@ function detailBuyNow(event){
  requestAnimationFrame(()=>{if($('checkoutModal')?.classList.contains('open'))$('customerName')?.focus({preventScroll:true})});
  // Cualquier ruta de compra directa debe refrescar también la lista de ciudades COD.
  // Antes solo se consultaban los pagos en línea y podía quedar la lista provisional [Cali].
- void Promise.all([
+  void Promise.all([
   refreshOnlinePaymentSetting({silent:true}),
   refreshCODPaymentSettings({silent:true})
  ]).then(()=>{if($('checkoutModal')?.classList.contains('open'))updateShipping();});
+}
+function refreshDetailWhatsAppLink(anchor){
+ if(!anchor||!detailProduct)return false;
+ try{
+  const url=new URL(anchor.href);
+  if(url.protocol!=='https:'||url.hostname!=='wa.me'||!/^\/[1-9][0-9]{7,14}$/.test(url.pathname))return false;
+  const clean=value=>String(value??'').replace(/[\u0000-\u001f\u007f]/g,' ').replace(/\s+/g,' ').trim();
+  const name=clean(detailProduct.name).slice(0,120)||'Producto';
+  const code=clean(detailProduct.code).slice(0,60);
+  const box=document.querySelector('#productDetailModal .detailCard');
+  const color=clean(box?.querySelector('.colorDot.active')?.dataset?.value).slice(0,48);
+  const size=clean(box?.querySelector('.sizeOption.active')?.dataset?.value).slice(0,32);
+  const variant=[color&&`Color: ${color}`,size&&`Talla: ${size}`].filter(Boolean);
+  const lines=['Hola, quisiera asesoría sobre este producto de Sirevya.',`Producto: ${name}`];
+  if(code)lines.push(`Código: ${code}`);
+  if(variant.length)lines.push(`Variante seleccionada: ${variant.join(' · ')}`);
+  else if(variantList(detailProduct).length)lines.push('Variante: aún no seleccionada.');
+  url.searchParams.set('text',lines.join('\n'));
+  anchor.href=url.toString();
+  anchor.setAttribute?.('aria-label',`Consultar por WhatsApp sobre ${name}${variant.length?` (${variant.join(', ')})`:''}`);
+  return true;
+ }catch{return false}
 }
 function closeProductDetail(event,options={}){
  if(event&&event.target!==$('productDetailModal'))return;
