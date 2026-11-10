@@ -374,11 +374,11 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
     <main class="content">
       <section id="inicio" class="view active">
         <div class="hero"><h2 id="heroTitle">Resumen de tu negocio</h2><p id="heroSubtitle">Aquí tienes una vista rápida del estado actual de tu inventario y tus ventas.</p>
-          <div class="heroBtns"><span class="heroChip">📦 <b id="heroProducts">0</b> productos</span><span class="heroChip">🏷️ <b id="heroUnits">0</b> unidades</span><span class="heroChip">🧾 <b id="heroSales">0</b> ventas</span></div>
+          <div class="heroBtns"><span class="heroChip">📦 <b id="heroProducts">0</b> productos</span><span class="heroChip">🏷️ <b id="heroUnits">0</b> unidades disponibles</span><span class="heroChip">🧾 <b id="heroSales">0</b> ventas</span></div>
         </div>
         <div class="cards">
           <div class="card stat"><small>Productos</small><div class="num" id="nProductos">0</div><div class="sub">Referencias registradas</div><div class="bubble">📦</div></div>
-          <div class="card stat"><small>Unidades disponibles</small><div class="num" id="nUnidades">0</div><div class="sub">Stock actual</div><div class="bubble">🏷️</div></div>
+          <div class="card stat"><small>Unidades disponibles</small><div class="num" id="nUnidades">0</div><div class="sub">Disponibles para venta según variantes y reservas</div><div class="bubble">🏷️</div></div>
           <div class="card stat"><small>Unidades vendidas</small><div class="num" id="nVendidos">0</div><div class="sub">Ventas registradas</div><div class="bubble">🛒</div></div>
           <div class="card stat"><small>Ganancia acumulada</small><div class="num" id="nGanancia">$0</div><div class="sub">Sobre ventas registradas</div><div class="bubble">💰</div></div>
           <div class="card stat" title="Suma de cantidad por precio de venta para registros de mostrador con la fecha de hoy."><small>Ingresos brutos · hoy</small><div class="num" id="dashboardSalesTodayRevenue" aria-live="polite">$0</div><div class="sub" id="dashboardSalesTodayMeta">Ventas de mostrador por fecha registrada; no incluye pedidos web.</div><div class="bubble">📅</div></div>
@@ -589,7 +589,7 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
         <div class="box" style="margin-top:16px"><div class="rowBetween" style="align-items:center;gap:12px;flex-wrap:wrap"><div><h3 style="margin-bottom:4px">📣 Rendimiento de promociones</h3><p class="muted" style="margin:0">Impresiones y clics únicos aproximados por sesión/día, durante los últimos 30 días.</p></div><button class="softbtn" type="button" onclick="refreshStorefrontMarketingMetrics()">↻ Consultar</button></div><div id="storefrontMarketingMetricsStatus" class="promoAdminStatus" role="status" aria-live="polite">Las métricas se consultan al abrir Reportes.</div><div id="storefrontMarketingMetricsReport"></div></div>
         <div class="sectionGrid">
           <div class="box"><h3>🏷️ Inventario por categoría</h3><div id="cats"></div></div>
-          <div class="box"><h3>💵 Valor actual del inventario</h3><div id="inventoryValue" style="font-size:28px;font-weight:900">$0</div><p class="muted">Calculado con costo de compra × unidades disponibles.</p></div>
+          <div class="box"><h3>💵 Valor de costo del stock físico</h3><div id="inventoryValue" style="font-size:28px;font-weight:900">$0</div><p class="muted">Calculado con costo de compra × cantidad física registrada; no descuenta reservas.</p></div>
         </div>
       </section>
 
@@ -3968,7 +3968,7 @@ function calculateDashboardInventoryAttentionSummary(rows,lowThreshold=2){
  return {low,out,total:low+out,items};
 }
 function renderInicio(){
- const units=productos.reduce((s,p)=>s+(Number(p.quantity)||0),0),sold=ventas.reduce((s,v)=>s+(Number(v.quantity)||0),0),gain=ventas.reduce((s,v)=>s+(Number(v.quantity)||0)*(Number(v.sale_price)-Number(v.cost_price)),0);
+ const units=productos.reduce((s,p)=>s+saleAvailableQuantity(p),0),sold=ventas.reduce((s,v)=>s+(Number(v.quantity)||0),0),gain=ventas.reduce((s,v)=>s+(Number(v.quantity)||0)*(Number(v.sale_price)-Number(v.cost_price)),0);
  $("nProductos").textContent=productos.length;$("nUnidades").textContent=units;$("nVendidos").textContent=sold;$("nGanancia").textContent=money(gain);
  $("heroProducts").textContent=productos.length;$("heroUnits").textContent=units;$("heroSales").textContent=ventas.length;
  const periodSummary=calculatePosSalesDashboardSummary(ventas);
@@ -4253,6 +4253,12 @@ async function registrarMovimiento(){
    if(movementButton){movementButton.disabled=false;movementButton.textContent=movementButton.dataset.originalText||"🔄 Registrar movimiento";delete movementButton.dataset.originalText;}
  }
 }
+const INVENTORY_MOVEMENT_LOG_TIME_ZONE='America/Bogota';
+function inventoryMovementLogDateKey(value){
+ const date=new Date(value);if(!Number.isFinite(date.getTime()))return '';
+ const parts=Object.fromEntries(new Intl.DateTimeFormat('en-US',{timeZone:INVENTORY_MOVEMENT_LOG_TIME_ZONE,year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(date).filter(part=>['year','month','day'].includes(part.type)).map(({type,value})=>[type,value]));
+ return `${parts.year}-${parts.month}-${parts.day}`;
+}
 function getInventoryMovementLogDateRange(){
  const from=String($("movementLogFrom")?.value||'').trim(),to=String($("movementLogTo")?.value||'').trim();
  return {from,to,valid:(!from||isValidAdminReportDate(from))&&(!to||isValidAdminReportDate(to))&&(!from||!to||from<=to)};
@@ -4265,7 +4271,7 @@ function filterInventoryMovementLog(rows=movimientos){
   if(!row)return false;
   if(type&&String(row.type||'').toLowerCase()!==type)return false;
   if(query&&!normalizeMovementSearchValue([row.product_code,row.product_name,row.motive,row.type].join(' ')).includes(query))return false;
-  if(range.from||range.to){const day=String(row.created_at||'').slice(0,10);if(!isValidAdminReportDate(day)||range.from&&day<range.from||range.to&&day>range.to)return false;}
+  if(range.from||range.to){const day=inventoryMovementLogDateKey(row.created_at);if(!isValidAdminReportDate(day)||range.from&&day<range.from||range.to&&day>range.to)return false;}
   return true;
  });
 }
@@ -4274,7 +4280,7 @@ function renderMovimientos(){
  if(moduleLoadErrors.movements){if(status)status.textContent='No se pudo cargar la bitácora.';host.innerHTML=`<div class="alert"><b>No se pudieron cargar los movimientos.</b><br>${esc(moduleLoadErrors.movements)}</div>`;return;}
  const rows=filterInventoryMovementLog(movimientos),range=getInventoryMovementLogDateRange();
  if(status)status.textContent=!range.valid?'Rango de fechas no válido; se ocultan los resultados.':`Coincidencias: ${rows.length} de ${movimientos.length} movimientos cargados. Se muestran hasta 100; filtros locales de lectura.`;
- host.innerHTML=rows.slice(0,100).map(m=>`<div class="listItem"><div class="rowBetween"><div><b>${esc(m.product_code)} — ${esc(m.product_name)}</b><div class="muted">${m.created_at?new Date(m.created_at).toLocaleString("es-CO"):"Fecha sin dato"} • ${esc(m.motive||"Sin motivo")} • ${Number(m.quantity)||0} unidad(es)</div></div><span class="badge ${m.type==="entrada"?"ok":m.type==="salida"?"low":"out"}">${esc(m.type)}</span></div></div>`).join("")||'<div class="empty">No hay movimientos que coincidan con los filtros.</div>';
+ host.innerHTML=rows.slice(0,100).map(m=>`<div class="listItem"><div class="rowBetween"><div><b>${esc(m.product_code)} — ${esc(m.product_name)}</b><div class="muted">${m.created_at?new Date(m.created_at).toLocaleString("es-CO",{timeZone:INVENTORY_MOVEMENT_LOG_TIME_ZONE}):"Fecha sin dato"} • ${esc(m.motive||"Sin motivo")} • ${Number(m.quantity)||0} unidad(es)</div></div><span class="badge ${m.type==="entrada"?"ok":m.type==="salida"?"low":"out"}">${esc(m.type)}</span></div></div>`).join("")||'<div class="empty">No hay movimientos que coincidan con los filtros.</div>';
 }
 function exportInventoryMovementLogCSV(){
  if(moduleLoadErrors.movements){toast('No se puede exportar: la bitácora no se cargó.');return false;}
