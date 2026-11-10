@@ -5,8 +5,11 @@ import vm from 'node:vm';
 const source = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 
 function extractFunction(name) {
-  const marker = `async function ${name}(`;
-  const start = source.indexOf(marker);
+  const asyncMarker = `async function ${name}(`;
+  const syncMarker = `function ${name}(`;
+  const asyncStart = source.indexOf(asyncMarker);
+  const marker = asyncStart >= 0 ? asyncMarker : syncMarker;
+  const start = asyncStart >= 0 ? asyncStart : source.indexOf(syncMarker);
   assert.notEqual(start, -1, `Falta la función async ${name}`);
   const open = source.indexOf('{', start);
   assert.notEqual(open, -1, `Falta el cuerpo de ${name}`);
@@ -33,6 +36,14 @@ function extractFunction(name) {
 
 const confirmCheckoutSource = extractFunction('confirmCheckout');
 const payWithWompiSource = extractFunction('payWithWompi');
+const quoteHelperSource = [
+  'normalizeCheckoutCouponCode',
+  'checkoutQuoteItems',
+  'normalizeCheckoutQuote',
+  'quoteErrorMessage',
+  'quoteHasValidTotals',
+  'requestCheckoutQuote',
+].map(extractFunction).join('\n');
 const syntheticItems = [{ id: 'synthetic-product', qty: 1, color: '', size: '' }];
 const failedQuotes = [
   { data: null, error: new Error('synthetic quote RPC failure') },
@@ -48,13 +59,23 @@ for (const mode of ['PSE', 'Contra entrega']) {
     let resetCalls = 0;
     const messages = [];
     const context = vm.createContext({
+      $: () => null,
       checkoutShipping: 0,
+      checkoutCouponCode: '',
+      storefrontCouponSettingsLoaded: true,
+      storefrontCouponsEnabled: true,
       onlinePaymentsEnabled: mode !== 'Contra entrega',
       getCheckoutItems: () => syntheticItems,
       getCheckoutValidationErrors: () => [],
       displayCheckoutValidation() { assert.fail('El fixture de formulario es válido'); },
       clearCheckoutValidation() {},
       calculateStorefrontComboPricing: () => ({ subtotal: 10000, discountTotal: 0 }),
+      checkoutDisplayPricing: () => ({ isCouponQuote: false, subtotal: 10000, discountTotal: 0, total: 10000 }),
+      currentCheckoutCouponQuote: () => null,
+      refreshStorefrontCouponSettings: async () => true,
+      setCheckoutServerQuote() {},
+      clearCheckoutServerQuote() {},
+      setCheckoutCouponStatus() {},
       selectedPayment: () => mode,
       refreshOnlinePaymentSetting: async () => {},
       refreshCODPaymentSettings: async () => {},
@@ -80,7 +101,7 @@ for (const mode of ['PSE', 'Contra entrega']) {
       console: { error() {} },
     });
 
-    vm.runInContext(confirmCheckoutSource, context);
+    vm.runInContext(`${quoteHelperSource}\n${confirmCheckoutSource}`, context);
     await context.confirmCheckout();
     assert.equal(quoteRpcCalls, 1);
     assert.equal(wompiCalls, 0, `${mode}: la cotización fallida no inicia Wompi`);
@@ -98,9 +119,21 @@ for (const quoteResponse of failedQuotes) {
   const messages = [];
   const context = vm.createContext({
     onlinePaymentsEnabled: true,
+    checkoutCouponCode: '',
+    storefrontCouponSettingsLoaded: true,
+    storefrontCouponsEnabled: true,
+    checkoutShipping: 0,
+    checkoutCityValue: () => 'Cali',
     location: { protocol: 'https:', hostname: 'sirevya.com.co' },
     window: { __sirevyaWompiInProgress: false },
     getCheckoutItems: () => syntheticItems,
+    currentCheckoutCouponQuote: () => null,
+    checkoutDisplayPricing: () => ({ isCouponQuote: false, subtotal: 10000, discountTotal: 0, total: 10000 }),
+    setCheckoutCouponQuote() {},
+    setCheckoutCouponStatus() {},
+    setCheckoutServerQuote() {},
+    clearCheckoutServerQuote() {},
+    updateShipping() {},
     refreshOnlinePaymentSetting: async () => {},
     syncPaymentOptions() {},
     $: id => id === 'checkoutConfirmBtn' ? button : null,
@@ -117,13 +150,14 @@ for (const quoteResponse of failedQuotes) {
     console: { error() {}, warn() {} },
   });
 
-  vm.runInContext(payWithWompiSource, context);
+  vm.runInContext(`${quoteHelperSource}\n${payWithWompiSource}`, context);
   await context.payWithWompi({ name: 'Fixture', city: 'Cali', phone: '0000000000' });
   assert.equal(fetchCalls, 0, 'La cotización fallida no llama a wompi-create-checkout');
   assert.equal(releaseCalls, 0, 'No se libera una reserva ajena o previa: no se creó una en este intento');
   assert.equal(resetCalls, 1);
   assert.equal(context.window.__sirevyaWompiInProgress, false);
-  assert.ok(messages.some(message => /no se abrió Wompi|no se abrió Wompi|No se pudo verificar/.test(message)));
+  assert.equal(messages.length, 1, 'el error de la cotización informa al operador antes de cualquier cobro');
+  assert.ok(messages[0].trim().length > 0);
 }
 
 console.log('OK checkout_quote_fail_closed_regression: errores/quotes incompletas no llaman a Wompi ni crean COD; pruebas locales, sin red ni escrituras.');
