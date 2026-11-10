@@ -2535,10 +2535,12 @@ function updateOrderTrackingStatus(){
   loading:'Consultando disponibilidad del módulo de seguimiento…',
   missing:'El seguimiento y la bitácora aún no están instalados en Supabase. La gestión normal de pedidos sigue disponible.',
   error:'No se pudo consultar el módulo de seguimiento. No se habilitó ningún guardado.',
+  limit:'La lista de pedidos supera el límite seguro de 5.000. No se habilitó ningún guardado de seguimiento.',
  };
  const message=messages[webOrderTrackingRpcState]||'';
- status.hidden=!message;status.textContent=message;status.className=`status${webOrderTrackingRpcState==='missing'||webOrderTrackingRpcState==='error'?' err':''}`;
+ status.hidden=!message;status.textContent=message;status.className=`status${webOrderTrackingRpcState==='missing'||webOrderTrackingRpcState==='error'||webOrderTrackingRpcState==='limit'?' err':''}`;
 }
+const MAX_WEB_ORDER_TRACKING_ORDER_IDS=5000;
 function isValidWebOrderId(value){return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value||''));}
 function safeOrderTrackingUrl(value){
  const text=String(value||'').trim();if(!text)return '';
@@ -2558,8 +2560,13 @@ async function loadWebOrderTracking(){
  const isCurrent=()=>token===webOrderTrackingRequestToken&&adminAuthOperationStillCurrent(userId,authEpoch);
  if(!sb||!isCurrent())return false;
  webOrderTrackingRpcState='loading';updateOrderTrackingStatus();renderPedidos();
+ const orderIds=Array.isArray(pedidos)?pedidos.map(order=>order?.id):null;
+ if(!orderIds||orderIds.length>MAX_WEB_ORDER_TRACKING_ORDER_IDS||orderIds.some(orderId=>!isValidWebOrderId(orderId))){
+  if(!isCurrent())return false;
+  webOrderTrackingById=Object.create(null);webOrderTrackingRpcState=orderIds?.length>MAX_WEB_ORDER_TRACKING_ORDER_IDS?'limit':'error';updateOrderTrackingStatus();renderPedidos();return false;
+ }
  try{
-  const {data,error}=await sb.rpc('admin_list_web_order_tracking',{p_limit:5000});
+  const {data,error}=await sb.rpc('admin_list_web_order_tracking',{p_order_ids:orderIds});
   if(!isCurrent())return false;
   try{await assertCurrentAdminAuthorization(userId,authEpoch)}catch(authError){if(isCurrent())lockAdminPanel('No se pudo confirmar la autorización para consultar el seguimiento.');return false;}
   if(!isCurrent())return false;
@@ -2591,21 +2598,28 @@ function renderOrderTrackingHistory(data){
  }).join('');
  if(status)status.textContent=rows.length?`${rows.length} cambio(s) recientes; alcance: pedido web y guía.`:'No hay cambios registrados desde que el módulo se active.';
 }
+function clearOrderTrackingHistory(message='',orderId=''){
+ const modal=$('orderTrackingModal');
+ if(orderId&&(!modal?.classList.contains('show')||modal.dataset.orderId!==orderId))return false;
+ const list=$('orderTrackingHistoryList'),status=$('orderTrackingHistoryStatus');
+ if(list)list.textContent='';if(status)status.textContent=message;return true;
+}
 async function loadOrderTrackingHistory(orderId){
- const modal=$('orderTrackingModal');if(!modal?.classList.contains('show')||!isValidWebOrderId(orderId)||webOrderTrackingRpcState!=='ready')return false;
+ const modal=$('orderTrackingModal');if(!modal?.classList.contains('show')||!isValidWebOrderId(orderId)||modal.dataset.orderId!==orderId)return false;
+ if(webOrderTrackingRpcState!=='ready'){clearOrderTrackingHistory('El historial no está disponible mientras se actualiza el seguimiento.',orderId);return false;}
  const userId=adminSessionUserId,authEpoch=adminAuthEpoch,token=++webOrderHistoryRequestToken;
  const isCurrent=()=>token===webOrderHistoryRequestToken&&adminAuthOperationStillCurrent(userId,authEpoch)&&modal.dataset.orderId===orderId;
- const status=$('orderTrackingHistoryStatus'),list=$('orderTrackingHistoryList');if(status)status.textContent='Cargando historial…';if(list)list.textContent='';
+ clearOrderTrackingHistory('Cargando historial…',orderId);
  try{
   const {data,error}=await sb.rpc('admin_list_web_order_change_history',{p_order_id:orderId,p_limit:50});
   if(!isCurrent())return false;
   try{await assertCurrentAdminAuthorization(userId,authEpoch)}catch(authError){if(isCurrent())lockAdminPanel('No se pudo confirmar la autorización para consultar el historial.');return false;}
   if(!isCurrent())return false;
-  if(error){if(status)status.textContent='No se pudo cargar el historial. No se cambió ningún dato.';return false;}
+  if(error){clearOrderTrackingHistory('No se pudo cargar el historial. No se cambió ningún dato.',orderId);return false;}
   let rows=data;if(typeof rows==='string'){try{rows=JSON.parse(rows)}catch{rows=[]}}
-  if(!Array.isArray(rows)){if(status)status.textContent='La respuesta del historial no tiene el formato esperado.';return false;}
+  if(!Array.isArray(rows)){clearOrderTrackingHistory('La respuesta del historial no tiene el formato esperado.',orderId);return false;}
   renderOrderTrackingHistory(rows);return true;
- }catch(error){if(isCurrent()&&status)status.textContent='No se pudo cargar el historial. No se cambió ningún dato.';return false;}
+ }catch(error){if(isCurrent())clearOrderTrackingHistory('No se pudo cargar el historial. No se cambió ningún dato.',orderId);return false;}
 }
 function openOrderTracking(orderId,trigger){
  if(webOrderTrackingRpcState!=='ready'){toast('El módulo de seguimiento aún no está disponible.');return false;}
@@ -2646,7 +2660,13 @@ async function saveOrderTracking(event){
   const result=Array.isArray(data)?data[0]:data;
   if(result?.ok!==true){const messages={TRACKING_URL_INVALID:'El enlace debe ser HTTPS.',TRACKING_FIELDS_INVALID:'Transportadora y número de guía son obligatorios.',WEB_ORDER_NOT_FOUND:'El pedido ya no está disponible.'};toast(messages[result?.code]||'No se guardó la guía.');return false;}
   toast(result.changed?'Seguimiento guardado.':'No hubo cambios en la guía.');
-  void loadWebOrderTracking();void loadOrderTrackingHistory(orderId);return true;
+  clearOrderTrackingHistory('Actualizando seguimiento y recargando historial…',orderId);
+  const trackingListLoaded=await loadWebOrderTracking();
+  if(!isCurrent())return false;
+  if(!trackingListLoaded){clearOrderTrackingHistory('No se pudo actualizar el seguimiento; se ocultó el historial anterior.',orderId);return true;}
+  await loadOrderTrackingHistory(orderId);
+  if(!isCurrent())return false;
+  return true;
  }catch(error){if(isCurrent())toast('No se guardó la guía. Intenta actualizar el módulo.');return false;}
  finally{if(isCurrent()&&button)button.disabled=false;}
 }
