@@ -20,6 +20,7 @@ const productos = [
   { id: 'plain-low', code: 'P-LOW', name: 'Stock bajo', quantity: 2, availableQuantity: 2, availableVariants: [] },
   { id: 'healthy', code: 'OK', name: 'Stock normal', quantity: 3, availableQuantity: 3, availableVariants: [] },
   { id: 'plain-out', code: 'P-OUT', name: 'Sin unidades', quantity: 0, availableQuantity: 0, availableVariants: [] },
+  { id: 'reserved-stock', code: 'RSV', name: 'Unidades reservadas', quantity: 17, availableQuantity: 8, availableVariants: [] },
 ];
 const ids = [
   'nProductos', 'nUnidades', 'nVendidos', 'nGanancia', 'heroProducts', 'heroUnits', 'heroSales',
@@ -55,6 +56,8 @@ assert.deepEqual(summary.items.map(item => [item.product.id, item.quantity]), [
   ['variant-low', 1], ['variant-out', 0], ['plain-low', 2], ['plain-out', 0],
 ]);
 assert.equal(elements.lowCount.textContent, '4');
+assert.equal(elements.nUnidades.textContent, 14, 'El KPI suma disponibilidad real, no las 82 unidades físicas.');
+assert.equal(elements.heroUnits.textContent, 14, 'El resumen superior usa el mismo conteo disponible.');
 assert.match(elements.inventoryAttentionSummary.textContent, /2 con 1–2 unidades · 2 agotados/);
 assert.match(elements.inventoryAttentionSummary.textContent, /stock físico/);
 assert.match(elements.stockBajo.innerHTML, /Variante agotada/);
