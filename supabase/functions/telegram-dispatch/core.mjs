@@ -198,7 +198,13 @@ export function formatTelegramNotification(row) {
 
   const customerName = safeSingleLine(payload.customer_name, 120);
   const city = safeSingleLine(payload.city, 80);
-  const products = Array.isArray(payload.products) ? payload.products : [];
+  const allProducts = Array.isArray(payload.products) ? payload.products : [];
+  const products = allProducts.slice(0, 50);
+  const declaredOmittedProducts = Number(payload.omitted_products);
+  const omittedProducts = Math.max(
+    Number.isSafeInteger(declaredOmittedProducts) && declaredOmittedProducts > 0 ? declaredOmittedProducts : 0,
+    allProducts.length - products.length,
+  );
   const productLines = [];
   let computedUnits = 0;
   for (const product of products) {
@@ -208,8 +214,8 @@ export function formatTelegramNotification(row) {
     const quantity = Number(product.quantity ?? product.qty);
     if (!Number.isSafeInteger(quantity) || quantity < 1) continue;
     computedUnits += quantity;
-    const productLabel = [code, name].filter(Boolean).join(" — ");
-    if (productLabel) productLines.push(`- ${productLabel}: ${quantity}`);
+    const productLabel = [code, name].filter(Boolean).join(" — ") || "Producto sin identificación";
+    productLines.push(`- ${productLabel}: ${quantity}`);
   }
 
   if (productLines.length === 0 && eventType.startsWith("reservation.")) {
@@ -222,10 +228,28 @@ export function formatTelegramNotification(row) {
     }
   }
 
+  // Keep room for the event details, totals, and the omission notice below Telegram's limit.
+  const displayedProductLines = [];
+  let productDetailLength = 0;
+  for (const line of productLines) {
+    const nextLength = line.length + (displayedProductLines.length > 0 ? 1 : 0);
+    if (productDetailLength + nextLength > 2600) break;
+    displayedProductLines.push(line);
+    productDetailLength += nextLength;
+  }
+  const messageOmittedProducts = omittedProducts + productLines.length - displayedProductLines.length;
+
   if (customerName) lines.push(`Cliente: ${customerName}`);
   if (city) lines.push(`Ciudad: ${city}`);
-  if (productLines.length > 0) {
-    lines.push("Productos:", ...productLines);
+  if (displayedProductLines.length > 0) {
+    lines.push("Productos:", ...displayedProductLines);
+  }
+  if (messageOmittedProducts > 0) {
+    const shownVerb = displayedProductLines.length === 1 ? "se muestra" : "se muestran";
+    const omittedVerb = messageOmittedProducts === 1 ? "se omitió" : "se omitieron";
+    const omittedLabel = messageOmittedProducts === 1 ? "línea adicional" : "líneas adicionales";
+    const totalProductLines = displayedProductLines.length + messageOmittedProducts;
+    lines.push(`Detalle de productos: ${shownVerb} ${displayedProductLines.length} de ${totalProductLines} líneas; ${omittedVerb} ${messageOmittedProducts} ${omittedLabel}.`);
   }
   const totalUnits = Number(payload.total_units);
   const units = Number.isSafeInteger(totalUnits) && totalUnits > 0 ? totalUnits : computedUnits;
