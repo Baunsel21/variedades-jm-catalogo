@@ -174,6 +174,48 @@ assert.match(commercialReferenceFormatted, /Total de unidades: 3/);
 assert.equal(commercialReferenceFormatted.includes("JMCOD-PRIVATE-TECH-0001"), false);
 assert.equal(commercialReferenceFormatted.includes("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"), false);
 
+const omittedUuid = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+const truncatedProducts = Array.from({ length: 53 }, (_, index) => ({
+  code: index >= 50 ? omittedUuid : `SKU-TRUNC-${index + 1}`,
+  name: index >= 50 ? "NOMBRE PRIVADO OMITIDO" : `Producto ${index + 1}`,
+  quantity: 1,
+}));
+const truncatedFormatted = formatTelegramNotification({
+  event_type: "order.created",
+  payload: {
+    reference: "JMCOD-INTERNAL-REFERENCE",
+    order_reference: "COD-TRUNC-053",
+    products: truncatedProducts,
+    total_units: 53,
+    omitted_products: 3,
+    customer_phone: "3001112233",
+    customer_email: "private@example.test",
+  },
+});
+assert.match(truncatedFormatted, /SKU-TRUNC-1/);
+assert.match(truncatedFormatted, /SKU-TRUNC-50/);
+assert.doesNotMatch(truncatedFormatted, /NOMBRE PRIVADO OMITIDO|aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa|3001112233|private@example\.test/);
+assert.match(truncatedFormatted, /Detalle de productos: se muestran 50 de 53 líneas; se omitieron 3 líneas adicionales\./);
+assert.match(truncatedFormatted, /Total de unidades: 53/);
+assert.equal(truncatedFormatted.includes("JMCOD-INTERNAL-REFERENCE"), false);
+
+const longProductText = formatTelegramNotification({
+  event_type: "order.created",
+  payload: {
+    order_reference: "COD-LONG-DETAIL",
+    products: Array.from({ length: 50 }, (_, index) => ({
+      code: `SKU-${String(index + 1).padStart(56, "X")}`,
+      name: `Nombre de producto ${String(index + 1).padStart(80, "N")}`,
+      quantity: 1,
+    })),
+    total_units: 51,
+    omitted_products: 1,
+  },
+});
+assert.ok(longProductText.length < 3800, "el formatter reserva espacio bajo el límite de Telegram");
+assert.match(longProductText, /Detalle de productos: se muestran \d+ de 51 líneas; se omitieron \d+ líneas adicionales\./);
+assert.match(longProductText, /Total de unidades: 51/);
+
 const legacyReservationFormatted = formatTelegramNotification({
   event_type: "reservation.created",
   payload: {

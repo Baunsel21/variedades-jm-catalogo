@@ -95,6 +95,31 @@ UPDATE public.orders SET payment_status = 'VOIDED', order_status = 'CANCELLED' W
 INSERT INTO public.orders (id, reference, customer_name, phone, address, items, total, payment_method, payment_status, order_status)
 VALUES ('00000000-0000-4000-8000-000000000003', 'JM-TEST-METHOD', 'PRIVATE METHOD NAME', '3000000003', 'PRIVATE METHOD ADDRESS', '[]', 5000, 'CUSTOMER PHONE 3015550000', 'PENDING', 'new');
 
+-- More than 50 order lines must not make the business INSERT fail the outbox CHECK.
+INSERT INTO public.orders (id, reference, items, total, payment_method, payment_status, order_status)
+VALUES (
+  '00000000-0000-4000-8000-000000000040',
+  'JM-TEST-51-LINES',
+  (SELECT jsonb_agg(jsonb_build_object(
+     'code', 'SKU-ORDER-' || line_number,
+     'name', 'Order synthetic product ' || line_number,
+     'qty', 1
+   ) ORDER BY line_number)
+   FROM generate_series(1, 51) AS line_number),
+  51000, 'wompi', 'APPROVED', 'new'
+);
+INSERT INTO public.web_orders (id, payment_method, total, status, client_reference, items)
+VALUES (
+  '00000000-0000-4000-8000-000000000041',
+  'Contra entrega', 104000, 'pendiente', 'COD-TEST-52-LINES',
+  (SELECT jsonb_agg(jsonb_build_object(
+     'code', 'SKU-WEB-' || line_number,
+     'name', 'Web synthetic product ' || line_number,
+     'qty', 2
+   ) ORDER BY line_number)
+   FROM generate_series(1, 52) AS line_number)
+);
+
 -- COD/new web order and cancellation, without exposing customer fields.
 INSERT INTO public.web_orders (id, customer_name, customer_cedula, customer_phone, customer_email, customer_city, customer_address, note, payment_method, total, status, client_reference, inventory_reference, items)
 VALUES ('00000000-0000-4000-8000-000000000002', 'PRIVATE COD NAME', '123456789', '3000000002', 'cod@example.test', 'Palmira', 'COD PRIVATE ADDRESS', 'PRIVATE NOTE', 'Contra entrega', 75000, 'pendiente', 'COD-TEST-002', 'RES-TEST-1', '[{"code":"SKU-10","name":"Synthetic Shirt","qty":1}]');
@@ -119,6 +144,21 @@ INSERT INTO public.inventory_reservations (id, product_id, quantity, reference, 
 VALUES ('00000000-0000-4000-8000-000000000035', '00000000-0000-4000-8000-000000000011', 1, 'RES-TEST-EXPIRE', 'active', now() - interval '1 minute');
 UPDATE public.inventory_reservations SET status = 'EXPIRED' WHERE id = '00000000-0000-4000-8000-000000000035';
 
+-- Reservation summaries also keep the full quantity while bounding product detail.
+INSERT INTO public.inventory_reservations (id, product_id, quantity, reference, status, expires_at)
+SELECT
+  ('00000000-0000-4000-8000-' || lpad((100 + line_number)::text, 12, '0'))::uuid,
+  '00000000-0000-4000-8000-000000000010', 1, 'RES-TEST-51-LINES', 'active', now() + interval '10 minutes'
+FROM generate_series(1, 51) AS line_number;
+
+-- An unlinked reservation's created notification must become terminal on release.
+INSERT INTO public.inventory_reservations (id, product_id, quantity, reference, status, expires_at)
+VALUES ('00000000-0000-4000-8000-000000000060', '00000000-0000-4000-8000-000000000010', 1,
+        'RES-TEST-ORPHAN-RELEASED', 'active', now() + interval '10 minutes');
+UPDATE public.inventory_reservations
+   SET status = 'RELEASED'
+ WHERE id = '00000000-0000-4000-8000-000000000060';
+
 DO $assert_events$
 DECLARE
   v_count bigint;
@@ -132,7 +172,7 @@ DECLARE
   v_expired_id uuid;
   v_expired_token uuid;
 BEGIN
-  IF (SELECT count(*) FROM public.sirevya_telegram_outbox WHERE event_type = 'order.created') <> 3 THEN RAISE EXCEPTION 'unexpected order.created count'; END IF;
+  IF (SELECT count(*) FROM public.sirevya_telegram_outbox WHERE event_type = 'order.created') <> 5 THEN RAISE EXCEPTION 'unexpected order.created count'; END IF;
   IF (SELECT count(*) FROM public.sirevya_telegram_outbox WHERE event_type = 'payment.pending') <> 2 THEN RAISE EXCEPTION 'unexpected payment.pending count'; END IF;
   IF (SELECT count(*) FROM public.sirevya_telegram_outbox WHERE event_type = 'payment.approved') <> 1 THEN RAISE EXCEPTION 'unexpected payment.approved count'; END IF;
   IF (SELECT count(*) FROM public.sirevya_telegram_outbox WHERE event_type = 'payment.rejected') <> 1 THEN RAISE EXCEPTION 'unexpected payment.rejected count'; END IF;
@@ -142,8 +182,8 @@ BEGIN
   IF (SELECT count(*) FROM public.sirevya_telegram_outbox WHERE event_type = 'inventory.stockout') <> 1 THEN RAISE EXCEPTION 'unexpected inventory.stockout count'; END IF;
   IF (SELECT count(*) FROM public.sirevya_telegram_outbox WHERE event_type = 'inventory.restocked') <> 1 THEN RAISE EXCEPTION 'unexpected inventory.restocked count'; END IF;
   IF (SELECT count(*) FROM public.sirevya_telegram_outbox WHERE event_type = 'inventory.movement') <> 1 THEN RAISE EXCEPTION 'unexpected inventory.movement count'; END IF;
-  IF (SELECT count(*) FROM public.sirevya_telegram_outbox WHERE event_type = 'reservation.created') <> 3 THEN RAISE EXCEPTION 'reservation reference was not deduplicated'; END IF;
-  IF (SELECT count(*) FROM public.sirevya_telegram_outbox WHERE event_type = 'reservation.released') <> 1 THEN RAISE EXCEPTION 'reservation release was not deduplicated'; END IF;
+  IF (SELECT count(*) FROM public.sirevya_telegram_outbox WHERE event_type = 'reservation.created') <> 5 THEN RAISE EXCEPTION 'reservation reference was not deduplicated'; END IF;
+  IF (SELECT count(*) FROM public.sirevya_telegram_outbox WHERE event_type = 'reservation.released') <> 2 THEN RAISE EXCEPTION 'reservation release was not deduplicated'; END IF;
   IF (SELECT count(*) FROM public.sirevya_telegram_outbox WHERE event_type = 'reservation.expired') <> 1 THEN RAISE EXCEPTION 'unexpected reservation.expired count'; END IF;
   IF (SELECT count(*) FROM public.sirevya_telegram_outbox WHERE event_type = 'reservation.whatsapp_reserved') <> 1 THEN RAISE EXCEPTION 'unexpected WhatsApp reservation count'; END IF;
   IF (SELECT count(*) FROM public.sirevya_telegram_outbox WHERE event_type = 'reservation.whatsapp_confirmed') <> 1 THEN RAISE EXCEPTION 'unexpected WhatsApp confirmation count'; END IF;
@@ -169,6 +209,22 @@ BEGIN
   ) THEN RAISE EXCEPTION 'order payload did not normalize customer, city and products'; END IF;
   IF NOT EXISTS (
     SELECT 1 FROM public.sirevya_telegram_outbox
+     WHERE source_id = '00000000-0000-4000-8000-000000000040'
+       AND event_type = 'order.created'
+       AND jsonb_array_length(payload->'products') = 50
+       AND (payload->>'total_units')::bigint = 51
+       AND (payload->>'omitted_products')::bigint = 1
+  ) THEN RAISE EXCEPTION 'orders summary did not bound 51 product lines or preserve totals'; END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM public.sirevya_telegram_outbox
+     WHERE source_id = '00000000-0000-4000-8000-000000000041'
+       AND event_type = 'order.created'
+       AND jsonb_array_length(payload->'products') = 50
+       AND (payload->>'total_units')::bigint = 104
+       AND (payload->>'omitted_products')::bigint = 2
+  ) THEN RAISE EXCEPTION 'web_orders summary did not bound 52 product lines or preserve totals'; END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM public.sirevya_telegram_outbox
      WHERE source_id = '00000000-0000-4000-8000-000000000002'
        AND event_type = 'order.created'
        AND payload->>'order_reference' = 'COD-TEST-002'
@@ -184,9 +240,19 @@ BEGIN
        AND payload->>'order_reference' = 'JM-TEST-001'
        AND payload->>'customer_name' = 'PRIVATE PERSON DO NOT EXPORT'
        AND payload->>'city' = 'Cali'
+       AND status = 'pending'
+       AND last_error_code IS NULL
        AND (payload->>'total_units')::integer = 3
        AND payload->'products' @> '[{"code":"SKU-10","name":"Synthetic Shirt","quantity":2},{"code":"SKU-11","name":"Synthetic Shoes","quantity":1}]'::jsonb
   ) THEN RAISE EXCEPTION 'Wompi reservation was not linked to its order'; END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM public.sirevya_telegram_outbox
+     WHERE event_type = 'reservation.created'
+       AND payload->>'reference' = 'RES-TEST-51-LINES'
+       AND jsonb_array_length(payload->'products') = 50
+       AND (payload->>'total_units')::bigint = 51
+       AND (payload->>'omitted_products')::bigint = 1
+  ) THEN RAISE EXCEPTION 'reservation summary did not bound 51 lines or preserve totals'; END IF;
   IF NOT EXISTS (
     SELECT 1 FROM public.sirevya_telegram_outbox
      WHERE event_type = 'reservation.created'
@@ -196,6 +262,23 @@ BEGIN
        AND payload->>'city' = 'Palmira'
        AND (payload->>'total_units')::integer = 3
   ) THEN RAISE EXCEPTION 'COD reservation did not link by inventory_reference'; END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM public.sirevya_telegram_outbox
+     WHERE dedupe_key = 'reservation:RES-TEST-ORPHAN-RELEASED:reservation.created'
+       AND event_type = 'reservation.created'
+       AND status = 'dead'
+       AND last_error_code = 'reservation_unlinked'
+       AND last_error_at IS NOT NULL
+       AND attempt_count = 0
+       AND lease_until IS NULL
+       AND claim_token IS NULL
+  ) THEN RAISE EXCEPTION 'released unlinked reservation.created did not become a terminal orphan'; END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM public.sirevya_telegram_outbox
+     WHERE dedupe_key = 'reservation:RES-TEST-EXPIRE:reservation.created'
+       AND status = 'dead'
+       AND last_error_code = 'reservation_unlinked'
+  ) THEN RAISE EXCEPTION 'expired unlinked reservation.created did not become terminal'; END IF;
   IF NOT EXISTS (
     SELECT 1 FROM public.sirevya_telegram_outbox
      WHERE source_id = '00000000-0000-4000-8000-000000000003'
@@ -271,6 +354,13 @@ BEGIN
       RAISE EXCEPTION 'expired owner mutated a dead-lettered row';
     END IF;
   END IF;
+  SELECT count(*) INTO v_count
+    FROM public.claim_sirevya_telegram_notifications(25, 600) AS claimed
+   WHERE claimed.id = (
+     SELECT id FROM public.sirevya_telegram_outbox
+      WHERE dedupe_key = 'reservation:RES-TEST-ORPHAN-RELEASED:reservation.created'
+   );
+  IF v_count <> 0 THEN RAISE EXCEPTION 'released orphan reservation.created was claimable'; END IF;
 END
 $assert_events$;
 

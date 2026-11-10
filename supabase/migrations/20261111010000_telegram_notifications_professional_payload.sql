@@ -23,7 +23,7 @@ SET search_path TO 'pg_catalog', 'public'
 AS $function$
   SELECT coalesce(
     jsonb_typeof(p_payload) = 'object'
-    AND public._sirevya_telegram_payload_key_count(p_payload) <= 18
+    AND public._sirevya_telegram_payload_key_count(p_payload) <= 19
     AND NOT EXISTS (
       SELECT 1
         FROM pg_catalog.jsonb_object_keys(p_payload) AS top_key(key_name)
@@ -32,9 +32,16 @@ AS $function$
          'customer_name', 'city',
          'payment_method', 'payment_status', 'order_status',
          'reservation_status', 'total_cop',
-         'products', 'total_units',
+         'products', 'total_units', 'omitted_products',
          'product_code', 'product_name', 'movement_type', 'quantity'
        ]::text[])
+    )
+    AND (
+      p_payload->'omitted_products' IS NULL
+      OR (
+        jsonb_typeof(p_payload->'omitted_products') = 'number'
+        AND p_payload->>'omitted_products' ~ '^(0|[1-9][0-9]*)$'
+      )
     )
     AND (
       p_payload->'products' IS NULL
@@ -62,6 +69,18 @@ REVOKE ALL ON FUNCTION public._sirevya_telegram_payload_is_allowed(jsonb) FROM P
 ALTER TABLE public.sirevya_telegram_outbox
   ADD CONSTRAINT sirevya_telegram_outbox_payload_check CHECK (
     public._sirevya_telegram_payload_is_allowed(payload)
+  );
+
+-- Record the terminal orphan cause with a fixed, non-sensitive machine code.
+ALTER TABLE public.sirevya_telegram_outbox
+  DROP CONSTRAINT IF EXISTS sirevya_telegram_outbox_last_error_code_check;
+ALTER TABLE public.sirevya_telegram_outbox
+  ADD CONSTRAINT sirevya_telegram_outbox_last_error_code_check CHECK (
+    last_error_code IS NULL OR last_error_code IN (
+      'network','timeout','telegram_rate_limited','telegram_server_error',
+      'telegram_rejected','telegram_auth','telegram_invalid_payload',
+      'worker_internal','db_completion','reservation_unlinked'
+    )
   );
 
 CREATE OR REPLACE FUNCTION public._sirevya_telegram_clean_text(p_value text, p_max integer)
@@ -120,9 +139,11 @@ DECLARE
   v_name text;
   v_quantity integer;
   v_total_units bigint := 0;
+  v_product_count integer := 0;
+  v_omitted_products bigint := 0;
 BEGIN
   IF jsonb_typeof(p_items) IS DISTINCT FROM 'array' THEN
-    RETURN jsonb_build_object('products', v_products, 'total_units', 0);
+    RETURN jsonb_build_object('products', v_products, 'total_units', 0, 'omitted_products', 0);
   END IF;
 
   FOR v_item IN SELECT value FROM jsonb_array_elements(p_items) AS item(value) LOOP
@@ -132,17 +153,26 @@ BEGIN
     END IF;
     v_code := public._sirevya_telegram_clean_text(v_item->>'code', 60);
     v_name := public._sirevya_telegram_clean_text(v_item->>'name', 100);
-    v_products := v_products || jsonb_build_array(
-      jsonb_strip_nulls(jsonb_build_object(
-        'code', NULLIF(v_code, ''),
-        'name', NULLIF(v_name, ''),
-        'quantity', v_quantity
-      ))
-    );
     v_total_units := v_total_units + v_quantity;
+    IF v_product_count < 50 THEN
+      v_products := v_products || jsonb_build_array(
+        jsonb_strip_nulls(jsonb_build_object(
+          'code', NULLIF(v_code, ''),
+          'name', NULLIF(v_name, ''),
+          'quantity', v_quantity
+        ))
+      );
+      v_product_count := v_product_count + 1;
+    ELSE
+      v_omitted_products := v_omitted_products + 1;
+    END IF;
   END LOOP;
 
-  RETURN jsonb_build_object('products', v_products, 'total_units', v_total_units);
+  RETURN jsonb_build_object(
+    'products', v_products,
+    'total_units', v_total_units,
+    'omitted_products', v_omitted_products
+  );
 END
 $function$;
 REVOKE ALL ON FUNCTION public._sirevya_telegram_order_product_summary(jsonb) FROM PUBLIC, anon, authenticated;
@@ -156,23 +186,35 @@ STABLE
 PARALLEL SAFE
 SET search_path TO 'pg_catalog', 'public', 'pg_temp'
 AS $function$
+  WITH reservation_lines AS (
+    SELECT
+      r.id::text AS line_id,
+      r.quantity,
+      jsonb_strip_nulls(jsonb_build_object(
+        'code', NULLIF(public._sirevya_telegram_clean_text(p.code, 60), ''),
+        'name', NULLIF(public._sirevya_telegram_clean_text(p.name, 100), ''),
+        'quantity', r.quantity
+      )) AS product_line
+    FROM public.inventory_reservations AS r
+    LEFT JOIN public.products AS p ON p.id = r.product_id
+    WHERE r.reference = p_reference
+  ), ranked_lines AS (
+    SELECT
+      line_id,
+      quantity,
+      product_line,
+      row_number() OVER (ORDER BY line_id) AS line_number
+    FROM reservation_lines
+  )
   SELECT jsonb_build_object(
     'products', coalesce(
-      jsonb_agg(
-        jsonb_strip_nulls(jsonb_build_object(
-          'code', NULLIF(public._sirevya_telegram_clean_text(p.code, 60), ''),
-          'name', NULLIF(public._sirevya_telegram_clean_text(p.name, 100), ''),
-          'quantity', r.quantity
-        ))
-        ORDER BY r.id::text
-      ) FILTER (WHERE r.id IS NOT NULL),
+      jsonb_agg(product_line ORDER BY line_number) FILTER (WHERE line_number <= 50),
       '[]'::jsonb
     ),
-    'total_units', coalesce(sum(CASE WHEN r.quantity > 0 THEN r.quantity ELSE 0 END), 0)
+    'total_units', coalesce(sum(CASE WHEN quantity > 0 THEN quantity ELSE 0 END), 0),
+    'omitted_products', count(*) FILTER (WHERE line_number > 50)
   )
-  FROM public.inventory_reservations AS r
-  LEFT JOIN public.products AS p ON p.id = r.product_id
-  WHERE r.reference = p_reference
+  FROM ranked_lines
 $function$;
 REVOKE ALL ON FUNCTION public._sirevya_telegram_reservation_product_summary(text) FROM PUBLIC, anon, authenticated;
 
@@ -274,7 +316,8 @@ BEGIN
     'total_cop', v_total,
     'reservation_status', NULLIF(v_reservation_status, ''),
     'products', v_summary->'products',
-    'total_units', v_summary->'total_units'
+    'total_units', v_summary->'total_units',
+    'omitted_products', v_summary->'omitted_products'
   ));
 
   -- A created reservation without a linked order remains pending. The claim RPC
@@ -287,6 +330,73 @@ BEGIN
 END
 $function$;
 REVOKE ALL ON FUNCTION public._refresh_sirevya_telegram_reservation_event(text, text) FROM PUBLIC, anon, authenticated;
+
+CREATE OR REPLACE FUNCTION public._terminalize_sirevya_telegram_orphaned_reservation_created(
+  p_reference text,
+  p_source_id text
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'pg_catalog', 'public', 'pg_temp'
+AS $function$
+DECLARE
+  v_source_reference text;
+  v_reference_raw text := NULLIF(btrim(coalesce(p_reference, '')), '');
+  v_reference text := public._sirevya_telegram_clean_reference(p_reference);
+  v_dedupe_reference text := coalesce(v_reference, p_source_id);
+BEGIN
+  SELECT r.reference
+    INTO v_source_reference
+    FROM public.inventory_reservations AS r
+   WHERE r.id::text = p_source_id
+   LIMIT 1;
+  v_reference_raw := coalesce(v_source_reference, v_reference_raw);
+
+  -- Preserve a valid late order link before deciding the created event is orphaned.
+  IF v_reference IS NOT NULL THEN
+    PERFORM public._refresh_sirevya_telegram_reservation_event(v_reference, 'reservation.created');
+  END IF;
+
+  UPDATE public.sirevya_telegram_outbox AS outbox
+     SET status = 'dead',
+         lease_until = NULL,
+         claim_token = NULL,
+         last_error_code = 'reservation_unlinked',
+         last_error_at = now()
+   WHERE outbox.dedupe_key = 'reservation:' || v_dedupe_reference || ':reservation.created'
+     AND outbox.event_type = 'reservation.created'
+     AND outbox.status IN ('pending', 'processing')
+     AND NULLIF(public._sirevya_telegram_clean_reference(outbox.payload->>'order_reference'), '') IS NULL
+     AND (
+       (
+         v_reference IS NULL
+         AND EXISTS (
+           SELECT 1
+             FROM public.inventory_reservations AS terminal_line
+            WHERE terminal_line.id::text = p_source_id
+              AND upper(terminal_line.status) IN ('RELEASED', 'EXPIRED')
+         )
+       )
+       OR (
+         v_reference IS NOT NULL
+         AND EXISTS (
+           SELECT 1
+             FROM public.inventory_reservations AS terminal_line
+            WHERE terminal_line.reference = v_reference_raw
+              AND upper(terminal_line.status) IN ('RELEASED', 'EXPIRED')
+         )
+         AND NOT EXISTS (
+           SELECT 1
+            FROM public.inventory_reservations AS live_line
+           WHERE live_line.reference = v_reference_raw
+              AND upper(coalesce(live_line.status, '')) NOT IN ('RELEASED', 'EXPIRED')
+         )
+       )
+     );
+END
+$function$;
+REVOKE ALL ON FUNCTION public._terminalize_sirevya_telegram_orphaned_reservation_created(text, text) FROM PUBLIC, anon, authenticated;
 
 CREATE OR REPLACE FUNCTION public._capture_sirevya_telegram_order_event()
 RETURNS trigger
@@ -332,7 +442,8 @@ BEGIN
     'order_status', NULLIF(v_order_status, ''),
     'total_cop', v_total,
     'products', v_summary->'products',
-    'total_units', v_summary->'total_units'
+    'total_units', v_summary->'total_units',
+    'omitted_products', v_summary->'omitted_products'
   ));
 
   IF TG_OP = 'INSERT' THEN
@@ -440,7 +551,8 @@ BEGIN
     'order_status', NULLIF(v_status, ''),
     'total_cop', v_total,
     'products', v_summary->'products',
-    'total_units', v_summary->'total_units'
+    'total_units', v_summary->'total_units',
+    'omitted_products', v_summary->'omitted_products'
   ));
 
   IF TG_OP = 'INSERT' THEN
@@ -521,7 +633,8 @@ BEGIN
     'reference', v_reference,
     'reservation_status', NULLIF(v_status, ''),
     'products', v_summary->'products',
-    'total_units', v_summary->'total_units'
+    'total_units', v_summary->'total_units',
+    'omitted_products', v_summary->'omitted_products'
   ));
   PERFORM public._enqueue_sirevya_telegram_notification(
     'reservation:' || coalesce(v_reference, v_id) || ':' || v_event,
@@ -529,6 +642,9 @@ BEGIN
   );
   IF v_reference IS NOT NULL THEN
     PERFORM public._refresh_sirevya_telegram_reservation_event(v_reference, v_event);
+  END IF;
+  IF v_event IN ('reservation.released', 'reservation.expired') THEN
+    PERFORM public._terminalize_sirevya_telegram_orphaned_reservation_created(v_reference_raw, v_id);
   END IF;
   RETURN NEW;
 END
@@ -606,5 +722,24 @@ END
 $function$;
 REVOKE ALL ON FUNCTION public.claim_sirevya_telegram_notifications(integer, integer) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.claim_sirevya_telegram_notifications(integer, integer) TO service_role;
+
+-- Repair already-queued orphaned created events when this candidate is applied.
+DO $terminalize_existing_orphaned_reservations$
+DECLARE
+  v_event record;
+BEGIN
+  FOR v_event IN
+    SELECT payload->>'reference' AS reference, source_id
+      FROM public.sirevya_telegram_outbox
+     WHERE event_type = 'reservation.created'
+       AND status IN ('pending', 'processing')
+  LOOP
+    PERFORM public._terminalize_sirevya_telegram_orphaned_reservation_created(
+      v_event.reference,
+      v_event.source_id
+    );
+  END LOOP;
+END
+$terminalize_existing_orphaned_reservations$;
 
 COMMIT;
