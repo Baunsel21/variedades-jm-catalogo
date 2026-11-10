@@ -575,11 +575,12 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
       </section>
 
       <section id="csvPreview" class="view">
-        <div><h2 style="margin:0">🧾 Importación CSV</h2><p class="muted">Previsualiza localmente y confirma solo el lote válido. La importación agrega productos nuevos de forma transaccional; no actualiza productos existentes ni incluye fotos o variantes.</p></div>
+        <div><h2 style="margin:0">🧾 Importación CSV</h2><p class="muted">Previsualiza localmente y confirma solo el lote válido. El contrato básico agrega productos nuevos; el contrato v2 admite URL HTTPS de imagen y variantes JSON, sujeto a su RPC versionada.</p></div>
         <div class="box" style="margin-top:15px">
-          <div class="status" role="note"><strong>Vista previa local:</strong> el archivo se lee en este navegador. El panel comprueba disponibilidad del RPC con un lote vacío sin escribir; si falta, el botón permanece desactivado. Solo se envían filas validadas tras confirmación. Preview: 5 MiB/10.000 filas; importación: máximo 250 filas/1 MiB. Solo admite code, name, category, cost, sale_price y quantity; no carga variantes ni fotos. La aplicación requiere autenticación vigente y autorización RLS; el servidor revalida todo el lote.</div>
+          <div class="status" role="note"><strong>Vista previa local:</strong> el archivo se lee en este navegador. El panel comprueba disponibilidad del RPC con un lote vacío sin escribir; si falta, el botón permanece desactivado. Solo se envían filas validadas tras confirmación. Preview: 5 MiB/10.000 filas; importación: máximo 250 filas/1 MiB. El contrato v1 contiene code, name, category, cost, sale_price y quantity. El v2 añade image_url HTTPS y variants JSON; solo quedará habilitado si su RPC aparece disponible. La aplicación requiere autenticación vigente y autorización RLS; el servidor revalida todo el lote.</div>
           <div class="searchbar" style="align-items:end;margin-top:14px">
             <label for="csvProductFile">Archivo CSV<input id="csvProductFile" type="file" accept=".csv,text/csv"></label>
+            <label for="csvPreviewSchemaVersion">Formato<select id="csvPreviewSchemaVersion"><option value="1">Básico (v1)</option><option value="2">Imagen y variantes (v2)</option></select></label>
             <button id="csvPreviewButton" type="button" class="primary">Previsualizar archivo</button>
             <button id="csvPreviewImportButton" type="button" class="primary" disabled>Importar lote nuevo (máx. 250)</button>
             <button id="csvPreviewClear" type="button" class="softbtn">Limpiar</button>
@@ -593,7 +594,7 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
             <ul id="csvPreviewErrorList"></ul>
             <p id="csvPreviewErrorsNote" class="muted"></p>
           </div>
-          <div class="tableWrap" style="margin-top:12px"><table><thead><tr><th>Fila</th><th>Código</th><th>Nombre</th><th>Categoría</th><th>Costo</th><th>Precio venta</th><th>Cantidad</th></tr></thead><tbody id="csvPreviewRows"></tbody></table></div>
+          <div class="tableWrap" style="margin-top:12px"><table><thead><tr><th>Fila</th><th>Código</th><th>Nombre</th><th>Categoría</th><th>Costo</th><th>Precio venta</th><th>Cantidad</th><th>Imagen</th><th>Variantes</th></tr></thead><tbody id="csvPreviewRows"></tbody></table></div>
           <p id="csvPreviewRowsNote" class="muted">No hay filas válidas para mostrar.</p>
         </div>
       </section>
@@ -870,18 +871,20 @@ const SUPABASE_ANON_KEY="sb_publishable_p2XJjsFd4Hp7LZ1IgfyVAg_hpXnFSSc";
 const IMAGE_WORKER_URL="https://sirevya-images.variedadesjm99.workers.dev";
 let sb=null,editingId=null,productos=[],ventas=[],clientes=[],inventoryMode=localStorage.getItem("jm_inventory_mode")||"cards";
 window.getAdminCsvPreviewExistingCodes=()=>Array.isArray(productos)?productos.map(product=>String(product?.code||'').trim()).filter(Boolean):[];
-window.checkAdminCsvImportRpcReady=async()=>{
+window.checkAdminCsvImportRpcReady=async(schemaVersion=1)=>{
  if(!sb)return false;
  const sessionResult=await sb.auth.getSession(),session=sessionResult?.data?.session;
  if(sessionResult?.error||!session?.user?.id||String(session.user.id)!==String(adminSessionUserId||''))return false;
- const response=await sb.rpc('admin_import_products_csv',{p_rows:[]});
+ const rpcName=Number(schemaVersion)===2?'admin_import_products_csv_v2':'admin_import_products_csv';
+ const response=await sb.rpc(rpcName,{p_rows:[]});
  return !response?.error&&response?.data?.ok===false&&Array.isArray(response?.data?.errors)&&response.data.errors.some(error=>error?.code==='IMPORT_LIMIT_EXCEEDED');
 };
-window.commitAdminCsvProducts=async rows=>{
+window.commitAdminCsvProducts=async(rows,schemaVersion=1)=>{
  if(!sb||!Array.isArray(rows))throw new Error('CSV_IMPORT_SESSION_UNAVAILABLE');
  const sessionResult=await sb.auth.getSession(),session=sessionResult?.data?.session;
  if(sessionResult?.error||!session?.user?.id||String(session.user.id)!==String(adminSessionUserId||''))throw new Error('CSV_IMPORT_SESSION_UNAVAILABLE');
- const response=await sb.rpc('admin_import_products_csv',{p_rows:rows});
+ const rpcName=Number(schemaVersion)===2?'admin_import_products_csv_v2':'admin_import_products_csv';
+ const response=await sb.rpc(rpcName,{p_rows:rows});
  if(response?.error)throw new Error('CSV_IMPORT_RPC_FAILED');
  return response?.data;
 };

@@ -344,6 +344,8 @@ const ordersSection=admin.match(/<section id="pedidos"[\s\S]*?<\/section>/)?.[0]
 	 await import('../tests/checkout_quote_fail_closed_regression.mjs');
 	 await import('../tests/admin_dashboard_inventory_alerts_regression.mjs');
 	 await import('../tests/storefront_cod_settings_fail_closed_regression.mjs');
+	 await import('../tests/fase7_csv_preview.mjs');
+	 await import('../tests/admin_csv_import_v2_contract_regression.mjs');
 	 await import('../tests/admin_csv_preview_ui_regression.mjs');
 	 await import('../tests/admin_csv_import_ui_regression.mjs');
 	 await import('../tests/cart_restore_reconciliation_regression.mjs');

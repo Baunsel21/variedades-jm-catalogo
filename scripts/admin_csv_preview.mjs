@@ -1,4 +1,4 @@
-import { DEFAULT_LIMITS, PRODUCT_COLUMNS, previewProductsCsv } from './fase7_csv_preview.mjs';
+import { DEFAULT_LIMITS, PRODUCT_COLUMNS, PRODUCT_COLUMNS_V2, previewProductsCsv } from './fase7_csv_preview.mjs';
 
 const MAX_VISIBLE_ROWS = 50;
 const MAX_VISIBLE_ERRORS = 100;
@@ -13,9 +13,10 @@ const CURRENCY_FORMAT = new Intl.NumberFormat('es-CO', {
 });
 let previewGeneration = 0;
 let lastPreviewResult = null;
+let lastSchemaVersion = 1;
 let importRpcReady = false;
 
-function buildImportPayload(rows) {
+function buildImportPayload(rows, schemaVersion = 1) {
   return rows.map(row => ({
     row: row.row,
     code: row.code,
@@ -24,25 +25,27 @@ function buildImportPayload(rows) {
     cost: row.cost,
     sale_price: row.sale_price,
     quantity: row.quantity,
+    ...(schemaVersion === 2 ? { image_url: row.image_url || '', variants: Array.isArray(row.variants) ? row.variants : [] } : {}),
   }));
 }
 
-export async function previewCsvFile(file, existingCodes = []) {
+export async function previewCsvFile(file, existingCodes = [], schemaVersion = 1) {
   if (!file || typeof file.arrayBuffer !== 'function') {
-    return previewProductsCsv(null, { existingCodes });
+    return previewProductsCsv(null, { existingCodes, schemaVersion });
   }
   if (!Number.isSafeInteger(file.size) || file.size < 0) {
-    return previewProductsCsv(null, { existingCodes });
+    return previewProductsCsv(null, { existingCodes, schemaVersion });
   }
   if (file.size > DEFAULT_LIMITS.maxBytes) {
-    const result = previewProductsCsv(new Uint8Array(DEFAULT_LIMITS.maxBytes + 1), { existingCodes });
+    const result = previewProductsCsv(new Uint8Array(DEFAULT_LIMITS.maxBytes + 1), { existingCodes, schemaVersion });
     if (result.summary) result.summary.inputBytes = file.size;
     return result;
   }
   const bytes = new Uint8Array(await file.arrayBuffer());
-  const result = previewProductsCsv(bytes, { existingCodes });
+  const result = previewProductsCsv(bytes, { existingCodes, schemaVersion });
+  result.schemaVersion = schemaVersion === 2 ? 2 : 1;
   if (result.errors.length === 0 && result.rows.length > 0 && result.rows.length <= MAX_IMPORT_ROWS) {
-    const payloadBytes = new TextEncoder().encode(JSON.stringify(buildImportPayload(result.rows))).byteLength;
+    const payloadBytes = new TextEncoder().encode(JSON.stringify(buildImportPayload(result.rows, result.schemaVersion))).byteLength;
     result.summary.importPayloadBytes = payloadBytes;
     if (payloadBytes > CONSERVATIVE_MAX_IMPORT_PAYLOAD_BYTES) {
       result.errors.push({
@@ -63,11 +66,14 @@ const REPORT_COLUMNS = Object.freeze([
   'filas_validas', 'filas_invalidas', 'errores_totales', 'fila', 'linea_fisica', 'campo',
   'codigo', 'mensaje', 'puede_aplicar', 'dry_run', 'escritura_realizada',
 ]);
-const REPORTABLE_FIELDS = new Set(PRODUCT_COLUMNS);
+const REPORTABLE_FIELDS = new Set(PRODUCT_COLUMNS_V2);
 const HEADER_ERROR_MESSAGES = Object.freeze({
   UNKNOWN_HEADER: 'La cabecera no pertenece al contrato CSV permitido.',
   DUPLICATE_HEADER: 'Hay una cabecera duplicada; revisa los nombres de columnas.',
   VARIANT_DATA_NOT_SUPPORTED: 'La cabecera sugiere variantes, que no están admitidas en esta vista previa.',
+  IMAGE_URL_INVALID: 'La URL de imagen debe ser HTTPS y no incluir credenciales.',
+  VARIANTS_INVALID: 'El contenido de variantes no cumple el contrato CSV v2.',
+  VARIANTS_STOCK_MISMATCH: 'La suma del stock de variantes no coincide con quantity.',
 });
 
 function reportCell(value) {
@@ -189,6 +195,8 @@ export function renderCsvPreviewResult(result, documentRef = globalThis.document
       status.textContent = 'El lote supera el límite preventivo de 900 KiB. Reduce filas o campos antes de importar; no se guardó ningún dato.';
     } else if (rows.length > MAX_IMPORT_ROWS && errorCount === 0) {
       status.textContent = `Vista previa lista: ${validRows} filas válidas de ${dataRows}; máximo 250 por lote de importación. No se guardó ningún dato.`;
+    } else if (errors.length === 0 && rows.length > 0 && !importRpcReady && result.schemaVersion === 2) {
+      status.textContent = `Vista previa local v2 lista: ${validRows} filas válidas. La RPC v2 de imágenes/variantes no está disponible; la importación permanece bloqueada. No se guardó ni subió ningún dato.`;
     } else if (errors.length === 0 && rows.length > 0 && !importRpcReady) {
       status.textContent = `Vista previa lista: ${validRows} filas válidas. La importación transaccional aún no está disponible para esta sesión. No se guardó ni subió ningún dato.`;
     } else {
@@ -243,6 +251,8 @@ export function renderCsvPreviewResult(result, documentRef = globalThis.document
       appendCell(documentRef, row, formatCop(item.cost));
       appendCell(documentRef, row, formatCop(item.sale_price));
       appendCell(documentRef, row, item.quantity);
+      appendCell(documentRef, row, item.image_url ? 'URL HTTPS' : '—');
+      appendCell(documentRef, row, Array.isArray(item.variants) && item.variants.length ? `${item.variants.length} variante(s)` : '—');
       tableBody.appendChild(row);
     }
   }
@@ -258,6 +268,7 @@ export function renderCsvPreviewResult(result, documentRef = globalThis.document
 
 function resetCsvPreviewUi(documentRef) {
   lastPreviewResult = null;
+  lastSchemaVersion = 1;
   importRpcReady = false;
   const reportButton = documentRef.getElementById('csvPreviewDownloadReport');
   if (reportButton) reportButton.disabled = true;
@@ -282,6 +293,7 @@ export function initializeCsvPreviewUi(documentRef = globalThis.document, browse
   const fileInput = documentRef?.getElementById('csvProductFile');
   const previewButton = documentRef?.getElementById('csvPreviewButton');
   const clearButton = documentRef?.getElementById('csvPreviewClear');
+  const schemaSelector = documentRef?.getElementById('csvPreviewSchemaVersion');
   if (!fileInput || !previewButton || !clearButton) return;
   const downloadButton = documentRef.getElementById('csvPreviewDownloadReport');
   const importButton = documentRef.getElementById('csvPreviewImportButton');
@@ -295,6 +307,15 @@ export function initializeCsvPreviewUi(documentRef = globalThis.document, browse
     resetCsvPreviewUi(documentRef);
     const status = documentRef.getElementById('csvPreviewStatus');
     if (status && fileInput.files?.[0]) status.textContent = 'Archivo listo. La previsualización se ejecuta solo en este navegador.';
+  });
+
+  schemaSelector?.addEventListener('change', () => {
+    previewGeneration += 1;
+    previewButton.disabled = false;
+    importRpcReady = false;
+    resetCsvPreviewUi(documentRef);
+    const status = documentRef.getElementById('csvPreviewStatus');
+    if (status) status.textContent = 'Contrato cambiado. Previsualiza nuevamente; la lectura del archivo sigue siendo local.';
   });
 
   previewButton.addEventListener('click', async () => {
@@ -315,13 +336,15 @@ export function initializeCsvPreviewUi(documentRef = globalThis.document, browse
       const existingCodes = typeof globalThis.getAdminCsvPreviewExistingCodes === 'function'
         ? globalThis.getAdminCsvPreviewExistingCodes()
         : [];
-      const result = await previewCsvFile(file, Array.isArray(existingCodes) ? existingCodes : []);
+      const schemaVersion = Number(schemaSelector?.value || 1);
+      const result = await previewCsvFile(file, Array.isArray(existingCodes) ? existingCodes : [], schemaVersion);
       let rpcReady = false;
       if (result.errors.length === 0 && result.rows.length > 0 && result.rows.length <= MAX_IMPORT_ROWS &&
           typeof globalThis.checkAdminCsvImportRpcReady === 'function') {
-        try { rpcReady = await globalThis.checkAdminCsvImportRpcReady() === true; } catch { rpcReady = false; }
+        try { rpcReady = await globalThis.checkAdminCsvImportRpcReady(schemaVersion) === true; } catch { rpcReady = false; }
       }
       if (generation === previewGeneration) {
+        lastSchemaVersion = schemaVersion === 2 ? 2 : 1;
         importRpcReady = rpcReady;
         renderCsvPreviewResult(result, documentRef);
       }
@@ -355,8 +378,11 @@ export function initializeCsvPreviewUi(documentRef = globalThis.document, browse
       importButton.disabled = true;
       return;
     }
+    const importDescription = lastSchemaVersion === 2
+      ? 'Se agregarán productos nuevos con URL HTTPS de imagen y variantes validadas; no se subirán archivos de imagen. No se actualizarán productos existentes.'
+      : 'Se agregarán productos nuevos. No se actualizarán productos existentes ni se importarán fotos o variantes.';
     if (typeof browserRef.confirm !== 'function' || !browserRef.confirm(
-      `Se agregarán ${rows.length} productos nuevos. No se actualizarán productos existentes ni se importarán fotos o variantes. Si un código ya existe, el lote completo se rechazará. ¿Continuar?`,
+      `${importDescription} Si un código ya existe, el lote completo se rechazará. ¿Continuar?`,
     )) return;
 
     importButton.disabled = true;
@@ -365,8 +391,8 @@ export function initializeCsvPreviewUi(documentRef = globalThis.document, browse
     fileInput.disabled = true;
     if (status) status.textContent = `Enviando ${rows.length} filas validadas al importador transaccional…`;
     try {
-      const payload = buildImportPayload(rows);
-      const response = await globalThis.commitAdminCsvProducts(payload);
+      const payload = buildImportPayload(rows, lastSchemaVersion);
+      const response = await globalThis.commitAdminCsvProducts(payload, lastSchemaVersion);
       if (response?.ok !== true) {
         const safeMessages = {
           DUPLICATE_CODE_IN_FILE: 'El código se repite dentro del archivo.',
@@ -376,11 +402,14 @@ export function initializeCsvPreviewUi(documentRef = globalThis.document, browse
           CSV_TEXT_INVALID: 'Código, nombre o categoría no cumplen la validación.',
           CSV_INTEGER_INVALID: 'Costo, precio o cantidad no cumplen la validación.',
           IMPORT_LIMIT_EXCEEDED: 'El lote supera los límites del importador.',
+          IMAGE_URL_INVALID: 'La URL de imagen debe ser HTTPS y no incluir credenciales.',
+          VARIANTS_INVALID: 'El contenido de variantes no cumple el contrato CSV v2.',
+          VARIANTS_STOCK_MISMATCH: 'La suma del stock de variantes no coincide con quantity.',
         };
         const serverErrors = Array.isArray(response?.errors) ? response.errors : [];
         const errors = serverErrors.slice(0, MAX_VISIBLE_ERRORS).map(error => ({
           row: Number.isSafeInteger(error?.row) && error.row > 0 ? error.row : null,
-          field: ['archivo', 'fila', 'code', 'name', 'category', 'cost', 'sale_price', 'quantity'].includes(error?.field)
+          field: ['archivo', 'fila', 'code', 'name', 'category', 'cost', 'sale_price', 'quantity', 'image_url', 'variants'].includes(error?.field)
             ? error.field : null,
           code: Object.hasOwn(safeMessages, error?.code) ? error.code : 'IMPORT_REJECTED',
           message: safeMessages[error?.code] || 'El servidor rechazó el lote; no se confirmó ninguna importación.',

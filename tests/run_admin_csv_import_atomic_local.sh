@@ -15,6 +15,8 @@ fi
 FIXTURE="$ROOT/tests/fixtures/admin_csv_import_schema.sql"
 MIGRATION="$ROOT/supabase/migrations/20261109213200_admin_csv_product_import_atomic.sql"
 REGRESSION="$ROOT/tests/admin_csv_import_atomic_local_regression.sql"
+MIGRATION_V2="$ROOT/supabase/migrations/20261113010000_admin_csv_product_import_images_variants_v2.sql"
+REGRESSION_V2="$ROOT/tests/admin_csv_import_v2_local_regression.sql"
 
 cleanup() {
   sudo -u postgres dropdb --if-exists --host=/var/run/postgresql --port="$PGPORT" "$DB" >/dev/null 2>&1 || true
@@ -39,4 +41,6 @@ run_sql() {
 run_sql "$FIXTURE"
 run_sql "$MIGRATION"
 run_sql "$REGRESSION"
-printf '%s\n' 'run_admin_csv_import_atomic_local: PASS (synthetic schema/rows; no network; scratch database dropped)'
+run_sql "$MIGRATION_V2"
+run_sql "$REGRESSION_V2"
+printf '%s\n' 'run_admin_csv_import_atomic_local: PASS (v1 + candidate v2; synthetic rows; no network; scratch database dropped)'
