@@ -14,11 +14,11 @@ GRANT USAGE ON SCHEMA public,auth TO anon,authenticated,service_role;
 GRANT EXECUTE ON FUNCTION auth.uid() TO PUBLIC;
 
 CREATE TABLE public.store_settings(
-  id integer PRIMARY KEY,
+  id smallint PRIMARY KEY,
   admin_user_id uuid REFERENCES auth.users(id)
 );
 CREATE TABLE public.storefront_shipping_settings(
-  id integer PRIMARY KEY,
+  id smallint PRIMARY KEY,
   national_shipping_cost bigint NOT NULL,
   free_shipping_threshold bigint,
   updated_at timestamptz NOT NULL DEFAULT now(),
@@ -32,7 +32,7 @@ CREATE TABLE public.products(
   category text NOT NULL,
   quantity integer NOT NULL DEFAULT 0,
   cost_price bigint NOT NULL DEFAULT 0,
-  sale_price bigint NOT NULL
+  sale_price numeric NOT NULL
 );
 CREATE TABLE public.storefront_product_combos(
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -78,4 +78,20 @@ PARALLEL SAFE
 SET search_path TO 'pg_catalog'
 AS $function$
   SELECT lower(btrim(coalesce(p_value,'')));
+$function$;
+
+CREATE OR REPLACE FUNCTION public.get_public_storefront_shipping_settings()
+RETURNS jsonb
+LANGUAGE sql
+STABLE
+AS $function$
+  SELECT '{}'::jsonb;
+$function$;
+
+CREATE OR REPLACE FUNCTION public.get_storefront_cart_quote(p_items jsonb,p_city text DEFAULT ''::text)
+RETURNS jsonb
+LANGUAGE sql
+STABLE
+AS $function$
+  SELECT '{}'::jsonb;
 $function$;

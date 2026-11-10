@@ -2,7 +2,95 @@
 -- La tarifa general existente sigue siendo el fallback; Cali permanece gratis solo si no tiene una regla city activa.
 -- No se actualizan pedidos, reservas ni inventario históricos.
 
-CREATE TABLE public.storefront_shipping_rules (
+-- Validar toda la cadena base antes de crear objetos. Si una aplicación anterior
+-- quedó incompleta, permitir reintentarla solo cuando los objetos ya creados
+-- conservan el esquema esperado.
+DO $city_shipping_preflight$
+DECLARE
+  v_missing text;
+BEGIN
+  SELECT string_agg(format('%I.%I expects %s',e.table_name,e.column_name,e.expected_type),', ' ORDER BY e.table_name,e.column_name)
+    INTO v_missing
+    FROM (VALUES
+      ('storefront_shipping_settings','id','smallint'),
+      ('storefront_shipping_settings','national_shipping_cost','bigint'),
+      ('storefront_shipping_settings','free_shipping_threshold','bigint'),
+      ('storefront_shipping_settings','updated_at','timestamp with time zone'),
+      ('storefront_shipping_settings','updated_by','uuid'),
+      ('store_settings','id','smallint'),
+      ('store_settings','admin_user_id','uuid'),
+      ('products','id','uuid'),
+      ('products','user_id','uuid'),
+      ('products','sale_price','numeric'),
+      ('products','name','text'),
+      ('products','code','text'),
+      ('products','category','text'),
+      ('storefront_product_combos','id','uuid'),
+      ('storefront_product_combos','enabled','boolean'),
+      ('storefront_product_combos','discount_type','text'),
+      ('storefront_product_combos','start_at','timestamp with time zone'),
+      ('storefront_product_combos','end_at','timestamp with time zone'),
+      ('storefront_product_combos','created_at','timestamp with time zone'),
+      ('storefront_product_combos','rule_type','text'),
+      ('storefront_product_combos','product_a_id','uuid'),
+      ('storefront_product_combos','product_b_id','uuid'),
+      ('storefront_product_combos','category_a','text'),
+      ('storefront_product_combos','category_b','text'),
+      ('storefront_product_combos','discount_value','numeric'),
+      ('storefront_product_combos','combo_price','numeric')
+    ) AS e(table_name,column_name,expected_type)
+    LEFT JOIN information_schema.columns AS c
+      ON c.table_schema='public' AND c.table_name=e.table_name AND c.column_name=e.column_name
+   WHERE c.column_name IS NULL OR c.data_type<>e.expected_type;
+  IF v_missing IS NOT NULL THEN
+    RAISE EXCEPTION USING
+      MESSAGE='Storefront city shipping prerequisites are missing or incompatible.',
+      DETAIL=v_missing,
+      HINT='Verify the base shipping, store, product, and combo schemas before applying this migration.';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM public.storefront_shipping_settings WHERE id=1) THEN
+    RAISE EXCEPTION 'Storefront shipping singleton row id=1 is missing.';
+  END IF;
+  IF to_regclass('auth.users') IS NULL
+     OR to_regprocedure('auth.uid()') IS NULL
+     OR to_regprocedure('public.is_store_admin()') IS NULL
+     OR to_regprocedure('public.sirevya_normalize_combo_category(text)') IS NULL
+     OR to_regprocedure('public.get_storefront_cart_quote(jsonb,text)') IS NULL
+     OR to_regprocedure('public.get_public_storefront_shipping_settings()') IS NULL
+     OR to_regprocedure('gen_random_uuid()') IS NULL THEN
+    RAISE EXCEPTION 'Storefront city shipping prerequisites are missing.';
+  END IF;
+  SELECT string_agg(format('%I.%I expects %s',e.table_name,e.column_name,e.expected_type),', ' ORDER BY e.table_name,e.column_name)
+    INTO v_missing
+    FROM (VALUES
+      ('storefront_shipping_rules','id','uuid'),
+      ('storefront_shipping_rules','scope','text'),
+      ('storefront_shipping_rules','name','text'),
+      ('storefront_shipping_rules','priority','integer'),
+      ('storefront_shipping_rules','shipping_cost','bigint'),
+      ('storefront_shipping_rules','free_shipping_threshold','bigint'),
+      ('storefront_shipping_rules','enabled','boolean'),
+      ('storefront_shipping_rules','created_at','timestamp with time zone'),
+      ('storefront_shipping_rules','updated_at','timestamp with time zone'),
+      ('storefront_shipping_rules','updated_by','uuid'),
+      ('storefront_shipping_rule_destinations','rule_id','uuid'),
+      ('storefront_shipping_rule_destinations','destination','text'),
+      ('storefront_shipping_rule_destinations','destination_key','text')
+    ) AS e(table_name,column_name,expected_type)
+    LEFT JOIN information_schema.columns AS c
+      ON c.table_schema='public' AND c.table_name=e.table_name AND c.column_name=e.column_name
+   WHERE to_regclass(format('public.%I',e.table_name)) IS NOT NULL
+     AND (c.column_name IS NULL OR c.data_type<>e.expected_type);
+  IF v_missing IS NOT NULL THEN
+    RAISE EXCEPTION USING
+      MESSAGE='Existing city shipping tables are incomplete or incompatible.',
+      DETAIL=v_missing,
+      HINT='Inspect the partial schema before retrying; no existing table was modified by this preflight.';
+  END IF;
+END
+$city_shipping_preflight$;
+
+CREATE TABLE IF NOT EXISTS public.storefront_shipping_rules (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   scope text NOT NULL CHECK (scope IN ('city','zone')),
   name text NOT NULL CHECK (length(btrim(name)) BETWEEN 1 AND 80),
@@ -17,16 +105,16 @@ CREATE TABLE public.storefront_shipping_rules (
   updated_by uuid REFERENCES auth.users(id) ON DELETE SET NULL
 );
 
-CREATE TABLE public.storefront_shipping_rule_destinations (
+CREATE TABLE IF NOT EXISTS public.storefront_shipping_rule_destinations (
   rule_id uuid NOT NULL REFERENCES public.storefront_shipping_rules(id) ON DELETE CASCADE,
   destination text NOT NULL CHECK (length(btrim(destination)) BETWEEN 1 AND 80),
   destination_key text NOT NULL CHECK (length(btrim(destination_key)) BETWEEN 1 AND 80),
   PRIMARY KEY (rule_id,destination_key)
 );
 
-CREATE INDEX storefront_shipping_rules_enabled_priority_idx
+CREATE INDEX IF NOT EXISTS storefront_shipping_rules_enabled_priority_idx
   ON public.storefront_shipping_rules(enabled,scope,priority DESC,id);
-CREATE INDEX storefront_shipping_rule_destinations_key_idx
+CREATE INDEX IF NOT EXISTS storefront_shipping_rule_destinations_key_idx
   ON public.storefront_shipping_rule_destinations(destination_key,rule_id);
 
 ALTER TABLE public.storefront_shipping_rules ENABLE ROW LEVEL SECURITY;
@@ -472,3 +560,4 @@ END
 $function$;
 REVOKE ALL ON FUNCTION public.get_storefront_cart_quote(jsonb,text) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.get_storefront_cart_quote(jsonb,text) TO anon,authenticated,service_role;
+NOTIFY pgrst, 'reload schema';
