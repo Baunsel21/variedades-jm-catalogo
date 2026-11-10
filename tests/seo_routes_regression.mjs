@@ -23,7 +23,8 @@ assert.match(offline, /<meta name="robots" content="noindex,follow">/i, 'la pág
 const keywordTag = catalog.match(/<meta name="keywords" content="([^"]+)"/i);
 assert.ok(keywordTag, 'la portada ofrece palabras clave en el HTML inicial');
 assert.ok(keywordTag[1].split(',').map(value => value.trim()).filter(Boolean).length >= 3 && keywordTag[1].split(',').map(value => value.trim()).filter(Boolean).length <= 8, 'el panel SEO recibe entre tres y ocho palabras clave');
-assert.match(catalog, /<h1 class="catalogSeoHeading">Moda y accesorios en Sirevya<\/h1>/, 'la portada tiene un H1 real, visible y en su HTML inicial');
+assert.match(catalog, /<h1 class="brandName">Sirevya<\/h1>/, 'el wordmark visible conserva el único H1 semántico de la portada');
+assert.doesNotMatch(catalog, /class="catalogSeoHeading"|Moda y accesorios en Sirevya<\/h1>/, 'no se añade un título visible redundante sobre el catálogo');
 assert.equal((catalog.match(/<h1\b/gi) || []).length, 1, 'la portada conserva un solo H1');
 const title = catalog.match(/<title>([^<]+)<\/title>/i)?.[1] || '';
 const description = catalog.match(/<meta name="description" content="([^"]+)"/i)?.[1] || '';

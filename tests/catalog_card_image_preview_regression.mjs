@@ -110,10 +110,11 @@ context.photoClickGuard({
   preventDefault() { prevented += 1; },
   stopPropagation() { stopped += 1; },
 });
-assert.equal(prevented, 1, 'El primer toque selecciona la foto sin abrir el producto.');
-assert.equal(stopped, 1);
+assert.equal(prevented, 0, 'El primer toque selecciona la foto y permite abrir la ficha de inmediato.');
+assert.equal(stopped, 0);
 
 context.photoTouchStart({ currentTarget: touchCardA.photo, pointerId: 12, clientX: 10, clientY: 12, pointerType: 'touch' });
+context.photoTouchMove({ currentTarget: touchCardA.photo, pointerId: 12, clientX: 24, clientY: 12 });
 context.photoTouchEnd({ currentTarget: touchCardA.photo, pointerId: 12 });
 prevented = 0;
 stopped = 0;
@@ -122,7 +123,19 @@ context.photoClickGuard({
   preventDefault() { prevented += 1; },
   stopPropagation() { stopped += 1; },
 });
-assert.equal(prevented, 0, 'El siguiente toque abre la ficha normal de la tarjeta ya seleccionada.');
+assert.equal(prevented, 1, 'Un swipe horizontal intencional cambia la foto y no abre la ficha accidentalmente.');
+assert.equal(stopped, 1);
+
+context.photoTouchStart({ currentTarget: touchCardA.photo, pointerId: 13, clientX: 10, clientY: 12, pointerType: 'touch' });
+context.photoTouchEnd({ currentTarget: touchCardA.photo, pointerId: 13 });
+prevented = 0;
+stopped = 0;
+context.photoClickGuard({
+  currentTarget: touchCardA.photo,
+  preventDefault() { prevented += 1; },
+  stopPropagation() { stopped += 1; },
+});
+assert.equal(prevented, 0, 'Un toque normal posterior al swipe abre la ficha sin esperar a que venza un temporizador.');
 assert.equal(stopped, 0);
 
 context.photoHover({ currentTarget: cardC.photo, pointerType: 'mouse' });

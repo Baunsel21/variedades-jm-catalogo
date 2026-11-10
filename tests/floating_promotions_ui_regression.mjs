@@ -45,6 +45,10 @@ assert.equal(normalize({ success: true, campaign: { enabled: false, interval_sec
 
 assert.equal((index.match(/id="floatingPromoWidget"/g) || []).length, 1, 'un solo nodo flotante global');
 assert.equal((admin.match(/class="floatingPromoAdminButton"/g) || []).length, 3, 'admin configura exactamente tres botones');
+assert.match(admin, /sb\.rpc\('get_public_storefront_floating_promotions'\)/);
+assert.match(admin, /20261112010000_storefront_floating_promotions\.sql/);
+assert.match(admin, /el formulario queda bloqueado y no muestra valores simulados/);
+assert.match(admin, /floatingPromotionsSettingsLoaded=false;setFloatingPromoFormDisabled\(true\)/, 'un getter ausente deja el formulario cerrado sin crear una campaña local');
 assert.match(index, /get_public_storefront_floating_promotions/);
 assert.match(index, /FLOATING_PROMO_DISMISSAL_KEY='sirevya_floating_promo_dismissed_v1'/);
 assert.match(index, /localStorage\.setItem\(FLOATING_PROMO_DISMISSAL_KEY,String\(version\)\)/, 'el cierre persiste por versión de campaña');

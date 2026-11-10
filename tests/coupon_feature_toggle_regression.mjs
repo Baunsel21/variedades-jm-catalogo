@@ -30,6 +30,11 @@ assert.match(admin, /sb\.rpc\('get_public_storefront_coupon_settings'\)/);
 assert.match(admin, /sb\.rpc\('admin_set_storefront_coupons_enabled',\{p_enabled:next\}\)/);
 assert.match(admin, /loadStorefrontCouponFeatureSettingsAdmin\(true\)/);
 assert.match(admin, /resetStorefrontCouponFeatureSettingsAdmin\(\)/);
+const couponListLoader = extractFunction(admin, 'loadStorefrontCouponsAdmin');
+assert.match(couponListLoader, /sb\.rpc\('admin_list_storefront_coupons'\)/);
+assert.match(couponListLoader, /setStorefrontCouponFormDisabled\(false\)/, 'el CRUD individual se habilita tras su propia lectura admin aunque falte el toggle global');
+assert.doesNotMatch(couponListLoader, /storefrontCouponFeatureSettingsLoaded/, 'la gestión individual no depende de la RPC del toggle global');
+assert.match(admin, /20261110010000_storefront_coupon_feature_toggle\.sql/);
 assert.match(store, /id="checkoutCouponBox"[^>]*hidden/);
 assert.match(store, /id="couponCode"[^>]*aria-describedby="couponStatus" disabled/);
 assert.doesNotMatch(store, /placeholder="EJ\. BIENVENIDA"/);
@@ -84,8 +89,11 @@ assert.equal(adminControls.saveStorefrontCouponFeatureBtn.disabled, true, 'El va
 response = { data: null, error: { code: 'PGRST202', message: 'schema cache' } };
 assert.equal(await adminContext.loadStorefrontCouponFeatureSettingsAdmin(true), false);
 assert.equal(adminControls.storefrontCouponFeatureEnabled.disabled, true);
+assert.equal(adminControls.storefrontCouponFeatureEnabled.checked, true, 'PGRST202 mantiene el comportamiento legacy activo sin habilitar controles de escritura.');
 assert.equal(adminControls.saveStorefrontCouponFeatureBtn.disabled, true, 'Sin RPC el admin no puede guardar ni inventar un estado.');
 assert.match(adminControls.storefrontCouponFeatureStatus.textContent, /Guardar permanece bloqueado/);
+assert.match(adminControls.storefrontCouponFeatureStatus.textContent, /compatibilidad con los cupones actuales/);
+assert.match(adminControls.storefrontCouponFeatureStatus.textContent, /CRUD individual se carga mediante RPC separadas/);
 
 let resolveStale;
 response = new Promise(resolve => { resolveStale = resolve; });
