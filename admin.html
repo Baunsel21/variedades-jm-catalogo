@@ -65,6 +65,17 @@ button{cursor:pointer;border:0}
 .stat{padding:18px;position:relative;overflow:hidden}.stat small{color:var(--muted);font-weight:700}.stat .num{font-size:28px;font-weight:900;margin-top:7px}.stat .sub{font-size:11px;color:var(--muted);margin-top:5px}
 .stat .bubble{position:absolute;right:15px;top:15px;width:38px;height:38px;border-radius:12px;background:#f1eafe;display:grid;place-items:center}
 .sectionGrid{display:grid;grid-template-columns:1.4fr 1fr;gap:16px;margin-top:16px}.box{padding:18px}.box h3{margin:0 0 13px;font-size:16px}
+.adminSettingsAccordion{grid-column:1/-1;min-width:0;overflow:hidden;border:1px solid var(--border);border-radius:16px;background:var(--surface);box-shadow:var(--shadow)}
+.adminSettingsAccordion>summary{display:flex;align-items:center;gap:12px;min-height:54px;padding:12px 16px;cursor:pointer;list-style:none;font-weight:850;color:var(--text);user-select:none}
+.adminSettingsAccordion>summary::-webkit-details-marker{display:none}
+.adminSettingsAccordion>summary:after{content:"＋";margin-left:auto;color:#7b1730;font-size:19px;font-weight:700}
+.adminSettingsAccordion[open]>summary:after{content:"−"}
+.adminSettingsAccordion>summary:focus-visible,.adminSettingsAccordionTools button:focus-visible{outline:3px solid rgba(123,23,48,.3);outline-offset:2px}
+.adminSettingsAccordionDescription{margin:0;padding:0 16px 12px;color:var(--muted);font-size:12px;line-height:1.45}
+.adminSettingsAccordionBody{grid-template-columns:1.4fr 1fr;gap:16px;margin:0!important;padding:0 12px 12px}
+.adminSettingsAccordionBody>.box{min-width:0}
+.adminSettingsAccordionTools{grid-column:1/-1;display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+@media(max-width:1100px){.adminSettingsAccordionBody{grid-template-columns:1fr}}
 .rowBetween{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .muted{color:var(--muted)}
 .searchbar{display:flex;gap:9px;align-items:center;margin:14px 0}.searchbar input{flex:1}
@@ -948,6 +959,62 @@ let codCitiesSettingsOriginal={enabled:true,allowed_cities:["Cali"]};
 const money=n=>new Intl.NumberFormat("es-CO",{style:"currency",currency:"COP",maximumFractionDigits:0}).format(Number(n)||0);
 const esc=s=>String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));
 const $=id=>document.getElementById(id);
+
+function initAdminSettingsAccordions(){
+ const config=$("config"),grid=config?.querySelector(":scope > .sectionGrid");
+ if(!grid||grid.dataset.settingsAccordionsReady==="true")return false;
+ const groups=[
+  {key:"store",title:"🏪 Tienda e información general",description:"Conexión e identidad visual básica del negocio."},
+  {key:"appearance",title:"🎨 Apariencia y diseño",description:"Preferencias visuales del panel en este dispositivo."},
+  {key:"catalog",title:"🛍️ Productos y catálogo",description:"Categorías y presentación de la oferta."},
+  {key:"payments",title:"💳 Pagos, Wompi y contraentrega",description:"Disponibilidad de medios de pago y consulta de conciliaciones."},
+  {key:"shipping",title:"🚚 Envíos y tarifas por ciudad",description:"Tarifas generales y reglas específicas de destinos."},
+  {key:"telegram",title:"🔔 Notificaciones y Telegram",description:"Prueba de conexión y configuración de eventos automáticos."},
+  {key:"promotions",title:"✨ Campañas, combos y cupones",description:"Promociones de catálogo, combinaciones y códigos de descuento."},
+  {key:"security",title:"🔐 Seguridad y sesión",description:"Credenciales, recuperación de acceso y sesiones administrativas."},
+  {key:"advanced",title:"🧰 Herramientas avanzadas y respaldo",description:"Exportaciones, archivos reversibles y acciones protegidas."},
+ ];
+ const boxes=Array.from(grid.children).filter(node=>node.classList?.contains("box"));
+ if(!boxes.length)return false;
+ const classify=box=>{
+  const id=String(box.id||"");
+  if(["adminAccountSecurityBox"].includes(id))return "security";
+  if(["onlinePaymentsSettingsBox","wompiReconciliationBox","codCitiesSettingsBox"].includes(id))return "payments";
+  if(id==="storefrontShippingSettingsBox")return "shipping";
+  if(["telegramTestBox","telegramAutomaticBox"].includes(id))return "telegram";
+  if(["seasonalPromoSettingsBox","storefrontCombosAdminBox","storefrontCouponsAdminBox"].includes(id))return "promotions";
+  const heading=String(box.querySelector("h3")?.textContent||"").toLowerCase();
+  if(heading.includes("conexión")||heading.includes("personalización"))return "store";
+  if(heading.includes("apariencia"))return "appearance";
+  if(heading.includes("categorías"))return "catalog";
+  if(heading.includes("sesión"))return "security";
+  return "advanced";
+ };
+ const buckets=new Map(groups.map(group=>[group.key,[]]));
+ for(const box of boxes){const key=classify(box);(buckets.get(key)||buckets.get("advanced")).push(box)}
+ const tools=document.createElement("div");tools.className="adminSettingsAccordionTools";
+ const makeTool=(label,action)=>{const button=document.createElement("button");button.type="button";button.className="softbtn";button.textContent=label;button.addEventListener("click",action);return button};
+ const remember=(details,key)=>{try{localStorage.setItem(`sirevya_admin_settings_${key}`,details.open?"open":"closed")}catch{}};
+ const accordions=[];
+ for(const group of groups){
+  const members=buckets.get(group.key)||[];if(!members.length)continue;
+  const details=document.createElement("details");details.className="adminSettingsAccordion";details.dataset.settingsAccordion=group.key;
+  const summary=document.createElement("summary");summary.textContent=group.title;
+  const description=document.createElement("p");description.className="adminSettingsAccordionDescription";description.textContent=group.description;
+  const body=document.createElement("div");body.className="adminSettingsAccordionBody sectionGrid";
+  try{details.open=localStorage.getItem(`sirevya_admin_settings_${group.key}`)==="open"}catch{}
+  details.addEventListener("toggle",()=>remember(details,group.key));
+  details.append(summary,description,body);
+  for(const box of members)body.append(box);
+  accordions.push(details);
+ }
+ tools.append(makeTool("Expandir todo",()=>{for(const details of accordions){details.open=true;remember(details,details.dataset.settingsAccordion)}}));
+ tools.append(makeTool("Contraer todo",()=>{for(const details of accordions){details.open=false;remember(details,details.dataset.settingsAccordion)}}));
+ grid.replaceChildren(tools,...accordions);
+ grid.dataset.settingsAccordionsReady="true";
+ return true;
+}
+initAdminSettingsAccordions();
 
 function configured(){return !SUPABASE_URL.startsWith("PEGA_")&&!SUPABASE_ANON_KEY.startsWith("PEGA_")}
 function toast(t){$("toast").textContent=t;$("toast").classList.add("show");clearTimeout(window._toast);window._toast=setTimeout(()=>$("toast").classList.remove("show"),2600)}
