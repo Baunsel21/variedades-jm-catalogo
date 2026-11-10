@@ -4906,11 +4906,57 @@ function requireBackupAcknowledgement(actionLabel){
  const phrase=prompt('Para confirmar que tienes el respaldo, escribe exactamente: RESPALDO DESCARGADO');
  if(phrase!=='RESPALDO DESCARGADO'){toast('Operación cancelada; no se borró nada.');return false}return true;
 }
-function exportCSV(){
- const head=["Código","Producto","Categoría","Cantidad","Compra","Venta","Ganancia unidad","Ubicación"];
- const lines=[head,...productos.map(p=>[p.code,p.name,p.category,p.quantity,p.cost_price,p.sale_price,Number(p.sale_price)-Number(p.cost_price),p.location||""])]
-   .map(r=>r.map(safeCSVCell).join(";")).join("\n");
- downloadFile("variedades_jm_inventario.csv","\uFEFF"+lines,"text/csv;charset=utf-8");toast("CSV descargado");
+function productPublicationStateForCSV(product){
+ const explicit=product?.is_published??product?.published??product?.publication_status??product?.status;
+ if(typeof explicit==='boolean')return explicit?'Publicado':'No publicado';
+ const normalized=String(explicit||'').trim().toLowerCase();
+ if(['published','publicado','active','activo'].includes(normalized))return 'Publicado';
+ if(['draft','borrador','inactive','inactivo','unpublished','no publicado'].includes(normalized))return 'No publicado';
+ return 'No definido en el esquema actual';
+}
+async function loadProductGalleryImagesForCSV(productsSnapshot,isCurrent){
+ const byProduct=new Map(),ids=[...new Set(productsSnapshot.map(product=>String(product?.id||'').trim()).filter(Boolean))];
+ if(!ids.length)return {byProduct,tableAvailable:true};
+ for(let start=0;start<ids.length;start+=100){
+  const batch=ids.slice(start,start+100);let offset=0;
+  for(let page=0;page<200;page++){
+   const {data,error}=await sb.from('product_images').select('product_id,image_path,sort_order').in('product_id',batch).order('sort_order',{ascending:true}).range(offset,offset+499);
+   if(!isCurrent())throw adminAuthOperationError('La sesión administrativa cambió. No se completó la exportación.');
+   if(error){if(isMissingTableError(error,'product_images'))return {byProduct,tableAvailable:false};throw error}
+   const rows=Array.isArray(data)?data:[];
+   for(const row of rows){const id=String(row?.product_id||'');const url=publicWorkerImage(row?.image_path);if(!id||!url)continue;const urls=byProduct.get(id)||[];if(!urls.includes(url))urls.push(url);byProduct.set(id,urls)}
+   if(rows.length<500)break;
+   offset+=500;
+   if(page===199)throw new Error('La galería de productos supera el límite de exportación segura.');
+  }
+ }
+ return {byProduct,tableAvailable:true};
+}
+async function exportCSV(){
+ if(!Array.isArray(productos)){toast('No hay un catálogo cargado para exportar.');return false}
+ const userId=String(adminSessionUserId||''),authEpoch=adminAuthEpoch,isCurrent=()=>adminAuthOperationStillCurrent(userId,authEpoch);
+ if(!sb||!userId||!isCurrent()){toast('Inicia sesión como administrador para exportar el catálogo.');return false}
+ try{
+  await assertCurrentAdminAuthorization(userId,authEpoch);
+  const gallery=await loadProductGalleryImagesForCSV(productos,isCurrent);
+  if(!isCurrent())return false;
+  const head=['Código / referencia (SKU)','Producto','Categoría','Cantidad física','Disponible para venta','Compra (COP)','Venta (COP)','Ganancia unidad (COP)','Ubicación','Tallas','Colores','Variantes (JSON)','Descripción','URLs de imágenes','Estado de publicación'];
+  const rows=productos.map(product=>{
+   const variants=parseVariants(product?.variants).map(variant=>({...variant,image_path:publicWorkerImage(variant.image_path)}));
+   const storedImages=Array.isArray(product?.image_paths)?product.image_paths:[];
+   const imageUrls=[product?.image_url,...storedImages,...(gallery.byProduct.get(String(product?.id||''))||[]),...variants.map(variant=>variant.image_path)].map(publicWorkerImage).filter(Boolean);
+   const uniqueImages=[...new Set(imageUrls)];
+   const colorValue=Array.isArray(product?.colors)?JSON.stringify(product.colors):String(product?.colors||'');
+   const sizeValue=Array.isArray(product?.sizes)?JSON.stringify(product.sizes):String(product?.sizes||'');
+   const cost=Number(product?.cost_price)||0,sale=Number(product?.sale_price)||0;
+   return [product?.code||'',product?.name||'',product?.category||'',Number(product?.quantity)||0,availableQuantity(product),cost,sale,sale-cost,product?.location||'',sizeValue,colorValue,JSON.stringify(variants),product?.description||'',uniqueImages.join(' | '),productPublicationStateForCSV(product)];
+  });
+  if(!isCurrent())return false;
+  const content=[head,...rows].map(row=>row.map(safeCSVCell).join(';')).join('\r\n');
+  downloadFile('variedades_jm_productos.csv','\uFEFF'+content,'text/csv;charset=utf-8');
+  toast(gallery.tableAvailable?'CSV de productos descargado.':'CSV descargado; la galería adicional no está instalada y se exportaron las fotos disponibles en el catálogo.');
+  return true;
+ }catch(error){if(!isCurrent())return false;console.error('No se pudo exportar el catálogo CSV:',error);toast('No se pudo exportar el CSV. Comprueba la autorización y la disponibilidad de las imágenes e inténtalo de nuevo.');return false}
 }
 function exportCSVForPreview(){
  if(!adminSessionAuthorized){toast('Inicia sesión para exportar el catálogo.');return false}
