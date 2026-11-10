@@ -262,6 +262,81 @@ Solo después de verificar la copia, aplica en ella la migración candidata que 
 
 Conserva evidencia redactada: fecha, versiones, PASS/FAIL, hashes, conteos agregados y nombres de comandos. No adjuntes dumps, URI, credenciales, payloads ni filas a GitHub.
 
+### Reconciliar el historial DDL antes de una migración
+
+Una lectura metadata-only del 10 de noviembre de 2026 no encontró en `supabase_migrations.schema_migrations` las versiones `20261108070000`, `20261109213200`, `20261110010000`, `20261111010000` ni `20261112010000`. En la misma revisión sí aparecieron las RPC de administración `admin_list_storefront_shipping_rules()`, `admin_save_storefront_shipping_rule(...)` y `admin_import_products_csv(jsonb)` en el catálogo, con permisos `authenticated` y sin `anon`. Esto evidencia una discrepancia entre el historial consultado y algunos objetos efectivos; no prueba quién los creó, cuándo, ni si el resto de cada migración está aplicado. Las RPC de toggle de cupones y campaña flotante no quedaron confirmadas por esa lectura.
+
+Después de obtener el backup y restaurarlo en el scratch aislado PostgreSQL 17, ejecuta las siguientes consultas `SELECT` por separado tanto en origen como en el restore. Solo leen historial/metadatos; no consultan filas comerciales, definiciones de funciones, comandos cron ni secretos. Si un esquema u objeto no existe en el restore, anótalo como “no disponible” y no conviertas esa ausencia por sí sola en evidencia de DDL faltante.
+
+```sql
+SELECT version
+FROM supabase_migrations.schema_migrations
+WHERE version IN (
+  '20261108070000',
+  '20261109213200',
+  '20261110010000',
+  '20261111010000',
+  '20261112010000'
+)
+ORDER BY version
+LIMIT 10;
+
+SELECT p.oid::regprocedure::text AS signature,
+       p.prosecdef AS security_definer,
+       has_function_privilege('anon', p.oid, 'EXECUTE') AS anon_exec,
+       has_function_privilege('authenticated', p.oid, 'EXECUTE') AS authenticated_exec,
+       has_function_privilege('service_role', p.oid, 'EXECUTE') AS service_role_exec
+FROM pg_proc AS p
+JOIN pg_namespace AS n ON n.oid = p.pronamespace
+WHERE n.nspname = 'public'
+  AND (p.proname IN (
+    'admin_list_storefront_shipping_rules',
+    'admin_save_storefront_shipping_rule',
+    'admin_delete_storefront_shipping_rule',
+    'admin_import_products_csv',
+    'admin_set_storefront_coupons_enabled',
+    'get_public_storefront_coupon_settings',
+    'get_storefront_cart_quote_with_coupon',
+    'get_public_storefront_floating_promotions',
+    'admin_save_storefront_floating_promotions'
+  ) OR p.proname ILIKE '%telegram%')
+ORDER BY signature
+LIMIT 100;
+
+SELECT table_name, column_name, data_type
+FROM information_schema.columns
+WHERE table_schema = 'public'
+  AND ((table_name = 'store_settings' AND column_name = 'storefront_coupons_enabled')
+    OR (table_name = 'storefront_promotion_settings' AND column_name = 'floating_buttons_config'))
+ORDER BY table_name, column_name
+LIMIT 10;
+
+SELECT extname, extversion
+FROM pg_extension
+WHERE extname IN ('pg_cron', 'pg_net', 'http')
+ORDER BY extname
+LIMIT 10;
+```
+
+Si `pg_cron` figura instalado, puede consultarse su scheduler sin exponer el comando ejecutable:
+
+```sql
+SELECT jobname, schedule, active
+FROM cron.job
+WHERE jobname ILIKE '%telegram%'
+ORDER BY jobname
+LIMIT 20;
+```
+
+Guarda solo resultados de catálogo, versión PostgreSQL, timestamp UTC y checksum SHA-256 de cada migración fuente en un manifiesto privado. Interpreta los casos así:
+
+- **Versión registrada y objetos/firmas/ACL coincidentes:** consistente, pero aún contrasta en el restore columnas, triggers, extensiones y efectos previstos antes de activar.
+- **Versión ausente y objetos presentes:** deriva o instalación fuera de banda; no vuelvas a ejecutar la migración ni insertes una marca en `schema_migrations`. Compara firmas, `SECURITY DEFINER`, owner, grants y triggers con el SQL versionado; la procedencia sigue sin probarse.
+- **Versión registrada pero objetos ausentes o distintos:** divergencia; detente y determina el alcance en el restore, sin “reparar” el historial.
+- **Versión ausente y objetos ausentes:** compatible con una migración pendiente, pero solo pasa a aplicar en el scratch tras el backup/restore completo; no autoriza producción.
+
+No ejecutes `INSERT`, `UPDATE`, `DELETE`, `CREATE`, `ALTER`, `DROP`, `supabase migration up` ni `db push` como reconciliación. Si el restore muestra objetos parciales, prepara una migración delta explícita e idempotente, prueba ida/doble aplicación en scratch restaurado y documenta rollback antes de considerar cualquier cambio productivo.
+
 ## 5. Gate antes de migraciones o Edge deploy sensibles
 
 No aplicar una migración de riesgo en producción ni desplegar una Edge Function que modifique flujos compartidos hasta que un operador autorizado complete y comunique: (a) dump roles/schema/data con checksums válidos; (b) restore completo en scratch aislado PostgreSQL 17; (c) conteos y objetos de esquema comparados; (d) regresiones sobre la copia restaurada; y (e) plan de rollback que no borre ni altere pedidos, inventario ni configuración compartida.
