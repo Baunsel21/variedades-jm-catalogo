@@ -1710,7 +1710,7 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
 <header class="top">
 <div class="wrap topin">
   <div class="headerLeft">
-    <button class="mobileMenuBtn" type="button" aria-label="Abrir menú" aria-controls="mobileMenu" onclick="openMobileMenu()"><span aria-hidden="true">☰</span></button>
+    <button class="mobileMenuBtn" type="button" aria-label="Abrir menú" aria-controls="mobileMenu" aria-expanded="false" onclick="openMobileMenu(event)"><span aria-hidden="true">☰</span></button>
     <button class="iconBtn headerSearchBtn" id="headerSearchBtn" type="button" aria-label="Buscar productos" aria-controls="catalogSearchRow" aria-expanded="false" onclick="toggleHeaderSearch()"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.8"></circle><path d="m16 16 5 5"></path></svg></button>
   </div>
   <a class="brand brandWordmark" href="#inicio" onclick="return returnToCatalogHome(event)" aria-label="Sirevya, ir al inicio"><h1 class="brandName">Sirevya</h1><span class="brandSub">Tu estilo, nuestra pasión ♥</span></a>
@@ -1943,7 +1943,7 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
     <header class="detailSiteHeader" aria-label="Navegación de Sirevya">
       <div class="detailHeaderNavigation" aria-label="Volver y navegación">
         <button class="detailHeaderBack" type="button" aria-label="Volver al catálogo" title="Volver al catálogo" onclick="closeProductDetail()"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5M12 19l-7-7 7-7"/></svg></button>
-        <button class="detailHeaderMenu" type="button" aria-label="Abrir menú" onclick="openMobileMenu()"><span aria-hidden="true">☰</span></button>
+        <button class="detailHeaderMenu" type="button" aria-label="Abrir menú" aria-controls="mobileMenu" aria-expanded="false" onclick="openMobileMenu(event)"><span aria-hidden="true">☰</span></button>
       </div>
       <button class="detailHeaderBrand detailHeaderWordmark" type="button" onclick="returnToCatalogHome(event)" aria-label="Sirevya, volver al inicio"><strong>Sirevya</strong><small>Tu estilo, nuestra pasión ♥</small></button>
       <button class="detailHeaderCart" type="button" onclick="toggleCart()" aria-label="Abrir carrito" title="Mi carrito">
@@ -2796,6 +2796,7 @@ function handleGalleryKeydown(event){
  if(event.shiftKey&&(active===first||!isInside)){event.preventDefault();last.focus({preventScroll:true})}
  else if(!event.shiftKey&&(active===last||!isInside)){event.preventDefault();first.focus({preventScroll:true})}
 }
+document.addEventListener('keydown',handleMobileMenuKeydown);
 document.addEventListener('keydown',handleGalleryKeydown);
 function closeGallery(event){const modal=$('galleryModal');if(event&&event.target!==modal)return;if(!modal)return;modal.classList.remove('open');modal.setAttribute('aria-hidden','true');document.body.style.overflow=$('productDetailModal')?.classList.contains('open')?'hidden':'';const returnFocus=galleryReturnFocus;galleryReturnFocus=null;const fallback=$('productDetailModal')?.classList.contains('open')?$('detailImage'):null;const target=returnFocus?.isConnected?returnFocus:fallback;if(typeof target?.focus==='function')target.focus({preventScroll:true})}
 
@@ -3961,10 +3962,39 @@ function toggleHeaderSearch(){
 }
 function openCatalogTools(event){
  if(event)event.preventDefault();
- openMobileMenu();
+ openMobileMenu(event);
 }
-function openMobileMenu(){
+let mobileMenuReturnFocus=null;
+function mobileMenuFocusableControls(menu){
+ const selector='a[href],button:not([disabled]),input:not([type="hidden"]):not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
+ return Array.from(menu?.querySelectorAll?.(selector)||[]).filter(element=>{
+  const style=typeof window!=='undefined'&&typeof window.getComputedStyle==='function'?window.getComputedStyle(element):null;
+  const hiddenParent=typeof element.closest==='function'&&element.closest('[hidden],[aria-hidden="true"]');
+  return !element.disabled&&!element.hidden&&element.getAttribute?.('aria-hidden')!=='true'&&!hiddenParent&&element.style?.display!=='none'&&style?.display!=='none'&&style?.visibility!=='hidden'&&(typeof element.getClientRects!=='function'||element.getClientRects().length>0);
+ });
+}
+function mobileMenuSetExpanded(expanded){document.querySelectorAll('[aria-controls="mobileMenu"]').forEach(trigger=>trigger.setAttribute('aria-expanded',expanded?'true':'false'))}
+function handleMobileMenuKeydown(event){
+ const menu=$('mobileMenu');if(!menu?.classList.contains('open'))return;
+ if(event.key==='Escape'){
+  event.preventDefault();event.stopPropagation();event.stopImmediatePropagation?.();
+  closeMobileMenu(null,true);return;
+ }
+ if(event.key!=='Tab')return;
+ event.stopPropagation();event.stopImmediatePropagation?.();
+ const panel=menu.querySelector('.mobileMenuPanel'),controls=mobileMenuFocusableControls(panel);
+ if(!controls.length){event.preventDefault();panel?.focus?.({preventScroll:true});return}
+ const first=controls[0],last=controls[controls.length-1],active=document.activeElement;
+ const isInside=typeof menu.contains==='function'?menu.contains(active):controls.includes(active);
+ if(event.shiftKey&&(active===first||!isInside)){event.preventDefault();last.focus({preventScroll:true})}
+ else if(!event.shiftKey&&(active===last||!isInside)){event.preventDefault();first.focus({preventScroll:true})}
+}
+function openMobileMenu(event){
  const el=$('mobileMenu');if(!el)return;
+ if(!el.classList.contains('open')){
+  const candidate=event?.currentTarget||document.activeElement;
+  mobileMenuReturnFocus=candidate&&candidate!==document.body&&typeof candidate.focus==='function'?candidate:null;
+ }
  const cats=[...document.querySelectorAll('#category option')].map(o=>o.value).filter(Boolean);
  const box=$('mobileMenuCategories');
  if(box){
@@ -3976,14 +4006,19 @@ function openMobileMenu(){
    if(button&&box.contains(button))selectCategoryFromMenu(button.dataset.mobileCategory||'');
   };
  }
- el.classList.add('open');el.setAttribute('aria-hidden','false');document.body.style.overflow='hidden';
+ el.classList.add('open');el.setAttribute('aria-hidden','false');mobileMenuSetExpanded(true);document.body.style.overflow='hidden';
+ const firstControl=mobileMenuFocusableControls(el.querySelector('.mobileMenuPanel'))[0];
+ if(firstControl)firstControl.focus({preventScroll:true});
 }
-function closeMobileMenu(event){
+function closeMobileMenu(event,restoreFocus=false){
  if(event&&event.target!==$('mobileMenu'))return;
  const el=$('mobileMenu');if(!el)return;
- el.classList.remove('open');el.setAttribute('aria-hidden','true');
+ const wasOpen=el.classList.contains('open');
+ el.classList.remove('open');el.setAttribute('aria-hidden','true');mobileMenuSetExpanded(false);
  const anotherOverlayOpen=$('productDetailModal')?.classList.contains('open')||$('checkoutModal')?.classList.contains('open')||$('cartBar')?.classList.contains('cartOpen')||$('galleryModal')?.classList.contains('open')||$('privacyModal')?.classList.contains('open')||$('orderSuccess')?.classList.contains('open');
  document.body.style.overflow=anotherOverlayOpen?'hidden':'';
+ const target=mobileMenuReturnFocus;mobileMenuReturnFocus=null;
+ if(restoreFocus&&wasOpen&&target?.isConnected!==false&&typeof target?.focus==='function')target.focus({preventScroll:true});
 }
 function selectCategoryFromMenu(cat){
  closeMobileMenu();
