@@ -37,7 +37,7 @@ assert.match(catalog, /<link rel="canonical" href="https:\/\/sirevya\.com\.co\/"
 assert.match(catalog, /<meta property="og:url" content="https:\/\/sirevya\.com\.co\/"\s*>/i);
 assert.match(robots, /^User-agent: \*/m);
 assert.match(robots, /^Allow: \/$/m);
-assert.match(robots, /^Disallow: \/admin\.html$/m);
+assert.doesNotMatch(robots, /^Disallow:\s*\/admin\.html$/m, 'el crawler debe poder leer el noindex del admin');
 assert.match(robots, /^Sitemap: https:\/\/sirevya\.com\.co\/sitemap\.xml$/m);
 
 const urls = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map(match => match[1]);
