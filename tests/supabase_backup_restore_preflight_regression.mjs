@@ -30,6 +30,17 @@ const windowsRestore = runbook.split('### Windows PowerShell: restaurar solo en 
 assert.ok(windowsRestore, 'A Windows PowerShell restore section must exist.');
 assert.match(windowsRestore, /major_version = 17/);
 assert.match(windowsRestore, /\$LocalUri\.Host -notin @\('localhost','127\.0\.0\.1','::1'\)/, 'Windows stops unless the restore target is loopback.');
+
+const ddlReconciliation = runbook.split('### Reconciliar el historial DDL antes de una migración')[1]?.split('\n## 5.')[0];
+assert.ok(ddlReconciliation, 'The migration-history reconciliation section must exist.');
+assert.match(ddlReconciliation, /20261108070000[\s\S]*20261109213200[\s\S]*20261110010000[\s\S]*20261111010000[\s\S]*20261112010000/);
+assert.match(ddlReconciliation, /has_function_privilege/);
+assert.match(ddlReconciliation, /ORDER BY jobname\s+LIMIT 20/);
+assert.match(ddlReconciliation, /no vuelvas a ejecutar la migración ni insertes una marca/i);
+const reconciliationSql = [...ddlReconciliation.matchAll(/```sql\n([\s\S]*?)\n```/g)].map(match => match[1]).join('\n');
+assert.ok(reconciliationSql.length > 0);
+assert.doesNotMatch(reconciliationSql, /\b(?:INSERT|UPDATE|DELETE|CREATE|ALTER|DROP)\b/i, 'Reconciliation queries remain strictly read-only.');
+
 assert.match(windowsRestore, /session_replication_role = replica/);
 assert.match(windowsRestore, /Compare-Object[\s\S]*SourceCounts[\s\S]*LocalCounts/, 'Windows compares only aggregated table counts locally.');
 assert.match(windowsRestore, /no se escribieron datos de producción/i);
