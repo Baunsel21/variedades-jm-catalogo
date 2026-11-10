@@ -83,7 +83,7 @@ photoNodes = [cardA.photo, cardB.photo, cardC.photo];
 context.photoHover({ currentTarget: cardA.photo, pointerType: 'mouse' });
 assert.equal(cardA.image.src, 'second-A.webp', 'El hover muestra la foto alternativa.');
 context.photoHoverLeave({ currentTarget: cardA.photo });
-assert.equal(cardA.image.src, 'second-A.webp', 'La foto alternativa persiste después de retirar el cursor.');
+assert.equal(cardA.image.src, 'main-A.webp', 'Al retirar el cursor la tarjeta vuelve a la imagen principal.');
 
 context.photoHover({ currentTarget: cardB.photo, pointerType: 'mouse' });
 assert.equal(cardA.image.src, 'main-A.webp', 'Al seleccionar B, A vuelve a su imagen principal.');
@@ -99,9 +99,9 @@ photoNodes = [cardBAfterRender.photo, touchCardA.photo];
 context.photoTouchStart({ currentTarget: touchCardA.photo, pointerId: 11, clientX: 10, clientY: 12, pointerType: 'touch' });
 assert.equal(touchCardA.image.src, 'second-A.webp', 'El primer toque muestra la alternativa.');
 assert.equal(cardBAfterRender.image.src, 'main-B.webp', 'El toque restaura la tarjeta seleccionada anterior.');
-context.photoTouchEnd({ currentTarget: touchCardA.photo, pointerId: 11 });
+context.photoTouchEnd({ currentTarget: touchCardA.photo, pointerId: 11, pointerType: 'touch' });
 context.photoHoverLeave({ currentTarget: touchCardA.photo });
-assert.equal(touchCardA.image.src, 'second-A.webp', 'La alternativa sigue tras retirar el dedo y salir del elemento.');
+assert.equal(touchCardA.image.src, 'main-A.webp', 'Al retirar el dedo la tarjeta vuelve a la imagen principal.');
 
 let prevented = 0;
 let stopped = 0;
@@ -115,7 +115,7 @@ assert.equal(stopped, 0);
 
 context.photoTouchStart({ currentTarget: touchCardA.photo, pointerId: 12, clientX: 10, clientY: 12, pointerType: 'touch' });
 context.photoTouchMove({ currentTarget: touchCardA.photo, pointerId: 12, clientX: 24, clientY: 12 });
-context.photoTouchEnd({ currentTarget: touchCardA.photo, pointerId: 12 });
+context.photoTouchEnd({ currentTarget: touchCardA.photo, pointerId: 12, pointerType: 'touch' });
 prevented = 0;
 stopped = 0;
 context.photoClickGuard({
@@ -127,7 +127,7 @@ assert.equal(prevented, 1, 'Un swipe horizontal intencional cambia la foto y no 
 assert.equal(stopped, 1);
 
 context.photoTouchStart({ currentTarget: touchCardA.photo, pointerId: 13, clientX: 10, clientY: 12, pointerType: 'touch' });
-context.photoTouchEnd({ currentTarget: touchCardA.photo, pointerId: 13 });
+context.photoTouchEnd({ currentTarget: touchCardA.photo, pointerId: 13, pointerType: 'touch' });
 prevented = 0;
 stopped = 0;
 context.photoClickGuard({
@@ -145,15 +145,20 @@ assert.equal(vm.runInNewContext('selectedCatalogCardImageProductId', context), '
 assert.deepEqual(context.productos[0].image_paths, ['main-A.webp', 'second-A.webp'], 'La interacción no guarda ni reordena las imágenes.');
 
 const touchEndBody = extractFunction('photoTouchEnd');
-assert.doesNotMatch(touchEndBody, /restoreCardMainPhoto\(/, 'Levantar el dedo no restaura la alternativa seleccionada.');
+assert.match(touchEndBody, /event\.pointerType==='touch'\)restoreCardMainPhoto\(photo\)/, 'Levantar el dedo restaura la imagen sin interceptar el click.');
 
 function exerciseSetPhotoImage(reducedMotion) {
-  let animationOptions = null;
+  const animations = [];
+  let cancelledAnimations = 0;
   let clearedFallbacks = 0;
   const image = {
     src: 'main-A.webp',
     removeAttribute(name) { assert.equal(name, 'data-src'); },
-    animate(frames, options) { animationOptions = options; },
+    animate(frames, options) {
+      const animation = { frames, options, cancel() { cancelledAnimations += 1; } };
+      animations.push(animation);
+      return animation;
+    },
   };
   const imageContext = vm.createContext({
     window: { matchMedia(query) { assert.equal(query, '(prefers-reduced-motion: reduce)'); return { matches: reducedMotion }; } },
@@ -161,15 +166,21 @@ function exerciseSetPhotoImage(reducedMotion) {
   });
   vm.runInContext(extractFunction('setPhotoImage'), imageContext);
   imageContext.setPhotoImage({ querySelector(selector) { assert.equal(selector, 'img'); return image; } }, 'second-A.webp');
-  return { image, animationOptions, clearedFallbacks };
+  imageContext.setPhotoImage({ querySelector(selector) { assert.equal(selector, 'img'); return image; } }, 'main-A.webp');
+  return { image, animations, cancelledAnimations, clearedFallbacks };
 }
 
 const animatedImage = exerciseSetPhotoImage(false);
-assert.equal(animatedImage.image.src, 'second-A.webp');
-assert.equal(animatedImage.animationOptions.duration, 210, 'El cambio visual usa una transición breve y sutil.');
-assert.equal(animatedImage.animationOptions.easing, 'cubic-bezier(.2,.65,.3,1)');
+assert.equal(animatedImage.image.src, 'main-A.webp');
+assert.equal(animatedImage.animations.length, 2);
+assert.equal(animatedImage.cancelledAnimations, 1, 'El cambio rápido de tarjeta cancela el efecto previo y evita acumulación.');
+assert.equal(animatedImage.animations[1].options.duration, 700, 'El cambio usa una transición de lujo dentro del rango solicitado.');
+assert.equal(animatedImage.animations[1].options.easing, 'cubic-bezier(.22,.61,.36,1)');
+assert.equal(animatedImage.animations[1].frames[0].opacity, .84, 'La imagen secundaria entra con un fundido gradual.');
+assert.equal(animatedImage.animations[1].frames[0].transform, 'scale(.994)', 'El zoom de entrada es sutil.');
+assert.equal(animatedImage.animations[1].frames[1].transform, 'scale(1)');
 const reducedMotionImage = exerciseSetPhotoImage(true);
-assert.equal(reducedMotionImage.animationOptions, null, 'La preferencia de movimiento reducido omite la animación.');
-assert.equal(reducedMotionImage.image.src, 'second-A.webp', 'Movimiento reducido no impide el cambio de foto.');
+assert.equal(reducedMotionImage.animations.length, 0, 'La preferencia de movimiento reducido omite la animación.');
+assert.equal(reducedMotionImage.image.src, 'main-A.webp', 'Movimiento reducido no impide el cambio de foto.');
 
 console.log('catalog_card_image_preview_regression: PASS');

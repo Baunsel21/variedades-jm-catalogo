@@ -2622,12 +2622,23 @@ function clearCardImageFallback(image){if(!image)return;image.hidden=false;const
 function setPhotoImage(el,src){
  const img=el?.querySelector('img');
  if(!img||!src)return;
+ const previousAnimation=img.__catalogPhotoTransition;
+ if(previousAnimation&&typeof previousAnimation.cancel==='function')try{previousAnimation.cancel()}catch{}
+ img.__catalogPhotoTransition=null;
  clearCardImageFallback(img);
  img.src=src;
  img.removeAttribute('data-src');
- // Fade sutil, sin animación si el visitante redujo el movimiento.
+ // Fundido y zoom casi imperceptible; no animar si el visitante reduce el movimiento.
  const reduceMotion=window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches===true;
- if(!reduceMotion)try{if(typeof img.animate==='function')img.animate([{opacity:.9,transform:'scale(1.003)'},{opacity:1,transform:'scale(1)'}],{duration:210,easing:'cubic-bezier(.2,.65,.3,1)'});}catch{}
+ if(!reduceMotion)try{
+  if(typeof img.animate==='function'){
+   const animation=img.animate([{opacity:.84,transform:'scale(.994)'},{opacity:1,transform:'scale(1)'}],{duration:700,easing:'cubic-bezier(.22,.61,.36,1)'});
+   if(animation&&typeof animation.cancel==='function'){
+    img.__catalogPhotoTransition=animation;
+    animation.onfinish=()=>{if(img.__catalogPhotoTransition===animation)img.__catalogPhotoTransition=null};
+   }
+  }
+ }catch{}
 }
 let selectedCatalogCardImageProductId='';
 function restoreCardMainPhoto(el){
@@ -2715,6 +2726,7 @@ function photoTouchEnd(event){
  if(!photo)return;
  if(photo.__pointerId!=null&&event.pointerId!==photo.__pointerId)return;
  clearPhotoTouchTimer(photo);
+ if(event.pointerType==='touch')restoreCardMainPhoto(photo);
  photo.__gestureActive=false;
  photo.__pointerId=null;
  photo.__startX=null;
@@ -2734,6 +2746,7 @@ function photoHoverLeave(event){
  const photo=event.currentTarget;
  if(!photo)return;
  if(photo.__hoverTimer){clearTimeout(photo.__hoverTimer);photo.__hoverTimer=null;}
+ restoreCardMainPhoto(photo);
 }
 
 function updateWaHelpCollisionState(button,blockers){
