@@ -1,4 +1,18 @@
 BEGIN;
+CREATE FUNCTION public.test_csv_import_abort_trigger() RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  IF NEW.code = 'SKU-ROLLBACK-FAIL' THEN
+    RAISE EXCEPTION USING ERRCODE = 'P0001', MESSAGE = 'SYNTHETIC_INSERT_ABORT';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+CREATE TRIGGER test_csv_import_abort_trigger
+BEFORE INSERT ON public.products
+FOR EACH ROW EXECUTE FUNCTION public.test_csv_import_abort_trigger();
+
 SET LOCAL request.jwt.claim.sub = '11111111-1111-4111-8111-111111111111';
 SET LOCAL request.jwt.claim.is_admin = 'true';
 SET LOCAL ROLE authenticated;
@@ -8,6 +22,7 @@ DECLARE
   result jsonb;
   row_count integer;
   large_payload jsonb;
+  insert_failure_seen boolean := false;
 BEGIN
   IF has_function_privilege('anon', 'public.admin_import_products_csv(jsonb)', 'EXECUTE') THEN
     RAISE EXCEPTION 'anon must not execute the import RPC';
@@ -75,6 +90,13 @@ BEGIN
     RAISE EXCEPTION 'unapproved variant data should be rejected, got %', result;
   END IF;
 
+  result := public.admin_import_products_csv('[
+    {"row":2,"code":"SKU-BAD","name":"Nombre","category":"Otros","cost":1,"sale_price":2,"quantity":1,"image_url":"https://example.test/photo.jpg"}
+  ]'::jsonb);
+  IF result->>'ok' IS DISTINCT FROM 'false' OR NOT (result->'errors' @> '[{"code":"CSV_FIELDS_NOT_ALLOWED"}]'::jsonb) THEN
+    RAISE EXCEPTION 'unapproved image data should be rejected, got %', result;
+  END IF;
+
   result := public.admin_import_products_csv('[]'::jsonb);
   IF result->>'ok' IS DISTINCT FROM 'false' OR NOT (result->'errors' @> '[{"code":"IMPORT_LIMIT_EXCEEDED"}]'::jsonb) THEN
     RAISE EXCEPTION 'empty import should fail closed, got %', result;
@@ -98,6 +120,20 @@ BEGIN
   result := public.admin_import_products_csv(large_payload);
   IF result->>'ok' IS DISTINCT FROM 'false' OR NOT (result->'errors' @> '[{"code":"IMPORT_LIMIT_EXCEEDED"}]'::jsonb) THEN
     RAISE EXCEPTION 'oversized payload should fail closed, got %', result;
+  END IF;
+
+  BEGIN
+    PERFORM public.admin_import_products_csv('[
+      {"row":2,"code":"SKU-ROLLBACK-FIRST","name":"Primero","category":"Otros","cost":1,"sale_price":2,"quantity":1},
+      {"row":3,"code":"SKU-ROLLBACK-FAIL","name":"Segundo","category":"Otros","cost":1,"sale_price":2,"quantity":1}
+    ]'::jsonb);
+  EXCEPTION WHEN OTHERS THEN
+    insert_failure_seen := SQLERRM = 'SYNTHETIC_INSERT_ABORT';
+  END;
+  IF NOT insert_failure_seen THEN RAISE EXCEPTION 'the synthetic INSERT trigger failure was not propagated'; END IF;
+  SELECT count(*) INTO row_count FROM public.products WHERE user_id = auth.uid();
+  IF row_count <> 2 OR EXISTS (SELECT 1 FROM public.products WHERE code LIKE 'SKU-ROLLBACK-%') THEN
+    RAISE EXCEPTION 'an INSERT exception partially committed the CSV batch';
   END IF;
 END;
 $$;

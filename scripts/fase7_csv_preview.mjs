@@ -22,6 +22,7 @@ export const DEFAULT_LIMITS = Object.freeze({
   maxRows: 10_000,
 });
 
+const MAX_TEXT_BYTES = 4096;
 const MAX_SAFE_INTEGER_BIGINT = BigInt(Number.MAX_SAFE_INTEGER);
 const FORMULA_START = /^[=+@]/;
 const FORMULA_MINUS_START = /^-(?!\d+$)/;
@@ -298,6 +299,15 @@ function validateText(value, field, row, errors) {
         field,
       ),
     );
+    return false;
+  }
+  if (new TextEncoder().encode(text).byteLength > MAX_TEXT_BYTES) {
+    errors.push(makeError(
+      row,
+      'CSV_TEXT_INVALID',
+      `${field} supera el máximo de ${MAX_TEXT_BYTES} bytes UTF-8.`,
+      field,
+    ));
     return false;
   }
   return true;

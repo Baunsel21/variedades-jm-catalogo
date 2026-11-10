@@ -3,6 +3,9 @@ import { DEFAULT_LIMITS, PRODUCT_COLUMNS, previewProductsCsv } from './fase7_csv
 const MAX_VISIBLE_ROWS = 50;
 const MAX_VISIBLE_ERRORS = 100;
 const MAX_IMPORT_ROWS = 250;
+// El RPC limita pg_column_size(jsonb) a 1 MiB. El preview limita el JSON UTF-8
+// a 900 KiB para dejar margen al overhead binario de jsonb en PostgreSQL.
+export const CONSERVATIVE_MAX_IMPORT_PAYLOAD_BYTES = 900 * 1024;
 const CURRENCY_FORMAT = new Intl.NumberFormat('es-CO', {
   style: 'currency',
   currency: 'COP',
@@ -11,6 +14,18 @@ const CURRENCY_FORMAT = new Intl.NumberFormat('es-CO', {
 let previewGeneration = 0;
 let lastPreviewResult = null;
 let importRpcReady = false;
+
+function buildImportPayload(rows) {
+  return rows.map(row => ({
+    row: row.row,
+    code: row.code,
+    name: row.name,
+    category: row.category,
+    cost: row.cost,
+    sale_price: row.sale_price,
+    quantity: row.quantity,
+  }));
+}
 
 export async function previewCsvFile(file, existingCodes = []) {
   if (!file || typeof file.arrayBuffer !== 'function') {
@@ -25,7 +40,21 @@ export async function previewCsvFile(file, existingCodes = []) {
     return result;
   }
   const bytes = new Uint8Array(await file.arrayBuffer());
-  return previewProductsCsv(bytes, { existingCodes });
+  const result = previewProductsCsv(bytes, { existingCodes });
+  if (result.errors.length === 0 && result.rows.length > 0 && result.rows.length <= MAX_IMPORT_ROWS) {
+    const payloadBytes = new TextEncoder().encode(JSON.stringify(buildImportPayload(result.rows))).byteLength;
+    result.summary.importPayloadBytes = payloadBytes;
+    if (payloadBytes > CONSERVATIVE_MAX_IMPORT_PAYLOAD_BYTES) {
+      result.errors.push({
+        row: 0,
+        field: 'archivo',
+        code: 'IMPORT_LIMIT_EXCEEDED',
+        message: 'El lote supera el límite preventivo de 900 KiB para la solicitud; reduce filas o campos.',
+      });
+      result.summary.errorCount += 1;
+    }
+  }
+  return result;
 }
 
 const REPORT_FILENAME = 'sirevya-csv-preview-validation.csv';
@@ -155,7 +184,10 @@ export function renderCsvPreviewResult(result, documentRef = globalThis.document
 
   const status = documentRef.getElementById('csvPreviewStatus');
   if (status) {
-    if (rows.length > MAX_IMPORT_ROWS && errorCount === 0) {
+    if (errors.some(error => error.code === 'IMPORT_LIMIT_EXCEEDED' && error.field === 'archivo' &&
+        Number.isFinite(Number(summary.importPayloadBytes)))) {
+      status.textContent = 'El lote supera el límite preventivo de 900 KiB. Reduce filas o campos antes de importar; no se guardó ningún dato.';
+    } else if (rows.length > MAX_IMPORT_ROWS && errorCount === 0) {
       status.textContent = `Vista previa lista: ${validRows} filas válidas de ${dataRows}; máximo 250 por lote de importación. No se guardó ningún dato.`;
     } else if (errors.length === 0 && rows.length > 0 && !importRpcReady) {
       status.textContent = `Vista previa lista: ${validRows} filas válidas. La importación transaccional aún no está disponible para esta sesión. No se guardó ni subió ningún dato.`;
@@ -169,7 +201,11 @@ export function renderCsvPreviewResult(result, documentRef = globalThis.document
     const inputBytes = Number(summary.inputBytes);
     const limits = summary.limits || DEFAULT_LIMITS;
     const sizeText = Number.isFinite(inputBytes) ? `${inputBytes.toLocaleString('es-CO')} bytes` : 'tamaño no disponible';
-    summaryNode.textContent = `${sizeText} · Límite ${limits.maxBytes.toLocaleString('es-CO')} bytes / ${limits.maxRows.toLocaleString('es-CO')} filas · dry-run: sí · escritura: no`;
+    const payloadSize = Number(summary.importPayloadBytes);
+    const payloadText = Number.isFinite(payloadSize)
+      ? ` · payload JSON ${payloadSize.toLocaleString('es-CO')} / ${CONSERVATIVE_MAX_IMPORT_PAYLOAD_BYTES.toLocaleString('es-CO')} bytes`
+      : '';
+    summaryNode.textContent = `${sizeText} · Límite ${limits.maxBytes.toLocaleString('es-CO')} bytes / ${limits.maxRows.toLocaleString('es-CO')} filas${payloadText} · dry-run: sí · escritura: no`;
   }
 
   const errorList = documentRef.getElementById('csvPreviewErrorList');
@@ -329,15 +365,7 @@ export function initializeCsvPreviewUi(documentRef = globalThis.document, browse
     fileInput.disabled = true;
     if (status) status.textContent = `Enviando ${rows.length} filas validadas al importador transaccional…`;
     try {
-      const payload = rows.map(row => ({
-        row: row.row,
-        code: row.code,
-        name: row.name,
-        category: row.category,
-        cost: row.cost,
-        sale_price: row.sale_price,
-        quantity: row.quantity,
-      }));
+      const payload = buildImportPayload(rows);
       const response = await globalThis.commitAdminCsvProducts(payload);
       if (response?.ok !== true) {
         const safeMessages = {
