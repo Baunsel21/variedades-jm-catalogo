@@ -48,6 +48,7 @@ const context = {
   pedidos: [],
   pedidosLoadError: '',
   adminDeferredModuleLoaded: { orders: false },
+  loadDashboardWompiReviewCount: () => Promise.resolve(true),
   $: id => elements[id] ?? null,
   money: amount => `$${amount}`,
   availableQuantity: () => 0,

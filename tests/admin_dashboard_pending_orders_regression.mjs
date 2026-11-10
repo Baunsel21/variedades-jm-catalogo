@@ -43,6 +43,7 @@ function renderCase({ loaded, error = '', orders = [] }) {
     pedidos: orders,
     pedidosLoadError: error,
     adminDeferredModuleLoaded: { orders: loaded },
+    loadDashboardWompiReviewCount: () => Promise.resolve(true),
     $: id => elements[id] ?? null,
     money: amount => `$${amount}`,
     availableQuantity: () => 0,
