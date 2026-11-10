@@ -161,7 +161,8 @@ try {
   const exited = new Promise((resolve) => browser.once('exit', resolve));
   browser.kill('SIGTERM');
   await Promise.race([exited, sleep(3000).then(() => browser.kill('SIGKILL'))]);
-  fs.rmSync(tempDir, { recursive: true, force: true });
+  await sleep(250);
+  fs.rmSync(tempDir, { recursive: true, force: true, maxRetries: 50, retryDelay: 100 });
 }
 
 console.log('ticker_animation_browser_regression: PASS (actual rendered text movement)');

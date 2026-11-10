@@ -43,6 +43,7 @@ const context = {
     weekRevenue: 0, weekUnits: 0, weekLines: 0,
   }),
   renderDashboardPendingWebOrders() {},
+  loadDashboardWompiReviewCount() { return Promise.resolve(true); },
 };
 vm.runInNewContext(`${saleQuantity}\n${summarySource}\n${render}\nrenderInicio();`, context);
 
