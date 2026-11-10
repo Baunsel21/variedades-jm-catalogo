@@ -3,15 +3,19 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 
 const html = readFileSync(new URL('../admin.html', import.meta.url), 'utf8');
+const orderDateHelper = html.match(/function orderDateKeyColombia\(value\)[\s\S]*?\n\}/)?.[0];
 const helper = html.match(/function calculatePosSalesDashboardSummary\(rows,todayKey=[\s\S]*?\n\}/)?.[0];
+const inventorySummary = html.match(/function calculateDashboardInventoryAttentionSummary\(rows,lowThreshold=[\s\S]*?\n\}/)?.[0];
 const pendingSummary = html.match(/function calculatePendingWebOrdersDashboardSummary\(rows\)[\s\S]*?\n\}/)?.[0];
 const pendingRender = html.match(/function renderDashboardPendingWebOrders\(\)[\s\S]*?\n\}/)?.[0];
 const render = html.match(/function renderInicio\(\)\{[\s\S]*?\n\}/)?.[0];
+assert.ok(orderDateHelper, 'Se reutiliza el helper existente de America/Bogota.');
 assert.ok(helper, 'Se declara el helper de resumen por fecha.');
+assert.ok(inventorySummary, 'Se declara la dependencia del dashboard de inventario.');
 assert.ok(pendingSummary&&pendingRender, 'Se declara el contador de pedidos web y su estado diferido.');
 assert.ok(render, 'Se declara renderInicio.');
 assert.match(render, /calculatePosSalesDashboardSummary\(ventas\)/, 'Dashboard calcula desde ventas ya cargadas.');
-assert.doesNotMatch(`${helper}\n${pendingSummary}\n${pendingRender}\n${render}`, /\bsb\.(?:from|rpc)|\bfetch\s*\(/, 'Las métricas no agregan consultas ni escrituras externas.');
+assert.doesNotMatch(`${orderDateHelper}\n${helper}\n${inventorySummary}\n${pendingSummary}\n${pendingRender}\n${render}`, /\bsb\.(?:from|rpc)|\bfetch\s*\(/, 'Las métricas no agregan consultas ni escrituras externas.');
 assert.match(html, /id="dashboardSalesTodayRevenue"/);
 assert.match(html, /id="dashboardSalesWeekRevenue"/);
 assert.match(html, /id="dashboardPendingWebOrdersCount"/);
@@ -34,12 +38,13 @@ const ids = [
 const elements = Object.fromEntries(ids.map(id => [id, { textContent: '', innerHTML: '' }]));
 const RealDate = Date;
 class FixedDate extends RealDate {
-  constructor(...args) { super(...(args.length ? args : ['2026-11-09T12:00:00.000Z'])); }
+  constructor(...args) { super(...(args.length ? args : ['2026-11-10T04:30:00.000Z'])); }
 }
 const context = {
   Date: FixedDate,
   productos: [],
   ventas: rows,
+  saleAvailableQuantity: product => Number(product?.quantity) || 0,
   pedidos: [],
   pedidosLoadError: '',
   adminDeferredModuleLoaded: { orders: false },
@@ -49,7 +54,7 @@ const context = {
   esc: value => String(value ?? ''),
   stockBadge: () => '',
 };
-vm.runInNewContext(`${helper}\n${pendingSummary}\n${pendingRender}\n${render}\nrenderInicio();`, context);
+vm.runInNewContext(`${orderDateHelper}\n${helper}\n${inventorySummary}\n${pendingSummary}\n${pendingRender}\n${render}\nrenderInicio();`, context);
 
 assert.equal(elements.dashboardSalesTodayRevenue.textContent, '$250');
 assert.match(elements.dashboardSalesTodayMeta.textContent, /2026-11-09 · 2 líneas · 3 unidades/);

@@ -12,7 +12,9 @@ const extract = (signature, nextSignature) => {
 };
 const summary = extract('function calculatePendingWebOrdersDashboardSummary(rows)', 'function renderDashboardPendingWebOrders');
 const renderPending = extract('function renderDashboardPendingWebOrders()', 'function renderInicio');
+const dateHelper = extract('function orderDateKeyColombia(value)', 'function filterAdminOrders');
 const posSummary = extract('function calculatePosSalesDashboardSummary(rows,', 'function calculatePendingWebOrdersDashboardSummary');
+const inventorySummary = extract('function calculateDashboardInventoryAttentionSummary(rows,', 'function renderInicio');
 const renderInicio = extract('function renderInicio()', 'function refrescarSelects');
 const loadOrders = extract('async function cargarPedidos()', 'function pedidoEstado(p)');
 
@@ -47,7 +49,7 @@ function renderCase({ loaded, error = '', orders = [] }) {
     esc: value => String(value ?? ''),
     stockBadge: () => '',
   };
-  vm.runInNewContext(`${posSummary}\n${summary}\n${renderPending}\n${renderInicio}\nrenderInicio();`, context);
+  vm.runInNewContext(`${dateHelper}\n${posSummary}\n${inventorySummary}\n${summary}\n${renderPending}\n${renderInicio}\nrenderInicio();`, context);
   return elements;
 }
 
