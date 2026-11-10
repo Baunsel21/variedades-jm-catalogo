@@ -1681,6 +1681,33 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
 <style id="sirevyaCouponCheckoutStyles">
 .checkoutCouponBox{margin:12px 0 4px;padding:13px;border:1px solid #ead9cb;border-radius:14px;background:#fffaf3;color:#352923}.checkoutCouponTitle{margin:0 0 4px;color:#7b1730;font-size:14px;font-weight:900}.checkoutCouponHelp{margin:0 0 9px;color:#796b62;font-size:11px;line-height:1.4}.checkoutCouponRow{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:7px;align-items:end}.checkoutCouponRow label{display:flex;flex-direction:column;gap:5px;color:#51443c;font-size:12px;font-weight:800}.checkoutCouponRow input{width:100%;min-width:0;border:1px solid #ded0c6;border-radius:10px;padding:10px 11px;background:#fff;color:#302822;text-transform:uppercase;letter-spacing:.06em}.checkoutCouponRow button{border:1px solid #7b1730;border-radius:10px;padding:10px 12px;background:#7b1730;color:#fff;font-size:12px;font-weight:900}.checkoutCouponRow button[data-coupon-action="remove"]{background:#fff;color:#7b1730;border-color:#cfaeba}.checkoutCouponRow button:disabled{opacity:.55;cursor:not-allowed}.checkoutCouponStatus{min-height:17px;margin-top:8px;color:#796b62;font-size:11px;line-height:1.4}.checkoutCouponStatus[data-kind="success"]{color:#16845d;font-weight:800}.checkoutCouponStatus[data-kind="error"]{color:#a51d3b;font-weight:800}.checkoutCouponStatus[data-kind="pending"]{color:#7b1730;font-weight:800}.checkoutTotalsBreakdown{display:grid;gap:5px;margin-top:11px;padding:10px 0;border-top:1px solid #eee3dc;color:#76685f;font-size:12px}.checkoutTotalsBreakdown>div{display:flex;justify-content:space-between;gap:12px}.checkoutTotalsBreakdown strong{color:#7b1730}.checkoutTotalsBreakdown [hidden]{display:none!important}.checkoutCouponBox [hidden]{display:none!important}@media(max-width:430px){.checkoutCouponRow{grid-template-columns:1fr 1fr}.checkoutCouponRow label{grid-column:1/-1}.checkoutCouponRow button{width:100%}}
 </style>
+<style id="sirevyaCampaignFooterPresentation">
+/* Refinamiento visual aislado: títulos de catálogo y los cuatro beneficios existentes. */
+.catalogCardTitle .name{font-family:Georgia,"Times New Roman",serif!important;font-size:clamp(12px,1vw,14px)!important;font-weight:600!important;line-height:1.25!important;letter-spacing:-.012em!important;text-transform:none!important;color:#342b27!important;overflow-wrap:anywhere}
+.footerFeatures{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:13px!important;width:min(1080px,calc(100% - 36px));margin:0 auto 24px;padding:0}
+.footerFeature{display:flex;flex-direction:column;justify-content:center;align-items:flex-start;gap:9px;min-width:0;min-height:108px;padding:16px;border:1px solid #efe6d8;border-radius:17px;background:linear-gradient(145deg,#fffdf9,#f9f5ee);box-shadow:0 8px 22px rgba(62,39,16,.065);color:#756c64;font-size:12px;line-height:1.4;text-align:left;transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease}
+.footerFeature:hover{transform:translateY(-2px);border-color:#d8c29b;box-shadow:0 12px 25px rgba(62,39,16,.1)}
+.footerFeature b{display:flex;align-items:center;gap:9px;margin:0;color:#7b1730;font-family:Georgia,"Times New Roman",serif;font-size:15px;font-weight:700;letter-spacing:-.01em}
+.footerFeatureIcon{display:grid;place-items:center;flex:0 0 34px;width:34px;height:34px;border:1px solid #ead9b8;border-radius:50%;background:#fff8e9;color:#785410;font-size:17px}
+.footerFeatureText{display:block;color:#766d65;font-size:12px;line-height:1.45}
+#floatingPromoWidget[hidden]{display:none!important}
+.floatingPromoWidget{box-sizing:border-box;position:fixed;right:14px;bottom:calc(62px + env(safe-area-inset-bottom,0px));z-index:115;width:min(372px,calc(100vw - 20px));padding:10px;border:1px solid #dcc99e;border-radius:18px;background:rgba(255,253,248,.97);box-shadow:0 16px 42px rgba(34,24,14,.2);color:#32291f;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+.floatingPromoWidget.is-visible{animation:sirevyaFloatingPromoIn .18s ease-out both}
+@keyframes sirevyaFloatingPromoIn{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:translateY(0)}}
+.floatingPromoHeader{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 8px;padding:0 2px}
+.floatingPromoHeading{color:#6c511c;font-family:Georgia,"Times New Roman",serif;font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase}
+.floatingPromoClose{display:grid;place-items:center;flex:0 0 28px;width:28px;height:28px;padding:0;border:1px solid #e5dccb;border-radius:50%;background:#fff;color:#554a3f;font-size:20px;line-height:1;cursor:pointer}
+.floatingPromoClose:focus-visible,.floatingPromoAction:focus-visible{outline:3px solid #9e7023;outline-offset:2px}
+.floatingPromoActions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+.floatingPromoAction{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;min-width:0;min-height:72px;padding:8px 5px;border:1px solid var(--fp-accent,#c6a15b);border-radius:13px;background:var(--fp-bg,#fff8e7);color:var(--fp-text,#5d4012);font:700 12px/1.2 system-ui,sans-serif;text-align:center;overflow-wrap:anywhere;cursor:pointer;transition:transform .16s ease,box-shadow .16s ease}
+.floatingPromoAction:hover{transform:translateY(-2px);box-shadow:0 6px 14px rgba(52,35,16,.12)}
+.floatingPromoAction--outline{background:transparent}
+.floatingPromoActionIcon{font-size:21px;line-height:1}
+.floatingPromoActionLabel{display:block;max-width:100%;overflow-wrap:anywhere}
+@media(max-width:760px){.footerFeatures{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:9px!important;width:calc(100% - 28px)}.footerFeature{min-height:98px;padding:13px;border-radius:15px}}
+@media(max-width:390px){.footerFeatures{grid-template-columns:1fr!important;width:calc(100% - 24px)}.footerFeature{min-height:86px}.floatingPromoWidget{right:10px;bottom:calc(60px + env(safe-area-inset-bottom,0px));width:calc(100vw - 20px);padding:8px}.floatingPromoActions{gap:5px}.floatingPromoAction{min-height:67px;padding:7px 4px;font-size:11px}.floatingPromoActionIcon{font-size:19px}}
+@media(prefers-reduced-motion:reduce){.footerFeature,.floatingPromoWidget,.floatingPromoAction{animation:none!important;transition:none!important}.footerFeature:hover,.floatingPromoAction:hover{transform:none}}
+</style>
 </head>
 <body>
 <header class="top">
@@ -1785,10 +1812,10 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
 <section id="grid" class="grid"><div class="loading">Cargando catálogo...</div></section>
 
 </main>
-<footer class="footer" id="contactanos"><div class="footerFeatures"><div class="footerFeature"><b>🚚 Envíos</b>Envíos a toda Colombia</div><div class="footerFeature"><b>💳 Pagos</b>Múltiples medios de pago</div><div class="footerFeature"><b>🛡️ Compra segura</b>Tu compra protegida</div><div class="footerFeature"><b>🎧 Atención</b>Soporte personalizado</div></div><div class="footerBrand">Sirevya</div><div class="footerSub">TU ESTILO, NUESTRA PASIÓN ♥</div><div class="contactInfo"><b>📞 Contáctanos</b><a href="tel:+573025469983">+57 302 546 9983</a><a href="mailto:sirevya99@gmail.com">sirevya99@gmail.com</a></div><div style="margin-top:24px;color:#777;font-size:12px">Catálogo actualizado desde el inventario · © Sirevya</div><div class="footerPolicyLinks"><button type="button" class="footerPolicyLink" onclick="openPrivacy(event)">Política de privacidad y datos personales</button><a class="footerPolicyLink" href="/preguntas-frecuentes.html">Preguntas frecuentes</a><a class="footerPolicyLink" href="/cambios-devoluciones.html">Cambios, devoluciones y reembolsos</a></div></footer>
+<footer class="footer" id="contactanos"><div class="footerFeatures"><div class="footerFeature"><b><span class="footerFeatureIcon" aria-hidden="true">🚚</span><span>Envíos</span></b><span class="footerFeatureText">Envíos a toda Colombia</span></div><div class="footerFeature"><b><span class="footerFeatureIcon" aria-hidden="true">💳</span><span>Pagos</span></b><span class="footerFeatureText">Múltiples medios de pago</span></div><div class="footerFeature"><b><span class="footerFeatureIcon" aria-hidden="true">🛡️</span><span>Compra segura</span></b><span class="footerFeatureText">Tu compra protegida</span></div><div class="footerFeature"><b><span class="footerFeatureIcon" aria-hidden="true">🎧</span><span>Atención</span></b><span class="footerFeatureText">Soporte personalizado</span></div></div><div class="footerBrand">Sirevya</div><div class="footerSub">TU ESTILO, NUESTRA PASIÓN ♥</div><div class="contactInfo"><b>📞 Contáctanos</b><a href="tel:+573025469983">+57 302 546 9983</a><a href="mailto:sirevya99@gmail.com">sirevya99@gmail.com</a></div><div style="margin-top:24px;color:#777;font-size:12px">Catálogo actualizado desde el inventario · © Sirevya</div><div class="footerPolicyLinks"><button type="button" class="footerPolicyLink" onclick="openPrivacy(event)">Política de privacidad y datos personales</button><a class="footerPolicyLink" href="/preguntas-frecuentes.html">Preguntas frecuentes</a><a class="footerPolicyLink" href="/cambios-devoluciones.html">Cambios, devoluciones y reembolsos</a></div></footer>
 
 
-<div id="seasonalPromoOverlay" class="sirevyaPromoOverlay" hidden aria-hidden="true" onclick="handleSeasonalPromoBackdrop(event)">
+<aside id="floatingPromoWidget" class="floatingPromoWidget" aria-label="Campaña destacada del catálogo" aria-live="polite" hidden></aside><div id="seasonalPromoOverlay" class="sirevyaPromoOverlay" hidden aria-hidden="true" onclick="handleSeasonalPromoBackdrop(event)">
   <div id="seasonalPromoFalling" class="sirevyaPromoFalling" aria-hidden="true"></div>
   <section id="seasonalPromoCard" class="sirevyaPromoCard" data-style="halloween" data-size="small" data-shape="rounded" role="dialog" aria-modal="true" aria-labelledby="seasonalPromoTitle" aria-describedby="seasonalPromoMessage" tabindex="-1">
     <div class="sirevyaPromoWeb" aria-hidden="true"></div>
@@ -4233,7 +4260,7 @@ function render(){
    const ok=variantTotal>0 || reservedForThisSession;
    const blocked=!ok && !hasOwnActiveReservationForProduct(p.id);
    const key='photo_'+p.id;
-return `<article class="card ${blocked?'inventoryUnavailable':''}" data-product-id="${esc(p.id)}" aria-disabled="${blocked?'true':'false'}" onclick="openProductDetail('${esc(p.id)}',event)">${blocked?'<div class="inventoryLock">🔒 RESERVADO / AGOTADO</div>':''}<div class="photo photoSwipe" data-photo="${esc(key)}" data-index="0" onpointerdown="photoTouchStart(event)" onpointermove="photoTouchMove(event)" onpointerup="photoTouchEnd(event)" onpointercancel="photoTouchEnd(event)" onclick="photoClickGuard(event)" onpointerenter="photoHover(event)" onpointerleave="photoHoverLeave(event)">${imgs.length?`<img data-src="${esc(imgs[0])}" alt="${esc(p.name)}" loading="lazy" decoding="async" onerror="showCardImageFallback(this)" onload="clearCardImageFallback(this)">${imgs.length>1?``:''}`:'<div class="noimg">📦</div>'}</div><div class="body"><div class="catalogCardTitle"><div class="name">${esc(p.name)}</div><button class="productFavoriteButton" type="button" data-favorite-id="${esc(p.id)}" aria-pressed="${isCatalogFavorite(p.id)}" aria-label="${isCatalogFavorite(p.id)?'Quitar':'Añadir'} ${esc(p.name)} ${isCatalogFavorite(p.id)?'de':'a'} favoritos" onclick="toggleCatalogFavorite(event,this)"><span aria-hidden="true">${isCatalogFavorite(p.id)?'♥':'♡'}</span></button></div>${catalogProductReferenceMarkup(p)}<div class="price">${money(p.sale_price)}</div>${renderVariantOptions(p)}</div></article>`
+return `<article class="card ${blocked?'inventoryUnavailable':''}" data-product-id="${esc(p.id)}" aria-disabled="${blocked?'true':'false'}" onclick="openProductDetail('${esc(p.id)}',event)">${blocked?'<div class="inventoryLock">🔒 RESERVADO / AGOTADO</div>':''}<div class="photo photoSwipe" data-photo="${esc(key)}" data-index="0" onpointerdown="photoTouchStart(event)" onpointermove="photoTouchMove(event)" onpointerup="photoTouchEnd(event)" onpointercancel="photoTouchEnd(event)" onclick="photoClickGuard(event)" onpointerenter="photoHover(event)" onpointerleave="photoHoverLeave(event)">${imgs.length?`<img data-src="${esc(imgs[0])}" alt="${esc(p.name)}" loading="lazy" decoding="async" onerror="showCardImageFallback(this)" onload="clearCardImageFallback(this)">${imgs.length>1?``:''}`:'<div class="noimg">📦</div>'}</div><div class="body"><div class="catalogCardTitle"><div class="name">${esc(elegantProductTitle(p.name))}</div><button class="productFavoriteButton" type="button" data-favorite-id="${esc(p.id)}" aria-pressed="${isCatalogFavorite(p.id)}" aria-label="${isCatalogFavorite(p.id)?'Quitar':'Añadir'} ${esc(p.name)} ${isCatalogFavorite(p.id)?'de':'a'} favoritos" onclick="toggleCatalogFavorite(event,this)"><span aria-hidden="true">${isCatalogFavorite(p.id)?'♥':'♡'}</span></button></div>${catalogProductReferenceMarkup(p)}<div class="price">${money(p.sale_price)}</div>${renderVariantOptions(p)}</div></article>`
  }).join(''):'<div class="empty">No encontramos productos con esos filtros.</div>';
  activateFirstCatalogImage();
  restoreSelectedCatalogCardImage();
@@ -6045,6 +6072,123 @@ async function loadSeasonalPromoFromSupabase({force=false}={}){
   maybeShowSeasonalPromo(sirevyaPromoConfig);return sirevyaPromoConfig;
  }catch(error){console.info('La promoción emergente no está configurada todavía; el catálogo continúa normalmente.',error?.message||error);return null}
 }
+const FLOATING_PROMO_DISMISSAL_KEY='sirevya_floating_promo_dismissed_v1';
+const FLOATING_PROMO_KEYS=['best_selling','trending','top_product'];
+let floatingPromoCampaign=null,floatingPromoStartTimer=null,floatingPromoAutoCloseTimer=null,floatingPromoCycleToken=0,floatingPromoDismissedSessionVersion='';
+function normalizeFloatingPromoCampaign(payload){
+ if(payload?.success!==true||!payload.campaign||typeof payload.campaign!=='object')return null;
+ const campaign=payload.campaign,buttons=campaign.buttons;
+ if(!Array.isArray(buttons)||buttons.length!==3)return null;
+ const categories=new Set((Array.isArray(productos)?productos:[]).map(item=>String(item?.category||'').trim()).filter(Boolean));
+ const keys=new Set(),orders=new Set(),normalized=[];
+ for(const button of buttons){
+  const key=String(button?.key||''),label=String(button?.label||'').trim(),icon=String(button?.icon||'').trim(),target=String(button?.target_category||'').trim(),order=Number(button?.sort_order);
+  const colors=['background_color','text_color','accent_color'].map(name=>String(button?.[name]||''));
+  if(!FLOATING_PROMO_KEYS.includes(key)||keys.has(key)||!label||label.length>32||!icon||icon.length>8||!Number.isInteger(order)||order<1||order>3||orders.has(order))return null;
+  if(colors.some(color=>!/^#[0-9a-f]{6}$/i.test(color))||!['gold','solid','outline'].includes(button?.appearance))return null;
+  if(campaign.enabled===true&&(!target||(catalogInitialLoadComplete&&!categories.has(target))))return null;
+  keys.add(key);orders.add(order);
+  normalized.push({key,label,icon,target_category:target,sort_order:order,appearance:button.appearance,background_color:colors[0].toLowerCase(),text_color:colors[1].toLowerCase(),accent_color:colors[2].toLowerCase()});
+ }
+ if(FLOATING_PROMO_KEYS.some(key=>!keys.has(key))||orders.size!==3)return null;
+ const interval=Number(campaign.interval_seconds),visible=Number(campaign.visible_seconds),version=String(campaign.campaign_version??'');
+ if(!Number.isInteger(interval)||interval<10||interval>7200||!Number.isInteger(visible)||visible<1||visible>30||!/^\d{1,18}$/.test(version))return null;
+ return {enabled:campaign.enabled===true,interval_seconds:interval,visible_seconds:visible,campaign_version:version,buttons:normalized.sort((a,b)=>a.sort_order-b.sort_order)};
+}
+function floatingPromoCampaignCategoriesExist(campaign){
+ const categories=new Set((Array.isArray(productos)?productos:[]).map(item=>String(item?.category||'').trim()).filter(Boolean));
+ return !!campaign?.buttons?.length&&campaign.buttons.every(button=>button.target_category&&categories.has(button.target_category));
+}
+function floatingPromoDismissed(version){
+ try{return localStorage.getItem(FLOATING_PROMO_DISMISSAL_KEY)===String(version)}catch{return floatingPromoDismissedSessionVersion===String(version)}
+}
+function clearFloatingPromoTimers(){
+ if(floatingPromoStartTimer){clearTimeout(floatingPromoStartTimer);floatingPromoStartTimer=null}
+ if(floatingPromoAutoCloseTimer){clearTimeout(floatingPromoAutoCloseTimer);floatingPromoAutoCloseTimer=null}
+ floatingPromoCycleToken++;
+}
+function floatingPromoModalOpen(element){
+ return !!element&&!element.hidden&&(element.classList.contains('open')||element.classList.contains('is-visible')||element.getAttribute('aria-hidden')==='false');
+}
+function floatingPromoIsBlocked(){
+ if(document.visibilityState!=='visible'||!catalogInitialLoadComplete)return true;
+ if($('checkoutModal')?.classList.contains('open')||floatingPromoModalOpen($('productDetailModal'))||floatingPromoModalOpen($('cartBar')))return true;
+ const seasonal=$('seasonalPromoOverlay');return !!seasonal&&!seasonal.hidden;
+}
+function renderFloatingPromoWidget(campaign){
+ const host=$('floatingPromoWidget');if(!host)return false;
+ host.replaceChildren();
+ const header=document.createElement('div');header.className='floatingPromoHeader';
+ const heading=document.createElement('span');heading.className='floatingPromoHeading';heading.textContent='Descubre el catálogo';header.appendChild(heading);
+ const close=document.createElement('button');close.type='button';close.className='floatingPromoClose';close.setAttribute('aria-label','Cerrar campaña flotante');close.title='Cerrar';close.textContent='×';close.addEventListener('click',()=>hideFloatingPromoWidget(true));header.appendChild(close);host.appendChild(header);
+ const actions=document.createElement('div');actions.className='floatingPromoActions';
+ for(const item of campaign.buttons){
+  const button=document.createElement('button');button.type='button';button.className=`floatingPromoAction floatingPromoAction--${item.appearance}`;button.dataset.floatingPromoKey=item.key;button.title=item.target_category;
+  button.style.setProperty('--fp-bg',item.background_color);button.style.setProperty('--fp-text',item.text_color);button.style.setProperty('--fp-accent',item.accent_color);
+  const icon=document.createElement('span');icon.className='floatingPromoActionIcon';icon.setAttribute('aria-hidden','true');icon.textContent=item.icon;
+  const label=document.createElement('span');label.className='floatingPromoActionLabel';label.textContent=item.label;
+  button.append(icon,label);
+  button.addEventListener('click',()=>{
+   const target=String(item.target_category||'').trim(),select=$('category');
+   const currentOption=select&&[...select.options].find(option=>option.value===target);
+   const categoryStillExists=Array.isArray(productos)&&productos.some(product=>String(product?.category||'').trim()===target);
+   if(!target||!currentOption||!categoryStillExists)return;
+   hideFloatingPromoWidget(false);selectCategory(currentOption.value);
+  });
+  actions.appendChild(button);
+ }
+ host.appendChild(actions);host.dataset.campaignVersion=campaign.campaign_version;host.hidden=false;
+ requestAnimationFrame(()=>{if(!host.hidden)host.classList.add('is-visible')});
+ return true;
+}
+function scheduleFloatingPromoCycle(){
+ if(floatingPromoStartTimer){clearTimeout(floatingPromoStartTimer);floatingPromoStartTimer=null}
+ if(floatingPromoAutoCloseTimer){clearTimeout(floatingPromoAutoCloseTimer);floatingPromoAutoCloseTimer=null}
+ const token=++floatingPromoCycleToken,campaign=floatingPromoCampaign;
+ if(!campaign?.enabled||floatingPromoDismissed(campaign.campaign_version))return;
+ const attempt=()=>{
+  if(token!==floatingPromoCycleToken||!floatingPromoCampaign||floatingPromoCampaign.campaign_version!==campaign.campaign_version)return;
+  if(floatingPromoDismissed(campaign.campaign_version))return;
+  if(floatingPromoIsBlocked()){floatingPromoStartTimer=setTimeout(attempt,1000);return}
+  if(!floatingPromoCampaignCategoriesExist(campaign)){const host=$('floatingPromoWidget');if(host){host.hidden=true;host.replaceChildren()}floatingPromoCampaign=null;return}
+  if(!renderFloatingPromoWidget(campaign))return;
+  floatingPromoAutoCloseTimer=setTimeout(()=>{
+   if(token!==floatingPromoCycleToken)return;
+   const host=$('floatingPromoWidget');if(host){host.classList.remove('is-visible');host.hidden=true;host.replaceChildren()}
+   floatingPromoAutoCloseTimer=null;scheduleFloatingPromoCycle();
+  },campaign.visible_seconds*1000);
+ };
+ floatingPromoStartTimer=setTimeout(attempt,campaign.interval_seconds*1000);
+}
+function hideFloatingPromoWidget(dismiss=false){
+ const host=$('floatingPromoWidget'),version=floatingPromoCampaign?.campaign_version;
+ if(dismiss&&version){floatingPromoDismissedSessionVersion=String(version);try{localStorage.setItem(FLOATING_PROMO_DISMISSAL_KEY,String(version))}catch{}}
+ if(host){host.classList.remove('is-visible');host.hidden=true;host.replaceChildren()}
+ clearFloatingPromoTimers();
+ if(!dismiss)scheduleFloatingPromoCycle();
+}
+async function loadFloatingPromoCampaign({force=false}={}){
+ if(!force&&floatingPromoCampaign&&document.visibilityState!=='visible')return floatingPromoCampaign;
+ try{
+  if(!sb||typeof sb.rpc!=='function')throw new Error('El catálogo no puede consultar Supabase.');
+  const {data,error}=await sb.rpc('get_public_storefront_floating_promotions');
+  if(error)throw error;
+  const result=Array.isArray(data)?data[0]:data,config=normalizeFloatingPromoCampaign(result);
+  clearFloatingPromoTimers();floatingPromoCampaign=config;
+  const host=$('floatingPromoWidget');if(host){host.hidden=true;host.classList.remove('is-visible');host.replaceChildren()}
+  if(config?.enabled)scheduleFloatingPromoCycle();
+  return config;
+ }catch(error){
+  clearFloatingPromoTimers();floatingPromoCampaign=null;
+  const host=$('floatingPromoWidget');if(host){host.hidden=true;host.classList.remove('is-visible');host.replaceChildren()}
+  console.info('La campaña flotante no está instalada o no está disponible; el catálogo continúa sin ella.',error?.message||error);return null;
+ }
+}
+window.addEventListener('keydown',event=>{if(event.key==='Escape'&&!$('floatingPromoWidget')?.hidden)hideFloatingPromoWidget(true)});
+const floatingPromoBlockerObserver=typeof MutationObserver==='function'?new MutationObserver(()=>{
+ const host=$('floatingPromoWidget');if(host&&!host.hidden&&floatingPromoIsBlocked())hideFloatingPromoWidget(false);
+}):null;
+if(floatingPromoBlockerObserver){['checkoutModal','productDetailModal','cartBar','seasonalPromoOverlay'].forEach(id=>{const element=$(id);if(element)floatingPromoBlockerObserver.observe(element,{attributes:true,attributeFilter:['class','aria-hidden','hidden']})})}
 window.addEventListener('keydown',event=>{if(event.key==='Escape'&&!$('seasonalPromoOverlay')?.hidden)closeSeasonalPromo()});
 window.addEventListener('storage',event=>{
  if(event.key==='sirevya_seasonal_promo_changed'&&document.visibilityState==='visible')void loadSeasonalPromoFromSupabase({force:true});
@@ -6052,7 +6196,12 @@ window.addEventListener('storage',event=>{
   try{const payload=JSON.parse(event.newValue||'{}');if(payload.type==='coupon-settings-changed'){void refreshStorefrontCouponSettings(true);return}if(['shipping-settings-changed','shipping-rules-changed'].includes(payload.type))void loadStorefrontShippingSettings(true)}catch{}
  }
 });
+window.addEventListener('storage',event=>{
+ if(event.key!=='sirevya_public_catalog_changed'||document.visibilityState!=='visible')return;
+ try{const payload=JSON.parse(event.newValue||'{}');if(payload.type==='floating-promotions-changed')void loadFloatingPromoCampaign({force:true})}catch{}
+});
 void loadSeasonalPromoFromSupabase();
+void loadFloatingPromoCampaign();
 void loadStorefrontProductCombos();
 let publicCatalogRealtimeChannel=null;
 function startPublicCatalogRealtime(){
@@ -6062,6 +6211,7 @@ function startPublicCatalogRealtime(){
    .on('broadcast',{event:'catalog_changed'},({payload})=>{
     if(!payload||document.visibilityState!=='visible')return;
     const type=String(payload.type||'');
+    if(type==='floating-promotions-changed'){void loadFloatingPromoCampaign({force:true});return}
     if(type==='coupon-settings-changed'){void refreshStorefrontCouponSettings(true);return}
     if(type==='promotion-changed'){void loadSeasonalPromoFromSupabase({force:true});return}
     if(type==='combo-changed'){void loadStorefrontProductCombos({force:true});return}

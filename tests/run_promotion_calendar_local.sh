@@ -18,6 +18,8 @@ FIXTURE="$ROOT/tests/fixtures/promotion_calendar_local_setup.sql"
 CITY_MIGRATION="$ROOT/supabase/migrations/20261108070000_storefront_city_shipping_rules.sql"
 PROMOTION_MIGRATION="$ROOT/supabase/migrations/20261108090000_storefront_combo_calendar_priority.sql"
 REGRESSION="$ROOT/tests/promotion_priority_regression.sql"
+FLOATING_PROMO_MIGRATION="$ROOT/supabase/migrations/20261112010000_storefront_floating_promotions.sql"
+FLOATING_PROMO_REGRESSION="$ROOT/tests/floating_promotions_migration_regression.sql"
 
 cleanup() {
   sudo -u postgres dropdb --if-exists --host="$PGHOST" --port="$PGPORT" "$DB" >/dev/null 2>&1 || true
@@ -35,4 +37,7 @@ run_sql "$FIXTURE"
 run_sql "$CITY_MIGRATION"
 run_sql "$PROMOTION_MIGRATION"
 run_sql "$REGRESSION"
-printf 'run_promotion_calendar_local: PASS (PostgreSQL %s, local socket only, synthetic fixture; temporary DB dropped)\n' "$PG_VERSION"
+run_sql "$FLOATING_PROMO_MIGRATION"
+run_sql "$FLOATING_PROMO_MIGRATION"
+run_sql "$FLOATING_PROMO_REGRESSION"
+printf 'run_promotion_calendar_local: PASS (PostgreSQL %s, local socket only, synthetic fixture, campaign RPCs/version/ACL; temporary DB dropped)\n' "$PG_VERSION"
