@@ -7,6 +7,7 @@ const read = name => fs.readFileSync(path.join(root, name), 'utf8');
 const notFound = read('404.html');
 const offline = read('offline.html');
 const catalog = read('index.html');
+const admin = read('admin.html');
 const robots = read('robots.txt');
 const sitemap = read('sitemap.xml');
 
@@ -20,6 +21,8 @@ assert.match(notFound, /href="\/cambios-devoluciones\.html"/);
 assert.doesNotMatch(notFound, /<link\b[^>]*rel=["']canonical/i, 'una página 404 no debe declarar canonical a la portada');
 assert.doesNotMatch(notFound, /<script\b|supabase/i, 'la 404 es estática y no requiere JavaScript ni servicios');
 assert.match(offline, /<meta name="robots" content="noindex,follow">/i, 'la página de fallback PWA no se indexa como tienda activa');
+assert.match(admin, /<meta name="robots" content="noindex,nofollow">/i, 'el panel de administración queda explícitamente fuera de indexación');
+assert.doesNotMatch(admin, /<link\b[^>]*rel=["']canonical/i, 'el panel privado no declara URL canónica indexable');
 const keywordTag = catalog.match(/<meta name="keywords" content="([^"]+)"/i);
 assert.ok(keywordTag, 'la portada ofrece palabras clave en el HTML inicial');
 assert.ok(keywordTag[1].split(',').map(value => value.trim()).filter(Boolean).length >= 3 && keywordTag[1].split(',').map(value => value.trim()).filter(Boolean).length <= 8, 'el panel SEO recibe entre tres y ocho palabras clave');
@@ -47,4 +50,4 @@ assert.deepEqual(urls, [
 assert.equal(new Set(urls).size, urls.length, 'el sitemap no duplica rutas');
 assert.ok(!urls.some(url => /(?:404|offline|admin)\.html$/i.test(url)), 'el sitemap excluye 404, offline y administración');
 
-console.log('seo_routes_regression: PASS (404 custom/noindex, offline noindex, robots y sitemap coherentes)');
+console.log('seo_routes_regression: PASS (404/offline/admin noindex, robots y sitemap coherentes)');

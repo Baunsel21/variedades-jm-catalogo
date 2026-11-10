@@ -1,6 +1,6 @@
 # Importación CSV transaccional (candidata)
 
-**Estado:** no aplicada ni activa en Supabase de producción. La migración `20261109213200_admin_csv_product_import_atomic.sql` puede integrarse en Git, pero su DDL solo se aplica tras backup/restauración verificables y revisar el contrato en un PostgreSQL aislado. La UI comprueba la disponibilidad con una llamada autenticada al RPC con `p_rows: []`; el servidor devuelve `IMPORT_LIMIT_EXCEEDED` antes del lock y cualquier escritura, así que el botón permanece deshabilitado mientras falte el RPC o la sesión/admin no esté autorizada.
+**Estado (2026-11-10):** una consulta de catálogo de solo lectura detectó `admin_import_products_csv(p_rows jsonb)` en producción como `SECURITY INVOKER`, con `EXECUTE` para `authenticated` y sin `EXECUTE` para `anon` ni `service_role`. La consulta del historial de migraciones no registró `20261109213200`; por tanto está confirmada la presencia de la RPC y sus permisos, pero no la ruta exacta de aplicación del DDL. No se ejecutó una importación real ni se modificaron productos. La UI comprueba disponibilidad con `p_rows: []` y solo debe habilitar el botón tras una respuesta explícita esperada del backend.
 
 ## Contrato
 
@@ -22,4 +22,4 @@ La prueba usa un scratch sintético y lo elimina al salir; no necesita URI, Dock
 
 ## Gate posterior
 
-Después de tener un restore real aislado, confirmar que el índice `products_user_code_idx`, RLS `products own`, `is_store_admin()` y columnas/defaults coinciden con la fixture. Luego revisar el lock/impacto sobre escritores, desplegar la migración de forma independiente y ejecutar una importación controlada solo en un entorno aislado, nunca con el catálogo productivo como prueba. El deploy/publicación de UI debe ser posterior a la disponibilidad del RPC.
+Después de tener un restore real aislado, comparar la firma y ACL de la RPC, el índice `products_user_code_idx`, RLS `products own`, `is_store_admin()` y columnas/defaults con la migración candidata. Como la función ya existe pero la tabla de versiones no registra ese timestamp, **no reaplicar ni reemplazar DDL en producción a ciegas**. Revisar el lock/impacto sobre escritores y validar una importación solo en un entorno aislado; nunca usar el catálogo productivo como fixture ni importar productos ficticios.

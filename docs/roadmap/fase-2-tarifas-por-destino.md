@@ -1,6 +1,6 @@
 # Fase 2 — Tarifas por ciudad y zona
 
-**Estado:** [PR #11 en borrador](https://github.com/Baunsel21/variedades-jm-catalogo/pull/11), rama `feature/roadmap-city-shipping`; tiene runner local PG17 con esquema sintético, pero sigue pendiente la validación sobre un esquema Supabase aislado. No fusionada, publicada ni aplicada a la base activa. Fecha: 9 de noviembre de 2026.
+**Estado actual (2026-11-10):** el código de admin/storefront está en `origin/main` y el catálogo Supabase de solo lectura muestra `admin_list_storefront_shipping_rules()` y `admin_save_storefront_shipping_rule(...)`; ambas RPC permiten `EXECUTE` a `authenticated` y no a `anon`. La consulta del historial de migraciones no registró `20261108070000`, así que se confirma presencia de las RPC, no la línea exacta de aplicación del DDL. No se cambiaron tarifas reales y no está demostrado un CRUD real de escritura; Fase 2 sigue abierta.
 
 ## Cambios preparados
 
@@ -19,11 +19,11 @@
 - `pglast`: parseó 25 sentencias de la migración y la sentencia DO de la regresión SQL.
 - `tests/run_storefront_city_shipping_local.sh`: pasó en PostgreSQL 17.11 local, con un esquema y producto sintéticos. Ejecutó la migración completa y comprobó tarifa Cali gratis/pagada/umbral, aliases, precedencia city/zone, fallback general, normalización Unicode, ACL y RLS; la base temporal se eliminó. Esta prueba acotada no reproduce todas las relaciones/triggers del esquema Sirevya ni el flujo COD.
 
-El runner local sí ejecuta PL/pgSQL de la migración y sus checks de ACL/RLS, pero solo frente a la fixture mínima. La regresión completa `tests/storefront_city_shipping_regression.sql` **se parseó pero no se ejecutó** porque solo hay un proyecto Supabase disponible y es el de producción. Incluye una comparación JSON del pedido/reserva COD sintéticos antes y después de borrar su regla, y ese contrato requiere el esquema completo en una copia aislada. Tampoco se aplicó ninguna migración a Supabase, se modificó dato real ni se verificó un despliegue web.
+El runner local sí ejecuta PL/pgSQL de la migración y sus checks de ACL/RLS, pero solo frente a la fixture mínima. La regresión completa `tests/storefront_city_shipping_regression.sql` **se parseó pero no se ejecutó** porque solo hay un proyecto Supabase disponible y es el de producción. Incluye una comparación JSON del pedido/reserva COD sintéticos antes y después de borrar su regla, y ese contrato requiere el esquema completo en una copia aislada. En la revisión del 2026-11-10, el catálogo de funciones confirmó las dos RPC admin; la consulta de historial no registró la versión `20261108070000`. No se leyeron filas comerciales ni se modificaron tarifas, pedidos o reservas. Pages confirmó el `origin/main` `32fa4cd`; el CRUD real de escritura sigue sin verificarse.
 
-## Puerta antes de fusionar o publicar
+## Validaciones pendientes antes de cerrar Fase 2
 
-1. Preparar un proyecto Supabase aislado con el esquema base vigente (incluidas `storefront_cod_settings`, `reserve_inventory` y las funciones COD base), y aplicar las migraciones de las fases previas más `20261108070000_storefront_city_shipping_rules.sql`.
+1. Con backup restaurable, preparar una copia aislada del esquema base (incluidas `storefront_cod_settings`, `reserve_inventory` y funciones COD) y comparar allí la migración candidata con las RPC observadas. No re-aplicar DDL en producción basándose solo en el historial ausente.
 2. Ejecutar `tests/storefront_city_shipping_regression.sql`, además de `tests/shipping_config_regression.sql` y `tests/cod_regression.sql`; revisar grants de `public`, `anon`, `service_role` y `authenticated`, y comprobar que no queden productos, pedidos, reservas o reglas sintéticas. La prueba COD modifica `storefront_cod_settings` solo dentro de un subbloque que se revierte y verifica la restauración.
 3. Probar visualmente las tarifas general, ciudad, zona, empate de zonas, Cali, “Otra ciudad”, cambio de regla con checkout abierto, COD elegible e importe Wompi en sandbox. No hacer un pago real.
-4. Revisar la diff y solo después autorizar publicación. Los criterios de Fase 2 del backlog siguen sin marcarse como completados hasta que exista esa evidencia.
+4. No marcar la fase completa hasta demostrar el contrato de esquema/restauración, el CRUD aislado, el flujo COD y la configuración efectiva sin cambiar reglas reales.
