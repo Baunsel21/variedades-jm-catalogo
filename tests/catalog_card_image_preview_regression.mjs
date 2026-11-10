@@ -83,7 +83,7 @@ photoNodes = [cardA.photo, cardB.photo, cardC.photo];
 context.photoHover({ currentTarget: cardA.photo, pointerType: 'mouse' });
 assert.equal(cardA.image.src, 'second-A.webp', 'El hover muestra la foto alternativa.');
 context.photoHoverLeave({ currentTarget: cardA.photo });
-assert.equal(cardA.image.src, 'main-A.webp', 'Al retirar el cursor la tarjeta vuelve a la imagen principal.');
+assert.equal(cardA.image.src, 'second-A.webp', 'La alternativa permanece al retirar el cursor.');
 
 context.photoHover({ currentTarget: cardB.photo, pointerType: 'mouse' });
 assert.equal(cardA.image.src, 'main-A.webp', 'Al seleccionar B, A vuelve a su imagen principal.');
@@ -101,7 +101,7 @@ assert.equal(touchCardA.image.src, 'second-A.webp', 'El primer toque muestra la 
 assert.equal(cardBAfterRender.image.src, 'main-B.webp', 'El toque restaura la tarjeta seleccionada anterior.');
 context.photoTouchEnd({ currentTarget: touchCardA.photo, pointerId: 11, pointerType: 'touch' });
 context.photoHoverLeave({ currentTarget: touchCardA.photo });
-assert.equal(touchCardA.image.src, 'main-A.webp', 'Al retirar el dedo la tarjeta vuelve a la imagen principal.');
+assert.equal(touchCardA.image.src, 'second-A.webp', 'La alternativa permanece al retirar el dedo.');
 
 let prevented = 0;
 let stopped = 0;
@@ -145,7 +145,7 @@ assert.equal(vm.runInNewContext('selectedCatalogCardImageProductId', context), '
 assert.deepEqual(context.productos[0].image_paths, ['main-A.webp', 'second-A.webp'], 'La interacción no guarda ni reordena las imágenes.');
 
 const touchEndBody = extractFunction('photoTouchEnd');
-assert.match(touchEndBody, /event\.pointerType==='touch'\)restoreCardMainPhoto\(photo\)/, 'Levantar el dedo restaura la imagen sin interceptar el click.');
+assert.doesNotMatch(touchEndBody, /restoreCardMainPhoto\(/, 'Levantar el dedo no restaura la alternativa seleccionada.');
 
 function exerciseSetPhotoImage(reducedMotion) {
   const animations = [];

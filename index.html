@@ -2726,7 +2726,6 @@ function photoTouchEnd(event){
  if(!photo)return;
  if(photo.__pointerId!=null&&event.pointerId!==photo.__pointerId)return;
  clearPhotoTouchTimer(photo);
- if(event.pointerType==='touch')restoreCardMainPhoto(photo);
  photo.__gestureActive=false;
  photo.__pointerId=null;
  photo.__startX=null;
@@ -2746,7 +2745,6 @@ function photoHoverLeave(event){
  const photo=event.currentTarget;
  if(!photo)return;
  if(photo.__hoverTimer){clearTimeout(photo.__hoverTimer);photo.__hoverTimer=null;}
- restoreCardMainPhoto(photo);
 }
 
 function updateWaHelpCollisionState(button,blockers){
