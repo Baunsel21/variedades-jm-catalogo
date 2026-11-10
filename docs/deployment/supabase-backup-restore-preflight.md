@@ -31,7 +31,7 @@ En CLI v3, `db dump` apunta al stack local por defecto. `--remote=<postgres-url>
 
 ## 1. Preparar destino privado y conexión
 
-Los ejemplos de shell son Bash (Linux, macOS o WSL); no ejecutes estos bloques directamente en PowerShell ni en Android. Trabaja en una computadora de operador con disco cifrado, acceso restringido y espacio libre suficiente. Los archivos deben quedar fuera del checkout Git, Descargas, Preview y sincronizadores públicos. No actives `set -x` ni grabación de sesión.
+Los bloques etiquetados `sh` son Bash (Linux, macOS o WSL); no los ejecutes directamente en PowerShell ni en Android. Más abajo hay bloques `powershell` específicos para Windows. Trabaja en una computadora de operador con disco cifrado, acceso restringido y espacio libre suficiente. Los archivos deben quedar fuera del checkout Git, Descargas, Preview y sincronizadores públicos. No actives `set -x` ni grabación de sesión.
 
 ```sh
 set +x
@@ -75,6 +75,63 @@ fi
 
 En macOS, si falta `sha256sum`, el bloque usa `shasum -a 256` automáticamente. No cambies el orden ni edites manualmente `SHA256SUMS`. Guarda un manifiesto con ref del proyecto, hora UTC, versión de CLI, versión de PostgreSQL, SHA de `main` y tamaño/hash de cada archivo. No incluyas URI, contraseña, tokens, valores de filas ni PII. Cifra el conjunto y guárdalo fuera del equipo; conserva el hash de verificación por un canal protegido.
 
+### Windows PowerShell: exportar y validar los dumps
+
+Instala Supabase CLI v3, PostgreSQL 17 y, para el ensayo local, Docker Desktop. Abre PowerShell en una terminal privada, fuera del checkout del proyecto. La URI se convierte temporalmente en argumento del proceso CLI; usa solo un PC confiable, no compartido, y nunca pegues el valor ni el dump en chat, GitHub o carpetas sincronizadas.
+
+```powershell
+$ErrorActionPreference = 'Stop'
+$BackupRoot = Join-Path $env:USERPROFILE 'secure-backups'
+$BackupDir = Join-Path $BackupRoot ("sirevya-preflight-{0}" -f [DateTime]::UtcNow.ToString('yyyyMMddTHHmmssZ'))
+New-Item -ItemType Directory -Force -Path $BackupDir | Out-Null
+$Principal = [Security.Principal.WindowsIdentity]::GetCurrent().Name
+& icacls.exe $BackupDir /inheritance:r /grant:r "$($Principal):(OI)(CI)F" | Out-Null
+if ($LASTEXITCODE -ne 0) { throw 'No se pudieron restringir los permisos de la carpeta.' }
+
+function Invoke-CheckedNative {
+  param([string]$Executable, [string[]]$NativeArgs)
+  & $Executable @NativeArgs
+  if ($LASTEXITCODE -ne 0) { throw "$Executable terminó con código $LASTEXITCODE." }
+}
+
+$SecureUri = Read-Host 'Introduce la URI privada de PostgreSQL obtenida por ti desde Supabase' -AsSecureString
+$Pointer = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($SecureUri)
+try { $env:SIREVYA_DB_URL = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($Pointer) }
+finally { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($Pointer) }
+$RemoteArg = "--remote=$($env:SIREVYA_DB_URL)"
+
+try {
+Invoke-CheckedNative -Executable 'supabase' -NativeArgs @('db','dump','-f',(Join-Path $BackupDir 'roles.sql'),'--role-only',$RemoteArg)
+Invoke-CheckedNative -Executable 'supabase' -NativeArgs @('db','dump','-f',(Join-Path $BackupDir 'schema.sql'),$RemoteArg)
+Invoke-CheckedNative -Executable 'supabase' -NativeArgs @('db','dump','-f',(Join-Path $BackupDir 'data.sql'),'--use-copy','--data-only','-x','storage.buckets_vectors','-x','storage.vector_indexes',$RemoteArg)
+
+$Names = @('roles.sql','schema.sql','data.sql')
+foreach ($Name in $Names) {
+  $File = Join-Path $BackupDir $Name
+  if (-not (Test-Path -LiteralPath $File -PathType Leaf) -or (Get-Item -LiteralPath $File).Length -eq 0) { throw "Falta el dump completo: $Name" }
+}
+$HashFile = Join-Path $BackupDir 'SHA256SUMS'
+$HashLines = foreach ($Name in $Names) {
+  $Hash = (Get-FileHash -LiteralPath (Join-Path $BackupDir $Name) -Algorithm SHA256).Hash.ToLowerInvariant()
+  "$Hash  $Name"
+}
+$HashLines | Set-Content -LiteralPath $HashFile -Encoding ascii
+foreach ($Line in Get-Content -LiteralPath $HashFile) {
+  $Parts = $Line -split '\s{2}', 2
+  $Actual = (Get-FileHash -LiteralPath (Join-Path $BackupDir $Parts[1]) -Algorithm SHA256).Hash.ToLowerInvariant()
+  if ($Actual -ne $Parts[0]) { throw "Checksum incorrecto: $($Parts[1])" }
+}
+Get-ChildItem -LiteralPath $BackupDir | Select-Object Name, Length
+Write-Output 'PASS: tres dumps presentes y checksums verificados localmente.'
+}
+finally {
+  Remove-Item Env:SIREVYA_DB_URL -ErrorAction SilentlyContinue
+  Remove-Variable SecureUri, Pointer, RemoteArg -ErrorAction SilentlyContinue
+}
+```
+
+Conserva la carpeta y los hashes en almacenamiento cifrado. El listado final muestra solo nombres y tamaños; no publiques el resultado ni los ficheros. Si una llamada falla o un dump está vacío, no continúes al restore ni a migraciones.
+
 El dump lógico no es una copia íntegra de todo Supabase. No incluye bytes de Storage, configuración de Auth, funciones Edge, API keys, credenciales ni configuración administrada por la plataforma. Los esquemas `auth`, `storage` y los creados por extensiones no se tratan como un respaldo completo. Las personalizaciones propias en `auth`/`storage` deben revisarse aparte. Vault no incluye la clave raíz en los dumps; no copies secretos al repositorio. [1] [4]
 
 ## 3. Crear un destino local aislado
@@ -116,6 +173,76 @@ psql \
   --file "$BACKUP_DIR/data.sql" \
   --dbname "$SIREVYA_LOCAL_RESTORE_URL"
 ```
+
+### Windows PowerShell: restaurar solo en el stack local
+
+En PowerShell, crea un scratch nuevo fuera del repositorio, ejecuta `supabase init`, y confirma en `supabase/config.toml` que `[db].major_version = 17`. Nunca ejecutes `supabase link` a producción, `db push`, `db reset` ni `migration up` contra la URI remota como parte de este ensayo.
+
+```powershell
+$ErrorActionPreference = 'Stop'
+function Invoke-CheckedNative {
+  param([string]$Executable, [string[]]$NativeArgs)
+  & $Executable @NativeArgs
+  if ($LASTEXITCODE -ne 0) { throw "$Executable terminó con código $LASTEXITCODE." }
+}
+
+$BackupDir = Read-Host 'Ruta local privada que contiene roles.sql, schema.sql, data.sql y SHA256SUMS'
+$Names = @('roles.sql','schema.sql','data.sql')
+$Manifest = @(Get-Content -LiteralPath (Join-Path $BackupDir 'SHA256SUMS'))
+if ($Manifest.Count -ne $Names.Count) { throw 'El manifiesto no tiene exactamente tres entradas.' }
+foreach ($Name in $Names) {
+  $Entry = @($Manifest | Where-Object { $_.EndsWith("  $Name") })
+  if ($Entry.Count -ne 1) { throw "Falta la entrada SHA del archivo $Name." }
+  $Parts = $Entry[0] -split '\s{2}', 2
+  $File = Join-Path $BackupDir $Name
+  if (-not (Test-Path -LiteralPath $File -PathType Leaf)) { throw "Falta el archivo $Name." }
+  $Actual = (Get-FileHash -LiteralPath $File -Algorithm SHA256).Hash.ToLowerInvariant()
+  if ($Actual -ne $Parts[0]) { throw "Checksum incorrecto: $Name" }
+}
+$RestoreDir = Join-Path $env:USERPROFILE ("sirevya-restore-scratch-{0}" -f [DateTime]::UtcNow.ToString('yyyyMMddTHHmmssZ'))
+New-Item -ItemType Directory -Path $RestoreDir | Out-Null
+Push-Location $RestoreDir
+try {
+  Invoke-CheckedNative -Executable 'supabase' -NativeArgs @('init')
+  Write-Host 'Verifica ahora [db].major_version = 17 en .\supabase\config.toml; si no coincide, corrígelo antes de seguir.'
+  Read-Host 'Cuando hayas confirmado PostgreSQL 17, pulsa Enter'
+  Invoke-CheckedNative -Executable 'supabase' -NativeArgs @('start')
+  Invoke-CheckedNative -Executable 'supabase' -NativeArgs @('status')
+  $env:SIREVYA_LOCAL_RESTORE_URL = Read-Host 'Copia localmente la DB URL que reporta supabase status (loopback solamente)'
+  $LocalUri = [Uri]$env:SIREVYA_LOCAL_RESTORE_URL
+  if ($LocalUri.Host -notin @('localhost','127.0.0.1','::1')) { throw 'El destino no es loopback; detente, no restaures.' }
+  $Major = & psql $env:SIREVYA_LOCAL_RESTORE_URL -Atc "select current_setting('server_version_num')::int / 10000;"
+  if ($LASTEXITCODE -ne 0 -or [int]$Major -ne 17) { throw 'El destino local no confirma PostgreSQL 17.' }
+
+  Invoke-CheckedNative -Executable 'psql' -NativeArgs @('--single-transaction','--variable','ON_ERROR_STOP=1','--file',(Join-Path $BackupDir 'roles.sql'),'--file',(Join-Path $BackupDir 'schema.sql'),'--command','SET session_replication_role = replica','--file',(Join-Path $BackupDir 'data.sql'),'--dbname',$env:SIREVYA_LOCAL_RESTORE_URL)
+
+  $CountSql = @'
+SELECT 'products' AS table_name, count(*)::bigint AS row_count FROM public.products
+UNION ALL SELECT 'orders', count(*)::bigint FROM public.orders
+UNION ALL SELECT 'web_orders', count(*)::bigint FROM public.web_orders
+UNION ALL SELECT 'inventory_reservations', count(*)::bigint FROM public.inventory_reservations
+UNION ALL SELECT 'inventory_movements', count(*)::bigint FROM public.inventory_movements
+UNION ALL SELECT 'store_settings', count(*)::bigint FROM public.store_settings
+ORDER BY table_name;
+'@
+  $LocalCounts = @(& psql $env:SIREVYA_LOCAL_RESTORE_URL -Atc $CountSql)
+  if ($LASTEXITCODE -ne 0) { throw 'Falló la consulta de conteos local.' }
+  $SecureUri = Read-Host 'Introduce de nuevo la URI privada de producción para comparar solo conteos agregados' -AsSecureString
+  $Pointer = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($SecureUri)
+  try { $env:SIREVYA_DB_URL = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($Pointer) }
+  finally { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($Pointer) }
+  try {
+    $SourceCounts = @(& psql $env:SIREVYA_DB_URL -Atc $CountSql)
+    if ($LASTEXITCODE -ne 0) { throw 'Falló la consulta read-only de conteos al origen.' }
+    if (@(Compare-Object -ReferenceObject $SourceCounts -DifferenceObject $LocalCounts).Count -ne 0) { throw 'Los conteos agregados no coinciden; no apliques migraciones.' }
+  }
+  finally { Remove-Item Env:SIREVYA_DB_URL -ErrorAction SilentlyContinue; Remove-Variable SecureUri, Pointer -ErrorAction SilentlyContinue }
+  Write-Output 'PASS: restore local PostgreSQL 17 y conteos agregados coincidentes; no se escribieron datos de producción.'
+}
+finally { Pop-Location }
+```
+
+Los conteos scratch por sí solos no verifican los datos; compáralos con el origen según la sección 4 y confirma también objetos, políticas RLS, funciones, triggers e índices. No pegues conteos, URI, dumps ni salida del CLI en el chat. El ensayo no debe crear un proyecto Supabase facturable.
 
 La prueba solo pasa si los checksums fueron válidos, el restore terminó con código cero, el host/versión son correctos y existen `public.products`, `public.orders`, `public.web_orders`, `public.inventory_reservations`, `public.inventory_movements` y `public.store_settings`. Ejecuta esta consulta de solo lectura en origen y destino y compara los conteos agregados. Ejecuta el scan de origen fuera de hora pico y guarda solo los números, nunca filas:
 
