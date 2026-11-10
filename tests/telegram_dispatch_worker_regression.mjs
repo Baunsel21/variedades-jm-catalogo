@@ -108,7 +108,7 @@ const orderRow = {
 // name/city fields and ignores all other PII and arbitrary nested fields.
 const formatted = formatTelegramNotification(orderRow);
 assert.match(formatted, /Nuevo pedido/);
-assert.match(formatted, /JM-TEST-042/);
+assert.match(formatted, /Pedido: JM-TEST-042/);
 assert.match(formatted, /PENDING/);
 assert.match(formatted, /Cliente: NOMBRE PRIVADO/);
 assert.match(formatted, /Ciudad: Cali/);
@@ -133,6 +133,8 @@ const reservationFormatted = formatTelegramNotification({
 });
 assert.match(reservationFormatted, /Reserva de inventario liberada/);
 assert.match(reservationFormatted, /Pedido: COD-TEST-002/);
+assert.match(reservationFormatted, /Ref\. interna de reserva: RES-TEST-1/);
+assert.ok(reservationFormatted.endsWith('Ref. interna de reserva: RES-TEST-1'), 'la referencia de reserva queda al final como dato secundario');
 assert.match(reservationFormatted, /SKU-10/);
 assert.equal(reservationFormatted.includes("3001112233"), false);
 assert.equal(formatTelegramNotification({ event_type: "reservation.created", payload: { reference: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" } }).includes("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"), false);
@@ -147,10 +149,55 @@ const legacyFormatted = formatTelegramNotification({
   },
 });
 assert.match(legacyFormatted, /Nuevo pedido/);
-assert.match(legacyFormatted, /Referencia: Sin referencia/);
+assert.doesNotMatch(legacyFormatted, /(?:Pedido|Reserva|Referencia):/);
 assert.match(legacyFormatted, /Estado de pago: PENDING/);
 assert.match(legacyFormatted, /Total: /);
 assert.equal(legacyFormatted.includes("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"), false);
+
+const commercialReferenceFormatted = formatTelegramNotification({
+  event_type: "order.created",
+  payload: {
+    reference: "JMCOD-PRIVATE-TECH-0001",
+    order_reference: "COD-TEST-089",
+    customer_name: "CLIENTE DE PRUEBA",
+    city: "Cali",
+    products: [
+      { code: "SKU-TEST-1", name: "Body Chain de prueba", quantity: 2 },
+      { code: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", name: "Producto con código UUID de prueba", quantity: 1 },
+    ],
+    total_units: 3,
+  },
+});
+assert.match(commercialReferenceFormatted, /Pedido: COD-TEST-089/);
+assert.match(commercialReferenceFormatted, /SKU-TEST-1.*Body Chain de prueba: 2/);
+assert.match(commercialReferenceFormatted, /Total de unidades: 3/);
+assert.equal(commercialReferenceFormatted.includes("JMCOD-PRIVATE-TECH-0001"), false);
+assert.equal(commercialReferenceFormatted.includes("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"), false);
+
+const legacyReservationFormatted = formatTelegramNotification({
+  event_type: "reservation.created",
+  payload: {
+    reference: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    product_code: "SKU-LEGACY-1",
+    product_name: "Body Chain de prueba",
+    quantity: 2,
+    customer_name: "CLIENTE DE PRUEBA",
+    city: "Cali",
+    reservation_status: "ACTIVE",
+  },
+});
+assert.match(legacyReservationFormatted, /SKU-LEGACY-1.*Body Chain de prueba: 2/);
+assert.match(legacyReservationFormatted, /Total de unidades: 2/);
+assert.equal(legacyReservationFormatted.includes("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"), false);
+const technicalInventoryFormat = formatTelegramNotification({
+  event_type: "inventory.stockout",
+  payload: {
+    product_code: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    product_name: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    quantity: 0,
+  },
+});
+assert.doesNotMatch(technicalInventoryFormat, /aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa|Código:|Producto:/);
 assert.equal(formatTelegramNotification({ event_type: "unknown.event", payload: {} }), "");
 
 // Invalid origin is rejected before the secret lookup, and cannot produce a send.

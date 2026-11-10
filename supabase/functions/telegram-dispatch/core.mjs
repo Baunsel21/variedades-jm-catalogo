@@ -151,8 +151,18 @@ function safeReference(value) {
     .replace(/[\u0000-\u001f\u007f]/g, "")
     .replace(/[^A-Za-z0-9._-]/g, "")
     .slice(0, 80);
-  if (!reference || validUuid(reference)) return "Sin referencia";
+  if (!reference || validUuid(reference) || /^JMCOD(?:[-_.].*)?$/i.test(reference)) return "";
   return reference;
+}
+
+function safeProductCode(value) {
+  const code = safeSingleLine(value, 60);
+  return code && !validUuid(code) ? code : "";
+}
+
+function safeProductName(value) {
+  const name = safeSingleLine(value, 100);
+  return name && !validUuid(name) ? name : "";
 }
 
 function formatCop(value) {
@@ -173,19 +183,28 @@ export function formatTelegramNotification(row) {
     ? row.payload
     : {};
   const reference = safeReference(payload.reference);
-  const lines = [title, `Referencia: ${reference}`];
+  const orderReference = safeReference(payload.commercial_reference)
+    || safeReference(payload.order_reference)
+    || (eventType.startsWith("order.") || eventType.startsWith("payment.") ? reference : "");
+  const inventoryReference = safeReference(payload.inventory_reference);
+  const reservationReference = eventType.startsWith("reservation.")
+    ? inventoryReference || reference
+    : "";
+  const lines = [title];
+  if (orderReference) lines.push(`Pedido: ${orderReference}`);
+  if (!orderReference && !reservationReference && reference) {
+    lines.push(`Referencia: ${reference}`);
+  }
 
   const customerName = safeSingleLine(payload.customer_name, 120);
   const city = safeSingleLine(payload.city, 80);
-  const orderReference = payload.order_reference ? safeReference(payload.order_reference) : "";
-  const inventoryReference = payload.inventory_reference ? safeReference(payload.inventory_reference) : "";
   const products = Array.isArray(payload.products) ? payload.products : [];
   const productLines = [];
   let computedUnits = 0;
   for (const product of products) {
     if (!product || typeof product !== "object" || Array.isArray(product)) continue;
-    const code = safeSingleLine(product.code, 60);
-    const name = safeSingleLine(product.name, 100);
+    const code = safeProductCode(product.code);
+    const name = safeProductName(product.name);
     const quantity = Number(product.quantity ?? product.qty);
     if (!Number.isSafeInteger(quantity) || quantity < 1) continue;
     computedUnits += quantity;
@@ -193,15 +212,23 @@ export function formatTelegramNotification(row) {
     if (productLabel) productLines.push(`- ${productLabel}: ${quantity}`);
   }
 
+  if (productLines.length === 0 && eventType.startsWith("reservation.")) {
+    const code = safeProductCode(payload.product_code);
+    const name = safeProductName(payload.product_name);
+    const quantity = Number(payload.quantity ?? payload.total_units);
+    if ((code || name) && Number.isSafeInteger(quantity) && quantity > 0) {
+      computedUnits = quantity;
+      productLines.push(`- ${[code, name].filter(Boolean).join(" — ")}: ${quantity}`);
+    }
+  }
+
   if (customerName) lines.push(`Cliente: ${customerName}`);
   if (city) lines.push(`Ciudad: ${city}`);
-  if (orderReference && orderReference !== reference) lines.push(`Pedido: ${orderReference}`);
-  if (inventoryReference && inventoryReference !== reference) lines.push(`Reserva: ${inventoryReference}`);
   if (productLines.length > 0) {
     lines.push("Productos:", ...productLines);
   }
   const totalUnits = Number(payload.total_units);
-  const units = Number.isSafeInteger(totalUnits) && totalUnits >= 0 ? totalUnits : computedUnits;
+  const units = Number.isSafeInteger(totalUnits) && totalUnits > 0 ? totalUnits : computedUnits;
   if (units > 0) lines.push(`Total de unidades: ${units}`);
 
   if (eventType === "order.created") {
@@ -221,8 +248,8 @@ export function formatTelegramNotification(row) {
     const amount = formatCop(payload.total_cop);
     if (amount) lines.push(`Total: ${amount}`);
   } else if (eventType.startsWith("inventory.")) {
-    const code = safeSingleLine(payload.product_code, 60);
-    const product = safeSingleLine(payload.product_name, 80);
+    const code = safeProductCode(payload.product_code);
+    const product = safeProductName(payload.product_name);
     const movement = safeSingleLine(payload.movement_type, 32);
     const quantity = Number(payload.quantity);
     if (code) lines.push(`Código: ${code}`);
@@ -240,6 +267,9 @@ export function formatTelegramNotification(row) {
     if (order) lines.push(`Estado del pedido: ${order}`);
     if (amount) lines.push(`Total: ${amount}`);
     if (status) lines.push(`Estado: ${status}`);
+    if (reservationReference && reservationReference !== orderReference) {
+      lines.push(`Ref. interna de reserva: ${reservationReference}`);
+    }
   } else if (eventType === "order.cancelled") {
     const status = safeSingleLine(payload.order_status, 32);
     const method = safeSingleLine(payload.payment_method, 40);
