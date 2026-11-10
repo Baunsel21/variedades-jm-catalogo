@@ -336,6 +336,7 @@ const ordersSection=admin.match(/<section id="pedidos"[\s\S]*?<\/section>/)?.[0]
  await import('../tests/inventory_reservation_client_boundary_regression.mjs');
  await import('../tests/admin_dashboard_pending_orders_regression.mjs');
  await import('../tests/admin_inventory_dialog_accessibility_regression.mjs');
+ await import('../tests/admin_client_history_report_filters_regression.mjs');
 	 await import('../tests/checkout_quote_success_contract_regression.mjs');
 	 await import('../tests/checkout_cedula_regression.mjs');
 	 await import('../tests/checkout_quote_fail_closed_regression.mjs');
