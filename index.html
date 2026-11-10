@@ -4307,6 +4307,7 @@ restoreCatalogPublicFiltersFromUrl();
 let cart=[];
 let cartOpen=false;
 let checkoutCart=null;
+let cartRecoveryNoticeMessage='';
 function getCheckoutItems(){return checkoutCart||cart;}
 function comboPriceForItem(item){
  const p=productos.find(row=>String(row.id)===String(item?.id));
@@ -4365,6 +4366,56 @@ try{
  const savedCart=JSON.parse(localStorage.getItem(WOMPI_CART_KEY)||'null');
  if(Array.isArray(savedCart)) cart=savedCart;
 }catch(e){ console.warn('No se pudo restaurar el carrito de Wompi.',e); }
+function reconcileRestoredCartWithCatalog(){
+ const empty={priceChanges:0,stockChanges:0,missingProducts:0,skipped:false};
+ try{
+  if(!Array.isArray(cart)||!cart.length)return empty;
+  // Una reserva activa conserva su carrito y vencimiento originales. Esta rutina
+  // solo reconcilia el borrador local cuando no existe una referencia reservada.
+  if(getActiveReservationReference())return {...empty,skipped:true};
+  let priceChanges=0,stockChanges=0,missingProducts=0,changed=false;
+  const next=cart.map(item=>{
+  const product=productos.find(row=>String(row.id)===String(item?.id));
+  if(!product){
+   missingProducts++;
+   if(Number(item?.max)!==0)changed=true;
+   return {...item,max:0};
+  }
+  const currentPrice=Number(product.sale_price),savedPrice=Number(item?.price);
+   const hasCurrentPrice=Number.isFinite(currentPrice)&&currentPrice>=0;
+   if(hasCurrentPrice&&Number.isFinite(savedPrice)&&Math.round(currentPrice)!==Math.round(savedPrice))priceChanges++;
+   const variants=variantList(product);
+   const currentStock=Math.max(0,Number(variants.length?variantStock(product,item?.color||'',item?.size||''):product.quantity)||0);
+   const previousStock=Number(item?.max),quantity=Math.max(0,Number(item?.qty)||0);
+   if(!Number.isFinite(previousStock)||previousStock!==currentStock||quantity>currentStock)stockChanges++;
+   const nextItem={...item,name:String(product.name||item?.name||''),code:String(product.code||item?.code||''),max:currentStock};
+   if(hasCurrentPrice)nextItem.price=currentPrice;
+   if(nextItem.name!==item?.name||nextItem.code!==item?.code||nextItem.max!==item?.max||nextItem.price!==item?.price)changed=true;
+   return nextItem;
+  });
+  cart=next;
+  const notices=[];
+  if(priceChanges)notices.push(`${priceChanges} línea(s) cambió de precio; el total usa el valor vigente.`);
+  if(stockChanges)notices.push(`${stockChanges} línea(s) cambió de disponibilidad; revisa las cantidades antes de continuar.`);
+  if(missingProducts)notices.push(`${missingProducts} producto(s) ya no aparece en el catálogo; elimínalo para continuar.`);
+  cartRecoveryNoticeMessage=notices.length?`Recuperamos tu carrito. ${notices.join(' ')} No se creó ni renovó ninguna reserva.`:'';
+  if(changed)saveWompiCart();
+  return {priceChanges,stockChanges,missingProducts,skipped:false,message:cartRecoveryNoticeMessage};
+ }catch{
+  return {...empty,skipped:true};
+ }
+}
+function renderCartRestoreNotice(){
+ let notice=$('cartRestoreNotice');
+ const items=$('cartItems');
+ if(!notice&&cartRecoveryNoticeMessage&&items?.parentNode){
+  notice=document.createElement('div');notice.id='cartRestoreNotice';notice.className='cartRestoreNotice';
+  notice.setAttribute('role','status');notice.setAttribute('aria-live','polite');
+  notice.style.cssText='box-sizing:border-box;margin:0 12px 8px;padding:10px 12px;border:1px solid #eadbb8;border-radius:12px;background:#fffaf0;color:#5e4a31;font-size:12px;line-height:1.45;font-weight:650;';
+  items.parentNode.insertBefore(notice,items);
+ }
+ if(notice){notice.hidden=!cartRecoveryNoticeMessage;notice.textContent=cartRecoveryNoticeMessage;}
+}
 function openDirectProductFromLocation(){
  try{
   const id=new URLSearchParams(window.location.search).get('producto');
@@ -4506,7 +4557,9 @@ function renderCart(){
  const bar=$('cartBar'),items=$('cartItems'),sum=$('cartSummary');
  updateCartBadge();
  if(!bar||!items||!sum)return;
+ renderCartRestoreNotice();
  if(!cart.length){
+   cartRecoveryNoticeMessage='';renderCartRestoreNotice();
    cartOpen=false;bar.classList.remove('cartOpen');bar.setAttribute('aria-hidden','true');items.innerHTML='';sum.textContent='0 productos';
    if($('cartDrawerTotal'))$('cartDrawerTotal').textContent=money(0);
    const discountLine=$('cartDiscountLine');if(discountLine){discountLine.hidden=true;discountLine.textContent='';}
@@ -5478,6 +5531,7 @@ async function load(){
     size_guide_image:String(p.size_guide_image||'').trim(),quantity:Number(p.quantity)||0,
     colors:parseVariantList(p.colors),sizes:parseVariantList(p.sizes),variants:normalizeVariants(p.variants),image_paths:[]
   }));
+  reconcileRestoredCartWithCatalog();
   catalogInitialLoadComplete=true;
   const initialCats=[...new Set(productos.map(p=>String(p.category||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'es'));
   applyCatalogCategories(initialCats,true);
