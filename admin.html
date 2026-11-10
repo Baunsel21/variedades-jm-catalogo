@@ -528,7 +528,16 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
           <label>Cantidad<input id="mCantidad" type="number" min="1" step="1" value="1"></label>
           <label class="full">Motivo<input id="mMotivo" maxlength="300" placeholder="Ej. Compra, pérdida, corrección"></label>
         </div><div style="margin-top:15px"><button class="primary" onclick="registrarMovimiento()">🔄 Registrar movimiento</button></div></div>
-        <div class="box" style="margin-top:15px"><h3>Últimos movimientos</h3><div id="listaMovimientos"></div></div>
+        <div class="box" style="margin-top:15px"><div class="rowBetween" style="align-items:flex-start;gap:12px;flex-wrap:wrap"><div><h3 style="margin:0">Bitácora de movimientos de inventario</h3><p class="muted" style="margin:4px 0 0">Registro de <code>inventory_movements</code>. No representa un historial general de cambios de pedidos/usuarios.</p></div><button id="exportMovementLogCSV" type="button" class="softbtn">📄 Exportar movimientos CSV</button></div>
+          <div class="searchbar" style="align-items:end;margin-top:12px">
+            <label for="movementLogSearch">Buscar producto o motivo<input id="movementLogSearch" type="search" maxlength="120" placeholder="Código, nombre o motivo"></label>
+            <label for="movementLogType">Tipo<select id="movementLogType"><option value="">Todos</option><option value="entrada">Entrada</option><option value="salida">Salida</option><option value="ajuste">Ajuste</option></select></label>
+            <label for="movementLogFrom">Desde<input id="movementLogFrom" type="date"></label>
+            <label for="movementLogTo">Hasta<input id="movementLogTo" type="date"></label>
+            <button id="clearMovementLogFilters" type="button" class="softbtn">Limpiar</button>
+          </div>
+          <p id="movementLogStatus" class="muted" role="status" aria-live="polite"></p><div id="listaMovimientos"></div>
+        </div>
       </section>
 
       <section id="reportes" class="view">
@@ -4069,9 +4078,36 @@ async function registrarMovimiento(){
    if(movementButton){movementButton.disabled=false;movementButton.textContent=movementButton.dataset.originalText||"🔄 Registrar movimiento";delete movementButton.dataset.originalText;}
  }
 }
+function getInventoryMovementLogDateRange(){
+ const from=String($("movementLogFrom")?.value||'').trim(),to=String($("movementLogTo")?.value||'').trim();
+ return {from,to,valid:(!from||isValidAdminReportDate(from))&&(!to||isValidAdminReportDate(to))&&(!from||!to||from<=to)};
+}
+function normalizeMovementSearchValue(value){return String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('es-CO');}
+function filterInventoryMovementLog(rows=movimientos){
+ const range=getInventoryMovementLogDateRange(),type=String($("movementLogType")?.value||'').trim().toLowerCase(),query=normalizeMovementSearchValue($("movementLogSearch")?.value||'');
+ if(!range.valid||!['','entrada','salida','ajuste'].includes(type))return [];
+ return (Array.isArray(rows)?rows:[]).filter(row=>{
+  if(!row)return false;
+  if(type&&String(row.type||'').toLowerCase()!==type)return false;
+  if(query&&!normalizeMovementSearchValue([row.product_code,row.product_name,row.motive,row.type].join(' ')).includes(query))return false;
+  if(range.from||range.to){const day=String(row.created_at||'').slice(0,10);if(!isValidAdminReportDate(day)||range.from&&day<range.from||range.to&&day>range.to)return false;}
+  return true;
+ });
+}
 function renderMovimientos(){
- if(moduleLoadErrors.movements){$("listaMovimientos").innerHTML=`<div class="alert"><b>No se pudieron cargar los movimientos.</b><br>${esc(moduleLoadErrors.movements)}</div>`;return;}
- $("listaMovimientos").innerHTML=movimientos.slice(0,100).map(m=>`<div class="listItem"><div class="rowBetween"><div><b>${esc(m.product_code)} — ${esc(m.product_name)}</b><div class="muted">${m.created_at?new Date(m.created_at).toLocaleString("es-CO"):""} • ${esc(m.motive||"Sin motivo")}</div></div><span class="badge ${m.type==="entrada"?"ok":m.type==="salida"?"low":"out"}">${esc(m.type)}</span></div></div>`).join("")||'<div class="empty">No hay movimientos.</div>';
+ const host=$("listaMovimientos"),status=$("movementLogStatus");if(!host)return;
+ if(moduleLoadErrors.movements){if(status)status.textContent='No se pudo cargar la bitácora.';host.innerHTML=`<div class="alert"><b>No se pudieron cargar los movimientos.</b><br>${esc(moduleLoadErrors.movements)}</div>`;return;}
+ const rows=filterInventoryMovementLog(movimientos),range=getInventoryMovementLogDateRange();
+ if(status)status.textContent=!range.valid?'Rango de fechas no válido; se ocultan los resultados.':`Coincidencias: ${rows.length} de ${movimientos.length} movimientos cargados. Se muestran hasta 100; filtros locales de lectura.`;
+ host.innerHTML=rows.slice(0,100).map(m=>`<div class="listItem"><div class="rowBetween"><div><b>${esc(m.product_code)} — ${esc(m.product_name)}</b><div class="muted">${m.created_at?new Date(m.created_at).toLocaleString("es-CO"):"Fecha sin dato"} • ${esc(m.motive||"Sin motivo")} • ${Number(m.quantity)||0} unidad(es)</div></div><span class="badge ${m.type==="entrada"?"ok":m.type==="salida"?"low":"out"}">${esc(m.type)}</span></div></div>`).join("")||'<div class="empty">No hay movimientos que coincidan con los filtros.</div>';
+}
+function exportInventoryMovementLogCSV(){
+ if(moduleLoadErrors.movements){toast('No se puede exportar: la bitácora no se cargó.');return false;}
+ const range=getInventoryMovementLogDateRange();if(!range.valid){toast('Corrige el rango de fechas antes de exportar.');return false;}
+ const rows=filterInventoryMovementLog(movimientos);if(rows.length>20000){toast('Hay demasiados movimientos para un solo CSV. Reduce el rango o los filtros.');return false;}
+ const head=['Fecha','Tipo','Código','Producto','Cantidad','Motivo'];
+ const content=[head,...rows.map(row=>[row.created_at||'',row.type||'',row.product_code||'',row.product_name||'',Number(row.quantity)||0,row.motive||''])].map(line=>line.map(safeCSVCell).join(';')).join('\n');
+ downloadFile('sirevya_bitacora_movimientos.csv','\uFEFF'+content,'text/csv;charset=utf-8');toast(`Bitácora descargada (${rows.length} movimientos)`);return true;
 }
 function reciboVenta(id){
  const v=ventas.find(x=>x.id===id);if(!v)return;
@@ -4635,6 +4671,11 @@ document.addEventListener("DOMContentLoaded",()=>{
   initAdminColorPalette();
   const reportFrom=$("reportFromDate"),reportTo=$("reportToDate"),reportClear=$("clearReportDateFilters");
   reportFrom?.addEventListener('change',renderReportes);reportTo?.addEventListener('change',renderReportes);reportClear?.addEventListener('click',clearAdminReportDateFilters);
+  const movementSearch=$("movementLogSearch"),movementType=$("movementLogType"),movementFrom=$("movementLogFrom"),movementTo=$("movementLogTo"),movementClear=$("clearMovementLogFilters"),movementExport=$("exportMovementLogCSV");
+  [movementSearch,movementType].forEach(control=>control?.addEventListener('input',renderMovimientos));
+  [movementType,movementFrom,movementTo].forEach(control=>control?.addEventListener('change',renderMovimientos));
+  movementClear?.addEventListener('click',()=>{if(movementSearch)movementSearch.value='';if(movementType)movementType.value='';if(movementFrom)movementFrom.value='';if(movementTo)movementTo.value='';renderMovimientos();});
+  movementExport?.addEventListener('click',exportInventoryMovementLogCSV);
   document.addEventListener('click',handleInventoryProductAction);
   window.addEventListener('keydown',handleProductModalKeydown);
   const ordersBox=$("listaPedidos");
