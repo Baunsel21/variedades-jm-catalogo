@@ -23,6 +23,7 @@ DECLARE
   row_count integer;
   stored_image text;
   stored_variants jsonb;
+  bad_url text;
   insert_failure_seen boolean := false;
 BEGIN
   IF has_function_privilege('anon', 'public.admin_import_products_csv_v2(jsonb)', 'EXECUTE') THEN
@@ -35,9 +36,9 @@ BEGIN
   result := public.admin_import_products_csv_v2(jsonb_build_array(jsonb_build_object(
     'row', 2, 'code', 'SKU-V2-001', 'name', 'Producto v2 sintético', 'category', 'Ropa',
     'cost', 100, 'sale_price', 200, 'quantity', 3,
-    'image_url', 'https://cdn.example.test/main.jpg',
+    'image_url', 'https://cdn.example.test:65535/main.jpg',
     'variants', jsonb_build_array(
-      jsonb_build_object('color', 'Rojo', 'size', 'S', 'stock', 2, 'color_hex', '#aa0022', 'image_path', 'https://cdn.example.test/red-s.jpg'),
+      jsonb_build_object('color', 'Rojo', 'size', 'S', 'stock', 2, 'color_hex', '#aa0022', 'image_path', 'https://cdn.example.test:0001/red-s.jpg'),
       jsonb_build_object('color', 'Rojo', 'size', 'M', 'stock', 1)
     )
   )));
@@ -46,9 +47,9 @@ BEGIN
   END IF;
   SELECT image_url, variants INTO stored_image, stored_variants
   FROM public.products WHERE user_id = auth.uid() AND code = 'SKU-V2-001';
-  IF stored_image IS DISTINCT FROM 'https://cdn.example.test/main.jpg'
+  IF stored_image IS DISTINCT FROM 'https://cdn.example.test:65535/main.jpg'
      OR jsonb_array_length(stored_variants) <> 2
-     OR stored_variants->0->>'image_path' IS DISTINCT FROM 'https://cdn.example.test/red-s.jpg'
+     OR stored_variants->0->>'image_path' IS DISTINCT FROM 'https://cdn.example.test:0001/red-s.jpg'
      OR stored_variants->0->>'color_hex' IS DISTINCT FROM '#aa0022' THEN
     RAISE EXCEPTION 'CSV v2 image/variant payload did not persist in the scratch schema';
   END IF;
@@ -72,6 +73,34 @@ BEGIN
   IF result->>'ok' IS DISTINCT FROM 'false' OR NOT (result->'errors' @> '[{"code":"IMAGE_URL_INVALID"}]'::jsonb) THEN
     RAISE EXCEPTION 'non-HTTPS image URL must be rejected, got %', result;
   END IF;
+
+  FOREACH bad_url IN ARRAY ARRAY[
+    'https://cdn.example.test:bad/x',
+    'https://cdn.example.test:/x',
+    'https://cdn.example.test:0/x',
+    'https://cdn.example.test:65536/x'
+  ] LOOP
+    result := public.admin_import_products_csv_v2(jsonb_build_array(jsonb_build_object(
+      'row', 2, 'code', 'SKU-BAD-PORT', 'name', 'No guardar', 'category', 'Ropa', 'cost', 1, 'sale_price', 2, 'quantity', 1,
+      'image_url', bad_url, 'variants', '[]'::jsonb
+    )));
+    IF result->>'ok' IS DISTINCT FROM 'false' OR NOT (result->'errors' @> '[{"code":"IMAGE_URL_INVALID"}]'::jsonb) THEN
+      RAISE EXCEPTION 'HTTPS image URL with invalid port % must be rejected, got %', bad_url, result;
+    END IF;
+  END LOOP;
+
+  FOREACH bad_url IN ARRAY ARRAY[
+    'https://cdn.example.test:/variant.jpg',
+    'https://cdn.example.test:0/variant.jpg'
+  ] LOOP
+    result := public.admin_import_products_csv_v2(jsonb_build_array(jsonb_build_object(
+      'row', 2, 'code', 'SKU-BAD-VARIANT-PORT', 'name', 'No guardar', 'category', 'Ropa', 'cost', 1, 'sale_price', 2, 'quantity', 1,
+      'image_url', '', 'variants', jsonb_build_array(jsonb_build_object('color', 'Rojo', 'size', 'S', 'stock', 1, 'image_path', bad_url))
+    )));
+    IF result->>'ok' IS DISTINCT FROM 'false' OR NOT (result->'errors' @> '[{"code":"VARIANTS_INVALID"}]'::jsonb) THEN
+      RAISE EXCEPTION 'variant HTTPS image URL with invalid port % must be rejected, got %', bad_url, result;
+    END IF;
+  END LOOP;
 
   result := public.admin_import_products_csv_v2(jsonb_build_array(jsonb_build_object(
     'row', 2, 'code', 'SKU-BAD-STOCK', 'name', 'No guardar', 'category', 'Ropa', 'cost', 1, 'sale_price', 2, 'quantity', 3,
@@ -98,6 +127,16 @@ BEGIN
   )));
   IF result->>'ok' IS DISTINCT FROM 'false' OR NOT (result->'errors' @> '[{"code":"VARIANTS_INVALID"}]'::jsonb) THEN
     RAISE EXCEPTION 'unsafe variant image path must be rejected, got %', result;
+  END IF;
+
+  result := public.admin_import_products_csv_v2(jsonb_build_array(jsonb_build_object(
+    'row', 2, 'code', 'SKU-BAD-PORT-VARIANT', 'name', 'No guardar', 'category', 'Ropa', 'cost', 1, 'sale_price', 2, 'quantity', 1,
+    'image_url', '', 'variants', jsonb_build_array(jsonb_build_object(
+      'color', 'Rojo', 'size', 'S', 'stock', 1, 'image_path', 'https://cdn.example.test:bad/x.jpg'
+    ))
+  )));
+  IF result->>'ok' IS DISTINCT FROM 'false' OR NOT (result->'errors' @> '[{"code":"VARIANTS_INVALID"}]'::jsonb) THEN
+    RAISE EXCEPTION 'variant image URL with malformed port must be rejected, got %', result;
   END IF;
 
   result := public.admin_import_products_csv_v2('[]'::jsonb);

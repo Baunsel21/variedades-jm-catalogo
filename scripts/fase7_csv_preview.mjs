@@ -31,6 +31,7 @@ export const DEFAULT_LIMITS = Object.freeze({
 
 const MAX_TEXT_BYTES = 4096;
 const MAX_SAFE_INTEGER_BIGINT = BigInt(Number.MAX_SAFE_INTEGER);
+const MAX_POSTGRES_INTEGER_BIGINT = 2147483647n;
 const FORMULA_START = /^[=+@]/;
 const FORMULA_MINUS_START = /^-(?!\d+$)/;
 const FORMULA_PLUS_START = /^\+(?!\d+$)/;
@@ -320,7 +321,7 @@ function validateText(value, field, row, errors) {
   return true;
 }
 
-function parseNonNegativeInteger(value, field, row, errors, label) {
+function parseNonNegativeInteger(value, field, row, errors, label, maximum = MAX_SAFE_INTEGER_BIGINT) {
   const text = String(value ?? '').trim();
   if (text === '') {
     errors.push(makeError(row, 'REQUIRED_FIELD', `${field} es obligatorio.`, field));
@@ -353,9 +354,9 @@ function parseNonNegativeInteger(value, field, row, errors, label) {
     errors.push(makeError(row, 'INVALID_INTEGER', `${field} debe ser un entero válido.`, field));
     return null;
   }
-  if (integer > MAX_SAFE_INTEGER_BIGINT) {
+  if (integer > maximum) {
     errors.push(
-      makeError(row, 'INTEGER_OUT_OF_RANGE', `${field} supera el rango entero seguro de JavaScript.`, field),
+      makeError(row, 'INTEGER_OUT_OF_RANGE', `${field} supera el rango entero permitido.`, field),
     );
     return null;
   }
@@ -366,9 +367,12 @@ function isSafeCsvImageUrl(value) {
   const text = String(value ?? '').trim();
   if (!text) return true;
   if (new TextEncoder().encode(text).byteLength > 2048 || /[\\\s\u0000-\u001f]/.test(text)) return false;
+  const authority = text.slice('https://'.length).split(/[/?#]/, 1)[0];
+  if (!authority || authority.endsWith(':')) return false;
   try {
     const url = new URL(text);
-    return url.protocol === 'https:' && !!url.hostname && !url.username && !url.password;
+    if (url.protocol !== 'https:' || !url.hostname || url.username || url.password) return false;
+    return !url.port || (Number.isSafeInteger(Number(url.port)) && Number(url.port) >= 1 && Number(url.port) <= 65535);
   } catch {
     return false;
   }
@@ -642,6 +646,7 @@ export function previewProductsCsv(input, options = {}, legacyOptions = {}) {
       rowNumber,
       rowErrors,
       'quantity',
+      MAX_POSTGRES_INTEGER_BIGINT,
     );
 
     let imageUrl = '';
