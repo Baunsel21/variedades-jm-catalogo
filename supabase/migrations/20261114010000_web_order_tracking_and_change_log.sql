@@ -139,6 +139,111 @@ FOR EACH ROW EXECUTE FUNCTION public._log_web_order_tracking_change();
 REVOKE ALL ON FUNCTION public._log_web_order_change() FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public._log_web_order_tracking_change() FROM PUBLIC, anon, authenticated, service_role;
 
+-- When the Telegram outbox upgrade is installed, notify the owner about a newly
+-- created/changed guide. The guard keeps this candidate independently testable
+-- before Telegram's candidate is installed; it never sends directly to Telegram.
+CREATE OR REPLACE FUNCTION public._capture_sirevya_telegram_tracking_event()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp
+AS $$
+DECLARE
+  v_order jsonb;
+  v_payload jsonb;
+  v_event_type text;
+  v_order_id text := coalesce(NEW.web_order_id::text, '');
+  v_order_reference text;
+  v_address text;
+  v_delivery_mode text;
+  v_payment_method text;
+  v_total numeric;
+  v_summary jsonb;
+BEGIN
+  IF to_regclass('public.sirevya_telegram_outbox') IS NULL
+     OR to_regprocedure('public._enqueue_sirevya_telegram_notification(text,text,text,text,jsonb)') IS NULL
+     OR to_regprocedure('public._sirevya_telegram_order_product_summary(jsonb)') IS NULL THEN
+    RETURN NEW;
+  END IF;
+  IF TG_OP = 'UPDATE' AND
+     (NEW.carrier_name, NEW.tracking_number, NEW.tracking_url)
+       IS NOT DISTINCT FROM (OLD.carrier_name, OLD.tracking_number, OLD.tracking_url) THEN
+    RETURN NEW;
+  END IF;
+
+  SELECT to_jsonb(o) INTO v_order
+    FROM public.web_orders AS o
+   WHERE o.id = NEW.web_order_id;
+  IF v_order IS NULL THEN RETURN NEW; END IF;
+
+  v_event_type := CASE WHEN TG_OP = 'INSERT' THEN 'order.tracking_created' ELSE 'order.tracking_updated' END;
+  v_order_reference := public._sirevya_telegram_clean_reference(
+    coalesce(v_order->>'client_reference', v_order->>'reference', v_order->>'inventory_reference', '')
+  );
+  v_address := public._sirevya_telegram_clean_text(
+    concat_ws(', ',
+      nullif(btrim(coalesce(v_order->>'customer_address', v_order->>'address', '')), ''),
+      nullif(btrim(coalesce(v_order->>'customer_neighborhood', v_order->>'neighborhood', '')), '')
+    ), 200
+  );
+  v_payment_method := CASE lower(btrim(coalesce(v_order->>'payment_method', '')))
+    WHEN 'wompi' THEN 'Wompi'
+    WHEN 'pse' THEN 'PSE'
+    WHEN 'tarjeta' THEN 'Tarjeta'
+    WHEN 'contra entrega' THEN 'Contra entrega'
+    WHEN 'contraentrega' THEN 'Contra entrega'
+    WHEN 'cash_on_delivery' THEN 'Contra entrega'
+    WHEN 'cash on delivery' THEN 'Contra entrega'
+    WHEN 'cod' THEN 'Contra entrega'
+    ELSE 'sin especificar'
+  END;
+  v_delivery_mode := public._sirevya_telegram_clean_text(
+    coalesce(nullif(v_order->>'delivery_method', ''), nullif(v_order->>'delivery_type', ''),
+      CASE WHEN v_payment_method = 'Contra entrega' THEN 'Contra entrega' ELSE 'Envío a domicilio' END), 40
+  );
+  v_total := public._sirevya_telegram_safe_numeric(v_order->>'total');
+  v_summary := public._sirevya_telegram_order_product_summary(v_order->'items');
+  v_payload := jsonb_strip_nulls(jsonb_build_object(
+    'reference', v_order_reference,
+    'order_reference', v_order_reference,
+    'admin_order_id', v_order_id,
+    'created_at', public._sirevya_telegram_clean_text(v_order->>'created_at', 40),
+    'customer_name', public._sirevya_telegram_clean_text(v_order->>'customer_name', 120),
+    'customer_phone', public._sirevya_telegram_clean_text(coalesce(v_order->>'customer_phone', v_order->>'phone'), 40),
+    'city', public._sirevya_telegram_clean_text(v_order->>'customer_city', 80),
+    'delivery_address', v_address,
+    'payment_method', v_payment_method,
+    'payment_status', public._sirevya_telegram_clean_text(upper(v_order->>'payment_status'), 32),
+    'order_status', public._sirevya_telegram_clean_text(upper(v_order->>'status'), 32),
+    'subtotal_cop', public._sirevya_telegram_safe_numeric(v_order->>'subtotal'),
+    'discount_cop', public._sirevya_telegram_safe_numeric(coalesce(v_order->>'discount_total', v_order->>'discount_cop')),
+    'coupon_code', public._sirevya_telegram_clean_text(v_order->>'coupon_code', 64),
+    'coupon_discount_cop', public._sirevya_telegram_safe_numeric(v_order->>'coupon_discount_total'),
+    'shipping_cop', public._sirevya_telegram_safe_numeric(v_order->>'shipping'),
+    'total_cop', v_total,
+    'delivery_mode', v_delivery_mode,
+    'carrier_name', public._sirevya_telegram_clean_text(NEW.carrier_name, 80),
+    'tracking_number', public._sirevya_telegram_clean_text(NEW.tracking_number, 120),
+    'tracking_url', NEW.tracking_url,
+    'products', v_summary->'products',
+    'total_units', v_summary->'total_units',
+    'omitted_products', v_summary->'omitted_products'
+  ));
+  PERFORM public._enqueue_sirevya_telegram_notification(
+    'web-order:' || v_order_id || ':tracking:' || v_event_type || ':' ||
+      md5(coalesce(NEW.carrier_name, '') || '|' || coalesce(NEW.tracking_number, '') || '|' || coalesce(NEW.tracking_url, '')),
+    v_event_type, 'web_orders', v_order_id, v_payload
+  );
+  RETURN NEW;
+END
+$$;
+
+REVOKE ALL ON FUNCTION public._capture_sirevya_telegram_tracking_event() FROM PUBLIC, anon, authenticated, service_role;
+DROP TRIGGER IF EXISTS web_order_tracking_telegram_after_write ON public.web_order_tracking;
+CREATE TRIGGER web_order_tracking_telegram_after_write
+AFTER INSERT OR UPDATE ON public.web_order_tracking
+FOR EACH ROW EXECUTE FUNCTION public._capture_sirevya_telegram_tracking_event();
+
 DROP FUNCTION IF EXISTS public.admin_list_web_order_tracking(integer);
 CREATE OR REPLACE FUNCTION public.admin_list_web_order_tracking(p_order_ids uuid[])
 RETURNS jsonb

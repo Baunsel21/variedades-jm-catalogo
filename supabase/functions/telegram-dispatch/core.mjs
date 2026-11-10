@@ -6,21 +6,26 @@ const TELEGRAM_TIMEOUT_MS = 8000;
 const TELEGRAM_DISPATCH_HEADER = "x-sirevya-dispatch-secret";
 
 const EVENT_TITLES = Object.freeze({
-  "order.created": "Nuevo pedido",
-  "order.cancelled": "Pedido cancelado",
-  "payment.pending": "Pago pendiente",
-  "payment.approved": "Pago aprobado",
-  "payment.rejected": "Pago rechazado",
-  "payment.error": "Error de pago",
-  "payment.voided": "Pago anulado",
-  "inventory.stockout": "Producto agotado",
-  "inventory.restocked": "Producto restablecido",
-  "inventory.movement": "Movimiento de inventario",
-  "reservation.created": "Reserva de inventario creada",
-  "reservation.released": "Reserva de inventario liberada",
-  "reservation.expired": "Reserva de inventario vencida",
-  "reservation.whatsapp_reserved": "Inventario reservado para WhatsApp",
-  "reservation.whatsapp_confirmed": "Reserva de WhatsApp confirmada",
+  "order.created": "🛍️ Nuevo pedido",
+  "order.cancelled": "⛔ Pedido cancelado",
+  "order.status_changed": "📦 Estado del pedido actualizado",
+  "order.shipped": "🚚 Pedido enviado",
+  "order.delivered": "✅ Pedido entregado",
+  "order.tracking_created": "🧾 Guía de envío generada",
+  "order.tracking_updated": "🔄 Guía de envío actualizada",
+  "payment.pending": "🕓 Pago pendiente",
+  "payment.approved": "✅ Pago confirmado",
+  "payment.rejected": "⚠️ Pago rechazado",
+  "payment.error": "⚠️ Error de pago",
+  "payment.voided": "↩️ Pago anulado",
+  "inventory.stockout": "⚠️ Producto agotado",
+  "inventory.restocked": "📦 Producto restablecido",
+  "inventory.movement": "📋 Movimiento de inventario",
+  "reservation.created": "📦 Reserva de inventario creada",
+  "reservation.released": "↩️ Reserva de inventario liberada",
+  "reservation.expired": "⌛ Reserva de inventario vencida",
+  "reservation.whatsapp_reserved": "📲 Inventario reservado para WhatsApp",
+  "reservation.whatsapp_confirmed": "✅ Reserva de WhatsApp confirmada",
 });
 
 function envValue(env, name) {
@@ -167,10 +172,11 @@ function safeProductName(value) {
 
 function safePhone(value) {
   const phone = safeSingleLine(value, 40);
-  return /\d{7,}/.test(phone) && /^[0-9+()\s.-]+$/.test(phone) ? phone : "";
+  return phone.replace(/\D/g, "").length >= 7 && /^\+?[0-9()\s.-]+$/.test(phone) ? phone : "";
 }
 
 function formatCop(value) {
+  if (value === null || value === undefined || String(value).trim() === "") return "";
   const amount = Number(value);
   if (!Number.isSafeInteger(amount) || amount < 0) return "";
   return new Intl.NumberFormat("es-CO", {
@@ -180,13 +186,90 @@ function formatCop(value) {
   }).format(amount);
 }
 
-export function formatTelegramNotification(row) {
+function formatOrderDateTime(value) {
+  const raw = String(value ?? "").trim();
+  const date = raw ? new Date(raw) : null;
+  if (!date || !Number.isFinite(date.getTime())) return "";
+  return new Intl.DateTimeFormat("es-CO", {
+    dateStyle: "medium",
+    timeStyle: "short",
+    timeZone: "America/Bogota",
+  }).format(date);
+}
+
+function safeTrackingUrl(value) {
+  const raw = String(value ?? "").trim();
+  if (!raw || raw.length > 2048 || /[\u0000-\u0020\u007f]/.test(raw)) return "";
+  try {
+    const url = new URL(raw);
+    const host = url.hostname.toLowerCase();
+    if (url.protocol !== "https:" || url.username || url.password || !host) return "";
+    if (host === "localhost" || host.endsWith(".localhost") || (host.startsWith("[") && host.endsWith("]"))) return "";
+    const ipv4 = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+    if (ipv4) {
+      const octets = ipv4.slice(1).map(Number);
+      if (octets.some(part => part > 255) || octets[0] === 0 || octets[0] === 10 || octets[0] === 127 || octets[0] >= 224 || (octets[0] === 169 && octets[1] === 254) || (octets[0] === 172 && octets[1] >= 16 && octets[1] <= 31) || (octets[0] === 192 && octets[1] === 168)) return "";
+    }
+    return url.toString();
+  } catch {
+    return "";
+  }
+}
+
+function safeWhatsAppUrl(value) {
+  const phone = safeSingleLine(value, 40);
+  if (!phone || !/^\+?[0-9()\s.-]+$/.test(phone)) return "";
+  const digits = phone.replace(/\D/g, "");
+  if (digits.length < 7) return "";
+  const internationalDigits = /^\s*\+/.test(phone) && /^[1-9]\d{7,14}$/.test(digits)
+    ? digits
+    : digits.startsWith("57") && digits.length === 12
+      ? digits
+      : /^3\d{9}$/.test(digits)
+        ? `57${digits}`
+        : "";
+  return internationalDigits ? `https://wa.me/${internationalDigits}` : "";
+}
+
+export function buildTelegramReplyMarkup(row) {
   const eventType = String(row?.event_type ?? "");
-  const title = EVENT_TITLES[eventType];
-  if (!title) return "";
   const payload = row?.payload && typeof row.payload === "object" && !Array.isArray(row.payload)
     ? row.payload
     : {};
+  const buttons = [];
+  const orderId = String(payload.admin_order_id ?? "");
+  if (validUuid(orderId) && (eventType === "order.created" || eventType.startsWith("order."))) {
+    buttons.push({
+      text: "Abrir pedido",
+      url: `https://sirevya.com.co/admin.html?web_order=${encodeURIComponent(orderId)}`,
+    });
+  }
+  const trackingUrl = safeTrackingUrl(payload.tracking_url);
+  if (trackingUrl && eventType.startsWith("order.tracking_")) {
+    buttons.push({ text: "Rastrear envío", url: trackingUrl });
+  }
+  const contactUrl = safeWhatsAppUrl(payload.customer_phone);
+  if (contactUrl && (eventType === "order.created" || eventType.startsWith("order.tracking_"))) {
+    buttons.push({ text: "Contactar cliente", url: contactUrl });
+  }
+  return buttons.length ? { inline_keyboard: [buttons] } : null;
+}
+
+function isCodPaymentMethod(value) {
+  const method = safeSingleLine(value, 40).toLowerCase().replace(/[_-]+/g, " ").replace(/\s+/g, " ").trim();
+  return ["contra entrega", "contraentrega", "cash on delivery", "cod"].includes(method);
+}
+
+export function formatTelegramNotification(row) {
+  const eventType = String(row?.event_type ?? "");
+  const defaultTitle = EVENT_TITLES[eventType];
+  if (!defaultTitle) return "";
+  const payload = row?.payload && typeof row.payload === "object" && !Array.isArray(row.payload)
+    ? row.payload
+    : {};
+  const title = eventType === "order.created" && isCodPaymentMethod(payload.payment_method)
+    ? "🧾 Pedido contraentrega recibido"
+    : defaultTitle;
   const reference = safeReference(payload.reference);
   const orderReference = safeReference(payload.commercial_reference)
     || safeReference(payload.order_reference)
@@ -195,8 +278,12 @@ export function formatTelegramNotification(row) {
   const reservationReference = eventType.startsWith("reservation.")
     ? inventoryReference || reference
     : "";
-  const lines = [title];
+  const lines = [title, "──────────────"];
   if (orderReference) lines.push(`Pedido: ${orderReference}`);
+  if (eventType.startsWith("order.") || eventType.startsWith("payment.")) {
+    const dateTime = formatOrderDateTime(row?.created_at ?? payload.created_at);
+    if (dateTime) lines.push(`Fecha y hora: ${dateTime} (Colombia)`);
+  }
   if (!orderReference && !reservationReference && reference) {
     lines.push(`Referencia: ${reference}`);
   }
@@ -221,7 +308,8 @@ export function formatTelegramNotification(row) {
     if (!Number.isSafeInteger(quantity) || quantity < 1) continue;
     computedUnits += quantity;
     const productLabel = [code, name].filter(Boolean).join(" — ") || "Producto sin identificación";
-    productLines.push(`- ${productLabel}${variant ? ` · Variante: ${variant}` : ""} · Cantidad: ${quantity}`);
+    const unitPrice = formatCop(product.unit_price_cop);
+    productLines.push(`- ${productLabel}${variant ? ` · Variante: ${variant}` : ""}${unitPrice ? ` · ${unitPrice} c/u` : ""} · Cantidad: ${quantity}`);
   }
 
   if (productLines.length === 0 && eventType.startsWith("reservation.")) {
@@ -267,14 +355,22 @@ export function formatTelegramNotification(row) {
     const method = safeSingleLine(payload.payment_method, 40);
     const payment = safeSingleLine(payload.payment_status, 32);
     const order = safeSingleLine(payload.order_status, 32);
+    const deliveryMode = safeSingleLine(payload.delivery_mode, 40);
     if (phone) lines.push(`Teléfono: ${phone}`);
     if (deliveryAddress) lines.push(`Dirección: ${deliveryAddress}`);
+    if (deliveryMode) lines.push(`Entrega: ${deliveryMode}`);
     if (method) lines.push(`Medio: ${method}`);
-    if (payment) lines.push(`Estado de pago: ${payment}`);
+    if (payment && !isCodPaymentMethod(method)) lines.push(`Estado de pago: ${payment}`);
+    else if (payment === "PENDING" && isCodPaymentMethod(method)) lines.push("Cobro: contraentrega al recibir");
     if (order) lines.push(`Estado del pedido: ${order}`);
     const subtotal = formatCop(payload.subtotal_cop);
+    const discount = formatCop(payload.discount_cop);
+    const couponDiscount = formatCop(payload.coupon_discount_cop);
+    const couponCode = safeSingleLine(payload.coupon_code, 64);
     const shipping = formatCop(payload.shipping_cop);
     if (subtotal) lines.push(`Subtotal: ${subtotal}`);
+    if (discount) lines.push(`Descuentos: ${discount}`);
+    if (couponCode) lines.push(`Cupón: ${couponCode}${couponDiscount ? ` · ${couponDiscount}` : ""}`);
     if (shipping) lines.push(`Envío: ${shipping}`);
     const amount = formatCop(payload.total_cop);
     if (amount) lines.push(`Total: ${amount}`);
@@ -308,6 +404,21 @@ export function formatTelegramNotification(row) {
     if (reservationReference && reservationReference !== orderReference) {
       lines.push(`Ref. interna de reserva: ${reservationReference}`);
     }
+  } else if (eventType === "order.status_changed" || eventType === "order.shipped" || eventType === "order.delivered" || eventType.startsWith("order.tracking_")) {
+    const status = safeSingleLine(payload.order_status, 32);
+    const carrier = safeSingleLine(payload.carrier_name, 80);
+    const trackingNumber = safeSingleLine(payload.tracking_number, 120);
+    const phone = safePhone(payload.customer_phone);
+    const deliveryAddress = safeSingleLine(payload.delivery_address, 200);
+    const method = safeSingleLine(payload.payment_method, 40);
+    const amount = formatCop(payload.total_cop);
+    if (status) lines.push(`Estado del pedido: ${status}`);
+    if (carrier) lines.push(`Transportadora: ${carrier}`);
+    if (trackingNumber) lines.push(`Guía: ${trackingNumber}`);
+    if (phone) lines.push(`Teléfono: ${phone}`);
+    if (deliveryAddress) lines.push(`Dirección: ${deliveryAddress}`);
+    if (method) lines.push(`Medio: ${method}`);
+    if (amount) lines.push(`Total: ${amount}`);
   } else if (eventType === "order.cancelled") {
     const status = safeSingleLine(payload.order_status, 32);
     const method = safeSingleLine(payload.payment_method, 40);
@@ -490,10 +601,16 @@ export function createTelegramDispatchHandler({
       let telegramResponse;
       let telegramBody;
       try {
+        const replyMarkup = buildTelegramReplyMarkup(row);
         telegramResponse = await fetcher(`https://api.telegram.org/bot${botToken}/sendMessage`, {
           method: "POST",
           headers: { "Content-Type": "application/json", Accept: "application/json" },
-          body: JSON.stringify({ chat_id: chatId, text, disable_web_page_preview: true }),
+          body: JSON.stringify({
+            chat_id: chatId,
+            text,
+            disable_web_page_preview: true,
+            ...(replyMarkup ? { reply_markup: replyMarkup } : {}),
+          }),
           signal: timeoutSignal(TELEGRAM_TIMEOUT_MS),
         });
         telegramBody = await parseJsonResponse(telegramResponse);
