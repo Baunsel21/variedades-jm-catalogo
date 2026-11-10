@@ -2576,17 +2576,18 @@ function orderTrackingEventSummary(event){
  const type=String(event?.event_type||'');
  if(type==='order_created')return `Pedido creado${event.after_status?` · ${event.after_status}`:''}`;
  if(type==='status_changed')return `Estado: ${event.before_status||'—'} → ${event.after_status||'—'}`;
- const carrier=String(event.after_carrier_name||event.before_carrier_name||'');
- const number=String(event.after_tracking_number||event.before_tracking_number||'');
- return `${type==='tracking_created'?'Guía registrada':'Guía actualizada'}${carrier?` · ${carrier}`:''}${number?` · ${number}`:''}`;
+ const urlChanged=event.tracking_url_changed===true;
+ if(type==='tracking_created')return `Guía registrada${event.after_carrier_name?` · ${event.after_carrier_name}`:''}${event.after_tracking_number?` · ${event.after_tracking_number}`:''}${urlChanged?' · con enlace de seguimiento':''}`;
+ const before=`${event.before_carrier_name||'—'} ${event.before_tracking_number||''}`.trim();
+ const after=`${event.after_carrier_name||'—'} ${event.after_tracking_number||''}`.trim();
+ return `Guía actualizada · ${before} → ${after}${urlChanged?' · enlace de seguimiento actualizado':''}`;
 }
 function renderOrderTrackingHistory(data){
  const host=$('orderTrackingHistoryList'),status=$('orderTrackingHistoryStatus');if(!host)return;
  const rows=Array.isArray(data)?data:[];
  host.innerHTML=rows.map(event=>{
   const date=event.created_at?new Date(event.created_at).toLocaleString('es-CO',{timeZone:'America/Bogota'}):'';
-  const url=safeOrderTrackingUrl(event.after_tracking_url);
-  return `<article class="orderTrackingEvent"><time>${esc(date)}</time><strong>${esc(orderTrackingEventSummary(event))}</strong>${url?` · <a class="orderTrackingLink" href="${esc(url)}" target="_blank" rel="noopener noreferrer">Consultar</a>`:''}</article>`;
+  return `<article class="orderTrackingEvent"><time>${esc(date)}</time><strong>${esc(orderTrackingEventSummary(event))}</strong></article>`;
  }).join('');
  if(status)status.textContent=rows.length?`${rows.length} cambio(s) recientes; alcance: pedido web y guía.`:'No hay cambios registrados desde que el módulo se active.';
 }
@@ -2612,7 +2613,7 @@ function openOrderTracking(orderId,trigger){
  const order=pedidos.find(row=>String(row.id)===String(orderId));if(!order)return false;
  const modal=$('orderTrackingModal');if(!modal)return false;
  orderTrackingReturnFocus=trigger||document.activeElement;modal.dataset.orderId=String(orderId);modal.classList.add('show');modal.setAttribute('aria-hidden','false');
- const ref=String(order.client_reference||String(order.id).slice(0,8));
+ const rawRef=String(order.order_number||order.client_reference||'');const ref=rawRef&&rawRef.length<=80?rawRef:'sin referencia comercial';
  $('orderTrackingTitle').textContent='Seguimiento del pedido';$('orderTrackingOrderLabel').textContent=`Pedido ${ref} · ${String(order.customer_city||'Ciudad no especificada')}`;
  const current=webOrderTrackingById[orderId]||{};
  $('orderTrackingCarrier').value=current.carrier_name||'';$('orderTrackingNumber').value=current.tracking_number||'';$('orderTrackingUrl').value=current.tracking_url||'';

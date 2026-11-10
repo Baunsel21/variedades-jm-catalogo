@@ -63,6 +63,10 @@ BEGIN
   IF (SELECT count(*) FROM public.storefront_change_log WHERE entity_id=v AND event_type='tracking_updated') <> 1 THEN
     RAISE EXCEPTION 'expected one tracking_updated event';
   END IF;
+  IF NOT EXISTS (SELECT 1 FROM public.storefront_change_log WHERE entity_id=v AND event_type='tracking_updated' AND tracking_url_changed)
+     OR EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='storefront_change_log' AND column_name IN ('before_tracking_url','after_tracking_url')) THEN
+    RAISE EXCEPTION 'tracking history must record only the URL-change flag, never URL snapshots';
+  END IF;
 
   result := public.admin_set_web_order_tracking(v, 'Coordinadora', 'GUIA-X', 'javascript:alert(1)');
   IF result->>'code' IS DISTINCT FROM 'TRACKING_URL_INVALID' THEN

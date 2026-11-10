@@ -52,8 +52,7 @@ CREATE TABLE public.storefront_change_log (
   after_carrier_name text,
   before_tracking_number text,
   after_tracking_number text,
-  before_tracking_url text,
-  after_tracking_url text,
+  tracking_url_changed boolean NOT NULL DEFAULT false,
   actor_id uuid,
   created_at timestamptz NOT NULL DEFAULT now()
 );
@@ -101,10 +100,11 @@ DECLARE
   v_event text;
   v_before_carrier text;
   v_before_number text;
-  v_before_url text;
+  v_url_changed boolean := false;
 BEGIN
   IF TG_OP = 'INSERT' THEN
     v_event := 'tracking_created';
+    v_url_changed := NEW.tracking_url IS NOT NULL;
   ELSE
     IF (NEW.carrier_name, NEW.tracking_number, NEW.tracking_url)
        IS NOT DISTINCT FROM (OLD.carrier_name, OLD.tracking_number, OLD.tracking_url) THEN
@@ -113,18 +113,17 @@ BEGIN
     v_event := 'tracking_updated';
     v_before_carrier := OLD.carrier_name;
     v_before_number := OLD.tracking_number;
-    v_before_url := OLD.tracking_url;
+    v_url_changed := NEW.tracking_url IS DISTINCT FROM OLD.tracking_url;
   END IF;
   INSERT INTO public.storefront_change_log(
     entity_type, entity_id, event_type,
     before_carrier_name, after_carrier_name,
-    before_tracking_number, after_tracking_number,
-    before_tracking_url, after_tracking_url, actor_id
+    before_tracking_number, after_tracking_number, tracking_url_changed, actor_id
   ) VALUES (
     'web_order_tracking', NEW.web_order_id, v_event,
     v_before_carrier, NEW.carrier_name,
     v_before_number, NEW.tracking_number,
-    v_before_url, NEW.tracking_url,
+    v_url_changed,
     coalesce(auth.uid(), NEW.updated_by)
   );
   RETURN NEW;
@@ -190,7 +189,7 @@ BEGIN
     SELECT id, entity_type, event_type, before_status, after_status,
            before_carrier_name, after_carrier_name,
            before_tracking_number, after_tracking_number,
-           before_tracking_url, after_tracking_url, actor_id, created_at
+           tracking_url_changed, actor_id, created_at
     FROM public.storefront_change_log
     WHERE entity_id = p_order_id
     ORDER BY created_at DESC, id DESC
