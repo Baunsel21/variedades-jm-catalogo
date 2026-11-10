@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { DEFAULT_LIMITS, PRODUCT_COLUMNS } from '../scripts/fase7_csv_preview.mjs';
+import { DEFAULT_LIMITS, PRODUCT_COLUMNS, PRODUCT_COLUMNS_V2 } from '../scripts/fase7_csv_preview.mjs';
 import {
   CONSERVATIVE_MAX_IMPORT_PAYLOAD_BYTES,
   buildCsvPreviewReportCsv,
@@ -89,6 +89,7 @@ class FakeDocument {
 }
 
 const header = PRODUCT_COLUMNS.join(',');
+const headerV2 = PRODUCT_COLUMNS_V2.join(',');
 
 // El módulo del navegador reutiliza el parser puro y marca duplicados cargados en memoria.
 {
@@ -98,6 +99,23 @@ const header = PRODUCT_COLUMNS.join(',');
   assert.equal(result.writePerformed, false);
   assert.equal(result.rows.length, 0);
   assert.ok(result.errors.some(error => error.code === 'EXISTING_CODE'));
+}
+
+// CSV v2 previsualiza enlaces HTTPS y variantes sin subir archivos ni activar RPCs.
+{
+  const variants = [{ color: 'Negro', size: 'S', stock: 1, color_hex: '#222222', image_path: 'https://cdn.example.test/negro-s.jpg' }];
+  const variantCell = JSON.stringify(variants).replace(/"/g, '""');
+  const result = await previewCsvFile(csvFile(`${headerV2}\nSKU-V2,Body chain,Accesorios,100,200,1,https://cdn.example.test/item.jpg,"${variantCell}"`), [], 2);
+  assert.equal(result.errors.length, 0);
+  assert.equal(result.schemaVersion, 2);
+  assert.equal(result.rows[0].image_url, 'https://cdn.example.test/item.jpg');
+  assert.equal(result.rows[0].variants[0].image_path, 'https://cdn.example.test/negro-s.jpg');
+  assert.ok(result.summary.importPayloadBytes <= CONSERVATIVE_MAX_IMPORT_PAYLOAD_BYTES);
+  const ids = { csvPreviewImportButton: new FakeNode('button'), csvPreviewSummary: new FakeNode(), csvPreviewStatus: new FakeNode(), csvPreviewErrors: new FakeNode(), csvPreviewErrorList: new FakeNode('ul'), csvPreviewRows: new FakeNode('tbody') };
+  renderCsvPreviewResult(result, new FakeDocument(ids));
+  assert.equal(ids.csvPreviewRows.children[0].children[7].textContent, 'URL HTTPS');
+  assert.equal(ids.csvPreviewRows.children[0].children[8].textContent, '1 variante(s)');
+  assert.equal(ids.csvPreviewImportButton.disabled, true, 'La preview no habilita escritura por sí sola.');
 }
 
 // Los textos locales aplican el mismo límite octet_length que el RPC (no solo cantidad de caracteres).
@@ -307,6 +325,49 @@ const header = PRODUCT_COLUMNS.join(',');
   assert.equal(ids.csvPreviewDownloadReport.disabled, true);
 }
 
+// La versión v2 exige su RPC propio; sin ella se muestra preview, pero el lote no se habilita.
+{
+  const fileInput = new FakeNode('input');
+  const variantCell = JSON.stringify([{ color: 'Rojo', size: 'Única', stock: 2, color_hex: '#AA1122' }]).replace(/"/g, '""');
+  fileInput.files = [csvFile(`${headerV2}\nSKU-V2-UI,Body chain,Accesorios,100,200,2,https://cdn.example.test/main.jpg,"${variantCell}"`)];
+  const selector = new FakeNode('select'); selector.value = '2';
+  const ids = {
+    csvProductFile: fileInput, csvPreviewSchemaVersion: selector,
+    csvPreviewButton: new FakeNode('button'), csvPreviewClear: new FakeNode('button'),
+    csvPreviewDownloadReport: new FakeNode('button'), csvPreviewImportButton: new FakeNode('button'),
+    csvPreviewStatus: new FakeNode(), csvPreviewSummary: new FakeNode(), csvPreviewErrors: new FakeNode(),
+    csvPreviewErrorList: new FakeNode('ul'), csvPreviewErrorsNote: new FakeNode(),
+    csvPreviewRows: new FakeNode('tbody'), csvPreviewRowsNote: new FakeNode(),
+  };
+  const oldGlobals = Object.fromEntries(['getAdminCsvPreviewExistingCodes', 'checkAdminCsvImportRpcReady', 'commitAdminCsvProducts', 'refreshAdminAfterCsvImport'].map(name => [name, globalThis[name]]));
+  let rpcReady = false, committed = null; const probedVersions = []; const confirmations = [];
+  globalThis.getAdminCsvPreviewExistingCodes = () => [];
+  globalThis.checkAdminCsvImportRpcReady = async version => { probedVersions.push(version); return rpcReady; };
+  globalThis.commitAdminCsvProducts = async (rows, version) => { committed = { rows, version }; return { ok: true, inserted: rows.length }; };
+  globalThis.refreshAdminAfterCsvImport = async () => true;
+  const browserRef = { confirm(message) { confirmations.push(message); return true; } };
+  try {
+    initializeCsvPreviewUi(new FakeDocument(ids), browserRef);
+    await fileInput.trigger('change'); await ids.csvPreviewButton.trigger('click');
+    assert.equal(ids.csvPreviewImportButton.disabled, true);
+    assert.match(ids.csvPreviewStatus.textContent, /RPC v2.*no está disponible/i);
+    rpcReady = true;
+    await ids.csvPreviewButton.trigger('click');
+    assert.equal(probedVersions.at(-1), 2);
+    assert.equal(ids.csvPreviewImportButton.disabled, false);
+    await ids.csvPreviewImportButton.trigger('click');
+    assert.equal(committed.version, 2);
+    assert.equal(committed.rows[0].image_url, 'https://cdn.example.test/main.jpg');
+    assert.equal(committed.rows[0].variants[0].stock, 2);
+    assert.match(confirmations[0], /no se subirán archivos de imagen/i);
+    assert.match(ids.csvPreviewStatus.textContent, /Importación confirmada: 1 producto nuevo/);
+  } finally {
+    for (const [name, value] of Object.entries(oldGlobals)) {
+      if (value === undefined) delete globalThis[name]; else globalThis[name] = value;
+    }
+  }
+}
+
 // El módulo de integración no contiene clientes, almacenamiento ni solicitudes de red.
 {
   const source = await readFile(new URL('../scripts/admin_csv_preview.mjs', import.meta.url), 'utf8');
@@ -316,8 +377,9 @@ const header = PRODUCT_COLUMNS.join(',');
   assert.match(source, /URL\.createObjectURL/);
   assert.match(adminHtml, /id="csvPreviewDownloadReport"[^>]*disabled/);
   assert.match(adminHtml, /id="csvPreviewImportButton"[^>]*disabled/);
-  assert.match(adminHtml, /window\.commitAdminCsvProducts=async rows=>/);
+  assert.match(adminHtml, /window\.commitAdminCsvProducts=async\(rows,schemaVersion=1\)=>/);
   assert.match(adminHtml, /admin_import_products_csv/);
+  assert.match(adminHtml, /admin_import_products_csv_v2/);
   assert.match(adminHtml, /<script type="module" src="\.\/scripts\/admin_csv_preview\.mjs"><\/script>/);
 }
 

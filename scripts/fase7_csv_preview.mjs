@@ -16,6 +16,13 @@ export const PRODUCT_COLUMNS = Object.freeze([
   'quantity',
 ]);
 
+// Contrato opt-in. v1 permanece como default y sigue rechazando estos campos.
+export const PRODUCT_COLUMNS_V2 = Object.freeze([
+  ...PRODUCT_COLUMNS,
+  'image_url',
+  'variants',
+]);
+
 export const DEFAULT_LIMITS = Object.freeze({
   // Límites de seguridad de esta previsualización; no son reglas comerciales.
   maxBytes: 5 * 1024 * 1024,
@@ -355,6 +362,78 @@ function parseNonNegativeInteger(value, field, row, errors, label) {
   return Number(integer);
 }
 
+function isSafeCsvImageUrl(value) {
+  const text = String(value ?? '').trim();
+  if (!text) return true;
+  if (new TextEncoder().encode(text).byteLength > 2048 || /[\\\s\u0000-\u001f]/.test(text)) return false;
+  try {
+    const url = new URL(text);
+    return url.protocol === 'https:' && !!url.hostname && !url.username && !url.password;
+  } catch {
+    return false;
+  }
+}
+
+function parseCsvVariantList(value, row, quantity, errors) {
+  const text = String(value ?? '').trim();
+  if (!text) return [];
+  let parsed;
+  try { parsed = JSON.parse(text); }
+  catch {
+    errors.push(makeError(row, 'VARIANTS_INVALID', 'Las variantes deben ser un arreglo JSON válido.', 'variants'));
+    return [];
+  }
+  if (!Array.isArray(parsed) || parsed.length > 100) {
+    errors.push(makeError(row, 'VARIANTS_INVALID', 'Las variantes admiten un arreglo de hasta 100 combinaciones.', 'variants'));
+    return [];
+  }
+  const allowed = new Set(['color', 'size', 'stock', 'color_hex', 'image_path']);
+  const seen = new Set();
+  const variants = [];
+  let stockTotal = 0;
+  for (const item of parsed) {
+    if (!item || typeof item !== 'object' || Array.isArray(item) || Object.keys(item).some(key => !allowed.has(key)) ||
+        typeof item.color !== 'string' || typeof item.size !== 'string' || !Number.isSafeInteger(item.stock) || item.stock < 0 || item.stock > 2147483647) {
+      errors.push(makeError(row, 'VARIANTS_INVALID', 'Cada variante requiere color/talla de texto y stock entero no negativo; solo se permiten color_hex e image_path opcionales.', 'variants'));
+      return [];
+    }
+    const color = item.color.trim(), size = item.size.trim();
+    if ((!color && !size) || (color && (!validateText(color, 'variants.color', row, errors))) ||
+        (size && (!validateText(size, 'variants.size', row, errors)))) {
+      errors.push(makeError(row, 'VARIANTS_INVALID', 'Color y talla no pueden estar vacíos al mismo tiempo ni parecer una fórmula.', 'variants'));
+      return [];
+    }
+    if (item.color_hex !== undefined && (typeof item.color_hex !== 'string' || !/^#[0-9a-fA-F]{6}$/.test(item.color_hex))) {
+      errors.push(makeError(row, 'VARIANTS_INVALID', 'color_hex debe tener formato #RRGGBB.', 'variants'));
+      return [];
+    }
+    if (item.image_path !== undefined && (typeof item.image_path !== 'string' || !isSafeCsvImageUrl(item.image_path))) {
+      errors.push(makeError(row, 'VARIANTS_INVALID', 'image_path solo admite una URL HTTPS segura.', 'variants'));
+      return [];
+    }
+    const key = `${normalizeCode(color)}||${normalizeCode(size)}`;
+    if (seen.has(key)) {
+      errors.push(makeError(row, 'VARIANTS_INVALID', 'La fila repite una combinación de color y talla.', 'variants'));
+      return [];
+    }
+    seen.add(key);
+    stockTotal += item.stock;
+    if (!Number.isSafeInteger(stockTotal)) {
+      errors.push(makeError(row, 'VARIANTS_INVALID', 'La suma de stock por variante supera el rango entero seguro.', 'variants'));
+      return [];
+    }
+    const variant = { color, size, stock: item.stock };
+    if (item.color_hex !== undefined) variant.color_hex = item.color_hex.toLowerCase();
+    if (item.image_path) variant.image_path = item.image_path.trim();
+    variants.push(variant);
+  }
+  if (variants.length && stockTotal !== quantity) {
+    errors.push(makeError(row, 'VARIANTS_STOCK_MISMATCH', 'La suma del stock de variantes debe coincidir con quantity.', 'variants'));
+    return [];
+  }
+  return variants;
+}
+
 function validateLimits(options) {
   const limitSource = options.limits && typeof options.limits === 'object' ? options.limits : options;
   const maxBytes = readLimit(limitSource.maxBytes, DEFAULT_LIMITS.maxBytes);
@@ -381,6 +460,12 @@ function validateLimits(options) {
  */
 export function previewProductsCsv(input, options = {}, legacyOptions = {}) {
   const resolvedOptions = normalizeOptions(options, legacyOptions);
+  const schemaVersion = resolvedOptions.schemaVersion === undefined ? 1 : Number(resolvedOptions.schemaVersion);
+  if (![1, 2].includes(schemaVersion)) {
+    const error = makeError(0, 'INVALID_SCHEMA_VERSION', 'La versión del contrato CSV debe ser 1 o 2.');
+    return baseResult({ errors: [error] });
+  }
+  const columns = schemaVersion === 2 ? PRODUCT_COLUMNS_V2 : PRODUCT_COLUMNS;
   const limitsResult = validateLimits(resolvedOptions);
   if (limitsResult.error) return baseResult({ errors: [limitsResult.error] });
   const { limits } = limitsResult;
@@ -442,7 +527,7 @@ export function previewProductsCsv(input, options = {}, legacyOptions = {}) {
       return;
     }
     headerIndex.set(header, index);
-    if (!PRODUCT_COLUMNS.includes(header)) {
+    if (!columns.includes(header)) {
       const code = isVariantHeader(header) ? 'VARIANT_DATA_NOT_SUPPORTED' : 'UNKNOWN_HEADER';
       const message =
         code === 'VARIANT_DATA_NOT_SUPPORTED'
@@ -452,7 +537,7 @@ export function previewProductsCsv(input, options = {}, legacyOptions = {}) {
     }
   });
 
-  for (const requiredHeader of PRODUCT_COLUMNS) {
+  for (const requiredHeader of columns) {
     if (!headerIndex.has(requiredHeader)) {
       headerErrors.push(
         makeError(1, 'MISSING_HEADER', `Falta la cabecera obligatoria ${requiredHeader}.`, requiredHeader),
@@ -507,20 +592,20 @@ export function previewProductsCsv(input, options = {}, legacyOptions = {}) {
     const rowErrors = [];
     const fields = record.fields;
 
-    if (fields.length !== PRODUCT_COLUMNS.length) {
+    if (fields.length !== columns.length) {
       rowErrors.push(
         makeError(
           rowNumber,
           'COLUMN_COUNT',
-          `La fila tiene ${fields.length} columnas; se esperan ${PRODUCT_COLUMNS.length}.`,
+          `La fila tiene ${fields.length} columnas; se esperan ${columns.length}.`,
           null,
-          { expectedColumns: PRODUCT_COLUMNS.length, receivedColumns: fields.length },
+          { expectedColumns: columns.length, receivedColumns: fields.length },
         ),
       );
     }
 
     const values = Object.fromEntries(
-      PRODUCT_COLUMNS.map(field => [field, fields[indexOf(field)] ?? '']),
+      columns.map(field => [field, fields[indexOf(field)] ?? '']),
     );
     const code = String(values.code).trim();
     const normalized = normalizeCode(code);
@@ -559,6 +644,16 @@ export function previewProductsCsv(input, options = {}, legacyOptions = {}) {
       'quantity',
     );
 
+    let imageUrl = '';
+    let variants = [];
+    if (schemaVersion === 2) {
+      imageUrl = String(values.image_url ?? '').trim();
+      if (!isSafeCsvImageUrl(imageUrl)) {
+        rowErrors.push(makeError(rowNumber, 'IMAGE_URL_INVALID', 'image_url debe estar vacío o ser una URL HTTPS sin credenciales.', 'image_url'));
+      }
+      variants = parseCsvVariantList(values.variants, rowNumber, quantity, rowErrors);
+    }
+
     if (rowErrors.length > 0) {
       errors.push(...rowErrors);
       return;
@@ -572,6 +667,7 @@ export function previewProductsCsv(input, options = {}, legacyOptions = {}) {
       cost,
       sale_price: salePrice,
       quantity,
+      ...(schemaVersion === 2 ? { image_url: imageUrl, variants } : {}),
     });
   });
 
@@ -589,6 +685,7 @@ export const previewProductCsv = previewProductsCsv;
 
 export default Object.freeze({
   PRODUCT_COLUMNS,
+  PRODUCT_COLUMNS_V2,
   DEFAULT_LIMITS,
   normalizeCode,
   previewProductsCsv,

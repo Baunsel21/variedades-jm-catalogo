@@ -2,11 +2,13 @@ import assert from 'node:assert/strict';
 import {
   DEFAULT_LIMITS,
   PRODUCT_COLUMNS,
+  PRODUCT_COLUMNS_V2,
   normalizeCode,
   previewProductsCsv,
 } from '../scripts/fase7_csv_preview.mjs';
 
 const header = PRODUCT_COLUMNS.join(',');
+const headerV2 = PRODUCT_COLUMNS_V2.join(',');
 const row = 'P-001,Camisa,Ropa,12000,25000,3';
 
 // El módulo es un dry-run puro: nunca habilita commit ni reporta escritura.
@@ -114,6 +116,45 @@ for (const ending of ['\n', '\r\n', '']) {
     `${header},variant_size\nP-022,Variante,Ropa,1,2,1,M\n`,
   );
   assert.ok(variant.errors.some(error => error.code === 'VARIANT_DATA_NOT_SUPPORTED'));
+}
+
+// Contrato v2 opt-in: enlaces HTTPS y variantes compatibles con el catálogo.
+{
+  const variants = [
+    { color: 'Rojo', size: 'S', stock: 2, color_hex: '#AA0022', image_path: 'https://cdn.example.test/rojo-s.jpg' },
+    { color: 'Rojo', size: 'M', stock: 1 },
+  ];
+  const variantsCell = JSON.stringify(variants).replace(/"/g, '""');
+  const csv = `${headerV2}\nSKU-V2,"Vestido, clásico",Ropa,10,20,3,https://cdn.example.test/product.jpg,"${variantsCell}"`;
+  const result = previewProductsCsv(csv, { schemaVersion: 2 });
+  assert.equal(result.errors.length, 0);
+  assert.equal(result.rows.length, 1);
+  assert.equal(result.rows[0].image_url, 'https://cdn.example.test/product.jpg');
+  assert.deepEqual(result.rows[0].variants, [
+    { color: 'Rojo', size: 'S', stock: 2, color_hex: '#aa0022', image_path: 'https://cdn.example.test/rojo-s.jpg' },
+    { color: 'Rojo', size: 'M', stock: 1 },
+  ]);
+  assert.equal(result.dryRun, true);
+  assert.equal(result.canCommit, false, 'El parser nunca autoriza por sí solo una escritura.');
+
+  const basic = previewProductsCsv(`${headerV2}\nSKU-V2-BASIC,Base,Ropa,1,2,1,,[]`);
+  assert.ok(basic.errors.some(error => error.code === 'UNKNOWN_HEADER'), 'v1 no acepta campos v2 accidentalmente.');
+
+  const badImage = previewProductsCsv(`${headerV2}\nSKU-BAD-IMAGE,Base,Ropa,1,2,1,http://cdn.example.test/x.jpg,[]`, { schemaVersion: 2 });
+  assert.ok(badImage.errors.some(error => error.code === 'IMAGE_URL_INVALID' && error.field === 'image_url'));
+  const credentialImage = previewProductsCsv(`${headerV2}\nSKU-CRED,Base,Ropa,1,2,1,https://user:pass@cdn.example.test/x.jpg,[]`, { schemaVersion: 2 });
+  assert.ok(credentialImage.errors.some(error => error.code === 'IMAGE_URL_INVALID'));
+
+  const invalidJson = previewProductsCsv(`${headerV2}\nSKU-JSON,Base,Ropa,1,2,1,,"[not-json]"`, { schemaVersion: 2 });
+  assert.ok(invalidJson.errors.some(error => error.code === 'VARIANTS_INVALID'));
+  const mismatch = previewProductsCsv(`${headerV2}\nSKU-MISMATCH,Base,Ropa,1,2,3,,"[{""color"":""Rojo"",""size"":""S"",""stock"":2}]"`, { schemaVersion: 2 });
+  assert.ok(mismatch.errors.some(error => error.code === 'VARIANTS_STOCK_MISMATCH'));
+  const duplicateVariant = previewProductsCsv(`${headerV2}\nSKU-DUP-V,Base,Ropa,1,2,2,,"[{""color"":""Rojo"",""size"":""S"",""stock"":1},{""color"":""rojo"",""size"":""s"",""stock"":1}]"`, { schemaVersion: 2 });
+  assert.ok(duplicateVariant.errors.some(error => error.code === 'VARIANTS_INVALID'));
+  const malformedHex = previewProductsCsv(`${headerV2}\nSKU-HEX,Base,Ropa,1,2,1,,"[{""color"":""Rojo"",""size"":""S"",""stock"":1,""color_hex"":""red""}]"`, { schemaVersion: 2 });
+  assert.ok(malformedHex.errors.some(error => error.code === 'VARIANTS_INVALID'));
+  const invalidVariantUrl = previewProductsCsv(`${headerV2}\nSKU-V-URL,Base,Ropa,1,2,1,,"[{""color"":""Rojo"",""size"":""S"",""stock"":1,""image_path"":""javascript:alert(1)""}]"`, { schemaVersion: 2 });
+  assert.ok(invalidVariantUrl.errors.some(error => error.code === 'VARIANTS_INVALID'));
 }
 
 // Duplicados normalizados contra el CSV y contra existingCodes; no hay red.
