@@ -52,6 +52,14 @@ assert.deepEqual(Array.from(filterContext.filterStorefrontShippingRulesAdmin('no
 assert.equal(filterContext.filterStorefrontShippingRulesAdmin('').length, 3);
 assert.equal(rules.length, 3, 'La búsqueda no modifica la colección original');
 
+const unavailableContext=vm.createContext({});
+vm.runInContext(extractFunction('storefrontShippingRulesAdminUnavailableMessage'),unavailableContext);
+const missingShippingRpcMessage=unavailableContext.storefrontShippingRulesAdminUnavailableMessage({code:'PGRST202'});
+assert.match(missingShippingRpcMessage,/admin_list_storefront_shipping_rules\(\)/);
+assert.match(missingShippingRpcMessage,/No se cargaron reglas y Guardar sigue deshabilitado/);
+assert.match(unavailableContext.storefrontShippingRulesAdminUnavailableMessage({code:'42501'}),/permisos de administrador/);
+assert.match(unavailableContext.storefrontShippingRulesAdminUnavailableMessage(new Error('synthetic failure')),/no se muestran datos de ejemplo.*Guardar sigue deshabilitado/);
+
 assert.match(admin, /<input id="shippingRulesSearch" type="search" maxlength="80"/);
 assert.ok(admin.includes("if(event.target?.id==='shippingRulesSearch'){renderStorefrontShippingRulesAdmin();return;}"));
 assert.ok(admin.includes('data-shipping-rule-delete'));
@@ -157,6 +165,7 @@ loaderContext = vm.createContext(loaderContextSeed);
 vm.runInContext('adminAuthOperationStillCurrent=(userId,epoch)=>adminSessionUserId===userId&&adminAuthEpoch===epoch;', loaderContext);
 vm.runInContext([
   extractFunction('resetStorefrontShippingRulesAdminState'),
+  extractFunction('storefrontShippingRulesAdminUnavailableMessage'),
   extractFunction('loadStorefrontShippingRulesAdmin'),
 ].join('\n'), loaderContext);
 const loadA = loaderContext.loadStorefrontShippingRulesAdmin(true);

@@ -1352,6 +1352,12 @@ function validateStorefrontShippingRuleForm(value){
  if(value.threshold!==null&&(!Number.isSafeInteger(value.threshold)||value.threshold<1||value.threshold>50000000))throw new Error('El mínimo debe estar entre $1 y $50.000.000 o quedar desactivado.');
  if(!Number.isSafeInteger(value.priority)||value.priority<0||value.priority>1000)throw new Error('La prioridad debe estar entre 0 y 1.000.');
 }
+function storefrontShippingRulesAdminUnavailableMessage(error){
+ const code=String(error?.code||'');
+ if(code==='PGRST202'||code==='42883')return 'El backend no expone la RPC admin_list_storefront_shipping_rules() en el esquema. No se cargaron reglas y Guardar sigue deshabilitado. Instala la migración de tarifas por ciudad/zona y actualiza la caché de esquema de PostgREST.';
+ if(code==='42501')return 'Tu cuenta no tiene permisos de administrador para consultar estas reglas. No se cargaron datos y Guardar sigue deshabilitado.';
+ return 'No se pudieron cargar las reglas; no se muestran datos de ejemplo y Guardar sigue deshabilitado. Verifica la migración y el acceso admin, e intenta recargar.';
+}
 async function loadStorefrontShippingRulesAdmin(force=false){
  const userId=adminSessionUserId,authEpoch=adminAuthEpoch,isCurrent=()=>adminAuthOperationStillCurrent(userId,authEpoch);
  if(!sb||!isCurrent())return false;
@@ -1377,7 +1383,8 @@ async function loadStorefrontShippingRulesAdmin(force=false){
  }catch(error){
   if(!isCurrent())return false;
   storefrontShippingRulesAdmin=[];renderStorefrontShippingRulesAdmin();
-  setStorefrontShippingRulesAdminStatus('No se pudieron cargar las reglas. Verifica que la migración de tarifas por ciudad/zona esté instalada y que tu cuenta tenga permisos de administrador. Detalle: '+String(error?.message||error),'err');
+  storefrontShippingRulesAdminLoaded=false;
+  setStorefrontShippingRulesAdminStatus(storefrontShippingRulesAdminUnavailableMessage(error),'err');
   return false;
  }finally{
   if(isCurrent()){updateStorefrontShippingRuleAdminForm();if(refresh)refresh.disabled=false;}
@@ -1528,6 +1535,19 @@ function setTelegramAutomaticStatus(message,tone=''){
  const status=$('telegramAutomaticStatus');if(!status)return;
  status.textContent=message;status.className=('status '+tone).trim();
 }
+function telegramAutomaticStatusErrorMessage(error){
+ const code=String(error?.code||'');
+ if(code==='PGRST202'||code==='42883')return 'El backend automático de Telegram no expone la RPC de estado. No hay métricas disponibles y el interruptor seguirá deshabilitado hasta instalar la migración y verificar el esquema.';
+ if(code==='42501')return 'La cuenta no tiene permiso de administrador para consultar Telegram. El interruptor seguirá deshabilitado.';
+ return 'No se pudo consultar el estado. Confirma que la migración y el acceso admin estén instalados; no se muestran detalles internos.';
+}
+function resetTelegramAutomaticState(message='Inicia sesión con una cuenta admin autorizada para consultar Telegram.',tone=''){
+ telegramAutomaticSettingsLoaded=false;telegramAutomaticSettingsOriginal=null;telegramAutomaticSchedulerReady=false;telegramAutomaticDispatcherReady=false;telegramAutomaticSaving=false;
+ const toggle=$('telegramAutomaticToggle'),save=$('saveTelegramAutomaticBtn'),refresh=$('refreshTelegramAutomaticBtn'),metrics=$('telegramAutomaticMetrics');
+ if(toggle){toggle.checked=false;toggle.disabled=true;}if(save)save.disabled=true;if(refresh)refresh.disabled=true;
+ if(metrics)metrics.textContent='Estado y contadores no disponibles.';
+ setTelegramAutomaticStatus(message,tone);
+}
 function updateTelegramAutomaticControls(){
  const toggle=$('telegramAutomaticToggle'),save=$('saveTelegramAutomaticBtn'),refresh=$('refreshTelegramAutomaticBtn');
  const official=location.origin==='https://sirevya.com.co';
@@ -1564,7 +1584,7 @@ async function loadTelegramAutomaticStatus(showStatus=true){
   if(!isCurrent())return false;
   const {data,error}=await sb.rpc('get_sirevya_telegram_notification_status');
   if(!isCurrent())return false;
-  if(error)throw new Error('telegram_status_unavailable');
+  if(error)throw error;
   const state=Array.isArray(data)?data[0]:data;
   if(!state||typeof state.enabled!=='boolean'||typeof state.scheduler_ready!=='boolean'||typeof state.dispatcher_ready!=='boolean')throw new Error('telegram_status_invalid');
   telegramAutomaticSettingsOriginal={enabled:state.enabled};
@@ -1589,8 +1609,7 @@ async function loadTelegramAutomaticStatus(showStatus=true){
   return true;
  }catch(error){
   if(!isCurrent())return false;
-  setTelegramAutomaticStatus('No se pudo consultar el estado. Confirma que la migración y el acceso admin estén instalados; no se muestran detalles internos.','err');
-  if(metrics)metrics.textContent='Estado y contadores no disponibles.';
+  resetTelegramAutomaticState(telegramAutomaticStatusErrorMessage(error),'err');
   return false;
  }finally{
   if(isCurrent())updateTelegramAutomaticControls();
@@ -1786,7 +1805,8 @@ function lockAdminPanel(message='Tu sesión terminó. Vuelve a entrar.'){
 	 storefrontCombosAdminLoaded=false;storefrontProductCombosAdmin=[];storefrontComboSaving=false;storefrontComboEditingId='';storefrontComboCalendarRpcAvailable=false;
 	 storefrontCouponsAdminLoaded=false;storefrontCouponsAdmin=[];storefrontCouponSaving=false;storefrontCouponEditingId='';resetStorefrontCouponForm();setStorefrontCouponFormDisabled(true);
 	 seasonalPromoSettingsLoaded=false;seasonalPromoSettingsOriginal=null;seasonalPromoSaving=false;
- if(seasonalPromoAutoCloseTimer){clearTimeout(seasonalPromoAutoCloseTimer);seasonalPromoAutoCloseTimer=null;}
+	 resetTelegramAutomaticState();
+	 if(seasonalPromoAutoCloseTimer){clearTimeout(seasonalPromoAutoCloseTimer);seasonalPromoAutoCloseTimer=null;}
  ['listaPedidos','listaProductos','listaVentas','listaClientes','listaProveedores','listaGastos','listaMovimientos','wompiReconciliationList'].forEach(id=>{const el=$(id);if(el)el.textContent='';});
  const orderRefreshButton=$('refreshOrdersBtn');if(orderRefreshButton){orderRefreshButton.disabled=false;orderRefreshButton.textContent='↻ Actualizar pedidos';}
  const businessIconInput=$('businessIcon');if(businessIconInput)businessIconInput.value='';

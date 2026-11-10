@@ -13,6 +13,7 @@ assert.match(admin, /id="telegramAutomaticMetrics"[^>]*aria-live="polite"/);
 assert.match(admin, /get_sirevya_telegram_notification_status/);
 assert.match(admin, /set_sirevya_telegram_notifications_enabled/);
 assert.doesNotMatch(admin, /TELEGRAM_BOT_TOKEN|TELEGRAM_CHAT_ID|SUPABASE_SERVICE_ROLE_KEY/);
+assert.match(admin, /function lockAdminPanel\([^)]*\)\{[\s\S]*?resetTelegramAutomaticState\(\);/);
 
 function extractFunction(name, async = true) {
   const prefix = async ? 'async function' : 'function';
@@ -118,6 +119,8 @@ function buildAutomaticContext({ origin, adminAuthorized = true, confirmResult =
   };
   const uiFunctions = [
     extractFunction('setTelegramAutomaticStatus', false),
+    extractFunction('telegramAutomaticStatusErrorMessage', false),
+    extractFunction('resetTelegramAutomaticState', false),
     extractFunction('updateTelegramAutomaticControls', false),
     extractFunction('loadTelegramAutomaticStatus'),
     extractFunction('saveTelegramAutomaticSettings'),
@@ -143,6 +146,29 @@ assert.equal(await automaticOfficial.context.saveTelegramAutomaticSettings(), tr
 assert.deepEqual(JSON.parse(JSON.stringify(automaticOfficial.rpcCalls[1])), ['set_sirevya_telegram_notifications_enabled', { p_enabled: true }]);
 assert.equal(automaticOfficial.confirmCalls.length, 1);
 assert.match(automaticOfficial.elements.telegramAutomaticStatus.textContent, /activadas/);
+
+const automaticMissingRpc=buildAutomaticContext({
+  origin:'https://sirevya.com.co',
+  statusResult:{data:null,error:{code:'PGRST202',message:'sensitive internal detail must not be surfaced'}},
+});
+automaticMissingRpc.context.telegramAutomaticSettingsLoaded=true;
+automaticMissingRpc.context.telegramAutomaticSettingsOriginal={enabled:true};
+automaticMissingRpc.context.telegramAutomaticSchedulerReady=true;
+automaticMissingRpc.context.telegramAutomaticDispatcherReady=true;
+automaticMissingRpc.elements.telegramAutomaticToggle.checked=true;
+assert.equal(await automaticMissingRpc.context.loadTelegramAutomaticStatus(false),false);
+assert.equal(automaticMissingRpc.context.telegramAutomaticSettingsLoaded,false);
+assert.equal(automaticMissingRpc.context.telegramAutomaticSettingsOriginal,null);
+assert.equal(automaticMissingRpc.context.telegramAutomaticSchedulerReady,false);
+assert.equal(automaticMissingRpc.context.telegramAutomaticDispatcherReady,false);
+assert.equal(automaticMissingRpc.elements.telegramAutomaticToggle.checked,false);
+assert.equal(automaticMissingRpc.elements.telegramAutomaticToggle.disabled,true);
+assert.equal(automaticMissingRpc.elements.saveTelegramAutomaticBtn.disabled,true);
+assert.equal(automaticMissingRpc.elements.telegramAutomaticMetrics.textContent,'Estado y contadores no disponibles.');
+assert.match(automaticMissingRpc.elements.telegramAutomaticStatus.textContent,/RPC de estado.*interruptor seguirá deshabilitado/);
+assert.doesNotMatch(automaticMissingRpc.elements.telegramAutomaticStatus.textContent,/sensitive internal detail/);
+assert.match(automaticMissingRpc.context.telegramAutomaticStatusErrorMessage({code:'42501'}),/permiso de administrador/);
+assert.equal(automaticMissingRpc.elements.refreshTelegramAutomaticBtn.disabled,false,'El admin puede reintentar una consulta de solo lectura.');
 
 const automaticCanceled = buildAutomaticContext({ origin: 'https://sirevya.com.co', confirmResult: false });
 await automaticCanceled.context.loadTelegramAutomaticStatus(false);
@@ -197,6 +223,22 @@ automaticStale.context.adminAuthOperationStillCurrent = () => false;
 resolveStaleRpc({ data: { success: true, enabled: true }, error: null });
 assert.equal(await staleSave, false);
 assert.equal(automaticStale.context.telegramAutomaticSaving, false, 'Una sesión nueva no hereda un guardado bloqueado por la solicitud antigua.');
+
+const automaticLogout=buildAutomaticContext({
+  origin:'https://sirevya.com.co',
+  statusResult:{data:{enabled:true,scheduler_ready:true,dispatcher_ready:true,pending_count:2,processing_count:0,sent_last_24h:1,dead_count:0},error:null},
+});
+await automaticLogout.context.loadTelegramAutomaticStatus(false);
+automaticLogout.context.telegramAutomaticSaving=true;
+automaticLogout.context.resetTelegramAutomaticState();
+assert.equal(automaticLogout.context.telegramAutomaticSettingsLoaded,false);
+assert.equal(automaticLogout.context.telegramAutomaticSettingsOriginal,null);
+assert.equal(automaticLogout.context.telegramAutomaticSaving,false);
+assert.equal(automaticLogout.elements.telegramAutomaticToggle.checked,false);
+assert.equal(automaticLogout.elements.telegramAutomaticToggle.disabled,true);
+assert.equal(automaticLogout.elements.saveTelegramAutomaticBtn.disabled,true);
+assert.equal(automaticLogout.elements.refreshTelegramAutomaticBtn.disabled,true);
+assert.equal(automaticLogout.elements.telegramAutomaticMetrics.textContent,'Estado y contadores no disponibles.');
 
 const automaticNonAdmin = buildAutomaticContext({ origin: 'https://sirevya.com.co', adminAuthorized: false });
 await automaticNonAdmin.context.loadTelegramAutomaticStatus(true);
