@@ -86,6 +86,8 @@ const orderContext = vm.createContext({
   checkoutCityValue: () => 'Cali', selectedPayment: () => 'PSE', checkoutShipping: 0,
   getCheckoutItems: () => [{ id: 'synthetic-product', name: 'Synthetic', code: 'SYN-1', qty: 1, color: 'Azul', size: 'M' }],
   comboPriceForItem: item => item.price ?? 10,
+  storefrontCouponSettingsLoaded: false,
+  storefrontCouponsEnabled: false,
   normalizeCheckoutCouponCode: value => String(value ?? '').trim().toUpperCase(),
   checkoutCouponCode: '',
   currentCheckoutCouponQuote: () => null,
@@ -95,6 +97,7 @@ const payload = JSON.parse(JSON.stringify(orderContext.buildOrderPayload()));
 assert.equal(payload.cedula, 'CC-987654', 'buildOrderPayload conserva el valor recortado para el servidor.');
 assert.equal(payload.cedula_type, 'CC', 'buildOrderPayload conserva el tipo requerido por Wompi.');
 assert.equal(payload.payment, 'PSE');
+assert.equal(payload.coupon_code, '', 'sin configuración confirmada no se adjunta ningún cupón al checkout.');
 
 assert.match(index, /id="customerCedulaType"[^>]*required[^>]*aria-describedby="checkoutErrorCustomerCedulaType"/);
 assert.match(index, /id="customerCedula"[^>]*required[^>]*aria-describedby="checkoutErrorCustomerCedula"/);
