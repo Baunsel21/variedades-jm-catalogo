@@ -356,7 +356,7 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
           <div class="card stat" title="Pedidos web en estado Pendiente dentro de la lista administrativa cargada; no incluye la tabla Wompi orders."><small>Pedidos web pendientes</small><div class="num" id="dashboardPendingWebOrdersCount" aria-live="polite">—</div><div class="sub" id="dashboardPendingWebOrdersMeta">Abre Pedidos para consultar web_orders. La cola Wompi se administra aparte.</div><div class="bubble">📋</div></div>
         </div>
         <div class="sectionGrid">
-          <div class="box"><div class="rowBetween"><h3>⚠️ Atención de inventario</h3><span class="badge low" id="lowCount">0</span></div><div id="stockBajo"></div></div>
+          <div class="box"><div class="rowBetween"><h3>⚠️ Atención de inventario</h3><span class="badge low" id="lowCount" aria-label="Productos con stock bajo o agotados">—</span></div><p id="inventoryAttentionSummary" class="muted" role="status" aria-live="polite">Se calcula al cargar el inventario.</p><div id="stockBajo"></div></div>
           <div class="box"><div class="rowBetween"><h3>🧾 Ventas recientes</h3><button class="softbtn" onclick="show('ventas',document.querySelector('[data-view=ventas]'))">Ver todas</button></div><div id="recentSales"></div></div>
         </div>
       </section>
@@ -3618,6 +3618,18 @@ function renderDashboardPendingWebOrders(){
  count.textContent=String(summary.pending);
  meta.textContent=`${summary.pending} de ${summary.total} pedidos web consultados; Wompi orders se administra aparte.`;
 }
+function calculateDashboardInventoryAttentionSummary(rows,lowThreshold=2){
+ const candidate=Number(lowThreshold),threshold=Number.isSafeInteger(candidate)?Math.max(0,candidate):2;
+ const items=[];let low=0,out=0;
+ for(const product of Array.isArray(rows)?rows:[]){
+  const raw=Number(saleAvailableQuantity(product));
+  if(!Number.isFinite(raw))continue;
+  const quantity=Math.max(0,raw);
+  if(quantity<=0){out++;items.push({product,quantity:0});}
+  else if(quantity<=threshold){low++;items.push({product,quantity});}
+ }
+ return {low,out,total:low+out,items};
+}
 function renderInicio(){
  const units=productos.reduce((s,p)=>s+(Number(p.quantity)||0),0),sold=ventas.reduce((s,v)=>s+(Number(v.quantity)||0),0),gain=ventas.reduce((s,v)=>s+(Number(v.quantity)||0)*(Number(v.sale_price)-Number(v.cost_price)),0);
  $("nProductos").textContent=productos.length;$("nUnidades").textContent=units;$("nVendidos").textContent=sold;$("nGanancia").textContent=money(gain);
@@ -3628,8 +3640,11 @@ function renderInicio(){
  $("dashboardSalesWeekRevenue").textContent=money(periodSummary.weekRevenue);
  $("dashboardSalesWeekMeta").textContent=`${periodSummary.weekStartKey} a ${periodSummary.todayKey} · ${periodSummary.weekLines} líneas · ${periodSummary.weekUnits} unidades · mostrador; excluye pedidos web.`;
  renderDashboardPendingWebOrders();
- const low=productos.filter(p=>availableQuantity(p)<=2);$("lowCount").textContent=low.length;
- $("stockBajo").innerHTML=low.length?low.slice(0,8).map(p=>`<div class="alert"><div class="rowBetween"><b>${esc(p.code)} — ${esc(p.name)}</b>${stockBadge(availableQuantity(p))}</div><span class="muted">${availableQuantity(p)} disponible(s) • ${esc(p.location||"Sin ubicación")}</span></div>`).join(""):'<div class="empty">✓ Todo el inventario tiene más de 2 unidades.</div>';
+ const inventoryAttention=calculateDashboardInventoryAttentionSummary(productos);
+ $("lowCount").textContent=String(inventoryAttention.total);
+ const inventoryMeta=$("inventoryAttentionSummary");
+ if(inventoryMeta)inventoryMeta.textContent=`${inventoryAttention.low} con 1–2 unidades · ${inventoryAttention.out} agotados. Usa disponibilidad por variantes/reservas cuando está disponible; si falla esa consulta, se muestra stock físico.`;
+ $("stockBajo").innerHTML=inventoryAttention.items.length?inventoryAttention.items.slice(0,8).map(({product:p,quantity})=>`<div class="alert"><div class="rowBetween"><b>${esc(p.code)} — ${esc(p.name)}</b>${stockBadge(quantity)}</div><span class="muted">${quantity} disponible(s) • ${esc(p.location||"Sin ubicación")}</span></div>`).join(""):'<div class="empty">✓ No hay productos con 2 o menos unidades según el inventario consultado.</div>';
  $("recentSales").innerHTML=ventas.slice(0,6).map(v=>`<div class="listItem"><div class="rowBetween"><b>${esc(v.product_code)} — ${esc(v.product_name)}</b><b>${money(Number(v.quantity)*Number(v.sale_price))}</b></div><span class="muted">${v.sale_date} • ${v.quantity} unidad(es)</span></div>`).join("")||'<div class="empty">No hay ventas todavía.</div>';
 }
 function refrescarSelects(){
