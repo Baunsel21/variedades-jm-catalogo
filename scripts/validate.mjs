@@ -18,7 +18,7 @@ try{
    assert.equal(result.status,0,`${name}: ${result.stderr}`);
   }
  }
- for(const regression of ['tests/admin_city_shipping_ui_regression.mjs','tests/telegram_admin_ui_regression.mjs','tests/telegram_dispatch_worker_regression.mjs','tests/storefront_mobile_presentation_regression.mjs','tests/catalog_card_image_preview_regression.mjs','tests/catalog_product_modal_accessibility_regression.mjs','tests/catalog_detail_whatsapp_context_regression.mjs','tests/coupon_feature_toggle_regression.mjs','tests/seo_routes_regression.mjs']){
+ for(const regression of ['tests/admin_city_shipping_ui_regression.mjs','tests/telegram_admin_ui_regression.mjs','tests/telegram_dispatch_worker_regression.mjs','tests/storefront_mobile_presentation_regression.mjs','tests/catalog_card_image_preview_regression.mjs','tests/catalog_product_modal_accessibility_regression.mjs','tests/catalog_detail_whatsapp_context_regression.mjs','tests/coupon_feature_toggle_regression.mjs','tests/seo_routes_regression.mjs','tests/supabase_backup_restore_preflight_regression.mjs']){
   const result=spawnSync(process.execPath,[path.join(root,regression)],{cwd:root,encoding:'utf8'});
   assert.equal(result.status,0,`${regression}: ${result.stderr||result.stdout}`);
  }
