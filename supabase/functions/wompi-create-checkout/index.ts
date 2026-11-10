@@ -32,6 +32,8 @@ type Quote = {
   items?: QuoteItem[];
 };
 
+import { parseCheckoutCedula } from "./cedula.mjs";
+
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const COUPON_PATTERN = /^[A-Z0-9][A-Z0-9_-]{0,63}$/;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
@@ -310,6 +312,15 @@ Deno.serve(async (req: Request): Promise<Response> => {
     let body: any;
     try { body = await req.json(); } catch { return json({ error: "El cuerpo de la solicitud no es JSON válido." }, 400); }
 
+    const cedulaValidation = parseCheckoutCedula(body?.cedula ?? body?.customer_cedula);
+    const customerCedula = cedulaValidation.value;
+    if (cedulaValidation.error === "invalid") {
+      return json({ code: "CUSTOMER_CEDULA_INVALID", error: "El número de cédula/documento no es válido o supera 60 caracteres." }, 400);
+    }
+    if (cedulaValidation.error === "required" && !String(body?.reference ?? "").trim()) {
+      return json({ code: "CUSTOMER_CEDULA_REQUIRED", error: "La cédula o documento de identidad es obligatorio para iniciar el pago." }, 400);
+    }
+
     const items = normalizeItems(body?.items);
     const city = String(body?.city ?? "").trim();
     const expectedTotalRaw = body?.expected_total;
@@ -521,6 +532,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
       return json({ error: "La referencia está duplicada o la respuesta de pedidos no es válida." }, 409);
     }
     const existing = existingRows[0];
+    if (!existing && !customerCedula) {
+      return json({ code: "CUSTOMER_CEDULA_REQUIRED", error: "La cédula o documento de identidad es obligatorio para iniciar el pago." }, 400);
+    }
     if (existing) {
       const pendingAndUnlinked = String(existing.payment_method ?? "").toLowerCase() === "wompi" &&
         String(existing.payment_status ?? "").toUpperCase() === "PENDING" &&
@@ -564,6 +578,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
             canRetryWithNewReference: false,
             error: "Este pedido ya tiene un pago aprobado. No intentes pagarlo otra vez.",
           }, 409);
+        }
+        if (!customerCedula) {
+          return json({ code: "CUSTOMER_CEDULA_REQUIRED", error: "La cédula o documento de identidad es obligatorio para iniciar un nuevo intento de pago." }, 400);
         }
         const terminalTransaction = Boolean(existingTransactionId) && ["DECLINED", "VOIDED", "ERROR"].includes(existingStatus);
         if (terminalTransaction) {

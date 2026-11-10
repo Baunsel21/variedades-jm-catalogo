@@ -14,11 +14,11 @@ GRANT USAGE ON SCHEMA public,auth TO anon,authenticated,service_role;
 GRANT EXECUTE ON FUNCTION auth.uid() TO PUBLIC;
 
 CREATE TABLE public.store_settings(
-  id integer PRIMARY KEY,
+  id smallint PRIMARY KEY,
   admin_user_id uuid REFERENCES auth.users(id)
 );
 CREATE TABLE public.storefront_shipping_settings(
-  id integer PRIMARY KEY,
+  id smallint PRIMARY KEY,
   national_shipping_cost bigint NOT NULL,
   free_shipping_threshold bigint,
   updated_at timestamptz NOT NULL DEFAULT now(),
@@ -32,7 +32,7 @@ CREATE TABLE public.products(
   category text NOT NULL,
   quantity integer NOT NULL DEFAULT 0,
   cost_price bigint NOT NULL DEFAULT 0,
-  sale_price bigint NOT NULL
+  sale_price numeric NOT NULL
 );
 CREATE TABLE public.storefront_product_combos(
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -74,6 +74,23 @@ AS $function$
     SELECT 1 FROM public.store_settings
     WHERE id=1 AND admin_user_id=auth.uid()
   );
+$function$;
+
+-- Firmas base presentes antes de la migración city; el DDL probado las reemplaza.
+CREATE OR REPLACE FUNCTION public.get_storefront_cart_quote(p_items jsonb,p_city text)
+RETURNS jsonb
+LANGUAGE sql
+AS $function$
+  SELECT jsonb_build_object('success',true,'items','[]'::jsonb,'original_subtotal',0,
+    'discount_total',0,'discounted_subtotal',0,'shipping',0,'total',0,
+    'destination_status','fallback','shipping_rule_cost',0,'shipping_rule_threshold',NULL);
+$function$;
+
+CREATE OR REPLACE FUNCTION public.get_public_storefront_shipping_settings()
+RETURNS jsonb
+LANGUAGE sql
+AS $function$
+  SELECT jsonb_build_object('destination_rules','[]'::jsonb);
 $function$;
 
 CREATE OR REPLACE FUNCTION public.sirevya_normalize_combo_category(p_value text)

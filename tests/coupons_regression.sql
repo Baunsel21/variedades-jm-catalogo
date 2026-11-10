@@ -7,7 +7,7 @@ DO $coupons_regression$
 DECLARE
   v_admin uuid;
   v_fake uuid:=gen_random_uuid();
-  v_tag text:=replace(gen_random_uuid()::text,'-','');
+  v_tag text:=upper(replace(gen_random_uuid()::text,'-',''));
   v_product_a uuid;
   v_product_b uuid;
   v_product_zero uuid;
@@ -244,7 +244,7 @@ BEGIN
       code,discount_type,discount_value,minimum_subtotal,global_limit,per_customer_limit,
       starts_at,end_at,enabled
     ) VALUES (
-      'PCT10_'||substr(v_tag,1,8),'percent',10,100000,2,1,NULL,NULL,true
+      'PCT10_'||substr(v_tag,1,8),'percent',10,60000,2,1,NULL,NULL,true
     ) RETURNING id INTO v_percent_id;
     INSERT INTO public.storefront_coupons(
       code,discount_type,discount_value,minimum_subtotal,global_limit,per_customer_limit,
@@ -317,7 +317,7 @@ BEGIN
       jsonb_build_object('id',v_product_a::text,'qty',1,'color','','size',''),
       jsonb_build_object('id',v_product_b::text,'qty',1,'color','','size','')
     );
-    v_test_phone:='3'||translate(substr(v_tag,1,9),'abcdef','012345');
+    v_test_phone:='3'||translate(lower(substr(v_tag,1,9)),'abcdef','012345');
     v_pending_reference:='WOMPI-STALE-'||v_tag;
     v_linked_reference:='WOMPI-LINKED-'||v_tag;
     INSERT INTO public.orders(
@@ -489,10 +489,12 @@ BEGIN
        OR (v_quote->>'coupon_discount_total')::numeric IS DISTINCT FROM 5000
        OR (v_quote->>'discounted_subtotal')::numeric IS DISTINCT FROM 55000
        OR (v_quote->>'shipping')::numeric IS DISTINCT FROM 19000
-       OR (v_quote->>'total')::numeric IS DISTINCT FROM 74000
-       OR v_quote->>'destination_status'='cali_free' THEN
+      OR (v_quote->>'total')::numeric IS DISTINCT FROM 74000
+      OR v_quote->>'destination_status'='cali_free' THEN
       RAISE EXCEPTION 'TEST FAILED: cupón debe conservar regla city explícita cobrable de Cali y metadata: %',v_quote;
     END IF;
+    DELETE FROM public.storefront_shipping_rule_destinations WHERE rule_id=v_city_rule_id;
+    DELETE FROM public.storefront_shipping_rules WHERE id=v_city_rule_id;
 
     -- Wompi cotiza, bloquea, y reserva stock/cupón dentro de una transacción.
     SELECT public.get_storefront_cart_quote_with_coupon(v_items,'Bogotá',v_prepare_code,'','')
@@ -880,7 +882,7 @@ BEGIN
 
     RAISE NOTICE 'PASS: fixtures de cupones, percent/fixed, formato, mínimo/ventana/disabled, conflicto combo, distribución, envío, límites, ledger tardío/liberado y COD verificados.';
   EXCEPTION WHEN OTHERS THEN
-    RAISE EXCEPTION 'TEST FAILED: %',SQLERRM;
+    RAISE;
   END;
 
   -- La prueba nunca debe dejar fixtures fuera del rollback controlado.
