@@ -4395,7 +4395,7 @@ async function loadStorefrontCouponFeatureSettingsAdmin(force=false){
  if(storefrontCouponFeatureSettingsLoaded&&!force)return true;
  const token=++storefrontCouponFeatureRequestToken;storefrontCouponFeatureSettingsLoaded=false;storefrontCouponFeatureEnabled=false;storefrontCouponFeatureOriginal=null;updateStorefrontCouponFeatureSaveState();setStorefrontCouponFeatureStatus('Consultando la configuración de cupones…');
  try{const {data,error}=await sb.rpc('get_public_storefront_coupon_settings');if(!isCurrent()||token!==storefrontCouponFeatureRequestToken)return false;if(error)throw error;const row=Array.isArray(data)?data[0]:data;if(!row||row.success!==true||typeof row.coupons_enabled!=='boolean')throw new Error('Configuración no disponible');storefrontCouponFeatureSettingsLoaded=true;storefrontCouponFeatureEnabled=row.coupons_enabled;storefrontCouponFeatureOriginal=row.coupons_enabled;const input=$('storefrontCouponFeatureEnabled');if(input)input.checked=row.coupons_enabled;setStorefrontCouponFeatureStatus(row.coupons_enabled?'Cupones habilitados para nuevas aplicaciones.':'Cupones deshabilitados; los códigos y redenciones existentes se conservan.','ok');updateStorefrontCouponFeatureSaveState();return true}
- catch(error){if(!isCurrent()||token!==storefrontCouponFeatureRequestToken)return false;storefrontCouponFeatureSettingsLoaded=false;storefrontCouponFeatureEnabled=false;storefrontCouponFeatureOriginal=null;const input=$('storefrontCouponFeatureEnabled');if(input)input.checked=false;updateStorefrontCouponFeatureSaveState();setStorefrontCouponFeatureStatus('No se pudo consultar la configuración. Revisa RPC, migración y permisos admin; Guardar permanece bloqueado.','error');return false}
+ catch(error){if(!isCurrent()||token!==storefrontCouponFeatureRequestToken)return false;const missingRpc=String(error?.code||'')==='PGRST202';storefrontCouponFeatureSettingsLoaded=false;storefrontCouponFeatureEnabled=false;storefrontCouponFeatureOriginal=null;const input=$('storefrontCouponFeatureEnabled');if(input)input.checked=missingRpc;updateStorefrontCouponFeatureSaveState();setStorefrontCouponFeatureStatus(missingRpc?'Supabase no reconoce get_public_storefront_coupon_settings. La migración 20261110010000_storefront_coupon_feature_toggle.sql sigue pendiente; se conserva compatibilidad con los cupones actuales. El interruptor queda bloqueado; Guardar permanece bloqueado. El CRUD individual se carga mediante RPC separadas.':'No se pudo consultar la configuración global. Revisa RPC y permisos admin; Guardar permanece bloqueado.','error');return false}
 }
 async function saveStorefrontCouponFeatureSettingsAdmin(){
  const userId=adminSessionUserId,authEpoch=adminAuthEpoch,isCurrent=()=>adminAuthOperationStillCurrent(userId,authEpoch),input=$('storefrontCouponFeatureEnabled'),button=$('saveStorefrontCouponFeatureBtn');
@@ -4677,7 +4677,8 @@ async function loadFloatingPromotionsAdmin(showStatus=true){
   return true;
  }catch(error){
   if(!adminAuthOperationStillCurrent(userId,authEpoch))return false;
-  setFloatingPromoStatus('No se pudo consultar la campaña; el formulario permanece bloqueado. Confirma que la migración candidata esté aplicada. Detalle: '+String(error?.message||error),'error');
+  const missingRpc=String(error?.code||'')==='PGRST202';
+  setFloatingPromoStatus(missingRpc?'Supabase no reconoce get_public_storefront_floating_promotions. Falta aplicar la migración 20261112010000_storefront_floating_promotions.sql; el formulario queda bloqueado y no muestra valores simulados.':'No se pudo consultar la campaña. Revisa la sesión y los permisos; el formulario permanece bloqueado.','error');
   return false;
  }
 }

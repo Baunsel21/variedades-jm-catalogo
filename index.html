@@ -1227,7 +1227,7 @@ body{background:linear-gradient(180deg,#fffaf0 0%,#fff6e6 55%,#f8ecd7 100%);colo
   #productDetailModal .detailGalleryThumbs{flex:0 0 auto!important;max-height:none!important;gap:8px!important;padding:9px 1px 1px!important}
   #productDetailModal .detailThumb{width:59px!important;height:70px!important;flex-basis:59px!important;border-radius:9px!important}
   #productDetailModal .detailInfo{position:static!important;top:auto!important;padding:5px 1px 0!important;overflow:visible!important;max-height:none!important}
-  #productDetailModal .detailName{font-size:clamp(28px,7.5vw,36px)!important;margin:0 0 5px!important}
+  #productDetailModal .detailName{font-family:Georgia,'Times New Roman',serif!important;font-size:clamp(23px,6vw,29px)!important;font-weight:500!important;letter-spacing:-.015em!important;line-height:1.12!important;margin:0 0 5px!important}
   #productDetailModal .detailPrice{font-size:clamp(25px,6.5vw,31px)!important;margin-bottom:12px!important}
   #productDetailModal .detailStockNotice{font-size:13px!important;padding:9px 11px!important;margin-bottom:10px!important}
   #productDetailModal .detailVariants .variantBox{padding:12px!important;gap:6px!important}
@@ -1413,7 +1413,7 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
 .mobileMenuBtn{display:block!important;flex:0 0 40px!important;width:40px!important;height:42px!important;color:#302b27!important}
 .mainNav{display:none!important}
 .brand.brandWordmark{display:flex!important;flex:1 1 auto!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;gap:3px!important;min-width:0!important;width:auto!important;max-width:none!important;margin:0!important;text-align:center!important;overflow:visible!important;text-decoration:none!important;line-height:1!important}
-.brandWordmark .brandName{display:block!important;font-family:Georgia,'Times New Roman',serif!important;font-size:clamp(30px,4vw,43px)!important;font-weight:500!important;letter-spacing:-.035em!important;line-height:.98!important;color:#28231f!important}
+.brandWordmark .brandName{display:block!important;margin:0!important;font-family:Georgia,'Times New Roman',serif!important;font-size:clamp(30px,4vw,43px)!important;font-weight:500!important;letter-spacing:-.035em!important;line-height:.98!important;color:#28231f!important}
 .brandWordmark .brandSub{display:block!important;font-size:clamp(7px,1.1vw,9px)!important;font-weight:500!important;letter-spacing:1.2px!important;text-transform:uppercase!important;line-height:1.3!important;color:#756c62!important;white-space:nowrap!important}
 .headerActions{flex:0 0 auto!important;margin-left:0!important}
 /* El encabezado de la ficha conserva el mismo nombre, sin repetir el logo gráfico. */
@@ -1713,7 +1713,7 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
     <button class="mobileMenuBtn" type="button" aria-label="Abrir menú" aria-controls="mobileMenu" onclick="openMobileMenu()"><span aria-hidden="true">☰</span></button>
     <button class="iconBtn headerSearchBtn" id="headerSearchBtn" type="button" aria-label="Buscar productos" aria-controls="catalogSearchRow" aria-expanded="false" onclick="toggleHeaderSearch()"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.8"></circle><path d="m16 16 5 5"></path></svg></button>
   </div>
-  <a class="brand brandWordmark" href="#inicio" onclick="return returnToCatalogHome(event)" aria-label="Sirevya, ir al inicio"><span class="brandName">Sirevya</span><span class="brandSub">Tu estilo, nuestra pasión ♥</span></a>
+  <a class="brand brandWordmark" href="#inicio" onclick="return returnToCatalogHome(event)" aria-label="Sirevya, ir al inicio"><h1 class="brandName">Sirevya</h1><span class="brandSub">Tu estilo, nuestra pasión ♥</span></a>
   <nav class="mainNav"><a class="active" href="#inicio" onclick="return returnToCatalogHome(event)">⌂ Inicio</a><a href="#catalogo">▣ Catálogo</a><a href="#contactanos" onclick="openContact(event)">♡ Contáctanos</a></nav>
   <div class="headerActions">
     <button class="iconBtn cartTop" type="button" aria-label="Abrir carrito" title="Carrito" onclick="toggleCart()"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h14l1 13H4L5 8Z"></path><path d="M8 8V6a4 4 0 0 1 8 0v2"></path></svg><span id="cartBadge" class="cartBadge">0</span></button>
@@ -1785,7 +1785,6 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
   </div>
 </div>
 <main id="inicio" class="wrap">
-<h1 class="catalogSeoHeading">Moda y accesorios en Sirevya</h1>
 <section class="benefits"><div class="benefit"><div class="benefitIcon">📍</div><div><b>Cali</b><small>Tarifa pendiente de verificación</small></div></div><div class="benefit"><div class="benefitIcon">🎁</div><div><b>Otras ciudades</b><small>Consulta tarifas en el carrito</small></div></div><div class="benefit"><div class="benefitIcon">🛡️</div><div><b>Compra segura</b><small>Contra entrega o pago online</small></div></div></section>
 <div id="error" class="error"></div>
 
@@ -2687,10 +2686,8 @@ function photoTouchStart(event){
  photo.__startY=event.clientY;
  photo.__horizontalMoved=false;photo.__verticalMoved=false;photo.__moved=false;
  if(event.pointerType==='touch'){
-  const id=String(photo.closest('.card')?.dataset.productId||''),alreadySelected=!!id&&selectedCatalogCardImageProductId===id;
-  const changed=selectCatalogCardAlternative(photo);
-  if(changed&&!alreadySelected)photo.__blockClickUntil=Date.now()+650;
-  else if(alreadySelected)photo.__blockClickUntil=0;
+  photo.__blockClickUntil=0;
+  selectCatalogCardAlternative(photo);
  }
 }
 function photoTouchMove(event){
