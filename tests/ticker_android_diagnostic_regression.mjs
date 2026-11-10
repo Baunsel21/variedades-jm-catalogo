@@ -22,6 +22,8 @@ assert.equal(moving.pass, true, 'Una animación móvil activa y con posiciones c
 
 const reduced = evaluate({ reducedMotion: true, animationName: 'none', hasOverflow: true });
 assert.equal(reduced.pass, true, 'Reduced motion detiene la animación y deja mensajes desplazables.');
+assert.match(reduced.summary, /autoplay se desactiva intencionalmente.*NO demuestra movimiento automático/i,
+  'El resultado reducido no puede confundirse con una prueba aprobada de autoplay.');
 assert.equal(evaluate({ reducedMotion: true, animationName: 'jmTickerMove', hasOverflow: true }).pass, false,
   'La preferencia de movimiento reducido no debe dejar la animación en curso.');
 assert.equal(evaluate({ reducedMotion: true, animationName: 'none', hasOverflow: false }).pass, false,
@@ -41,8 +43,9 @@ const end = source.indexOf('runTickerPhysicalDiagnostic();', start);
 assert.ok(start >= 0 && end > start, 'El ejecutor de la prueba física está conectado.');
 const browserProbe = source.slice(start, end);
 assert.match(browserProbe, /get\('verificarTicker'\)!=='1'/, 'El diagnóstico está apagado salvo URL explícita.');
-assert.match(browserProbe, /getBoundingClientRect\(\)\.left/, 'La prueba mide movimiento renderizado real.');
+assert.match(browserProbe, /tickerMessage\.getBoundingClientRect\(\)\.left/, 'La prueba mide el movimiento real del texto, no solo el contenedor.');
 assert.match(browserProbe, /prefers-reduced-motion: reduce/, 'La prueba reconoce la preferencia del dispositivo.');
+assert.match(browserProbe, /MOVIMIENTO REDUCIDO ACTIVO/, 'La preferencia reducida se muestra como estado informativo, nunca como PASS de autoplay.');
 assert.match(browserProbe, /aria-live/, 'El resultado se anuncia accesiblemente.');
 assert.doesNotMatch(browserProbe, /\.rpc\(|localStorage|sessionStorage|fetch\(/, 'El diagnóstico no llama Supabase, no guarda estado ni hace peticiones.');
 
