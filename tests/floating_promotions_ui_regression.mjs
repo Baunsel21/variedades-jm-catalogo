@@ -50,6 +50,9 @@ assert.match(index, /FLOATING_PROMO_DISMISSAL_KEY='sirevya_floating_promo_dismis
 assert.match(index, /localStorage\.setItem\(FLOATING_PROMO_DISMISSAL_KEY,String\(version\)\)/, 'el cierre persiste por versión de campaña');
 assert.match(index, /if\(floatingPromoIsBlocked\(\)\)/, 'no aparece sobre checkout, carrito, ficha o popup estacional');
 assert.match(index, /selectCategory\(currentOption\.value\)/, 'el botón usa el enrutador existente de categorías');
+assert.match(index, /\.floatingPromoActions\{display:flex;flex-direction:column;align-items:stretch/, 'Más vendido, Tendencia y Producto Top se apilan como botones independientes');
+assert.match(index, /\.floatingPromoAction\{display:flex;flex-direction:row;align-items:center;justify-content:flex-start/, 'cada CTA muestra icono a la izquierda y etiqueta alineada');
+assert.doesNotMatch(index, /\.floatingPromoActions\{display:grid;grid-template-columns:repeat\(3/, 'el widget no vuelve al diseño de tres columnas');
 assert.match(index, /prefers-reduced-motion:reduce/, 'los estilos respetan movimiento reducido');
 assert.match(index, /grid-template-columns:repeat\(4,minmax\(0,1fr\)\)!important/, 'beneficios del footer se mantienen en cuatro columnas en escritorio');
 assert.match(index, /grid-template-columns:repeat\(2,minmax\(0,1fr\)\)!important/, 'beneficios del footer pasan a dos columnas en móvil');
@@ -59,7 +62,32 @@ const renderStart = index.indexOf('function renderFloatingPromoWidget(campaign){
 const renderEnd = index.indexOf('\nfunction scheduleFloatingPromoCycle', renderStart);
 assert.ok(renderStart >= 0 && renderEnd > renderStart);
 assert.doesNotMatch(index.slice(renderStart, renderEnd), /innerHTML/, 'el copy administrable se inserta como texto, no HTML');
+assert.doesNotMatch(index.slice(renderStart, renderEnd), /Descubre el catálogo/, 'el diseño del widget conserva solo las tres filas y la X');
 assert.match(index, /floatingPromoCampaignCategoriesExist\(campaign\)/, 'categorías vuelven a validarse antes de mostrar la campaña');
+assert.match(index, /floatingPromoFooterObserver/, 'un observer retira la campaña al entrar al footer');
+
+const blockerStart = index.indexOf('function floatingPromoIsBlocked(){');
+const blockerEnd = index.indexOf('\nfunction renderFloatingPromoWidget', blockerStart);
+assert.ok(blockerStart >= 0 && blockerEnd > blockerStart, 'bloqueador de widget presente');
+const blockerSource = index.slice(blockerStart, blockerEnd);
+function isFloatingPromoBlockedForFooter(footerRect) {
+  const elements = {
+    contactanos: footerRect ? { hidden: false, getBoundingClientRect: () => footerRect } : null,
+    seasonalPromoOverlay: { hidden: true },
+  };
+  const blockerContext = vm.createContext({
+    document: { visibilityState: 'visible' },
+    catalogInitialLoadComplete: true,
+    window: { innerHeight: 800 },
+    $(id) { return elements[id] || null; },
+    floatingPromoModalOpen() { return false; },
+  });
+  vm.runInContext(`${blockerSource}\nglobalThis.blocked = floatingPromoIsBlocked();`, blockerContext);
+  return blockerContext.blocked;
+}
+assert.equal(isFloatingPromoBlockedForFooter({ top: 700, bottom: 950 }), true, 'widget oculto al entrar al footer');
+assert.equal(isFloatingPromoBlockedForFooter({ top: 900, bottom: 1200 }), false, 'widget permitido cuando el footer queda bajo el viewport');
+assert.equal(isFloatingPromoBlockedForFooter(null), false, 'sin footer visible el ciclo normal no se bloquea');
 
 assert.match(admin, /get_public_storefront_floating_promotions/);
 assert.match(admin, /admin_save_storefront_floating_promotions/);

@@ -133,4 +133,30 @@ assert.deepEqual(context.productos[0].image_paths, ['main-A.webp', 'second-A.web
 
 const touchEndBody = extractFunction('photoTouchEnd');
 assert.doesNotMatch(touchEndBody, /restoreCardMainPhoto\(/, 'Levantar el dedo no restaura la alternativa seleccionada.');
+
+function exerciseSetPhotoImage(reducedMotion) {
+  let animationOptions = null;
+  let clearedFallbacks = 0;
+  const image = {
+    src: 'main-A.webp',
+    removeAttribute(name) { assert.equal(name, 'data-src'); },
+    animate(frames, options) { animationOptions = options; },
+  };
+  const imageContext = vm.createContext({
+    window: { matchMedia(query) { assert.equal(query, '(prefers-reduced-motion: reduce)'); return { matches: reducedMotion }; } },
+    clearCardImageFallback(node) { assert.equal(node, image); clearedFallbacks += 1; },
+  });
+  vm.runInContext(extractFunction('setPhotoImage'), imageContext);
+  imageContext.setPhotoImage({ querySelector(selector) { assert.equal(selector, 'img'); return image; } }, 'second-A.webp');
+  return { image, animationOptions, clearedFallbacks };
+}
+
+const animatedImage = exerciseSetPhotoImage(false);
+assert.equal(animatedImage.image.src, 'second-A.webp');
+assert.equal(animatedImage.animationOptions.duration, 210, 'El cambio visual usa una transición breve y sutil.');
+assert.equal(animatedImage.animationOptions.easing, 'cubic-bezier(.2,.65,.3,1)');
+const reducedMotionImage = exerciseSetPhotoImage(true);
+assert.equal(reducedMotionImage.animationOptions, null, 'La preferencia de movimiento reducido omite la animación.');
+assert.equal(reducedMotionImage.image.src, 'second-A.webp', 'Movimiento reducido no impide el cambio de foto.');
+
 console.log('catalog_card_image_preview_regression: PASS');
