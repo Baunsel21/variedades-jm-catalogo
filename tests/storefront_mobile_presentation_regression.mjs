@@ -9,6 +9,8 @@ assert.doesNotMatch(source, /\.jmTicker\s*\{[^}]*display\s*:\s*none/i,
   'No hay una regla directa que oculte el ticker.');
 assert.match(source, /@media\(max-width:700px\)\{\s*\.jmTicker\{display:block!important/,
   'El ticker aparece explícitamente en móvil.');
+assert.match(source, /@media\(max-width:700px\) and \(prefers-reduced-motion:no-preference\)\{[\s\S]*?animation-play-state:running!important/,
+  'El ticker móvil fuerza movimiento continuo en dispositivos que no solicitaron reducirlo.');
 assert.match(source, /@media\(hover:hover\) and \(pointer:fine\)\{\.jmTicker:hover \.jmTickerTrack\{animation-play-state:paused\}\}/,
   'Solo un puntero fino con hover real puede pausar el ticker; el hover pegajoso táctil no lo detiene.');
 assert.match(source, /\.jmTicker:focus-within \.jmTickerTrack\{animation-play-state:paused\}/,
@@ -19,7 +21,8 @@ assert.match(source, /Tarifas según ciudad/);
 assert.match(source, /Compra segura/);
 assert.match(source, /Consulta las condiciones de envío vigentes/);
 assert.match(source, /La mejor calidad, tu estilo, nuestra pasión/);
-assert.match(source, /Nuevos productos/);
+assert.match(source, /Productos en tendencia/);
+assert.doesNotMatch(source, /Nuevos productos/);
 const tickerSequences = [...source.matchAll(/<div class="jmTickerSequence"([^>]*)>([\s\S]*?)<\/div>/g)];
 assert.equal(tickerSequences.length, 2, 'El loop se construye con dos secuencias completas y simétricas.');
 assert.equal((tickerSequences[0][2].match(/<span(?:\s|>)/g) || []).length, 5, 'Cada secuencia contiene los cinco mensajes comerciales previstos.');
@@ -28,11 +31,15 @@ assert.match(tickerSequences[1][1], /aria-hidden="true"/, 'La copia visual dupli
 assert.match(tickerSequences[1][2], /data-shipping-policy-copy>/, 'La secuencia duplicada mantiene un target propio para el mensaje dinámico.');
 assert.match(source, /\.jmTickerTrack\{display:flex;width:max-content;gap:0/);
 assert.match(source, /\.jmTickerSequence\{display:inline-flex;align-items:center;flex:0 0 auto;gap:48px;padding-right:48px;white-space:nowrap\}/);
-assert.match(source, /@keyframes jmTickerMove\{from\{transform:translateX\(0\)\}to\{transform:translateX\(-50%\)\}\}/);
+assert.match(source, /@keyframes jmTickerMove\{from\{transform:translate3d\(0,0,0\)\}to\{transform:translate3d\(-50%,0,0\)\}\}/);
+assert.match(source, /@-webkit-keyframes jmTickerMove\{from\{-webkit-transform:translate3d\(0,0,0\)\}to\{-webkit-transform:translate3d\(-50%,0,0\)\}\}/);
 assert.ok(source.includes('.jmTickerTrack{padding:7px 0!important;font-size:clamp(10px,2.8vw,12px)!important;animation-duration:30s!important;gap:0!important}'),
   'La separación móvil heredada no crea un hueco adicional entre las secuencias.');
 assert.match(source, /\.jmTickerSequence\{gap:clamp\(18px,5vw,28px\)!important;padding-right:clamp\(18px,5vw,28px\)!important\}/,
   'La separación se adapta a móvil sin cortar palabras.');
+const normalizeTickerSequence = html => html.replace(/<span[^>]*>/g, '<span>').replace(/\s+/g, ' ').trim();
+assert.equal(normalizeTickerSequence(tickerSequences[0][2]), normalizeTickerSequence(tickerSequences[1][2]),
+  'Las dos secuencias tienen el mismo contenido y mantienen continuidad sin huecos en el loop.');
 
 assert.match(source, /<a class="waHelpFloat" href="https:\/\/wa\.me\/573025469983\?text=Hola%2C%20necesito%20asesor%C3%ADa%20sobre%20un%20producto\."/,
   'El destino y número de WhatsApp permanecen intactos.');
