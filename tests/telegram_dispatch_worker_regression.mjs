@@ -136,6 +136,21 @@ assert.match(reservationFormatted, /Pedido: COD-TEST-002/);
 assert.match(reservationFormatted, /SKU-10/);
 assert.equal(reservationFormatted.includes("3001112233"), false);
 assert.equal(formatTelegramNotification({ event_type: "reservation.created", payload: { reference: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" } }).includes("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"), false);
+const legacyFormatted = formatTelegramNotification({
+  event_type: "order.created",
+  payload: {
+    reference: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    payment_method: "Wompi",
+    payment_status: "PENDING",
+    order_status: "NEW",
+    total_cop: 130000,
+  },
+});
+assert.match(legacyFormatted, /Nuevo pedido/);
+assert.match(legacyFormatted, /Referencia: Sin referencia/);
+assert.match(legacyFormatted, /Estado de pago: PENDING/);
+assert.match(legacyFormatted, /Total: /);
+assert.equal(legacyFormatted.includes("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"), false);
 assert.equal(formatTelegramNotification({ event_type: "unknown.event", payload: {} }), "");
 
 // Invalid origin is rejected before the secret lookup, and cannot produce a send.
