@@ -266,6 +266,8 @@ Conserva evidencia redactada: fecha, versiones, PASS/FAIL, hashes, conteos agreg
 
 Una lectura metadata-only del 10 de noviembre de 2026 no encontró en `supabase_migrations.schema_migrations` las versiones `20261108070000`, `20261109213200`, `20261110010000`, `20261111010000` ni `20261112010000`. En la misma revisión sí aparecieron las RPC de administración `admin_list_storefront_shipping_rules()`, `admin_save_storefront_shipping_rule(...)` y `admin_import_products_csv(jsonb)` en el catálogo, con permisos `authenticated` y sin `anon`. Esto evidencia una discrepancia entre el historial consultado y algunos objetos efectivos; no prueba quién los creó, cuándo, ni si el resto de cada migración está aplicado. Las RPC de toggle de cupones y campaña flotante no quedaron confirmadas por esa lectura.
 
+El repositorio también contiene ahora dos candidatas nuevas que **no han sido aplicadas ni verificadas en producción**: `20261113010000` (CSV v2 con imágenes/variantes) y `20261114010000` (seguimiento y cambios de pedidos web). Añádelas a la reconciliación cuando se prepare el lote; su presencia en `supabase/migrations` solo verifica que existe un archivo de código, no que el objeto remoto falte o esté pendiente.
+
 Después de obtener el backup y restaurarlo en el scratch aislado PostgreSQL 17, ejecuta las siguientes consultas `SELECT` por separado tanto en origen como en el restore. Solo leen historial/metadatos; no consultan filas comerciales, definiciones de funciones, comandos cron ni secretos. Si un esquema u objeto no existe en el restore, anótalo como “no disponible” y no conviertas esa ausencia por sí sola en evidencia de DDL faltante.
 
 ```sql
@@ -276,10 +278,12 @@ WHERE version IN (
   '20261109213200',
   '20261110010000',
   '20261111010000',
-  '20261112010000'
+  '20261112010000',
+  '20261113010000',
+  '20261114010000'
 )
 ORDER BY version
-LIMIT 10;
+LIMIT 20;
 
 SELECT p.oid::regprocedure::text AS signature,
        p.prosecdef AS security_definer,

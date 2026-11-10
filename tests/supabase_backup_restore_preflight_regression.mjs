@@ -33,7 +33,7 @@ assert.match(windowsRestore, /\$LocalUri\.Host -notin @\('localhost','127\.0\.0\
 
 const ddlReconciliation = runbook.split('### Reconciliar el historial DDL antes de una migración')[1]?.split('\n## 5.')[0];
 assert.ok(ddlReconciliation, 'The migration-history reconciliation section must exist.');
-assert.match(ddlReconciliation, /20261108070000[\s\S]*20261109213200[\s\S]*20261110010000[\s\S]*20261111010000[\s\S]*20261112010000/);
+assert.match(ddlReconciliation, /20261108070000[\s\S]*20261109213200[\s\S]*20261110010000[\s\S]*20261111010000[\s\S]*20261112010000[\s\S]*20261113010000[\s\S]*20261114010000/);
 assert.match(ddlReconciliation, /has_function_privilege/);
 assert.match(ddlReconciliation, /ORDER BY jobname\s+LIMIT 20/);
 assert.match(ddlReconciliation, /no vuelvas a ejecutar la migración ni insertes una marca/i);
