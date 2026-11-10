@@ -977,6 +977,12 @@ body{background:linear-gradient(180deg,#fffaf0 0%,#fff6e6 55%,#f8ecd7 100%);colo
 #productDetailModal .detailVariants .sizeOption:focus-visible:not(.active){
   outline:2px solid #7b1730!important;outline-offset:3px!important;
 }
+#productDetailModal #detailName,
+#productDetailModal #detailName:focus,
+#productDetailModal #detailName:focus-visible{
+  outline:none!important;outline-offset:0!important;border:0!important;
+  box-shadow:none!important;background:transparent!important;
+}
 /* Resumen compacto de compra en checkout: mismos tonos crema y vino de la ficha. */
 .checkoutItemSummary{margin:12px 0 10px;padding:11px;border:1px solid #ead9cb;border-radius:14px;background:#fffaf3;color:#352923;box-shadow:0 3px 10px rgba(67,48,34,.05)}
 .checkoutItemSummary[hidden]{display:none!important}
@@ -3173,6 +3179,40 @@ function resetProductDetailScroll(modal,productId){
  requestAnimationFrame(reset);
  setTimeout(reset,80);
 }
+function animateProductDetailImageEntrance(image,productId,src){
+ if(!image||!src)return;
+ const previousAnimation=image.__productDetailEntranceAnimation;
+ if(previousAnimation&&typeof previousAnimation.cancel==='function')try{previousAnimation.cancel()}catch{}
+ image.__productDetailEntranceAnimation=null;
+ const previousLoadHandler=image.__productDetailEntranceLoadHandler;
+ if(previousLoadHandler&&typeof image.removeEventListener==='function')image.removeEventListener('load',previousLoadHandler);
+ image.__productDetailEntranceLoadHandler=null;
+ const request={};
+ image.__productDetailEntranceRequest=request;
+ const start=()=>{
+  if(image.__productDetailEntranceRequest!==request)return;
+  image.__productDetailEntranceLoadHandler=null;
+  requestAnimationFrame(()=>{
+   const modal=$('productDetailModal');
+   const currentSources=[image.currentSrc,image.src,image.getAttribute?.('src')].filter(Boolean).map(String);
+   if(image.__productDetailEntranceRequest!==request||!modal?.classList.contains('open')||String(detailProduct?.id)!==String(productId)||!currentSources.includes(String(src)))return;
+   const reduceMotion=window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches===true;
+   if(reduceMotion||typeof image.animate!=='function')return;
+   try{
+    const animation=image.animate([{opacity:.12,transform:'scale(.997)'},{opacity:1,transform:'scale(1)'}],{duration:900,easing:'cubic-bezier(.22,.61,.36,1)'});
+    if(animation&&typeof animation.cancel==='function'){
+     image.__productDetailEntranceAnimation=animation;
+     animation.onfinish=()=>{if(image.__productDetailEntranceAnimation===animation)image.__productDetailEntranceAnimation=null};
+    }
+   }catch{}
+  });
+ };
+ if(image.complete){if(Number(image.naturalWidth)>0)start();return}
+ if(typeof image.addEventListener!=='function')return;
+ const onLoad=()=>{if(image.__productDetailEntranceLoadHandler===onLoad)image.__productDetailEntranceLoadHandler=null;start()};
+ image.__productDetailEntranceLoadHandler=onLoad;
+ image.addEventListener('load',onLoad,{once:true});
+}
 function openProductDetail(id,event,options={}){
  if(event){event.preventDefault();event.stopPropagation()}
  const p=productos.find(x=>String(x.id)===String(id));if(!p)return;
@@ -3212,6 +3252,7 @@ function openProductDetail(id,event,options={}){
  modal.classList.add('open');modal.setAttribute('aria-hidden','false');document.body.style.overflow='hidden';
  resetProductDetailScroll(modal,p.id);
  focusProductDetailDialog();
+ animateProductDetailImageEntrance(detailMainImage,p.id,image);
 }
 function returnToCatalogHome(event){
  if(event){event.preventDefault();event.stopPropagation()}
