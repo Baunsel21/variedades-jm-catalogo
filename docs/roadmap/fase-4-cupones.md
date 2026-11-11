@@ -1,6 +1,6 @@
 # Fase 4 — Cupones y ledger de redención
 
-**Estado:** la interfaz y el código candidato están preparados, pero el backend de cupones no está activo. La UI se mantiene fail-closed cuando faltan RPC. No se aplicó la migración y no se desplegaron Edge Functions; no hay un staging Supabase aislado disponible.
+**Estado comprobado (2026-11-10):** la migración `storefront_coupons` aparece registrada en Supabase y las RPC admin, cotización con cupón, wrapper COD y preparación Wompi existen con ACL diferenciadas. Las Edge Functions Wompi están activas y su código desplegado coincide con GitHub. La UI conserva comportamiento fail-closed cuando faltan RPC. No se ha demostrado el ciclo funcional completo de CRUD, reserva, pago, confirmación/liberación y conciliación en un entorno aislado; no marcar la fase completa hasta ejecutar esas pruebas.
 
 ## Reglas comerciales aprobadas
 

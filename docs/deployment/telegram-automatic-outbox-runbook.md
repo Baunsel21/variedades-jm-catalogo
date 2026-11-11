@@ -2,7 +2,7 @@
 
 ## Estado de esta implementación
 
-El esquema, el worker Edge y la interfaz admin están preparados en una rama aislada y pasan pruebas locales sintéticas. No se han aplicado migraciones en Supabase, instalado extensiones, desplegado el worker automático, activado el toggle ni enviado pedidos/pagos de prueba reales. El botón `telegram-test` y su función fija/manual permanecen separados.
+**Estado real observado el 2026-11-10:** las migraciones de outbox/scheduler aparecen registradas en Supabase; `pg_cron` 1.6.4 y `pg_net` 0.20.4 están instalados; el job `sirevya-telegram-dispatch` está activo cada minuto; el toggle de notificaciones está habilitado; los secretos Vault requeridos están presentes por nombre; `telegram-dispatch` está ACTIVE en versión 6 con `verify_jwt=false`; y se observaron 18 filas con estado `sent`. El código desplegado de `index.ts` y `core.mjs` coincide exactamente con GitHub. No se consultaron valores secretos ni se enviaron pedidos de prueba. Esta evidencia reemplaza el estado histórico de despliegue que sigue más abajo: **no volver a instalar, migrar ni desplegar el dispatcher sin revisar primero el estado actual**. El botón `telegram-test` y su función fija/manual permanecen separados.
 
 ## Componentes
 
