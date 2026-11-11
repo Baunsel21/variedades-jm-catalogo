@@ -27,7 +27,7 @@ function extractFunction(name) {
 const elements = {
   movementLogSearch: { value: '' }, movementLogType: { value: '' },
   movementLogFrom: { value: '' }, movementLogTo: { value: '' },
-  movementLogStatus: { textContent: '' }, listaMovimientos: { innerHTML: '' },
+  movementLogStatus: { textContent: '' }, listaMovimientos: { innerHTML: '' }, movimientosPagination: { innerHTML: '' },
 };
 const rows = [
   { type: 'entrada', created_at: '2026-11-01T12:00:00Z', product_code: 'A-1', product_name: 'Bálsamo', quantity: 5, motive: 'Compra' },
@@ -44,6 +44,7 @@ let downloaded = null;
 const alerts = [];
 const context = vm.createContext({
   movimientos: rows,
+  ADMIN_HISTORY_PAGE_SIZE: 100, inventoryMovementLogPage: 1, inventoryMovementLogFilterKey: null,
   moduleLoadErrors: { movements: '' },
   $: id => elements[id] ?? null,
   isValidAdminReportDate: null,
@@ -57,6 +58,7 @@ const renderMovimientosSource = extractFunction('renderMovimientos');
 assert.match(renderMovimientosSource, /toLocaleString\("es-CO",\{timeZone:INVENTORY_MOVEMENT_LOG_TIME_ZONE\}\)/, 'El render usa la misma zona que el filtro.');
 const functions = [
   timeZoneSource, extractFunction('isValidAdminReportDate'), safeCsvSource,
+  extractFunction('adminHistoryPageInfo'), extractFunction('adminHistoryPaginationMarkup'),
   extractFunction('getInventoryMovementLogDateRange'), extractFunction('normalizeMovementSearchValue'),
   extractFunction('inventoryMovementLogDateKey'), extractFunction('filterInventoryMovementLog'), renderMovimientosSource,
   extractFunction('exportInventoryMovementLogCSV'),
