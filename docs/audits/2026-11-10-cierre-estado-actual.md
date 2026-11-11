@@ -42,3 +42,14 @@ Los cambios seguros ya implementados y publicados incluyen PR #125–#127. Las p
 4. **Servicios externos/comerciales:** no hay cobros reales de prueba; Wompi/PSE full success requiere credenciales sandbox del comercio; páginas de producto indexables y 503 requieren arquitectura/hosting apropiados. No cambiar DNS ni hosting como parte de este anexo.
 
 **Estado:** ningún criterio de fase se certifica al 100%. PR #124 continúa en draft; no se fusionó nada en este cierre y no se aplicaron migraciones productivas.
+
+
+## Diagnóstico puntual de 503 y SEO — 2026-11-10
+
+La prueba de lectura con agente normal y Googlebot no reprodujo un 503: `/`, `/robots.txt`, `/sitemap.xml` y `/admin.html` respondieron HTTP/2 200, con `server: GitHub.com` y `via: 1.1 varnish`; una ruta de producto inexistente respondió 404. No apareció `Retry-After` ni `cf-ray`. Por tanto no hay evidencia de un 503 activo en la tienda durante esta revisión. Si Search Console reporta otro, se necesita la URL exacta y fecha/hora del fallo para distinguir un error intermitente de un URL específico; no se debe atribuir un incidente no reproducido.
+
+La causa de que el proyecto no pueda activar por sí solo un mantenimiento 503 es su origen estático en GitHub Pages: entrega archivos y la 404 estática, pero no ejecuta lógica por solicitud para devolver `503` y `Retry-After`. El Worker de `infra/cloudflare/maintenance-worker.mjs` ya está preparado y tiene regresión local, pero no está desplegado ni asociado a una ruta; las respuestas observadas salen de GitHub Pages, no de una ruta Cloudflare proxied. Para activar un 503 real se requiere zona/DNS proxied y ruta de Worker; no se modificó DNS ni hosting.
+
+El hallazgo SEO relacionado es distinto de un 503: las fichas usan `?producto=<id>` y se abren con JavaScript en un modal; el `sitemap.xml` actual contiene la portada y tres páginas informativas, no URLs de producto. La ruta aleatoria `/producto/<slug>` devuelve la 404 existente. Falta generar HTML inicial indexable por producto y una entrada coherente al sitemap, con slug estable y fuente pública segura. El runbook existente describe prerender o SSR; ninguna opción se activó.
+
+PR #128 añade una prueba hermética de cotización Wompi con cupón y envío, incluyendo rechazo de total desactualizado antes de locks/pedidos y firma/importe del camino aceptado. Está abierta, sin merge; solo mockea fetch y no llama a Wompi/Supabase reales.
