@@ -1,6 +1,6 @@
 # Fase 2 — Tarifas por ciudad y zona
 
-**Estado actual (2026-11-10):** el código de admin/storefront está en `origin/main` y el catálogo Supabase de solo lectura muestra `admin_list_storefront_shipping_rules()` y `admin_save_storefront_shipping_rule(...)`; ambas RPC permiten `EXECUTE` a `authenticated` y no a `anon`. La consulta del historial de migraciones no registró `20261108070000`, así que se confirma presencia de las RPC, no la línea exacta de aplicación del DDL. No se cambiaron tarifas reales y no está demostrado un CRUD real de escritura; Fase 2 sigue abierta.
+**Estado comprobado (2026-11-10):** Supabase registra la migración `20261108070000_storefront_city_shipping_rules`; existen `admin_list_storefront_shipping_rules()` y `admin_save_storefront_shipping_rule(...)`, con EXECUTE para `authenticated` y no para `anon`. No se cambiaron tarifas reales y no está demostrado un CRUD real de escritura desde una sesión admin. Fase 2 sigue abierta hasta completar la prueba funcional y la regresión COD sobre una copia aislada.
 
 ## Cambios preparados
 
