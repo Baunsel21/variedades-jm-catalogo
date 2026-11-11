@@ -6,6 +6,8 @@
 **Último commit observado en main:** `93eee28699e508efcc78e38c5ee48e11fec511c1` — `feat(telegram): add professional order actions and tracking events (#123)`
 
 > Este documento es un handoff operativo basado en metadatos de Supabase, catálogo de funciones/permisos, migraciones registradas, estado de Edge Functions y comparación de archivos desplegados. No es una certificación de tienda lista para producción ni autoriza DDL sin backup restaurable.
+>
+> **Nota de vigencia:** este contenido es una captura histórica de `main@93eee286`. Para el estado posterior a PR #125–#127, porcentajes por fase y límites de verificación del respaldo, consultar [`2026-11-10-cierre-estado-actual.md`](2026-11-10-cierre-estado-actual.md), que prevalece ante cualquier diferencia de estado.
 
 ## Instrucción principal para Manus
 
