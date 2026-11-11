@@ -486,6 +486,7 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
           <div class="rowBetween"><h3>🧾 Historial de ventas</h3><span class="muted" id="salesCount">0</span></div>
           <div class="searchbar"><input id="buscarVenta" placeholder="🔎 Buscar venta por código, producto o cliente" oninput="renderVentas()"></div>
           <div id="listaVentas"></div>
+          <div id="ventasPagination"></div>
         </div>
       </section>
 <section id="pedidos" class="view">
@@ -557,7 +558,7 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
           <label>Fecha<input id="gFecha" type="date"></label>
           <label>Categoría<select id="gCategoria"><option>Transporte</option><option>Empaque</option><option>Publicidad</option><option>Servicios</option><option>Compras</option><option>Otros</option></select></label>
         </div><div style="margin-top:15px"><button class="primary" onclick="agregarGasto()">＋ Guardar gasto</button></div></div>
-        <div class="box" style="margin-top:15px"><div class="rowBetween"><h3>Historial de gastos</h3><b id="gastoTotal">$0</b></div><div id="listaGastos"></div></div>
+        <div class="box" style="margin-top:15px"><div class="rowBetween"><h3>Historial de gastos</h3><b id="gastoTotal">$0</b></div><div id="listaGastos"></div><div id="gastosPagination"></div></div>
       </section>
 
       <section id="movimientos" class="view">
@@ -577,7 +578,7 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
             <label for="movementLogTo">Hasta<input id="movementLogTo" type="date"></label>
             <button id="clearMovementLogFilters" type="button" class="softbtn">Limpiar</button>
           </div>
-          <p id="movementLogStatus" class="muted" role="status" aria-live="polite"></p><div id="listaMovimientos"></div>
+          <p id="movementLogStatus" class="muted" role="status" aria-live="polite"></p><div id="listaMovimientos"></div><div id="movimientosPagination"></div>
         </div>
       </section>
 
@@ -921,6 +922,7 @@ window.commitAdminCsvProducts=async(rows,schemaVersion=1)=>{
 window.refreshAdminAfterCsvImport=async()=>await cargarTodo();
 let editingSizeGuideImagePath="",sizeGuideImageRemoveRequested=false,sizeGuidePreviewObjectUrl=null;
 let proveedores=[],gastos=[],movimientos=[];
+const ADMIN_HISTORY_PAGE_SIZE=100;let salesHistoryPage=1,salesHistoryQuery=null,expensesHistoryPage=1,inventoryMovementLogPage=1,inventoryMovementLogFilterKey=null;
 // Mantiene el error de carga por módulo para no mostrar como vacío un dato que falló al consultarse.
 let moduleLoadErrors={};
 let adminDeferredModuleLoaded={clients:false,suppliers:false,expenses:false,movements:false,orders:false};
@@ -2011,6 +2013,7 @@ function lockAdminPanel(message='Tu sesión terminó. Vuelve a entrar.'){
  if(adminCatalogRealtimeChannel&&sb){const channel=adminCatalogRealtimeChannel;adminCatalogRealtimeChannel=null;void sb.removeChannel(channel).catch(error=>console.debug('No se pudo cerrar el canal administrativo.',error));}
  adminCatalogRealtimeReady=false;adminCatalogRealtimePending=[];
  productos=[];ventas=[];clientes=[];proveedores=[];gastos=[];movimientos=[];pedidos=[];pedidosLoadError='';ordersFacetOptionsSignature='';categorias=[];categoryRecords=[];
+ resetAdminHistoryPagination();
  moduleLoadErrors={};
  Object.keys(adminDeferredModuleLoaded).forEach(key=>adminDeferredModuleLoaded[key]=false);
  onlinePaymentSettingLoaded=false;onlinePaymentSettingOriginal=null;
@@ -2025,7 +2028,7 @@ function lockAdminPanel(message='Tu sesión terminó. Vuelve a entrar.'){
 	 floatingPromotionsSettingsLoaded=false;floatingPromotionsSaving=false;
 	 resetTelegramAutomaticState();
 	 if(seasonalPromoAutoCloseTimer){clearTimeout(seasonalPromoAutoCloseTimer);seasonalPromoAutoCloseTimer=null;}
- ['listaPedidos','listaProductos','listaVentas','listaClientes','listaProveedores','listaGastos','listaMovimientos','wompiReconciliationList'].forEach(id=>{const el=$(id);if(el)el.textContent='';});
+ ['listaPedidos','listaProductos','listaVentas','listaClientes','listaProveedores','listaGastos','listaMovimientos','ventasPagination','gastosPagination','movimientosPagination','wompiReconciliationList'].forEach(id=>{const el=$(id);if(el)el.textContent='';});
  const orderRefreshButton=$('refreshOrdersBtn');if(orderRefreshButton){orderRefreshButton.disabled=false;orderRefreshButton.textContent='↻ Actualizar pedidos';}
  const businessIconInput=$('businessIcon');if(businessIconInput)businessIconInput.value='';
  const wompiRefreshButton=$('refreshWompiReconciliationBtn');if(wompiRefreshButton)wompiRefreshButton.disabled=false;
@@ -4229,11 +4232,25 @@ async function registrarVenta(){
  notifyPublicCatalogChanged();
  toast("Venta registrada y stock actualizado correctamente");$("vCantidad").value=1;void cargarTodo().catch(error=>console.error('No se pudo actualizar el resumen del administrador tras registrar venta:',error));
 }
+function adminHistoryPageInfo(total,requestedPage){
+ const totalRows=Math.max(0,Math.trunc(Number(total)||0)),totalPages=Math.max(1,Math.ceil(totalRows/ADMIN_HISTORY_PAGE_SIZE));
+ const page=Math.min(totalPages,Math.max(1,Math.trunc(Number(requestedPage)||1))),start=(page-1)*ADMIN_HISTORY_PAGE_SIZE;
+ return {totalRows,totalPages,page,start,end:Math.min(totalRows,start+ADMIN_HISTORY_PAGE_SIZE)};
+}
+function adminHistoryPaginationMarkup(info,handler,label){
+ const range=info.totalRows?`Mostrando ${info.start+1}–${info.end} de ${info.totalRows}`:'Sin registros';
+ const controls=info.totalPages>1?`<div style="display:flex;align-items:center;gap:8px"><button type="button" class="softbtn" aria-label="Página anterior" ${info.page<=1?'disabled':''} onclick="${handler}(${info.page-1})">Anterior</button><span class="muted" aria-live="polite">Página ${info.page} de ${info.totalPages}</span><button type="button" class="softbtn" aria-label="Página siguiente" ${info.page>=info.totalPages?'disabled':''} onclick="${handler}(${info.page+1})">Siguiente</button></div>`:'';
+ return `<nav aria-label="${label}" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-top:10px"><span class="muted" aria-live="polite">${range}</span>${controls}</nav>`;
+}
+function resetAdminHistoryPagination(){salesHistoryPage=1;salesHistoryQuery=null;expensesHistoryPage=1;inventoryMovementLogPage=1;inventoryMovementLogFilterKey=null;}
+function setSalesHistoryPage(page){salesHistoryPage=page;renderVentas();}
 function renderVentas(){
- const q=($("buscarVenta")?.value||"").toLowerCase();
+ const q=String($("buscarVenta")?.value||"").toLowerCase();if(q!==salesHistoryQuery){salesHistoryQuery=q;salesHistoryPage=1;}
  const arr=ventas.filter(v=>(v.product_code+" "+v.product_name+" "+(v.client_id||"")).toLowerCase().includes(q));
+ const page=adminHistoryPageInfo(arr.length,salesHistoryPage);salesHistoryPage=page.page;
  $("salesCount").textContent=`${arr.length} registro${arr.length===1?"":"s"}`;
- $("listaVentas").innerHTML=arr.slice(0,100).map(v=>`<div class="listItem"><div class="rowBetween"><div><b>${esc(v.product_code)} — ${esc(v.product_name)}</b><div class="muted">${v.sale_date} • ${v.quantity} unidad(es) ${v.client_id?"• cliente registrado":""}</div></div><div style="text-align:right"><b>${money(Number(v.quantity)*Number(v.sale_price))}</b><div class="muted">Ganancia ${money(Number(v.quantity)*(Number(v.sale_price)-Number(v.cost_price)))}</div><div style="margin-top:7px"><button class="action" onclick="reciboVenta('${v.id}')">🧾 Recibo</button></div></div></div></div>`).join("")||'<div class="empty">No hay ventas.</div>';
+ $("ventasPagination").innerHTML=adminHistoryPaginationMarkup(page,'setSalesHistoryPage','Paginación del historial de ventas');
+ $("listaVentas").innerHTML=arr.slice(page.start,page.end).map(v=>`<div class="listItem"><div class="rowBetween"><div><b>${esc(v.product_code)} — ${esc(v.product_name)}</b><div class="muted">${v.sale_date} • ${v.quantity} unidad(es) ${v.client_id?"• cliente registrado":""}</div></div><div style="text-align:right"><b>${money(Number(v.quantity)*Number(v.sale_price))}</b><div class="muted">Ganancia ${money(Number(v.quantity)*(Number(v.sale_price)-Number(v.cost_price)))}</div><div style="margin-top:7px"><button class="action" onclick="reciboVenta('${v.id}')">🧾 Recibo</button></div></div></div></div>`).join("")||'<div class="empty">No hay ventas.</div>';
 }
 async function agregarCliente(){
  const n=$("cNombre").value.trim();if(!n)return alert("Escribe el nombre.");
@@ -4277,10 +4294,13 @@ async function agregarGasto(){
  if(error){alert(error.message);return}
  $("gConcepto").value="";$("gValor").value=0;toast("Gasto guardado");await cargarTodo();
 }
+function setExpensesHistoryPage(page){expensesHistoryPage=page;renderGastos();}
 function renderGastos(){
- if(moduleLoadErrors.expenses){$("gastoTotal").textContent="—";$("listaGastos").innerHTML=`<div class="alert"><b>No se pudieron cargar los gastos.</b><br>${esc(moduleLoadErrors.expenses)}<br><small>El total queda sin calcular hasta recuperar la conexión con la tabla.</small></div>`;return;}
+ if(moduleLoadErrors.expenses){$("gastoTotal").textContent="—";$("listaGastos").innerHTML=`<div class="alert"><b>No se pudieron cargar los gastos.</b><br>${esc(moduleLoadErrors.expenses)}<br><small>El total queda sin calcular hasta recuperar la conexión con la tabla.</small></div>`;$("gastosPagination").innerHTML='';return;}
  const total=gastos.reduce((s,g)=>s+Number(g.amount),0);$("gastoTotal").textContent=money(total);
- $("listaGastos").innerHTML=gastos.slice(0,100).map(g=>`<div class="listItem"><div class="rowBetween"><div><b>${esc(g.concept)}</b><div class="muted">${g.expense_date} • ${esc(g.category||"Otros")}</div></div><div><b>${money(g.amount)}</b> <button class="action" onclick="borrarGasto('${g.id}')">🗑️</button></div></div></div>`).join("")||'<div class="empty">No hay gastos.</div>';
+ const page=adminHistoryPageInfo(gastos.length,expensesHistoryPage);expensesHistoryPage=page.page;
+ $("gastosPagination").innerHTML=adminHistoryPaginationMarkup(page,'setExpensesHistoryPage','Paginación del historial de gastos');
+ $("listaGastos").innerHTML=gastos.slice(page.start,page.end).map(g=>`<div class="listItem"><div class="rowBetween"><div><b>${esc(g.concept)}</b><div class="muted">${g.expense_date} • ${esc(g.category||"Otros")}</div></div><div><b>${money(g.amount)}</b> <button class="action" onclick="borrarGasto('${g.id}')">🗑️</button></div></div></div>`).join("")||'<div class="empty">No hay gastos.</div>';
 }
 async function borrarGasto(id){if(!confirm("¿Eliminar este gasto?"))return;const {error}=await sb.from("expenses").delete().eq("id",id);if(error)alert(error.message);else{toast("Gasto eliminado");await cargarTodo()}}
 function refrescarMovimientoSelect(){
@@ -4379,12 +4399,17 @@ function filterInventoryMovementLog(rows=movimientos){
   return true;
  });
 }
+function setInventoryMovementLogPage(page){inventoryMovementLogPage=page;renderMovimientos();}
 function renderMovimientos(){
- const host=$("listaMovimientos"),status=$("movementLogStatus");if(!host)return;
- if(moduleLoadErrors.movements){if(status)status.textContent='No se pudo cargar la bitácora.';host.innerHTML=`<div class="alert"><b>No se pudieron cargar los movimientos.</b><br>${esc(moduleLoadErrors.movements)}</div>`;return;}
+ const host=$("listaMovimientos"),status=$("movementLogStatus"),paginationHost=$("movimientosPagination");if(!host)return;
+ if(moduleLoadErrors.movements){if(status)status.textContent='No se pudo cargar la bitácora.';host.innerHTML=`<div class="alert"><b>No se pudieron cargar los movimientos.</b><br>${esc(moduleLoadErrors.movements)}</div>`;if(paginationHost)paginationHost.innerHTML='';return;}
+ const filterKey=JSON.stringify(['movementLogSearch','movementLogType','movementLogFrom','movementLogTo'].map(id=>String($(id)?.value||'')));
+ if(filterKey!==inventoryMovementLogFilterKey){inventoryMovementLogFilterKey=filterKey;inventoryMovementLogPage=1;}
  const rows=filterInventoryMovementLog(movimientos),range=getInventoryMovementLogDateRange();
- if(status)status.textContent=!range.valid?'Rango de fechas no válido; se ocultan los resultados.':`Coincidencias: ${rows.length} de ${movimientos.length} movimientos cargados. Se muestran hasta 100; filtros locales de lectura.`;
- host.innerHTML=rows.slice(0,100).map(m=>`<div class="listItem"><div class="rowBetween"><div><b>${esc(m.product_code)} — ${esc(m.product_name)}</b><div class="muted">${m.created_at?new Date(m.created_at).toLocaleString("es-CO",{timeZone:INVENTORY_MOVEMENT_LOG_TIME_ZONE}):"Fecha sin dato"} • ${esc(m.motive||"Sin motivo")} • ${Number(m.quantity)||0} unidad(es)</div></div><span class="badge ${m.type==="entrada"?"ok":m.type==="salida"?"low":"out"}">${esc(m.type)}</span></div></div>`).join("")||'<div class="empty">No hay movimientos que coincidan con los filtros.</div>';
+ const page=adminHistoryPageInfo(rows.length,inventoryMovementLogPage);inventoryMovementLogPage=page.page;
+ if(status)status.textContent=!range.valid?'Rango de fechas no válido; se ocultan los resultados.':`Coincidencias: ${rows.length} de ${movimientos.length} movimientos cargados. Filtros locales de lectura.`;
+ if(paginationHost)paginationHost.innerHTML=adminHistoryPaginationMarkup(page,'setInventoryMovementLogPage','Paginación de movimientos de inventario');
+ host.innerHTML=rows.slice(page.start,page.end).map(m=>`<div class="listItem"><div class="rowBetween"><div><b>${esc(m.product_code)} — ${esc(m.product_name)}</b><div class="muted">${m.created_at?new Date(m.created_at).toLocaleString("es-CO",{timeZone:INVENTORY_MOVEMENT_LOG_TIME_ZONE}):"Fecha sin dato"} • ${esc(m.motive||"Sin motivo")} • ${Number(m.quantity)||0} unidad(es)</div></div><span class="badge ${m.type==="entrada"?"ok":m.type==="salida"?"low":"out"}">${esc(m.type)}</span></div></div>`).join("")||'<div class="empty">No hay movimientos que coincidan con los filtros.</div>';
 }
 function exportInventoryMovementLogCSV(){
  if(moduleLoadErrors.movements){toast('No se puede exportar: la bitácora no se cargó.');return false;}
