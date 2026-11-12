@@ -260,6 +260,29 @@ function isCodPaymentMethod(value) {
   return ["contra entrega", "contraentrega", "cash on delivery", "cod"].includes(method);
 }
 
+function humanPaymentMethod(value) {
+  const method = safeSingleLine(value, 40).toLowerCase().replace(/[_-]+/g, " ").replace(/\s+/g, " ").trim();
+  if (isCodPaymentMethod(method)) return "Contraentrega";
+  if (method === "wompi") return "Wompi";
+  if (method === "pse") return "PSE";
+  if (method === "nequi") return "Nequi";
+  if (method === "tarjeta" || method === "card") return "Tarjeta";
+  return safeSingleLine(value, 40);
+}
+
+function humanStatus(value, fallback = "") {
+  const status = safeSingleLine(value, 32).toUpperCase();
+  const labels = {
+    APPROVED: "Aprobado", CONFIRMED: "Confirmado", PENDING: "Pendiente",
+    REJECTED: "Rechazado", DECLINED: "Rechazado", FAILED: "Fallido",
+    ERROR: "Con error", VOIDED: "Anulado", CANCELLED: "Cancelado", CANCELED: "Cancelado",
+    NEW: "Nuevo", NUEVO: "Nuevo", PROCESSING: "En preparación", PREPARANDO: "En preparación",
+    SHIPPED: "Enviado", ENVIADO: "Enviado", IN_TRANSIT: "En tránsito", EN_TRANSITO: "En tránsito",
+    DELIVERED: "Entregado", ENTREGADO: "Entregado", ENTREGADA: "Entregado",
+  };
+  return labels[status] || safeSingleLine(value || fallback, 32);
+}
+
 export function formatTelegramNotification(row) {
   const eventType = String(row?.event_type ?? "");
   const defaultTitle = EVENT_TITLES[eventType];
@@ -301,15 +324,14 @@ export function formatTelegramNotification(row) {
   let computedUnits = 0;
   for (const product of products) {
     if (!product || typeof product !== "object" || Array.isArray(product)) continue;
-    const code = safeProductCode(product.code);
     const name = safeProductName(product.name);
     const variant = safeSingleLine(product.variant, 80);
     const quantity = Number(product.quantity ?? product.qty);
     if (!Number.isSafeInteger(quantity) || quantity < 1) continue;
     computedUnits += quantity;
-    const productLabel = [code, name].filter(Boolean).join(" — ") || "Producto sin identificación";
+    const productLabel = name || "Producto";
     const unitPrice = formatCop(product.unit_price_cop);
-    productLines.push(`- ${productLabel}${variant ? ` · Variante: ${variant}` : ""}${unitPrice ? ` · ${unitPrice} c/u` : ""} · Cantidad: ${quantity}`);
+    productLines.push(`• ${productLabel}${variant ? ` · ${variant}` : ""} · Cantidad: ${quantity}${unitPrice ? ` · ${unitPrice} c/u` : ""}`);
   }
 
   if (productLines.length === 0 && eventType.startsWith("reservation.")) {
@@ -333,10 +355,10 @@ export function formatTelegramNotification(row) {
   }
   const messageOmittedProducts = omittedProducts + productLines.length - displayedProductLines.length;
 
-  if (customerName) lines.push(`Cliente: ${customerName}`);
-  if (city) lines.push(`Ciudad: ${city}`);
+  if (customerName) lines.push(`👤 Cliente: ${customerName}`);
+  if (city) lines.push(`📍 Ciudad: ${city}`);
   if (displayedProductLines.length > 0) {
-    lines.push("Productos:", ...displayedProductLines);
+    lines.push("📦 Productos:", ...displayedProductLines);
   }
   if (messageOmittedProducts > 0) {
     const shownVerb = displayedProductLines.length === 1 ? "se muestra" : "se muestran";
@@ -356,13 +378,14 @@ export function formatTelegramNotification(row) {
     const payment = safeSingleLine(payload.payment_status, 32);
     const order = safeSingleLine(payload.order_status, 32);
     const deliveryMode = safeSingleLine(payload.delivery_mode, 40);
-    if (phone) lines.push(`Teléfono: ${phone}`);
-    if (deliveryAddress) lines.push(`Dirección: ${deliveryAddress}`);
-    if (deliveryMode) lines.push(`Entrega: ${deliveryMode}`);
-    if (method) lines.push(`Medio: ${method}`);
-    if (payment && !isCodPaymentMethod(method)) lines.push(`Estado de pago: ${payment}`);
+    if (phone) lines.push(`☎️ Teléfono: ${phone}`);
+    if (deliveryAddress) lines.push(`🏠 Dirección: ${deliveryAddress}`);
+    if (deliveryMode) lines.push(`🚚 Entrega: ${deliveryMode}`);
+    if (method) lines.push(`💳 Pago: ${humanPaymentMethod(method)}`);
+    if (payment && !isCodPaymentMethod(method)) lines.push(`Estado de pago: ${humanStatus(payment)}`);
     else if (payment === "PENDING" && isCodPaymentMethod(method)) lines.push("Cobro: contraentrega al recibir");
-    if (order) lines.push(`Estado del pedido: ${order}`);
+    if (order) lines.push(`📌 Estado del pedido: ${humanStatus(order)}`);
+    lines.push("💰 Resumen");
     const subtotal = formatCop(payload.subtotal_cop);
     const discount = formatCop(payload.discount_cop);
     const couponDiscount = formatCop(payload.coupon_discount_cop);

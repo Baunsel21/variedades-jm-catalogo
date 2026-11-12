@@ -14,6 +14,12 @@ El panel consulta `web_orders` con una lista explícita de columnas que incluye 
 
 El repositorio versiona migraciones y código que usan estas tablas, pero no define sus tablas base completas. Por ello este documento no afirma tipos, unicidad, relaciones, políticas RLS, estados, ni cardinalidad de reservas o transacciones que no estén demostrados por una migración versionada.
 
+### Reconciliación read-only del proyecto desplegado
+
+La inspección agregada más reciente observó 121 filas en `orders` y 33 en `web_orders`. No hubo estados nulos, importes con aritmética inconsistente ni filas marcadas para conciliación en las métricas consultadas; tampoco hubo referencias coincidentes entre `orders.reference` y `web_orders.client_reference`. El esquema desplegado expone unicidad para `orders.reference` y para `web_orders.client_reference` cuando no es nulo. Estas comprobaciones no leen ni muestran PII y no autorizan unir ambos canales: una ausencia de coincidencias es evidencia de separación en el snapshot, no una relación.
+
+La distribución observada fue `NUEVO` para `orders` y `CONFIRMADO`, `DEVUELTO` y `RECHAZADO` para `web_orders`. `orders` usa `order_status` y `payment_status`, mientras `web_orders` usa `status`; por tanto, las consultas de conciliación deben usar el contrato de cada tabla y no asumir una columna `status` común. No se encontró en Supabase la tabla o RPC de tracking logístico esperada; la parte logística permanece pendiente de una migración/despliegue autorizado.
+
 ## Límites de la futura vista administrativa
 
 No crear todavía un join entre pedidos Wompi, COD, ventas, movimientos de inventario y conciliación. Una futura proyección debe usar identidad calificada por canal, seleccionar columnas explícitas, indicar conflictos o duplicidades como `needs_review` y mantenerse de solo lectura hasta que el esquema restaurado y sus restricciones confirmen cada relación. No resolver ambigüedades con `LIMIT 1`.

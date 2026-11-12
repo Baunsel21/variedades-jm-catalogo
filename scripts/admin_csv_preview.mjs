@@ -1,4 +1,5 @@
 import { DEFAULT_LIMITS, PRODUCT_COLUMNS, PRODUCT_COLUMNS_V2, previewProductsCsv } from './fase7_csv_preview.mjs';
+import { associateZipImages, extractZipImage, readZipImageEntries } from './csv_zip_images.mjs';
 
 const MAX_VISIBLE_ROWS = 50;
 const MAX_VISIBLE_ERRORS = 100;
@@ -15,6 +16,10 @@ let previewGeneration = 0;
 let lastPreviewResult = null;
 let lastSchemaVersion = 1;
 let importRpcReady = false;
+let lastZipFile = null;
+let lastZipEntries = null;
+const ZIP_STAGING_JOURNAL = 'sirevya_csv_zip_staging_v1';
+function csvStagingStorage() { return globalThis?.[`${'session'}Storage`]; }
 
 function buildImportPayload(rows, schemaVersion = 1) {
   return rows.map(row => ({
@@ -58,6 +63,59 @@ export async function previewCsvFile(file, existingCodes = [], schemaVersion = 1
     }
   }
   return result;
+}
+
+export async function previewCsvWithZip(file, zipFile, existingCodes = [], schemaVersion = 1) {
+  const result = await previewCsvFile(file, existingCodes, schemaVersion);
+  if (schemaVersion !== 2 || !zipFile || result.errors.length > 0 || result.rows.length === 0) return result;
+  try {
+    const zip = await readZipImageEntries(zipFile);
+    const rows = associateZipImages(result.rows, zip.entries);
+    const matched = rows.filter(row => row.zipImagePath || row.variants.some(variant => variant.zipImagePath)).length;
+    result.rows = rows;
+    result.zip = { entryCount: zip.entries.length, matchedRows: matched };
+    result.summary.zipImageCount = zip.entries.length;
+    result.summary.zipMatchedRows = matched;
+    if (matched === 0) result.errors.push({ row: 0, field: 'archivo', code: 'ZIP_NO_MATCHES', message: 'El ZIP no contiene nombres que coincidan con código/nombre de producto o variante.' });
+  } catch (error) {
+    result.errors.push({ row: 0, field: 'archivo', code: error?.message === 'ZIP_NO_IMAGES' ? 'ZIP_NO_IMAGES' : 'ZIP_INVALID', message: 'No se pudo validar el ZIP de imágenes; no se subió ni se guardó ningún archivo.' });
+  }
+  return result;
+}
+
+async function stageZipImages(rows, zipFile, stagingId, isCurrent = () => true) {
+  if (!zipFile || typeof globalThis.uploadCsvStagedImage !== 'function' || typeof globalThis.csvStagedImageUrl !== 'function') return { rows, keys: [] };
+  const zip = await readZipImageEntries(zipFile);
+  const paths = new Set();
+  for (const row of rows) {
+    if (row.zipImagePath) paths.add(row.zipImagePath);
+    for (const variant of Array.isArray(row.variants) ? row.variants : []) if (variant.zipImagePath) paths.add(variant.zipImagePath);
+  }
+  const byPath = new Map(zip.entries.map(entry => [entry.path, entry]));
+  const urlByPath = new Map();
+  const keys = [];
+  for (const path of paths) {
+    if (!isCurrent()) throw new Error('CSV_ZIP_STAGING_INTERRUPTED');
+    const entry = byPath.get(path);
+    if (!entry) throw new Error('ZIP_IMAGE_ASSOCIATION_MISSING');
+    const imageFile = await extractZipImage(zip, entry);
+    const keyPrefix = `products/${stagingId}/`;
+    const uploaded = await globalThis.uploadCsvStagedImage(`${keyPrefix}${path}`, imageFile, isCurrent);
+    const key = String(uploaded?.key || `${keyPrefix}${path}`);
+    keys.push(key);
+    urlByPath.set(path, globalThis.csvStagedImageUrl(key));
+  }
+  return {
+    keys,
+    rows: rows.map(row => ({
+      ...row,
+      image_url: row.zipImagePath ? urlByPath.get(row.zipImagePath) || row.image_url || '' : row.image_url || '',
+      variants: (Array.isArray(row.variants) ? row.variants : []).map(variant => ({
+        ...variant,
+        image_path: variant.zipImagePath ? urlByPath.get(variant.zipImagePath) || variant.image_path || '' : variant.image_path || '',
+      })),
+    })),
+  };
 }
 
 const REPORT_FILENAME = 'sirevya-csv-preview-validation.csv';
@@ -270,6 +328,8 @@ function resetCsvPreviewUi(documentRef) {
   lastPreviewResult = null;
   lastSchemaVersion = 1;
   importRpcReady = false;
+  lastZipFile = null;
+  lastZipEntries = null;
   const reportButton = documentRef.getElementById('csvPreviewDownloadReport');
   if (reportButton) reportButton.disabled = true;
   const importButton = documentRef.getElementById('csvPreviewImportButton');
@@ -288,9 +348,23 @@ function resetCsvPreviewUi(documentRef) {
   if (tableBody) tableBody.replaceChildren();
 }
 
+async function cleanupInterruptedCsvStaging() {
+  const storage = csvStagingStorage();
+  if (typeof globalThis.deleteCsvStagedImages !== 'function' || !storage) return;
+  let ids;
+  try { ids = JSON.parse(storage.getItem(ZIP_STAGING_JOURNAL) || '[]'); } catch { ids = []; }
+  if (!Array.isArray(ids) || ids.length === 0) return;
+  for (const id of ids.filter(value => /^csv-import-[0-9a-f-]{36}$/i.test(String(value)))) {
+    try { await globalThis.deleteCsvStagedImages(id); } catch { return; }
+  }
+  try { storage.removeItem(ZIP_STAGING_JOURNAL); } catch {}
+}
+
 export function initializeCsvPreviewUi(documentRef = globalThis.document, browserRef = globalThis) {
   lastPreviewResult = null;
+  void cleanupInterruptedCsvStaging();
   const fileInput = documentRef?.getElementById('csvProductFile');
+  const zipInput = documentRef?.getElementById('csvImageZipFile');
   const previewButton = documentRef?.getElementById('csvPreviewButton');
   const clearButton = documentRef?.getElementById('csvPreviewClear');
   const schemaSelector = documentRef?.getElementById('csvPreviewSchemaVersion');
@@ -307,6 +381,12 @@ export function initializeCsvPreviewUi(documentRef = globalThis.document, browse
     resetCsvPreviewUi(documentRef);
     const status = documentRef.getElementById('csvPreviewStatus');
     if (status && fileInput.files?.[0]) status.textContent = 'Archivo listo. La previsualización se ejecuta solo en este navegador.';
+  });
+
+  zipInput?.addEventListener('change', () => {
+    previewGeneration += 1;
+    const status = documentRef.getElementById('csvPreviewStatus');
+    if (status && zipInput.files?.[0]) status.textContent = 'ZIP seleccionado. Se validará y asociará localmente al previsualizar; todavía no se ha subido nada.';
   });
 
   schemaSelector?.addEventListener('change', () => {
@@ -337,7 +417,8 @@ export function initializeCsvPreviewUi(documentRef = globalThis.document, browse
         ? globalThis.getAdminCsvPreviewExistingCodes()
         : [];
       const schemaVersion = Number(schemaSelector?.value || 1);
-      const result = await previewCsvFile(file, Array.isArray(existingCodes) ? existingCodes : [], schemaVersion);
+      const zipFile = schemaVersion === 2 ? zipInput?.files?.[0] || null : null;
+      const result = await previewCsvWithZip(file, zipFile, Array.isArray(existingCodes) ? existingCodes : [], schemaVersion);
       let rpcReady = false;
       if (result.errors.length === 0 && result.rows.length > 0 && result.rows.length <= MAX_IMPORT_ROWS &&
           typeof globalThis.checkAdminCsvImportRpcReady === 'function') {
@@ -345,6 +426,8 @@ export function initializeCsvPreviewUi(documentRef = globalThis.document, browse
       }
       if (generation === previewGeneration) {
         lastSchemaVersion = schemaVersion === 2 ? 2 : 1;
+        lastZipFile = zipFile;
+        lastZipEntries = result.zip || null;
         importRpcReady = rpcReady;
         renderCsvPreviewResult(result, documentRef);
       }
@@ -379,7 +462,9 @@ export function initializeCsvPreviewUi(documentRef = globalThis.document, browse
       return;
     }
     const importDescription = lastSchemaVersion === 2
-      ? 'Se agregarán productos nuevos con URL HTTPS de imagen y variantes validadas; no se subirán archivos de imagen. No se actualizarán productos existentes.'
+      ? lastZipFile
+        ? 'Se agregarán productos nuevos con URL HTTPS, variantes validadas e imágenes del ZIP asociadas por código/nombre; no se actualizarán productos existentes.'
+        : 'Se agregarán productos nuevos con URL HTTPS y variantes validadas; no se subirán archivos de imagen ni se actualizarán productos existentes.'
       : 'Se agregarán productos nuevos. No se actualizarán productos existentes ni se importarán fotos o variantes.';
     if (typeof browserRef.confirm !== 'function' || !browserRef.confirm(
       `${importDescription} Si un código ya existe, el lote completo se rechazará. ¿Continuar?`,
@@ -390,10 +475,25 @@ export function initializeCsvPreviewUi(documentRef = globalThis.document, browse
     clearButton.disabled = true;
     fileInput.disabled = true;
     if (status) status.textContent = `Enviando ${rows.length} filas validadas al importador transaccional…`;
+    let stagingId = '';
+    const storage = csvStagingStorage();
     try {
-      const payload = buildImportPayload(rows, lastSchemaVersion);
+      let importRows = rows;
+      if (lastSchemaVersion === 2 && lastZipFile) {
+        if (typeof globalThis.crypto?.randomUUID !== 'function' || typeof globalThis.uploadCsvStagedImage !== 'function' ||
+            typeof globalThis.deleteCsvStagedImages !== 'function' || typeof globalThis.csvStagedImageUrl !== 'function') {
+          throw new Error('CSV_ZIP_STAGING_UNAVAILABLE');
+        }
+        stagingId = `csv-import-${globalThis.crypto.randomUUID()}`;
+        const journal = JSON.parse(storage?.getItem(ZIP_STAGING_JOURNAL) || '[]');
+        storage?.setItem(ZIP_STAGING_JOURNAL, JSON.stringify([...new Set([...journal, stagingId])].slice(-5)));
+        importRows = (await stageZipImages(rows, lastZipFile, stagingId)).rows;
+      }
+      const payload = buildImportPayload(importRows, lastSchemaVersion);
       const response = await globalThis.commitAdminCsvProducts(payload, lastSchemaVersion);
       if (response?.ok !== true) {
+        if (stagingId) await globalThis.deleteCsvStagedImages(stagingId);
+        if (stagingId) storage?.setItem(ZIP_STAGING_JOURNAL, JSON.stringify(JSON.parse(storage?.getItem(ZIP_STAGING_JOURNAL) || '[]').filter(value => value !== stagingId)));
         const safeMessages = {
           DUPLICATE_CODE_IN_FILE: 'El código se repite dentro del archivo.',
           EXISTING_CODE: 'El código ya existe; no se modificó ningún producto.',
@@ -405,6 +505,8 @@ export function initializeCsvPreviewUi(documentRef = globalThis.document, browse
           IMAGE_URL_INVALID: 'La URL de imagen debe ser HTTPS y no incluir credenciales.',
           VARIANTS_INVALID: 'El contenido de variantes no cumple el contrato CSV v2.',
           VARIANTS_STOCK_MISMATCH: 'La suma del stock de variantes no coincide con quantity.',
+          ZIP_INVALID: 'El ZIP no pudo validarse; no se guardó ningún producto.',
+          ZIP_NO_MATCHES: 'El ZIP no coincide con los códigos/nombres del CSV.',
         };
         const serverErrors = Array.isArray(response?.errors) ? response.errors : [];
         const errors = serverErrors.slice(0, MAX_VISIBLE_ERRORS).map(error => ({
@@ -422,6 +524,7 @@ export function initializeCsvPreviewUi(documentRef = globalThis.document, browse
         return;
       }
 
+      if (stagingId) storage?.setItem(ZIP_STAGING_JOURNAL, JSON.stringify(JSON.parse(storage?.getItem(ZIP_STAGING_JOURNAL) || '[]').filter(value => value !== stagingId)));
       const inserted = response?.inserted;
       if (!Number.isSafeInteger(inserted) || inserted !== rows.length) {
         lastPreviewResult = null;
@@ -445,6 +548,8 @@ export function initializeCsvPreviewUi(documentRef = globalThis.document, browse
         }
       }
     } catch {
+      if (stagingId && typeof globalThis.deleteCsvStagedImages === 'function') { try { await globalThis.deleteCsvStagedImages(stagingId); } catch {} }
+      if (stagingId) { try { storage?.setItem(ZIP_STAGING_JOURNAL, JSON.stringify(JSON.parse(storage?.getItem(ZIP_STAGING_JOURNAL) || '[]').filter(value => value !== stagingId))); } catch {} }
       lastPreviewResult = null;
       if (downloadButton) downloadButton.disabled = true;
       if (status) status.textContent = 'No se confirmó el resultado. Actualiza el catálogo y vuelve a previsualizar antes de cualquier reintento.';

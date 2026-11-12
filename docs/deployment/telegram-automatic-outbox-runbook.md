@@ -2,7 +2,11 @@
 
 ## Estado de esta implementación
 
-El esquema, el worker Edge y la interfaz admin están preparados en una rama aislada y pasan pruebas locales sintéticas. No se han aplicado migraciones en Supabase, instalado extensiones, desplegado el worker automático, activado el toggle ni enviado pedidos/pagos de prueba reales. El botón `telegram-test` y su función fija/manual permanecen separados.
+El código del esquema, el worker Edge y la interfaz admin pasa las pruebas locales sintéticas. En la reconciliación read-only del proyecto Sirevya se observaron `sirevya_telegram_outbox`, sus índices, las funciones de outbox/scheduler y el job cron activo `sirevya-telegram-dispatch`; el outbox observado tenía 21 eventos `sent`, 0 `pending` y 0 `failed`. Esto confirma que la ruta automática ha producido entregas registradas, pero no sustituye una verificación del despliegue Edge, del contenido recibido por el chat ni de cada tipo de evento.
+
+El estado exacto del toggle y del marcador `dispatcher_ready` debe consultarse mediante `get_sirevya_telegram_notification_status()` con una sesión admin; no se infiere desde el contador agregado. El botón `telegram-test` y su función fija/manual permanecen separados. No se deben repetir migraciones ni aplicar DDL por el solo hecho de que una versión falte en `schema_migrations`: los objetos efectivos y el historial deben mantenerse reconciliados por separado.
+
+La migración candidata `20261111010000_telegram_notifications_professional_payload.sql` agrega el formato profesional de pedidos. El mensaje sintético usa secciones móviles, método de pago normalizado (Wompi, PSE, Nequi o Contraentrega), estado legible, cliente, teléfono, ciudad, dirección, productos con variante/color/talla y cantidades, y resumen de subtotal, envío y total. El formatter no muestra SKU, UUID ni códigos internos. Esta variante sí transporta PII y líneas de compra al chat privado configurado; por eso no se aplica ni se activa en producción sin una decisión explícita de privacidad, revisión del chat y validación del backup/restore. La clave única `order:<id>:created` mantiene un único evento de creación en el outbox; la entrega externa continúa siendo at-least-once y los fallos quedan en `last_error_code`/`last_error_at` para reintento o recuperación.
 
 ## Componentes
 

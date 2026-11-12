@@ -60,6 +60,9 @@ const context = {
       };
     },
   },
+  window: {
+    matchMedia() { return { matches: false }; },
+  },
 };
 vm.runInNewContext(functions.join('\n'), context);
 

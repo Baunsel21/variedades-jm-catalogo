@@ -118,10 +118,12 @@ const orderRow = {
 const formatted = formatTelegramNotification(orderRow);
 assert.match(formatted, /Nuevo pedido/);
 assert.match(formatted, /Pedido: JM-TEST-042/);
-assert.match(formatted, /PENDING/);
+assert.match(formatted, /Estado de pago: Pendiente/);
 assert.match(formatted, /Cliente: NOMBRE PRIVADO/);
 assert.match(formatted, /Ciudad: Cali/);
-assert.match(formatted, /SKU-1.*Camisa sintética.*Variante: Negro \/ M.*Cantidad: 2/);
+assert.match(formatted, /• Camisa sintética.*Negro \/ M.*Cantidad: 2/);
+assert.doesNotMatch(formatted, /SKU-1|SKU-2/);
+assert.match(formatted, /💰 Resumen/);
 assert.match(formatted, /Total de unidades: 3/);
 assert.match(formatted, /Fecha y hora: .*\(Colombia\)/);
 assert.match(formatted, /58[.,]000.*c\/u/);
@@ -144,6 +146,15 @@ const codFormatted = formatTelegramNotification({
 assert.match(codFormatted, /Pedido contraentrega recibido/);
 assert.match(codFormatted, /Cobro: contraentrega al recibir/);
 assert.doesNotMatch(codFormatted, /Estado de pago: PENDING/);
+for (const [rawMethod, label] of [["wompi", "Wompi"], ["pse", "PSE"], ["nequi", "Nequi"]]) {
+  const paymentFormatted = formatTelegramNotification({
+    event_type: "order.created",
+    payload: { order_reference: "PAY-TEST-001", payment_method: rawMethod, payment_status: "APPROVED", order_status: "NEW", total_cop: 10000 },
+  });
+  assert.match(paymentFormatted, new RegExp(`Pago: ${label}`));
+  assert.match(paymentFormatted, /Estado de pago: Aprobado/);
+  assert.match(paymentFormatted, /Estado del pedido: Nuevo/);
+}
 assert.deepEqual(buildTelegramReplyMarkup(orderRow), {
   inline_keyboard: [[
     { text: "Abrir pedido", url: `https://sirevya.com.co/admin.html?web_order=${syntheticId}` },
@@ -185,7 +196,8 @@ assert.match(trackingText, /Transportadora Sintética/);
 assert.match(trackingText, /GUIA-SYNTH-002/);
 assert.match(trackingText, /Cliente de prueba/);
 assert.match(trackingText, /Palmira/);
-assert.match(trackingText, /SKU-10.*Camisa sintética.*Cantidad: 1/);
+assert.match(trackingText, /Camisa sintética.*Cantidad: 1/);
+assert.doesNotMatch(trackingText, /SKU-10/);
 assert.match(trackingText, /Total: /);
 assert.doesNotMatch(trackingText, /aaaaaaaa-aaaa/);
 assert.match(formatTelegramNotification({ event_type: "order.shipped", payload: { order_reference: "JM-042", order_status: "ENVIADO" } }), /Pedido enviado.*Pedido: JM-042.*ENVIADO/s);
@@ -216,7 +228,8 @@ assert.match(reservationFormatted, /Reserva de inventario liberada/);
 assert.match(reservationFormatted, /Pedido: COD-TEST-002/);
 assert.match(reservationFormatted, /Ref\. interna de reserva: RES-TEST-1/);
 assert.ok(reservationFormatted.endsWith('Ref. interna de reserva: RES-TEST-1'), 'la referencia de reserva queda al final como dato secundario');
-assert.match(reservationFormatted, /SKU-10/);
+assert.match(reservationFormatted, /Synthetic Shirt.*Cantidad: 4/);
+assert.doesNotMatch(reservationFormatted, /SKU-10/);
 assert.equal(reservationFormatted.includes("3001112233"), false);
 assert.equal(formatTelegramNotification({ event_type: "reservation.created", payload: { reference: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" } }).includes("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"), false);
 const legacyFormatted = formatTelegramNotification({
@@ -231,7 +244,7 @@ const legacyFormatted = formatTelegramNotification({
 });
 assert.match(legacyFormatted, /Nuevo pedido/);
 assert.doesNotMatch(legacyFormatted, /(?:Pedido|Reserva|Referencia):/);
-assert.match(legacyFormatted, /Estado de pago: PENDING/);
+assert.match(legacyFormatted, /Estado de pago: Pendiente/);
 assert.match(legacyFormatted, /Total: /);
 assert.equal(legacyFormatted.includes("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"), false);
 
@@ -250,7 +263,8 @@ const commercialReferenceFormatted = formatTelegramNotification({
   },
 });
 assert.match(commercialReferenceFormatted, /Pedido: COD-TEST-089/);
-assert.match(commercialReferenceFormatted, /SKU-TEST-1.*Body Chain de prueba.*Cantidad: 2/);
+assert.match(commercialReferenceFormatted, /Body Chain de prueba.*Cantidad: 2/);
+assert.doesNotMatch(commercialReferenceFormatted, /SKU-TEST-1/);
 assert.match(commercialReferenceFormatted, /Total de unidades: 3/);
 assert.equal(commercialReferenceFormatted.includes("JMCOD-PRIVATE-TECH-0001"), false);
 assert.equal(commercialReferenceFormatted.includes("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"), false);
@@ -272,8 +286,9 @@ const truncatedFormatted = formatTelegramNotification({
     customer_email: "private@example.test",
   },
 });
-assert.match(truncatedFormatted, /SKU-TRUNC-1/);
-assert.match(truncatedFormatted, /SKU-TRUNC-50/);
+assert.match(truncatedFormatted, /Producto 1/);
+assert.match(truncatedFormatted, /Producto 50/);
+assert.doesNotMatch(truncatedFormatted, /SKU-TRUNC-/);
 assert.doesNotMatch(truncatedFormatted, /NOMBRE PRIVADO OMITIDO|aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa|private@example\.test/);
 assert.match(truncatedFormatted, /Detalle de productos: se muestran 50 de 53 líneas; se omitieron 3 líneas adicionales\./);
 assert.match(truncatedFormatted, /Total de unidades: 53/);
@@ -417,7 +432,8 @@ assert.equal(formatTelegramNotification({ event_type: "unknown.event", payload: 
   assert.equal(telegramCall.telegramBody.disable_web_page_preview, true);
   assert.equal(telegramCall.telegramBody.text.includes("Cliente: NOMBRE PRIVADO"), true);
   assert.equal(telegramCall.telegramBody.text.includes("Ciudad: Cali"), true);
-  assert.equal(telegramCall.telegramBody.text.includes("SKU-1"), true);
+  assert.equal(telegramCall.telegramBody.text.includes("Camisa sintética"), true);
+  assert.equal(telegramCall.telegramBody.text.includes("SKU-1"), false);
   assert.equal(telegramCall.telegramBody.text.includes("Teléfono: 3001112233"), true);
   assert.equal(telegramCall.telegramBody.text.includes("Dirección: Calle Sintetica 12-34, Barrio de Prueba"), true);
   assert.equal(telegramCall.telegramBody.text.includes("private@example.test"), false);
