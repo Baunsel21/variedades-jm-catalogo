@@ -44,6 +44,17 @@ assert.equal(normalize({ success: true, campaign: { enabled: true, interval_seco
 assert.equal(normalize({ success: true, campaign: { enabled: false, interval_seconds: 20, visible_seconds: 3, campaign_version: 0, buttons: buttons.map(button => ({ ...button, target_category: '' })) } })?.enabled, false, 'configuración de inicio permanece apagada');
 
 assert.equal((index.match(/id="floatingPromoWidget"/g) || []).length, 1, 'un solo nodo flotante global');
+function cssBlock(selector, predicate = () => true) {
+  return [...index.matchAll(new RegExp(`${selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[^}]*}`, 'g'))]
+    .map(match => match[0]).reverse().find(predicate) || '';
+}
+const whatsappFloatCss = cssBlock('.waHelpFloat{', block => block.includes('width:102px'));
+const promoWidgetCss = cssBlock('.floatingPromoWidget{', block => block.includes('width:102px'));
+const promoActionCss = cssBlock('.floatingPromoAction{', block => block.includes('width:102px'));
+assert.match(whatsappFloatCss, /width:102px;height:40px;min-height:40px/, 'WhatsApp conserva su caja compacta de escritorio');
+assert.match(promoActionCss, /width:102px;height:40px;min-width:102px;min-height:40px/, 'cada botón de campaña iguala WhatsApp en escritorio');
+assert.match(promoWidgetCss, /right:max\(12px,env\(safe-area-inset-right\)\);bottom:calc\(max\(12px,env\(safe-area-inset-bottom\)\) \+ 46px\)/, 'la campaña queda justo encima de WhatsApp y alineada a la derecha');
+assert.match(index, /@media\(max-width:390px\)[\s\S]*\.floatingPromoWidget\{[^}]*width:98px[\s\S]*\.floatingPromoAction\{[^}]*width:98px[^}]*height:38px/, 'la caja compartida se adapta a móvil');
 assert.equal((admin.match(/class="floatingPromoAdminButton"/g) || []).length, 3, 'admin configura exactamente tres botones');
 assert.match(admin, /sb\.rpc\('get_public_storefront_floating_promotions'\)/);
 assert.match(admin, /20261112010000_storefront_floating_promotions\.sql/);
@@ -56,7 +67,7 @@ assert.match(index, /localStorage\.setItem\(FLOATING_PROMO_DISMISSAL_KEY,String\
 assert.match(index, /if\(floatingPromoIsBlocked\(\)\)/, 'no aparece sobre checkout, carrito, ficha o popup estacional');
 assert.match(index, /selectCategory\(currentOption\.value\)/, 'el botón usa el enrutador existente de categorías');
 assert.match(index, /\.floatingPromoActions\{display:flex;flex-direction:column;align-items:stretch/, 'Más vendido, Tendencia y Producto Top se apilan como botones independientes');
-assert.match(index, /\.floatingPromoAction\{display:flex;flex-direction:row;align-items:center;justify-content:flex-start/, 'cada CTA muestra icono a la izquierda y etiqueta alineada');
+assert.match(index, /\.floatingPromoAction\{[^}]*display:flex;flex-direction:row;align-items:center;justify-content:flex-start/, 'cada CTA muestra icono a la izquierda y etiqueta alineada');
 assert.doesNotMatch(index, /\.floatingPromoActions\{display:grid;grid-template-columns:repeat\(3/, 'el widget no vuelve al diseño de tres columnas');
 assert.match(index, /prefers-reduced-motion:reduce/, 'los estilos respetan movimiento reducido');
 assert.match(index, /grid-template-columns:repeat\(4,minmax\(0,1fr\)\)!important/, 'beneficios del footer se mantienen en cuatro columnas en escritorio');
