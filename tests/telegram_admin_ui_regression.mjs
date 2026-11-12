@@ -37,6 +37,7 @@ function buildContext({ origin, adminAuthorized = true, confirmResult = true, in
     adminAuthEpoch: 7,
     $: id => elements[id] ?? null,
     confirm: () => confirmResult,
+    setTimeout,
     setTelegramTestStatus: (message, tone = '') => {
       elements.telegramTestStatus.textContent = message;
       elements.telegramTestStatus.className = `status ${tone}`.trim();
@@ -53,18 +54,18 @@ function buildContext({ origin, adminAuthorized = true, confirmResult = true, in
 }
 
 const preview = buildContext({ origin: 'https://4173-preview.example' });
-vm.runInNewContext(`globalThis.run = ${extractFunction('sendTelegramTestMessage')};`, preview.context);
+vm.runInNewContext(`${extractFunction('telegramTestTimeout', false)}\nglobalThis.run = ${extractFunction('sendTelegramTestMessage')};`, preview.context);
 await preview.context.run();
 assert.equal(preview.invokeCalls.length, 0, 'La preview no puede enviar mensajes reales.');
 assert.match(preview.elements.telegramTestStatus.textContent, /solo se puede enviar desde sirevya\.com\.co/);
 
 const canceled = buildContext({ origin: 'https://sirevya.com.co', confirmResult: false });
-vm.runInNewContext(`globalThis.run = ${extractFunction('sendTelegramTestMessage')};`, canceled.context);
+vm.runInNewContext(`${extractFunction('telegramTestTimeout', false)}\nglobalThis.run = ${extractFunction('sendTelegramTestMessage')};`, canceled.context);
 await canceled.context.run();
 assert.equal(canceled.invokeCalls.length, 0, 'Cancelar el diálogo no envía el mensaje.');
 
 const official = buildContext({ origin: 'https://sirevya.com.co' });
-vm.runInNewContext(`globalThis.run = ${extractFunction('sendTelegramTestMessage')};`, official.context);
+vm.runInNewContext(`${extractFunction('telegramTestTimeout', false)}\nglobalThis.run = ${extractFunction('sendTelegramTestMessage')};`, official.context);
 await official.context.run();
 assert.equal(official.authChecks.length, 1);
 assert.equal(official.invokeCalls.length, 1);
@@ -73,8 +74,16 @@ assert.equal(JSON.stringify(official.invokeCalls[0][1]), JSON.stringify({ body: 
 assert.match(official.elements.telegramTestStatus.textContent, /Telegram aceptó el mensaje de prueba/);
 assert.equal(official.elements.telegramTestBtn.disabled, false);
 
+const timeoutContext = buildContext({ origin: 'https://sirevya.com.co' }).context;
+vm.runInNewContext(`globalThis.withTimeout = ${extractFunction('telegramTestTimeout', false)};`, timeoutContext);
+await assert.rejects(
+  () => timeoutContext.withTimeout(new Promise(() => {}), 1),
+  error => error?.code === 'TELEGRAM_TEST_TIMEOUT',
+  'Una llamada colgada debe producir un timeout identificable y no quedar esperando indefinidamente.',
+);
+
 const nonAdmin = buildContext({ origin: 'https://sirevya.com.co', adminAuthorized: false });
-vm.runInNewContext(`globalThis.run = ${extractFunction('sendTelegramTestMessage')};`, nonAdmin.context);
+vm.runInNewContext(`${extractFunction('telegramTestTimeout', false)}\nglobalThis.run = ${extractFunction('sendTelegramTestMessage')};`, nonAdmin.context);
 await nonAdmin.context.run();
 assert.equal(nonAdmin.invokeCalls.length, 0);
 assert.match(nonAdmin.elements.telegramTestStatus.textContent, /admin autorizada/);
