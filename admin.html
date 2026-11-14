@@ -4301,7 +4301,8 @@ function renderClientes(){
 }
 async function agregarProveedor(){
  const name=$("prNombre").value.trim();if(!name)return alert("Escribe el nombre del proveedor.");
- const {error}=await sb.from("suppliers").insert({name,phone:$("prTelefono").value.trim(),contact:$("prContacto").value.trim(),note:$("prNota").value.trim()});
+ const {data:{user}}=await sb.auth.getUser();if(!user?.id)return alert("La sesión administrativa no pudo confirmarse. Vuelve a iniciar sesión.");
+ const {error}=await sb.from("suppliers").insert({user_id:user.id,name,phone:$("prTelefono").value.trim(),contact:$("prContacto").value.trim(),note:$("prNota").value.trim()});
  if(error){alert(error.message);return}
  $("prNombre").value="";$("prTelefono").value="";$("prContacto").value="";$("prNota").value="";toast("Proveedor guardado");await cargarTodo();
 }
@@ -4314,7 +4315,8 @@ async function borrarProveedor(id){if(!confirm("¿Eliminar este proveedor?"))ret
 async function agregarGasto(){
  const concepto=$("gConcepto").value.trim(),valor=Number($("gValor").value)||0;
  if(!concepto||valor<=0)return alert("Escribe el concepto y un valor válido.");
- const {error}=await sb.from("expenses").insert({concept:concepto,amount:valor,expense_date:$("gFecha").value||new Date().toISOString().slice(0,10),category:$("gCategoria").value});
+ const {data:{user}}=await sb.auth.getUser();if(!user?.id)return alert("La sesión administrativa no pudo confirmarse. Vuelve a iniciar sesión.");
+ const {error}=await sb.from("expenses").insert({user_id:user.id,concept:concepto,amount:valor,expense_date:$("gFecha").value||new Date().toISOString().slice(0,10),category:$("gCategoria").value});
  if(error){alert(error.message);return}
  $("gConcepto").value="";$("gValor").value=0;toast("Gasto guardado");await cargarTodo();
 }
