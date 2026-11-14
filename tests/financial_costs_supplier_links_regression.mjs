@@ -1,0 +1,20 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+
+const migration = readFileSync('supabase/migrations/20261116010000_financial_costs_supplier_links.sql', 'utf8');
+const admin = readFileSync('admin.html', 'utf8');
+assert.match(migration, /CREATE TABLE IF NOT EXISTS public\.product_cost_profiles/);
+assert.match(migration, /CREATE TABLE IF NOT EXISTS public\.product_cost_history/);
+assert.match(migration, /purchase_cost numeric\(14,2\)/);
+assert.match(migration, /import_cost numeric\(14,2\)/);
+assert.match(migration, /other_cost numeric\(14,2\)/);
+assert.match(migration, /AFTER INSERT OR UPDATE OF purchase_cost, import_cost, other_cost, effective_from/);
+assert.match(migration, /admin_upsert_product_cost/);
+assert.match(migration, /EXPENSE_SUPPLIER_OWNER_MISMATCH/);
+assert.match(migration, /supplier_id uuid REFERENCES public\.suppliers/);
+assert.match(migration, /product_cost_history_admin_read/);
+assert.match(migration, /REVOKE ALL ON TABLE public\.product_cost_profiles, public\.product_cost_history FROM PUBLIC, anon, authenticated/);
+assert.match(admin, /id="gProveedor"/);
+assert.match(admin, /supplier_id:supplierId/);
+assert.match(admin, /filtroGastosProveedor/);
+console.log('financial_costs_supplier_links_regression: PASS (candidate schema, historical snapshots, supplier owner guard, admin selectors)');

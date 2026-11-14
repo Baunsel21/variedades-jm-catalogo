@@ -570,8 +570,9 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
           <label>Valor *<input id="gValor" type="number" min="0" placeholder="0"></label>
           <label>Fecha<input id="gFecha" type="date"></label>
           <label>Categoría<select id="gCategoria"><option>Transporte</option><option>Empaque</option><option>Publicidad</option><option>Servicios</option><option>Compras</option><option>Otros</option></select></label>
+          <label>Proveedor<select id="gProveedor"><option value="">Sin proveedor</option></select></label>
         </div><div style="margin-top:15px"><button id="guardarGastoBtn" class="primary" onclick="agregarGasto()">＋ Guardar gasto</button><button id="cancelarEdicionGastoBtn" type="button" class="softbtn" onclick="cancelarEdicionGasto()" hidden>Cancelar edición</button></div></div>
-        <div class="box" style="margin-top:15px"><div class="rowBetween"><h3>Historial de gastos</h3><b id="gastoTotal">$0</b></div><div class="searchbar" style="margin-top:10px"><input id="filtroGastosTexto" placeholder="🔎 Buscar concepto" oninput="renderGastos()"><input id="filtroGastosDesde" type="date" aria-label="Gastos desde" onchange="renderGastos()"><input id="filtroGastosHasta" type="date" aria-label="Gastos hasta" onchange="renderGastos()"><select id="filtroGastosCategoria" onchange="renderGastos()"><option value="">Todas las categorías</option><option>Transporte</option><option>Empaque</option><option>Publicidad</option><option>Servicios</option><option>Compras</option><option>Otros</option></select></div><p id="gastosResumen" class="muted" role="status" aria-live="polite"></p><div id="listaGastos"></div><div id="gastosPagination"></div></div>
+        <div class="box" style="margin-top:15px"><div class="rowBetween"><h3>Historial de gastos</h3><b id="gastoTotal">$0</b></div><div class="searchbar" style="margin-top:10px"><input id="filtroGastosTexto" placeholder="🔎 Buscar concepto" oninput="renderGastos()"><input id="filtroGastosDesde" type="date" aria-label="Gastos desde" onchange="renderGastos()"><input id="filtroGastosHasta" type="date" aria-label="Gastos hasta" onchange="renderGastos()"><select id="filtroGastosCategoria" onchange="renderGastos()"><option value="">Todas las categorías</option><option>Transporte</option><option>Empaque</option><option>Publicidad</option><option>Servicios</option><option>Compras</option><option>Otros</option></select><select id="filtroGastosProveedor" onchange="renderGastos()"><option value="">Todos los proveedores</option></select></div><p id="gastosResumen" class="muted" role="status" aria-live="polite"></p><div id="listaGastos"></div><div id="gastosPagination"></div></div>
       </section>
 
       <section id="movimientos" class="view">
@@ -4404,19 +4405,27 @@ async function agregarProveedor(){
 function renderProveedores(){
  const host=$("listaProveedores");if(!host)return;
  if(moduleLoadErrors.suppliers){host.innerHTML=`<div class="alert"><b>No se pudieron cargar los proveedores.</b><br>${esc(moduleLoadErrors.suppliers)}<br><small>El sistema no marcará este error como una lista vacía.</small></div>`;return;}
+ refrescarSelectoresGastos();
  host.innerHTML=proveedores.map(p=>`<div class="card listItem" style="padding:15px;margin-bottom:9px"><div class="rowBetween"><div><b>${esc(p.name)}</b><div class="muted">📞 ${esc(p.phone||"Sin teléfono")} ${p.contact?"• "+esc(p.contact):""}</div>${p.note?`<div class="muted">📝 ${esc(p.note)}</div>`:""}</div><button class="action" onclick="borrarProveedor('${p.id}')">🗑️</button></div></div>`).join("")||'<div class="empty card">No hay proveedores.</div>';
+}
+function refrescarSelectoresGastos(){
+ const options=proveedores.map(p=>`<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('');
+ const form=$('gProveedor'),filter=$('filtroGastosProveedor'),formValue=form?.value||'',filterValue=filter?.value||'';
+ if(form){form.innerHTML='<option value="">Sin proveedor</option>'+options;if(proveedores.some(p=>String(p.id)===String(formValue)))form.value=formValue;}
+ if(filter){filter.innerHTML='<option value="">Todos los proveedores</option>'+options;if(proveedores.some(p=>String(p.id)===String(filterValue)))filter.value=filterValue;}
 }
 async function borrarProveedor(id){if(!confirm("¿Eliminar este proveedor?"))return;const {error}=await sb.from("suppliers").delete().eq("id",id);if(error)alert(error.message);else{toast("Proveedor eliminado");await cargarTodo()}}
 let editingExpenseId=null;
-function cancelarEdicionGasto(){editingExpenseId=null;['gConcepto','gValor','gFecha'].forEach(id=>{const el=$(id);if(el)el.value=id==='gValor'?0:''});const btn=$('guardarGastoBtn');if(btn)btn.textContent='＋ Guardar gasto';const cancel=$('cancelarEdicionGastoBtn');if(cancel)cancel.hidden=true;}
-function editarGasto(id){const row=gastos.find(g=>String(g.id)===String(id));if(!row)return;editingExpenseId=row.id;$('gConcepto').value=row.concept||'';$('gValor').value=Number(row.amount)||0;$('gFecha').value=row.expense_date||'';$('gCategoria').value=row.category||'Otros';const btn=$('guardarGastoBtn');if(btn)btn.textContent='💾 Actualizar gasto';const cancel=$('cancelarEdicionGastoBtn');if(cancel)cancel.hidden=false;$('gConcepto').focus();}
+function cancelarEdicionGasto(){editingExpenseId=null;['gConcepto','gValor','gFecha'].forEach(id=>{const el=$(id);if(el)el.value=id==='gValor'?0:''});if($('gProveedor'))$('gProveedor').value='';const btn=$('guardarGastoBtn');if(btn)btn.textContent='＋ Guardar gasto';const cancel=$('cancelarEdicionGastoBtn');if(cancel)cancel.hidden=true;}
+function editarGasto(id){const row=gastos.find(g=>String(g.id)===String(id));if(!row)return;editingExpenseId=row.id;$('gConcepto').value=row.concept||'';$('gValor').value=Number(row.amount)||0;$('gFecha').value=row.expense_date||'';$('gCategoria').value=row.category||'Otros';if($('gProveedor'))$('gProveedor').value=row.supplier_id||'';const btn=$('guardarGastoBtn');if(btn)btn.textContent='💾 Actualizar gasto';const cancel=$('cancelarEdicionGastoBtn');if(cancel)cancel.hidden=false;$('gConcepto').focus();}
 async function agregarGasto(){
  const concepto=$("gConcepto").value.trim(),valor=Number($("gValor").value)||0;
  if(!concepto||valor<=0)return alert("Escribe el concepto y un valor válido.");
  const {data:{user}}=await sb.auth.getUser();if(!user?.id)return alert("La sesión administrativa no pudo confirmarse. Vuelve a iniciar sesión.");
  const wasEditing=Boolean(editingExpenseId);
- const payload={concept:concepto,amount:valor,expense_date:$("gFecha").value||new Date().toISOString().slice(0,10),category:$("gCategoria").value};
- const query=editingExpenseId?sb.from("expenses").update(payload).eq('id',editingExpenseId).eq('user_id',user.id):sb.from("expenses").insert({user_id:user.id,concept:payload.concept,amount:payload.amount,expense_date:payload.expense_date,category:payload.category});
+ const supplierId=$("gProveedor")?.value||'';
+ const payload={concept:concepto,amount:valor,expense_date:$("gFecha").value||new Date().toISOString().slice(0,10),category:$("gCategoria").value,...(supplierId?{supplier_id:supplierId}:{})};
+ const query=editingExpenseId?sb.from("expenses").update(payload).eq('id',editingExpenseId).eq('user_id',user.id):sb.from("expenses").insert({user_id:user.id,concept:payload.concept,amount:payload.amount,expense_date:payload.expense_date,category:payload.category,...(supplierId?{supplier_id:supplierId}:{})});
  const {error}=await query;
  if(error){alert(error.message);return}
  cancelarEdicionGasto();toast(wasEditing?"Gasto actualizado":"Gasto guardado");await cargarTodo();
@@ -4424,12 +4433,13 @@ async function agregarGasto(){
 function setExpensesHistoryPage(page){expensesHistoryPage=page;renderGastos();}
 function renderGastos(){
  if(moduleLoadErrors.expenses){$("gastoTotal").textContent="—";$("listaGastos").innerHTML=`<div class="alert"><b>No se pudieron cargar los gastos.</b><br>${esc(moduleLoadErrors.expenses)}<br><small>El total queda sin calcular hasta recuperar la conexión con la tabla.</small></div>`;$("gastosPagination").innerHTML='';return;}
- const text=String($("filtroGastosTexto")?.value||'').trim().toLowerCase(),from=String($("filtroGastosDesde")?.value||''),to=String($("filtroGastosHasta")?.value||''),category=String($("filtroGastosCategoria")?.value||'');
- const filtered=gastos.filter(g=>{const concept=String(g.concept||'').toLowerCase(),date=String(g.expense_date||'').slice(0,10);return(!text||concept.includes(text))&&(!from||date>=from)&&(!to||date<=to)&&(!category||String(g.category||'Otros')===category)});
+ const text=String($("filtroGastosTexto")?.value||'').trim().toLowerCase(),from=String($("filtroGastosDesde")?.value||''),to=String($("filtroGastosHasta")?.value||''),category=String($("filtroGastosCategoria")?.value||''),supplier=String($("filtroGastosProveedor")?.value||'');
+ const filtered=gastos.filter(g=>{const concept=String(g.concept||'').toLowerCase(),date=String(g.expense_date||'').slice(0,10);return(!text||concept.includes(text))&&(!from||date>=from)&&(!to||date<=to)&&(!category||String(g.category||'Otros')===category)&&(!supplier||String(g.supplier_id||'')===supplier)});
  const total=filtered.reduce((s,g)=>s+Number(g.amount||0),0);$("gastoTotal").textContent=money(total);const summary=$("gastosResumen");if(summary)summary.textContent=`${filtered.length} gasto(s) · total del filtro: ${money(total)}`;
  const page=adminHistoryPageInfo(filtered.length,expensesHistoryPage);expensesHistoryPage=page.page;
  $("gastosPagination").innerHTML=adminHistoryPaginationMarkup(page,'setExpensesHistoryPage','Paginación del historial de gastos');
- $("listaGastos").innerHTML=filtered.slice(page.start,page.end).map(g=>`<div class="listItem"><div class="rowBetween"><div><b>${esc(g.concept)}</b><div class="muted">${g.expense_date} • ${esc(g.category||"Otros")}</div></div><div><b>${money(g.amount)}</b> <button class="action" onclick="editarGasto('${g.id}')">✏️</button> <button class="action" onclick="borrarGasto('${g.id}')">🗑️</button></div></div></div>`).join("")||'<div class="empty">No hay gastos que coincidan con el filtro.</div>';
+ const supplierRows=typeof proveedores==='undefined'?[]:proveedores;
+ $("listaGastos").innerHTML=filtered.slice(page.start,page.end).map(g=>{const supplierName=supplierRows.find(p=>String(p.id)===String(g.supplier_id))?.name;return `<div class="listItem"><div class="rowBetween"><div><b>${esc(g.concept)}</b><div class="muted">${g.expense_date} • ${esc(g.category||"Otros")}${supplierName?` • 🏭 ${esc(supplierName)}`:''}</div></div><div><b>${money(g.amount)}</b> <button class="action" onclick="editarGasto('${g.id}')">✏️</button> <button class="action" onclick="borrarGasto('${g.id}')">🗑️</button></div></div></div>`}).join("")||'<div class="empty">No hay gastos que coincidan con el filtro.</div>';
 }
 async function borrarGasto(id){if(!confirm("¿Eliminar este gasto?"))return;const {error}=await sb.from("expenses").delete().eq("id",id);if(error)alert(error.message);else{toast("Gasto eliminado");await cargarTodo()}}
 function refrescarMovimientoSelect(){
