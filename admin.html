@@ -399,6 +399,17 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
           <div class="card stat" title="Pedidos web en estado Pendiente dentro de la lista administrativa cargada; no incluye la tabla Wompi orders."><small>Pedidos web pendientes</small><div class="num" id="dashboardPendingWebOrdersCount" aria-live="polite">—</div><div class="sub" id="dashboardPendingWebOrdersMeta">Abre Pedidos para consultar web_orders. La cola Wompi se administra aparte.</div><div class="bubble">📋</div></div>
           <div class="card stat" title="Conteo de filas NEEDS_REVIEW en la conciliación de inventario Wompi; no muestra referencias ni montos."><small>Conciliaciones Wompi</small><div class="num" id="dashboardWompiReviewCount" aria-live="polite">—</div><div class="sub" id="dashboardWompiReviewMeta" role="status" aria-live="polite">Se consultará al cargar el panel.</div><div class="bubble">🔎</div><button type="button" class="softbtn" style="margin-top:8px;padding:6px 9px" onclick="loadDashboardWompiReviewCount(true)">↻ Actualizar</button></div>
         </div>
+        <div class="cards" aria-label="Indicadores comerciales por periodo">
+          <div class="card stat"><small>Ventas · ayer</small><div class="num" id="dashboardSalesYesterdayRevenue">$0</div><div class="sub" id="dashboardSalesYesterdayMeta">POS verificado</div><div class="bubble">↩️</div></div>
+          <div class="card stat"><small>Ventas · mes</small><div class="num" id="dashboardSalesMonthRevenue">$0</div><div class="sub" id="dashboardSalesMonthMeta">POS verificado</div><div class="bubble">🗓️</div></div>
+          <div class="card stat"><small>Ventas · año</small><div class="num" id="dashboardSalesYearRevenue">$0</div><div class="sub" id="dashboardSalesYearMeta">POS verificado</div><div class="bubble">📊</div></div>
+          <div class="card stat"><small>Ticket promedio</small><div class="num" id="dashboardAverageTicket">$0</div><div class="sub" id="dashboardAverageTicketMeta">Líneas POS activas</div><div class="bubble">🎟️</div></div>
+          <div class="card stat"><small>Pedidos pagados</small><div class="num" id="dashboardPaidOrdersCount">—</div><div class="sub" id="dashboardPaidOrdersMeta">Pedidos web conciliados</div><div class="bubble">✅</div></div>
+          <div class="card stat"><small>Pendientes de despacho</small><div class="num" id="dashboardDispatchOrdersCount">—</div><div class="sub">Pedidos web confirmados</div><div class="bubble">🚚</div></div>
+          <div class="card stat"><small>Pedidos cancelados</small><div class="num" id="dashboardCancelledOrdersCount">—</div><div class="sub">Pedidos web cancelados</div><div class="bubble">⛔</div></div>
+          <div class="card stat"><small>Pedidos cargados</small><div class="num" id="dashboardOrderCount">—</div><div class="sub" id="dashboardOrderCountMeta">Sin mezclar con ventas POS</div><div class="bubble">🧾</div></div>
+        </div>
+        <div class="box" style="margin-top:16px"><div class="rowBetween"><h3>📌 Alcance de los indicadores</h3><span class="badge ok">Sin doble conteo</span></div><p id="dashboardDataScopeNote" class="muted" role="status" aria-live="polite">Las ventas monetarias se calculan con ventas POS activas y los estados de pedidos web se muestran por separado hasta que exista una conciliación confirmada.</p></div>
         <div class="sectionGrid">
           <div class="box"><div class="rowBetween"><h3>⚠️ Atención de inventario</h3><span class="badge low" id="lowCount" aria-label="Productos con stock bajo o agotados">—</span></div><p id="inventoryAttentionSummary" class="muted" role="status" aria-live="polite">Se calcula al cargar el inventario.</p><div id="stockBajo"></div></div>
           <div class="box"><div class="rowBetween"><h3>🧾 Ventas recientes</h3><button class="softbtn" onclick="show('ventas',document.querySelector('[data-view=ventas]'))">Ver todas</button></div><div id="recentSales"></div></div>
@@ -559,8 +570,8 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
           <label>Valor *<input id="gValor" type="number" min="0" placeholder="0"></label>
           <label>Fecha<input id="gFecha" type="date"></label>
           <label>Categoría<select id="gCategoria"><option>Transporte</option><option>Empaque</option><option>Publicidad</option><option>Servicios</option><option>Compras</option><option>Otros</option></select></label>
-        </div><div style="margin-top:15px"><button class="primary" onclick="agregarGasto()">＋ Guardar gasto</button></div></div>
-        <div class="box" style="margin-top:15px"><div class="rowBetween"><h3>Historial de gastos</h3><b id="gastoTotal">$0</b></div><div id="listaGastos"></div><div id="gastosPagination"></div></div>
+        </div><div style="margin-top:15px"><button id="guardarGastoBtn" class="primary" onclick="agregarGasto()">＋ Guardar gasto</button><button id="cancelarEdicionGastoBtn" type="button" class="softbtn" onclick="cancelarEdicionGasto()" hidden>Cancelar edición</button></div></div>
+        <div class="box" style="margin-top:15px"><div class="rowBetween"><h3>Historial de gastos</h3><b id="gastoTotal">$0</b></div><div class="searchbar" style="margin-top:10px"><input id="filtroGastosTexto" placeholder="🔎 Buscar concepto" oninput="renderGastos()"><input id="filtroGastosDesde" type="date" aria-label="Gastos desde" onchange="renderGastos()"><input id="filtroGastosHasta" type="date" aria-label="Gastos hasta" onchange="renderGastos()"><select id="filtroGastosCategoria" onchange="renderGastos()"><option value="">Todas las categorías</option><option>Transporte</option><option>Empaque</option><option>Publicidad</option><option>Servicios</option><option>Compras</option><option>Otros</option></select></div><p id="gastosResumen" class="muted" role="status" aria-live="polite"></p><div id="listaGastos"></div><div id="gastosPagination"></div></div>
       </section>
 
       <section id="movimientos" class="view">
@@ -597,8 +608,9 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
           <div class="card stat"><small>Ventas</small><div class="num" id="rVentas">0</div><div class="sub">Registros</div></div>
           <div class="card stat"><small>Ingresos</small><div class="num" id="rIngresos">$0</div><div class="sub">Total vendido</div></div>
           <div class="card stat"><small>Costo vendido</small><div class="num" id="rCostos">$0</div><div class="sub">Costo de mercancía</div></div>
-          <div class="card stat"><small>Ganancia</small><div class="num" id="rGanancia">$0</div><div class="sub">Ingresos − costos</div></div><div class="card stat"><small>Gastos</small><div class="num" id="rGastos">$0</div><div class="sub">Gastos del negocio</div></div><div class="card stat"><small>Ganancia después de gastos</small><div class="num" id="rNeta">$0</div><div class="sub">Ganancia − gastos</div></div>
+          <div class="card stat"><small>Ganancia bruta</small><div class="num" id="rGanancia">$0</div><div class="sub">Ingresos netos − costo vendido</div></div><div class="card stat"><small>Gastos operativos</small><div class="num" id="rGastos">$0</div><div class="sub">Gastos registrados</div></div><div class="card stat"><small>Ganancia estimada</small><div class="num" id="rNeta">$0</div><div class="sub">Después de gastos</div></div><div class="card stat"><small>Descuentos</small><div class="num" id="rDescuentos">$0</div><div class="sub">Aplicados en POS si están registrados</div></div><div class="card stat"><small>Envío asumido</small><div class="num" id="rEnvioAsumido">$0</div><div class="sub">Solo si la venta lo registra</div></div><div class="card stat"><small>Margen</small><div class="num" id="rMargen">—</div><div class="sub">Ganancia estimada / ingresos netos</div></div>
         </div>
+        <div id="reportProfitabilityStatus" class="box" style="margin-top:14px" role="status" aria-live="polite">La rentabilidad se calcula con ventas POS y gastos cargados; no se inventan costes ausentes.</div>
         <div class="box" style="margin-top:16px"><h3>🏆 Productos más vendidos</h3><p class="muted">Basado en los registros de ventas disponibles en el administrador.</p><div id="bestSellingProducts"></div></div>
         <div class="box" style="margin-top:16px"><div class="rowBetween" style="align-items:center;gap:12px;flex-wrap:wrap"><div><h3 style="margin-bottom:4px">📣 Rendimiento de promociones</h3><p class="muted" style="margin:0">Impresiones y clics únicos aproximados por sesión/día, durante los últimos 30 días.</p></div><button class="softbtn" type="button" onclick="refreshStorefrontMarketingMetrics()">↻ Consultar</button></div><div id="storefrontMarketingMetricsStatus" class="promoAdminStatus" role="status" aria-live="polite">Las métricas se consultan al abrir Reportes.</div><div id="storefrontMarketingMetricsReport"></div></div>
         <div class="sectionGrid">
@@ -1730,6 +1742,31 @@ async function loadDashboardWompiReviewCount(force=false){
  })();
  state.promise=request;
  return request;
+}
+
+const dashboardOrderSummaryStateBySession=new Map();
+function dashboardOrderIsPaid(order){
+ const payment=String(order?.payment_status??order?.payment_state??order?.wompi_status??'').trim().toLowerCase();
+ if(['approved','aprobado','paid','pagado','completado','completed','settled'].includes(payment))return true;
+ return String(order?.payment_method||'').toLowerCase().includes('contra')&&['confirmado','despachado','enviado','entregado'].includes(pedidoEstado(order));
+}
+function calculateDashboardWebOrderSummary(rows){
+ const list=Array.isArray(rows)?rows:[];
+ return {total:list.length,pending:list.filter(x=>pedidoEstado(x)==='pendiente').length,paid:list.filter(dashboardOrderIsPaid).length,dispatch:list.filter(x=>['confirmado','despachado','enviado'].includes(pedidoEstado(x))).length,cancelled:list.filter(x=>['cancelado','rechazado'].includes(pedidoEstado(x))).length};
+}
+function renderDashboardWebOrderSummary(){
+ const ids=['dashboardOrderCount','dashboardPendingWebOrdersCount','dashboardPaidOrdersCount','dashboardDispatchOrdersCount','dashboardCancelledOrdersCount'];
+ const meta=$('dashboardOrderCountMeta');if(!ids.every(id=>$(id)))return;
+ if(adminDeferredModuleLoaded.orders){const summary=calculateDashboardWebOrderSummary(pedidos);$('dashboardOrderCount').textContent=String(summary.total);$('dashboardPendingWebOrdersCount').textContent=String(summary.pending);$('dashboardPaidOrdersCount').textContent=String(summary.paid);$('dashboardDispatchOrdersCount').textContent=String(summary.dispatch);$('dashboardCancelledOrdersCount').textContent=String(summary.cancelled);if(meta)meta.textContent='web_orders cargados; no se suman a ingresos POS';return;}
+ const key=JSON.stringify([String(adminSessionUserId||''),Number(adminAuthEpoch)||0]),state=dashboardOrderSummaryStateBySession.get(key);
+ if(state?.status==='ready'){const summary=state.summary;$('dashboardOrderCount').textContent=String(summary.total);$('dashboardPendingWebOrdersCount').textContent=String(summary.pending);$('dashboardPaidOrdersCount').textContent=String(summary.paid);$('dashboardDispatchOrdersCount').textContent=String(summary.dispatch);$('dashboardCancelledOrdersCount').textContent=String(summary.cancelled);if(meta)meta.textContent='web_orders consultados; ingresos web separados';return;}
+ ids.forEach(id=>$(id).textContent='—');if(meta)meta.textContent=state?.status==='error'?'No se pudieron consultar los pedidos web. No se asume cero.':'Consultando estados de pedidos web…';
+}
+async function loadDashboardWebOrderSummary(){
+ const userId=adminSessionUserId,authEpoch=adminAuthEpoch,isCurrent=()=>adminAuthOperationStillCurrent(userId,authEpoch);if(!sb||!userId||!isCurrent()||adminDeferredModuleLoaded.orders)return false;
+ const key=JSON.stringify([String(userId),Number(authEpoch)||0]);let state=dashboardOrderSummaryStateBySession.get(key);if(state?.promise)return state.promise;if(state?.status==='ready'){renderDashboardWebOrderSummary();return true;}
+ state={status:'loading',summary:null,promise:null};dashboardOrderSummaryStateBySession.set(key,state);renderDashboardWebOrderSummary();
+ const request=(async()=>{try{const {data,error}=await sb.from('web_orders').select('id,status,created_at,total,payment_method,payment_status,payment_state,wompi_status').order('created_at',{ascending:false}).limit(5000);if(!isCurrent())return false;if(error)throw error;state.summary=calculateDashboardWebOrderSummary(data||[]);state.status='ready';renderDashboardWebOrderSummary();return true}catch(error){if(isCurrent()){state.status='error';console.debug('No se pudo consultar el resumen de pedidos web:',error);renderDashboardWebOrderSummary()}return false}finally{state.promise=null}})();state.promise=request;return request;
 }
 
 function setTelegramTestStatus(message,tone=''){
@@ -4109,12 +4146,16 @@ function calculatePosSalesDashboardSummary(rows,todayKey=orderDateKeyColombia(ne
  const weekStartDate=new Date(`${today}T00:00:00.000Z`);
  weekStartDate.setUTCDate(weekStartDate.getUTCDate()-6);
  const weekStart=weekStartDate.toISOString().slice(0,10);
- const summary={todayKey:today,weekStartKey:weekStart,todayRevenue:0,todayUnits:0,todayLines:0,weekRevenue:0,weekUnits:0,weekLines:0};
+ const todayDate=new Date(`${today}T00:00:00.000Z`),yesterdayDate=new Date(todayDate);yesterdayDate.setUTCDate(yesterdayDate.getUTCDate()-1);const yesterday=yesterdayDate.toISOString().slice(0,10),monthStart=today.slice(0,8)+'01',yearStart=today.slice(0,4)+'-01-01';
+ const summary={todayKey:today,weekStartKey:weekStart,yesterdayKey:yesterday,monthStartKey:monthStart,yearStartKey:yearStart,todayRevenue:0,todayUnits:0,todayLines:0,yesterdayRevenue:0,monthRevenue:0,yearRevenue:0,weekRevenue:0,weekUnits:0,weekLines:0,totalRevenue:0,totalLines:0};
  for(const row of Array.isArray(rows)?rows:[]){
   const day=validDateKey(row?.sale_date),quantity=Number(row?.quantity),price=Number(row?.sale_price);
   if(!day||day>today||!Number.isFinite(quantity)||!Number.isFinite(price))continue;
-  const revenue=quantity*price;
+  const revenue=quantity*price;summary.totalRevenue+=revenue;summary.totalLines++;
   if(day===today){summary.todayRevenue+=revenue;summary.todayUnits+=quantity;summary.todayLines++;}
+  if(day===yesterday)summary.yesterdayRevenue+=revenue;
+  if(day>=monthStart)summary.monthRevenue+=revenue;
+  if(day>=yearStart)summary.yearRevenue+=revenue;
   if(day>=weekStart){summary.weekRevenue+=revenue;summary.weekUnits+=quantity;summary.weekLines++;}
  }
  return summary;
@@ -4155,7 +4196,13 @@ function renderInicio(){
  $("dashboardSalesTodayMeta").textContent=`${periodSummary.todayKey} · ${periodSummary.todayLines} líneas · ${periodSummary.todayUnits} unidades · mostrador; excluye pedidos web.`;
  $("dashboardSalesWeekRevenue").textContent=money(periodSummary.weekRevenue);
  $("dashboardSalesWeekMeta").textContent=`${periodSummary.weekStartKey} a ${periodSummary.todayKey} · ${periodSummary.weekLines} líneas · ${periodSummary.weekUnits} unidades · mostrador; excluye pedidos web.`;
+ const setDashboardMetric=(id,value)=>{const el=$(id);if(el)el.textContent=value};
+ setDashboardMetric("dashboardSalesYesterdayRevenue",money(periodSummary.yesterdayRevenue));setDashboardMetric("dashboardSalesYesterdayMeta",periodSummary.yesterdayKey+' · POS activo');
+ setDashboardMetric("dashboardSalesMonthRevenue",money(periodSummary.monthRevenue));setDashboardMetric("dashboardSalesMonthMeta",'Desde '+periodSummary.monthStartKey+' · POS activo');
+ setDashboardMetric("dashboardSalesYearRevenue",money(periodSummary.yearRevenue));setDashboardMetric("dashboardSalesYearMeta",'Desde '+periodSummary.yearStartKey+' · POS activo');
+ setDashboardMetric("dashboardAverageTicket",money(periodSummary.totalLines?periodSummary.totalRevenue/periodSummary.totalLines:0));setDashboardMetric("dashboardAverageTicketMeta",`${periodSummary.totalLines} líneas POS activas`);
  renderDashboardPendingWebOrders();
+ if(typeof renderDashboardWebOrderSummary==='function'){renderDashboardWebOrderSummary();void loadDashboardWebOrderSummary();}
  void loadDashboardWompiReviewCount();
  const inventoryAttention=calculateDashboardInventoryAttentionSummary(productos);
  $("lowCount").textContent=String(inventoryAttention.total);
@@ -4360,21 +4407,29 @@ function renderProveedores(){
  host.innerHTML=proveedores.map(p=>`<div class="card listItem" style="padding:15px;margin-bottom:9px"><div class="rowBetween"><div><b>${esc(p.name)}</b><div class="muted">📞 ${esc(p.phone||"Sin teléfono")} ${p.contact?"• "+esc(p.contact):""}</div>${p.note?`<div class="muted">📝 ${esc(p.note)}</div>`:""}</div><button class="action" onclick="borrarProveedor('${p.id}')">🗑️</button></div></div>`).join("")||'<div class="empty card">No hay proveedores.</div>';
 }
 async function borrarProveedor(id){if(!confirm("¿Eliminar este proveedor?"))return;const {error}=await sb.from("suppliers").delete().eq("id",id);if(error)alert(error.message);else{toast("Proveedor eliminado");await cargarTodo()}}
+let editingExpenseId=null;
+function cancelarEdicionGasto(){editingExpenseId=null;['gConcepto','gValor','gFecha'].forEach(id=>{const el=$(id);if(el)el.value=id==='gValor'?0:''});const btn=$('guardarGastoBtn');if(btn)btn.textContent='＋ Guardar gasto';const cancel=$('cancelarEdicionGastoBtn');if(cancel)cancel.hidden=true;}
+function editarGasto(id){const row=gastos.find(g=>String(g.id)===String(id));if(!row)return;editingExpenseId=row.id;$('gConcepto').value=row.concept||'';$('gValor').value=Number(row.amount)||0;$('gFecha').value=row.expense_date||'';$('gCategoria').value=row.category||'Otros';const btn=$('guardarGastoBtn');if(btn)btn.textContent='💾 Actualizar gasto';const cancel=$('cancelarEdicionGastoBtn');if(cancel)cancel.hidden=false;$('gConcepto').focus();}
 async function agregarGasto(){
  const concepto=$("gConcepto").value.trim(),valor=Number($("gValor").value)||0;
  if(!concepto||valor<=0)return alert("Escribe el concepto y un valor válido.");
  const {data:{user}}=await sb.auth.getUser();if(!user?.id)return alert("La sesión administrativa no pudo confirmarse. Vuelve a iniciar sesión.");
- const {error}=await sb.from("expenses").insert({user_id:user.id,concept:concepto,amount:valor,expense_date:$("gFecha").value||new Date().toISOString().slice(0,10),category:$("gCategoria").value});
+ const wasEditing=Boolean(editingExpenseId);
+ const payload={concept:concepto,amount:valor,expense_date:$("gFecha").value||new Date().toISOString().slice(0,10),category:$("gCategoria").value};
+ const query=editingExpenseId?sb.from("expenses").update(payload).eq('id',editingExpenseId).eq('user_id',user.id):sb.from("expenses").insert({user_id:user.id,concept:payload.concept,amount:payload.amount,expense_date:payload.expense_date,category:payload.category});
+ const {error}=await query;
  if(error){alert(error.message);return}
- $("gConcepto").value="";$("gValor").value=0;toast("Gasto guardado");await cargarTodo();
+ cancelarEdicionGasto();toast(wasEditing?"Gasto actualizado":"Gasto guardado");await cargarTodo();
 }
 function setExpensesHistoryPage(page){expensesHistoryPage=page;renderGastos();}
 function renderGastos(){
  if(moduleLoadErrors.expenses){$("gastoTotal").textContent="—";$("listaGastos").innerHTML=`<div class="alert"><b>No se pudieron cargar los gastos.</b><br>${esc(moduleLoadErrors.expenses)}<br><small>El total queda sin calcular hasta recuperar la conexión con la tabla.</small></div>`;$("gastosPagination").innerHTML='';return;}
- const total=gastos.reduce((s,g)=>s+Number(g.amount),0);$("gastoTotal").textContent=money(total);
- const page=adminHistoryPageInfo(gastos.length,expensesHistoryPage);expensesHistoryPage=page.page;
+ const text=String($("filtroGastosTexto")?.value||'').trim().toLowerCase(),from=String($("filtroGastosDesde")?.value||''),to=String($("filtroGastosHasta")?.value||''),category=String($("filtroGastosCategoria")?.value||'');
+ const filtered=gastos.filter(g=>{const concept=String(g.concept||'').toLowerCase(),date=String(g.expense_date||'').slice(0,10);return(!text||concept.includes(text))&&(!from||date>=from)&&(!to||date<=to)&&(!category||String(g.category||'Otros')===category)});
+ const total=filtered.reduce((s,g)=>s+Number(g.amount||0),0);$("gastoTotal").textContent=money(total);const summary=$("gastosResumen");if(summary)summary.textContent=`${filtered.length} gasto(s) · total del filtro: ${money(total)}`;
+ const page=adminHistoryPageInfo(filtered.length,expensesHistoryPage);expensesHistoryPage=page.page;
  $("gastosPagination").innerHTML=adminHistoryPaginationMarkup(page,'setExpensesHistoryPage','Paginación del historial de gastos');
- $("listaGastos").innerHTML=gastos.slice(page.start,page.end).map(g=>`<div class="listItem"><div class="rowBetween"><div><b>${esc(g.concept)}</b><div class="muted">${g.expense_date} • ${esc(g.category||"Otros")}</div></div><div><b>${money(g.amount)}</b> <button class="action" onclick="borrarGasto('${g.id}')">🗑️</button></div></div></div>`).join("")||'<div class="empty">No hay gastos.</div>';
+ $("listaGastos").innerHTML=filtered.slice(page.start,page.end).map(g=>`<div class="listItem"><div class="rowBetween"><div><b>${esc(g.concept)}</b><div class="muted">${g.expense_date} • ${esc(g.category||"Otros")}</div></div><div><b>${money(g.amount)}</b> <button class="action" onclick="editarGasto('${g.id}')">✏️</button> <button class="action" onclick="borrarGasto('${g.id}')">🗑️</button></div></div></div>`).join("")||'<div class="empty">No hay gastos que coincidan con el filtro.</div>';
 }
 async function borrarGasto(id){if(!confirm("¿Eliminar este gasto?"))return;const {error}=await sb.from("expenses").delete().eq("id",id);if(error)alert(error.message);else{toast("Gasto eliminado");await cargarTodo()}}
 function refrescarMovimientoSelect(){
@@ -4523,14 +4578,30 @@ function getAdminReportData(){
  return {range,sales:filterAdminReportRows(ventas,'sale_date',range),expenses:filterAdminReportRows(gastos,'expense_date',range)};
 }
 function clearAdminReportDateFilters(){
- const from=$("reportFromDate"),to=$("reportToDate");if(from)from.value='';if(to)to.value='';renderReportes();
+ const from=$("reportFromDate"),to=$("reportToDate");if(from)from.value="";if(to)to.value="";renderReportes();
+}
+function calculateAdminProfitabilitySummary(sales,expenses,products=[]){
+ const summary={revenue:0,cost:0,expenses:0,discounts:0,shippingAssumed:0,lines:0,missingCostLines:0,missingCostProducts:new Set()};
+ for(const sale of Array.isArray(sales)?sales:[]){
+  const qty=Math.max(0,Number(sale.quantity)||0),price=Math.max(0,Number(sale.sale_price)||0);if(!qty)continue;summary.lines++;summary.revenue+=qty*price;
+  const discount=Math.max(0,Number(sale.discount_total??sale.discount_amount??sale.discount??0)||0);summary.discounts+=discount;
+  const shipping=Math.max(0,Number(sale.shipping_assumed??sale.shipping_cost_assumed??sale.store_shipping_cost??0)||0);summary.shippingAssumed+=shipping;
+  const rawCost=sale.cost_price;if(rawCost===null||rawCost===undefined||String(rawCost).trim()===''||!Number.isFinite(Number(rawCost))){summary.missingCostLines++;summary.missingCostProducts.add(String(sale.product_name||sale.product_code||sale.product_id||'Producto'));continue;}
+  summary.cost+=qty*Math.max(0,Number(rawCost)||0);
+ }
+ summary.expenses=(Array.isArray(expenses)?expenses:[]).reduce((sum,row)=>sum+Math.max(0,Number(row.amount)||0),0);
+ summary.netRevenue=Math.max(0,summary.revenue-summary.discounts);summary.grossProfit=summary.netRevenue-summary.cost;summary.estimatedProfit=summary.grossProfit-summary.expenses-summary.shippingAssumed;summary.margin=summary.netRevenue>0?summary.estimatedProfit/summary.netRevenue:null;summary.products=products;
+ return summary;
 }
 function renderReportes(){
  const {range,sales:reportSales,expenses:reportExpenses}=getAdminReportData();
- const ing=reportSales.reduce((sum,sale)=>sum+(Number(sale.quantity)||0)*(Number(sale.sale_price)||0),0),cost=reportSales.reduce((sum,sale)=>sum+(Number(sale.quantity)||0)*(Number(sale.cost_price)||0),0),inv=productos.reduce((sum,product)=>sum+(Number(product.quantity)||0)*(Number(product.cost_price)||0),0),gt=reportExpenses.reduce((sum,expense)=>sum+(Number(expense.amount)||0),0);
- $("rVentas").textContent=reportSales.length;$("rIngresos").textContent=money(ing);$("rCostos").textContent=money(cost);$("rGanancia").textContent=money(ing-cost);$("rGastos").textContent=money(gt);$("rNeta").textContent=money(ing-cost-gt);$("inventoryValue").textContent=money(inv);
+ const legacyRevenue=reportSales.reduce((sum,sale)=>sum+(Number(sale.quantity)||0)*(Number(sale.sale_price)||0),0),legacyCost=reportSales.reduce((sum,sale)=>sum+(Number(sale.quantity)||0)*(Number(sale.cost_price)||0),0),legacyExpenses=reportExpenses.reduce((sum,expense)=>sum+(Number(expense.amount)||0),0);
+ const profitability=typeof calculateAdminProfitabilitySummary==='function'?calculateAdminProfitabilitySummary(reportSales,reportExpenses,productos):{netRevenue:legacyRevenue,cost:legacyCost,grossProfit:legacyRevenue-legacyCost,expenses:legacyExpenses,estimatedProfit:legacyRevenue-legacyCost-legacyExpenses,discounts:0,shippingAssumed:0,margin:legacyRevenue>0?(legacyRevenue-legacyCost-legacyExpenses)/legacyRevenue:null,missingCostLines:0,missingCostProducts:new Set()},ing=profitability.netRevenue,cost=profitability.cost,inv=productos.reduce((sum,product)=>sum+(Number(product.quantity)||0)*(Number(product.cost_price)||0),0);
+ const setReportMetric=(id,value)=>{const el=$(id);if(el)el.textContent=value};
+ setReportMetric("rVentas",reportSales.length);setReportMetric("rIngresos",money(ing));setReportMetric("rCostos",money(cost));setReportMetric("rGanancia",money(profitability.grossProfit));setReportMetric("rGastos",money(profitability.expenses));setReportMetric("rNeta",money(profitability.estimatedProfit));setReportMetric("rDescuentos",money(profitability.discounts));setReportMetric("rEnvioAsumido",money(profitability.shippingAssumed));setReportMetric("rMargen",profitability.margin===null?'—':`${(profitability.margin*100).toFixed(1)}%`);setReportMetric("inventoryValue",money(inv));
  const status=$("reportDateFilterStatus");if(status){if(!range.valid)status.textContent='Rango de fechas no válido. No se calcularon ventas ni gastos para evitar mostrar un período distinto.';else if(moduleLoadErrors.expenses)status.textContent='Ventas POS activas según la fecha registrada. No se pudieron cargar gastos; los valores netos quedan sin calcular.';else if(!adminDeferredModuleLoaded.expenses)status.textContent='Ventas POS activas según la fecha registrada. Los gastos se consultan al abrir Reportes.';else status.textContent=range.from||range.to?`Período aplicado: ${range.from||'inicio'} a ${range.to||'hoy'}. Ventas POS y gastos, según la fecha almacenada.`:'Sin filtro por fecha: ventas POS activas y gastos cargados.';}
  if(moduleLoadErrors.expenses||!adminDeferredModuleLoaded.expenses){$("rGastos").textContent="—";$("rNeta").textContent="—";}
+ const profitStatus=$("reportProfitabilityStatus");if(profitStatus){const missing=profitability.missingCostLines?` Faltan costes de compra en ${profitability.missingCostLines} línea(s): ${[...profitability.missingCostProducts].slice(0,5).map(esc).join(', ')}. La ganancia es parcial hasta completar esos costes.`:' Todos los costes de compra de las ventas POS filtradas están registrados.';profitStatus.textContent=`Fuente: ventas POS activas y gastos por fecha. No se incluyen pedidos web en estos importes para evitar doble conteo.${missing} Los envíos solo se descuentan cuando existe un coste asumido explícitamente.`;}
  const soldByProduct=new Map();reportSales.forEach(sale=>{const key=String(sale.product_id||sale.product_code||sale.product_name||'Producto');const entry=soldByProduct.get(key)||{name:sale.product_name||'Producto',code:sale.product_code||'',quantity:0,revenue:0,profit:0};const qty=Number(sale.quantity)||0,price=Number(sale.sale_price)||0,saleCost=Number(sale.cost_price)||0;entry.quantity+=qty;entry.revenue+=qty*price;entry.profit+=qty*(price-saleCost);soldByProduct.set(key,entry)});
  const best=[...soldByProduct.values()].sort((a,b)=>b.quantity-a.quantity||b.revenue-a.revenue).slice(0,8);const bestHost=$("bestSellingProducts");if(bestHost)bestHost.innerHTML=best.map((row,index)=>`<div class="listItem"><div class="rowBetween"><div><b>${index+1}. ${esc(row.code?row.code+' — ':'')}${esc(row.name)}</b><div class="muted">${row.quantity} unidades vendidas · Ingresos ${money(row.revenue)}</div></div><b>${money(row.profit)}</b></div></div>`).join('')||'<div class="empty">Los productos más vendidos aparecerán al registrar ventas.</div>';
  const categories={};productos.forEach(product=>categories[product.category]=(categories[product.category]||0)+Number(product.quantity));
