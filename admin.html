@@ -466,6 +466,7 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
           <label>Cantidad inicial<input id="pCantidad" type="number" min="0" value="1"></label>
           <label>Precio de compra<input id="pCompra" type="number" min="0" value="0"></label>
           <label>Precio de venta<input id="pVenta" type="number" min="0" value="0"></label>
+          <div class="full box" style="padding:12px;margin:0;background:#fbfaff"><b>📊 Coste financiero por variante</b><div class="grid" style="margin-top:10px"><label>Variante (opcional)<input id="pCostoVariante" placeholder="Ej. Rojo|M"></label><label>Importación<input id="pCostoImportacion" type="number" min="0" value="0"></label><label>Otros costes<input id="pCostoOtros" type="number" min="0" value="0"></label><label>Vigente desde<input id="pCostoVigencia" type="date"></label></div><button type="button" class="softbtn" style="margin-top:10px" onclick="guardarPerfilCosto()">💾 Guardar coste histórico</button><small id="pCostoStatus" class="muted" style="display:block;margin-top:6px">Disponible cuando la migración financiera esté activa. No modifica el precio de venta.</small></div>
           <label>Ubicación<input id="pUbicacion" placeholder="Ej. Caja A / Estante 2"></label>
           <label class="full">Descripción del producto (opcional)<textarea id="pDescripcion" rows="4" maxlength="4000" placeholder="Agrega detalles, materiales, cuidados, recomendaciones o información útil del producto..."></textarea><small class="muted">Si la dejas vacía, no aparecerá ninguna descripción en el catálogo.</small></label>
           <label class="full">Guía de tallas en texto (opcional)<textarea id="pGuiaTallas" rows="3" maxlength="3000" placeholder="Escribe medidas, equivalencias o consejos para elegir talla..."></textarea><small class="muted">Puedes escribir la guía aquí, subir una foto abajo o usar ambas opciones. El apartado público aparecerá si hay texto o una imagen.</small></label>
@@ -3930,7 +3931,17 @@ function notifyPublicCatalogChanged(type='catalog',details={}){
   else{adminCatalogRealtimePending.push(payload);if(adminCatalogRealtimePending.length>8)adminCatalogRealtimePending.shift()}
  }
 }
-async function guardarProducto(agregarOtro=false){
+ async function guardarPerfilCosto(){
+   const status=$('pCostoStatus'),productId=editingId;
+   if(!productId){if(status)status.textContent='Guarda primero el producto para registrar su coste histórico.';return}
+   const purchase=Number($('pCompra')?.value)||0,importCost=Number($('pCostoImportacion')?.value)||0,otherCost=Number($('pCostoOtros')?.value)||0,effective=$('pCostoVigencia')?.value||new Date().toISOString().slice(0,10),variant=String($('pCostoVariante')?.value||'').trim();
+   if([purchase,importCost,otherCost].some(value=>value<0)){if(status)status.textContent='Los costes no pueden ser negativos.';return}
+   if(status)status.textContent='Guardando historial de coste…';
+   const {error}=await sb.rpc('admin_upsert_product_cost',{p_product_id:productId,p_variant_key:variant,p_purchase_cost:purchase,p_import_cost:importCost,p_other_cost:otherCost,p_effective_from:effective});
+   if(error){if(status)status.textContent=/function .* does not exist|schema cache/i.test(error.message||'')?'La migración financiera todavía no está activa en Supabase.':'No se pudo guardar el coste histórico: '+error.message;return}
+   if(status)status.textContent='Coste histórico guardado. Las ventas anteriores conservan su coste original.';
+ }
+ async function guardarProducto(agregarOtro=false){
  const userId=adminSessionUserId,authEpoch=adminAuthEpoch,editorToken=editingProductImageLoadToken;
  const isCurrent=()=>adminAuthOperationStillCurrent(userId,authEpoch)&&editorToken===editingProductImageLoadToken;
  if(!sb||!isCurrent())return false;
@@ -4009,7 +4020,7 @@ function limpiarProducto(){
  productPhotoUploadStates=[];productPhotoUploadFiles=[];
 	variantDraft=[];variantMemory=[];variantEditorCollisionError='';editingId=null;editingProductImageLoadToken++;editingProductImages=[];editingProductImagesLoadError=null;editingSizeGuideImagePath="";sizeGuideImageRemoveRequested=false;
 	const guideInput=$("pGuiaTallasFoto");if(guideInput)guideInput.value="";resetAdminNewColorForm();renderSizeGuidePhotoPreview();
-	$("formTitle").textContent="➕ Nuevo producto";$("pNombre").value="";$("pColores").value="";$("pTallas").value="";$("pCantidad").value=1;$("pCompra").value=0;$("pVenta").value=0;$("pUbicacion").value="";$("pDescripcion").value="";$("pGuiaTallas").value="";$("pFoto").value="";
+        $("formTitle").textContent="➕ Nuevo producto";$("pNombre").value="";$("pColores").value="";$("pTallas").value="";$("pCantidad").value=1;$("pCompra").value=0;$("pVenta").value=0;$("pCostoVariante").value="";$("pCostoImportacion").value=0;$("pCostoOtros").value=0;$("pCostoVigencia").value="";$("pCostoStatus").textContent="Disponible cuando la migración financiera esté activa. No modifica el precio de venta.";$("pUbicacion").value="";$("pDescripcion").value="";$("pGuiaTallas").value="";$("pFoto").value="";
 	if($("existingPhotoStatus"))$("existingPhotoStatus").textContent="Las fotos actuales aparecerán al editar un producto.";if($("existingPhotoPreview"))$("existingPhotoPreview").innerHTML="";
 	renderPhotoPreview();renderAdminColorPalette();renderVariantEditor([]);refreshCategorySelects();
 }
