@@ -603,7 +603,13 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
           <label for="reportFromDate">Desde<input id="reportFromDate" type="date"></label>
           <label for="reportToDate">Hasta<input id="reportToDate" type="date"></label>
           <button id="clearReportDateFilters" type="button" class="softbtn">Limpiar fechas</button>
+          <label for="historyArchiveModule">Operación segura<select id="historyArchiveModule"><option value="sales">Ventas POS</option><option value="expenses">Gastos</option></select></label>
+          <button id="previewHistoryArchiveBtn" type="button" class="softbtn">🔎 Previsualizar periodo</button>
+          <button id="archiveHistoryPeriodBtn" type="button" class="softbtn">🗄️ Archivar periodo</button>
+          <button id="restoreExpensesArchiveBtn" type="button" class="softbtn">↩️ Restaurar último archivo de gastos</button>
+          <button id="exportExpensesReportBtn" type="button" class="softbtn">📄 Exportar gastos CSV</button>
           <p id="reportDateFilterStatus" class="muted" role="status" aria-live="polite" style="grid-column:1/-1;margin:0">Sin filtro por fecha. Los datos de ventas provienen únicamente del punto de venta.</p>
+          <p id="historyArchivePreviewStatus" class="muted" role="status" aria-live="polite" style="grid-column:1/-1;margin:0">La acción predeterminada es archivar; primero previsualiza el periodo.</p>
           <p class="muted" style="grid-column:1/-1;margin:0">Los indicadores y el CSV abarcan ventas POS activas y gastos según su fecha registrada. No agregan pedidos web ni conciliaciones Wompi; la rentabilidad neta aparece solo tras cargar gastos.</p>
         </div>
         <div class="cards">
@@ -4445,12 +4451,12 @@ function setExpensesHistoryPage(page){expensesHistoryPage=page;renderGastos();}
 function renderGastos(){
  if(moduleLoadErrors.expenses){$("gastoTotal").textContent="—";$("listaGastos").innerHTML=`<div class="alert"><b>No se pudieron cargar los gastos.</b><br>${esc(moduleLoadErrors.expenses)}<br><small>El total queda sin calcular hasta recuperar la conexión con la tabla.</small></div>`;$("gastosPagination").innerHTML='';return;}
  const text=String($("filtroGastosTexto")?.value||'').trim().toLowerCase(),from=String($("filtroGastosDesde")?.value||''),to=String($("filtroGastosHasta")?.value||''),category=String($("filtroGastosCategoria")?.value||''),supplier=String($("filtroGastosProveedor")?.value||'');
- const filtered=gastos.filter(g=>{const concept=String(g.concept||'').toLowerCase(),date=String(g.expense_date||'').slice(0,10);return(!text||concept.includes(text))&&(!from||date>=from)&&(!to||date<=to)&&(!category||String(g.category||'Otros')===category)&&(!supplier||String(g.supplier_id||'')===supplier)});
+ const filtered=gastos.filter(g=>{if(g?.archived_at)return false;const concept=String(g.concept||'').toLowerCase(),date=String(g.expense_date||'').slice(0,10);return(!text||concept.includes(text))&&(!from||date>=from)&&(!to||date<=to)&&(!category||String(g.category||'Otros')===category)&&(!supplier||String(g.supplier_id||'')===supplier)});
  const total=filtered.reduce((s,g)=>s+Number(g.amount||0),0);$("gastoTotal").textContent=money(total);const summary=$("gastosResumen");if(summary)summary.textContent=`${filtered.length} gasto(s) · total del filtro: ${money(total)}`;
  const page=adminHistoryPageInfo(filtered.length,expensesHistoryPage);expensesHistoryPage=page.page;
  $("gastosPagination").innerHTML=adminHistoryPaginationMarkup(page,'setExpensesHistoryPage','Paginación del historial de gastos');
  const supplierRows=typeof proveedores==='undefined'?[]:proveedores;
- $("listaGastos").innerHTML=filtered.slice(page.start,page.end).map(g=>{const supplierName=supplierRows.find(p=>String(p.id)===String(g.supplier_id))?.name;return `<div class="listItem"><div class="rowBetween"><div><b>${esc(g.concept)}</b><div class="muted">${g.expense_date} • ${esc(g.category||"Otros")}${supplierName?` • 🏭 ${esc(supplierName)}`:''}</div></div><div><b>${money(g.amount)}</b> <button class="action" onclick="editarGasto('${g.id}')">✏️</button> <button class="action" onclick="borrarGasto('${g.id}')">🗑️</button></div></div></div>`}).join("")||'<div class="empty">No hay gastos que coincidan con el filtro.</div>';
+ $("listaGastos").innerHTML=filtered.slice(page.start,page.end).map(g=>{const supplierName=supplierRows.find(p=>String(p.id)===String(g.supplier_id))?.name;return `<div class="listItem"><div class="rowBetween"><div><b>${esc(g.concept)}</b><div class="muted">${g.expense_date} • ${esc(g.category||"Otros")}${supplierName?` • 🏭 ${esc(supplierName)}`:''}</div></div><div><b>${money(g.amount)}</b> <button class="action" onclick="editarGasto('${g.id}')">✏️</button> <span class="muted" title="Los gastos contables no se eliminan desde este panel; usa Archivado seguro por periodo.">🗄️ Archivado seguro</span></div></div></div>`}).join("")||'<div class="empty">No hay gastos que coincidan con el filtro.</div>';
 }
 async function borrarGasto(id){if(!confirm("¿Eliminar este gasto?"))return;const {error}=await sb.from("expenses").delete().eq("id",id);if(error)alert(error.message);else{toast("Gasto eliminado");await cargarTodo()}}
 function refrescarMovimientoSelect(){
@@ -4630,16 +4636,8 @@ function renderReportes(){
  $("cats").innerHTML=Object.entries(categories).map(([category,quantity])=>`<div class="listItem"><div class="rowBetween"><b>${esc(category)}</b><span>${quantity} unidades</span></div><div class="progress"><span style="width:${Math.max(4,(quantity/max)*100)}%"></span></div></div>`).join("")||'<div class="empty">Sin datos.</div>';
 }
 async function limpiarVentas(){
-  if(!ventas.length){toast("No hay ventas activas para archivar");return}
-  const ok=confirm("ARCHIVAR VENTAS\n\nLas ventas activas dejarán de aparecer en los reportes, pero no se borrarán.\n\nPodrás restaurar el último archivo desde este panel.\n\n¿Quieres continuar?");
-  if(!ok)return;
-  if(!requireBackupAcknowledgement('archivar las ventas'))return;
-  const {data,error}=await sb.rpc('admin_archive_sales',{p_confirmation:'ARCHIVAR VENTAS'});
-  if(error){alert("No se pudo archivar el historial: "+error.message);return}
-  const result=Array.isArray(data)?data[0]:data;
-  if(!result?.success){alert(result?.message||"No se archivaron las ventas.");return}
-  toast(result.message||"Ventas archivadas");
-  await cargarTodo();
+  const select=$("historyArchiveModule");if(select)select.value='sales';
+  return archiveSelectedHistory();
 }
 async function restaurarUltimoArchivoVentas(){
   const ok=confirm("RESTAURAR ÚLTIMO ARCHIVO\n\nLas ventas del último archivo volverán a aparecer en los reportes.\n\n¿Quieres continuar?");
@@ -5109,6 +5107,52 @@ function exportSalesReportCSV(){
  const suffix=range.from||range.to?`_${range.from||'inicio'}_${range.to||'hoy'}`:'';
  downloadFile(`sirevya_reporte_ventas${suffix}.csv`,'\uFEFF'+content,'text/csv;charset=utf-8');toast(`Reporte POS descargado (${rows.length} registros)`);return true;
 }
+function getHistoryArchiveRange(){
+ const from=String($("reportFromDate")?.value||'').trim(),to=String($("reportToDate")?.value||'').trim();
+ return {from:from||null,to:to||null,valid:(!from||isValidAdminReportDate(from))&&(!to||isValidAdminReportDate(to))&&(!from||!to||from<=to)};
+}
+function setHistoryArchiveStatus(message,kind=''){
+ const el=$("historyArchivePreviewStatus");if(!el)return;el.textContent=message;el.className=('muted '+(kind==='error'?'status err':kind==='ok'?'status ok':'')).trim();
+}
+async function previewHistoryArchive(){
+ const range=getHistoryArchiveRange(),module=String($("historyArchiveModule")?.value||'sales');
+ if(!range.valid){setHistoryArchiveStatus('Rango de fechas inválido; no se consultó ningún registro.','error');return false;}
+ if(!sb||!adminSessionAuthorized){setHistoryArchiveStatus('Se requiere una sesión administrativa vigente.','error');return false;}
+ setHistoryArchiveStatus('Calculando cuántos registros se afectarían…');
+ try{
+  const {data,error}=await sb.rpc('admin_preview_history_archive',{p_module:module,p_from:range.from,p_to:range.to});
+  if(error)throw error;const result=Array.isArray(data)?data[0]:data;
+  if(result?.success!==true)throw new Error(result?.message||'Supabase no confirmó la previsualización.');
+  setHistoryArchiveStatus(`${Number(result.affected_count)||0} registro(s) activos de ${module==='sales'?'ventas':'gastos'} coinciden. La acción disponible es archivar; no se eliminarán filas.`,'ok');return true;
+ }catch(error){setHistoryArchiveStatus('La previsualización no está disponible todavía. La migración de historial debe estar aplicada; no se modificó ningún dato.','error');return false}
+}
+async function archiveSelectedHistory(){
+ const range=getHistoryArchiveRange(),module=String($("historyArchiveModule")?.value||'sales');
+ if(!range.valid){setHistoryArchiveStatus('Corrige el rango antes de archivar.','error');return false;}
+ if(!requireBackupAcknowledgement('archivar este periodo'))return false;
+ const label=module==='sales'?'VENTAS':'GASTOS';
+ if(!confirm(`ARCHIVAR ${label}\n\nLos registros coincidentes se ocultarán de las vistas activas, pero permanecerán en la base de datos y podrán restaurarse según el módulo. No se tocarán pedidos, pagos ni inventario.\n\n¿Continuar?`))return false;
+ setHistoryArchiveStatus('Archivando de forma reversible…');
+ try{
+  const rpc=module==='sales'?'admin_archive_sales':'admin_archive_expenses';
+  const {data,error}=await sb.rpc(rpc,{p_from:range.from,p_to:range.to,p_confirmation:`ARCHIVAR ${label}`});
+  if(error)throw error;const result=Array.isArray(data)?data[0]:data;
+  if(result?.success!==true)throw new Error(result?.message||'Supabase no confirmó el archivado.');
+  setHistoryArchiveStatus(`${Number(result.archived_count)||0} registro(s) archivado(s). No se eliminó ninguna fila.`,'ok');await cargarTodo();return true;
+ }catch(error){setHistoryArchiveStatus('No se pudo archivar. No se confirmó ningún cambio adicional. Verifica que la migración de historial esté aplicada.','error');return false}
+}
+async function restoreLatestExpensesArchive(){
+ if(!confirm('RESTAURAR ÚLTIMO ARCHIVO DE GASTOS\n\nLos gastos volverán a las vistas activas. No se tocarán pedidos, pagos ni inventario. ¿Continuar?'))return false;
+ try{const {data,error}=await sb.rpc('admin_restore_latest_expenses_archive');if(error)throw error;const result=Array.isArray(data)?data[0]:data;if(!result?.success)throw new Error(result?.message||'No se restauró el archivo.');setHistoryArchiveStatus(`${Number(result.restored_count)||0} gasto(s) restaurado(s).`,'ok');await cargarTodo();return true}catch(error){setHistoryArchiveStatus('No se pudo restaurar el último archivo de gastos. No se modificó ningún dato.','error');return false}
+}
+function exportExpensesReportCSV(){
+ const range=getHistoryArchiveRange();if(!range.valid){toast('Corrige el rango de fechas antes de exportar.');return false;}
+ const rows=filterAdminReportRows(gastos,'expense_date',range),head=['Fecha','Concepto','Categoría','Proveedor','Valor'];
+ const supplierRows=Array.isArray(proveedores)?proveedores:[];
+ const data=rows.map(row=>[row.expense_date||row.created_at||'',row.concept||'',row.category||'Otros',supplierRows.find(item=>String(item.id)===String(row.supplier_id))?.name||'',Number(row.amount)||0]);
+ const suffix=range.from||range.to?`_${range.from||'inicio'}_${range.to||'hoy'}`:'';
+ downloadFile(`sirevya_reporte_gastos${suffix}.csv`,'\uFEFF'+[head,...data].map(row=>row.map(safeCSVCell).join(';')).join('\n'),'text/csv;charset=utf-8');toast(`Reporte de gastos descargado (${data.length} registros)`);return true;
+}
 function requireBackupAcknowledgement(actionLabel){
  const ok=confirm('Antes de '+actionLabel+', descarga primero “Copia de respaldo → Descargar respaldo JSON” desde Configuración. El JSON incluye las referencias de fotos, pero no los archivos binarios de R2.\n\n¿Ya descargaste y verificaste un respaldo reciente?');if(!ok)return false;
  const phrase=prompt('Para confirmar que tienes el respaldo, escribe exactamente: RESPALDO DESCARGADO');
@@ -5193,6 +5237,10 @@ document.addEventListener("DOMContentLoaded",()=>{
   initAdminColorPalette();
   const reportFrom=$("reportFromDate"),reportTo=$("reportToDate"),reportClear=$("clearReportDateFilters");
   reportFrom?.addEventListener('change',renderReportes);reportTo?.addEventListener('change',renderReportes);reportClear?.addEventListener('click',clearAdminReportDateFilters);
+  $("previewHistoryArchiveBtn")?.addEventListener('click',previewHistoryArchive);
+  $("archiveHistoryPeriodBtn")?.addEventListener('click',archiveSelectedHistory);
+  $("restoreExpensesArchiveBtn")?.addEventListener('click',restoreLatestExpensesArchive);
+  $("exportExpensesReportBtn")?.addEventListener('click',exportExpensesReportCSV);
   const movementSearch=$("movementLogSearch"),movementType=$("movementLogType"),movementFrom=$("movementLogFrom"),movementTo=$("movementLogTo"),movementClear=$("clearMovementLogFilters"),movementExport=$("exportMovementLogCSV");
   [movementSearch,movementType].forEach(control=>control?.addEventListener('input',renderMovimientos));
   [movementType,movementFrom,movementTo].forEach(control=>control?.addEventListener('change',renderMovimientos));
