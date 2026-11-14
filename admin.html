@@ -155,7 +155,7 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
 @media(max-width:460px){.orderFilters{grid-template-columns:1fr}.orderFilterSearch{grid-column:auto}.orderPagination{align-items:flex-start;flex-direction:column}}
 
 .photoPreview{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}.photoPreview img{width:78px;height:78px;object-fit:cover;border-radius:12px;border:1px solid var(--border);background:#f3f4f6}.photoPreview .photoItem{position:relative}.photoPreview .photoItem span{position:absolute;left:4px;bottom:4px;background:#111827cc;color:#fff;border-radius:7px;padding:2px 5px;font-size:10px}.multiGallery{display:flex;gap:7px;overflow-x:auto;margin-top:8px}.multiGallery img{width:54px;height:54px;object-fit:cover;border-radius:9px;border:1px solid var(--border)}
-.photoPreview .photoItem{width:104px;display:flex;flex-direction:column;gap:5px;align-items:stretch}
+.photoPreview .photoItem{width:104px;display:flex;flex-direction:column;gap:5px;align-items:stretch}.photoUploadState{font-size:10px;font-weight:800}.photoUploadState[data-state="uploading"]{color:#8a5a00}.photoUploadState[data-state="success"]{color:var(--success)}.photoUploadState[data-state="error"]{color:#a51d3b}.photoRetryBtn{padding:4px 7px;border:1px solid #cfaeba;border-radius:7px;background:#fff;color:#7b1730;font-size:10px;font-weight:800;cursor:pointer}
 .photoPreview .photoItem img{width:104px;height:104px;flex:none}
 .photoPreview .photoItem .photoCaption{position:static;background:transparent;color:var(--muted);padding:0;font-size:11px;line-height:1.25}
 .removePhotoBtn{width:100%;border:1px solid #ffd0d2;background:#fff0f1;color:#a51d25;border-radius:9px;padding:7px 5px;font-size:11px;font-weight:900}
@@ -957,6 +957,8 @@ let categoryOrderSaving=false;
 let editingProductImages=[];
 let editingProductImageLoadToken=0;
 let editingProductImagesLoadError=null;
+let productPhotoUploadStates=[];
+let productPhotoUploadFiles=[];
 let onlinePaymentSettingLoaded=false;
 let onlinePaymentSettingOriginal=true;
 let codCitiesSettingsLoaded=false;
@@ -1133,6 +1135,21 @@ async function prepareImageForUpload(file){
  }finally{try{decoded.close?.()}catch{}}
 }
 const waitForUploadRetry=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+async function uploadFileFingerprint(file){
+ if(!file||typeof crypto?.subtle?.digest!=='function')return `${file?.name||'foto'}-${file?.size||0}-${file?.lastModified||0}`.replace(/[^a-zA-Z0-9_-]/g,'_').slice(0,48);
+ const bytes=await file.arrayBuffer(),digest=await crypto.subtle.digest('SHA-256',bytes);
+ return [...new Uint8Array(digest)].map(x=>x.toString(16).padStart(2,'0')).join('').slice(0,32);
+}
+async function verifyUploadedObject(key,isCurrent=()=>true){
+ const url=workerObjectUrl(key),controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),15000);
+ try{
+  let response=await fetch(url,{method:'HEAD',cache:'no-store',signal:controller.signal});
+  if(response.status===405||response.status===501)response=await fetch(url,{headers:{Range:'bytes=0-0'},cache:'no-store',signal:controller.signal});
+  ensureAdminOperationCurrent(isCurrent);
+  if(!response.ok)throw new Error(`R2 no confirmó la existencia del archivo (${response.status}).`);
+  return true;
+ }finally{clearTimeout(timeout)}
+}
 function ensureAdminOperationCurrent(isCurrent){if(typeof isCurrent==='function'&&!isCurrent()){const error=new Error('La sesión del administrador cambió durante la operación. Vuelve a revisar el producto antes de continuar.');error.name='StaleAdminOperationError';throw error}}
 function captureAdminOperationContext(isCurrent){
  const userId=String(adminSessionUserId||''),authEpoch=adminAuthEpoch;
@@ -1159,7 +1176,7 @@ async function uploadImageToR2(path,file,isCurrent=()=>true){
  let lastError=null;
  // Las redes móviles pueden tardar en establecer la conexión. Reintentar la misma
  // clave es seguro: R2 reemplaza el mismo objeto en lugar de crear duplicados.
- const maxAttempts=3;
+ const maxAttempts=4;
  for(let attempt=0;attempt<maxAttempts;attempt++){
    ensureAdminOperationCurrent(isCurrent);
    const controller=new AbortController();
@@ -1182,7 +1199,7 @@ async function uploadImageToR2(path,file,isCurrent=()=>true){
        continue;
      }
      clearTimeout(timeout);
-     throw new Error(`No se pudo completar la conexión para subir “${file.name||"la foto"}” después de ${maxAttempts} intentos de hasta 60 segundos. La conexión móvil pudo interrumpirse${error?.name==="AbortError"?" o la subida tardó más de 60 segundos":""}. El producto puede estar guardado sin foto: no lo crees de nuevo; entra a “Completar/Editar producto” y vuelve a subirla cuando tengas mejor conexión.`);
+     throw new Error(`No se pudo subir “${file.name||"la foto"}” después de ${maxAttempts} intentos finitos. El producto puede estar guardado sin esta foto; no lo crees de nuevo: vuelve a intentar solo esta imagen desde “Completar/Editar producto”.${error?.name==="AbortError"?" La conexión superó el tiempo máximo de espera.":""}`);
    }
    let body="";
    try{body=await res.text()}catch(error){
@@ -1190,7 +1207,7 @@ async function uploadImageToR2(path,file,isCurrent=()=>true){
      if(!isCurrent())throw error;
      lastError=error;
      if(attempt<maxAttempts-1){await waitForUploadRetry(Math.min(1000*Math.pow(2,attempt),3000));continue;}
-     throw new Error("La conexión se interrumpió al confirmar la foto. No crees el producto otra vez: entra a “Completar/Editar producto” y vuelve a subirla.");
+     throw new Error("La conexión se interrumpió al confirmar la foto. No crees el producto otra vez: vuelve a intentar solo esta imagen desde “Completar/Editar producto”.");
    }
    clearTimeout(timeout);
    ensureAdminOperationCurrent(isCurrent);
@@ -1207,12 +1224,14 @@ async function uploadImageToR2(path,file,isCurrent=()=>true){
      throw new Error(message||`No se pudo subir la foto (${res.status}).`);
    }
    try{
-     const result=JSON.parse(body);
+     const result=body.trim()?JSON.parse(body):{};
      ensureAdminOperationCurrent(isCurrent);
      if(result.ok===false)throw new Error(result.message||result.error||"Cloudflare no confirmó la foto.");
-     return {...result,key:result.key||uploadPath};
+     const key=result.key||uploadPath;
+     await verifyUploadedObject(key,isCurrent);
+     return {...result,ok:true,key};
    }catch(error){
-     if(error instanceof SyntaxError)return {ok:true,key:uploadPath};
+     if(error instanceof SyntaxError)throw new Error("Cloudflare respondió con un formato inválido; la foto no se marcó como subida.");
      throw error;
    }
  }
@@ -3242,13 +3261,16 @@ async function uploadProductImages(productId, files, userId,isCurrent=()=>true){
  ensureAdminOperationCurrent(isCurrent);
  if(probe.error&&isMissingTableError(probe.error,"product_images")){
    const file=files[0];
+   setProductPhotoState(0,'uploading');
+   const fingerprint=await uploadFileFingerprint(file);
    const ext=(file.name.split(".").pop()||"jpg").toLowerCase();
-   const path=`products/${productId}/${crypto.randomUUID()}.${ext}`;
-   const uploaded=await uploadImageToR2(path,file,isCurrent);ensureAdminOperationCurrent(isCurrent);
+   const path=`products/${productId}/gallery/${fingerprint}.${ext}`;
+   let uploaded;try{uploaded=await uploadImageToR2(path,file,isCurrent)}catch(error){setProductPhotoState(0,'error');throw error}ensureAdminOperationCurrent(isCurrent);
    const key=uploaded.key||path;
    const {error}=await sb.from("products").update({image_url:key}).eq("id",productId);
    ensureAdminOperationCurrent(isCurrent);
    if(error)throw new Error("La foto se subió a R2, pero no se pudo guardar como foto principal: "+error.message);
+   setProductPhotoState(0,'success');
    toast(files.length>1?"Se guardó la foto principal. La galería múltiple requiere la tabla opcional product_images; no se subieron las otras fotos.":"Foto principal guardada.");
    return [{product_id:productId,user_id:userId,image_path:key,sort_order:0,primaryFallback:true}];
  }
@@ -3256,12 +3278,23 @@ async function uploadProductImages(productId, files, userId,isCurrent=()=>true){
  const added=[];
  for(let i=0;i<files.length;i++){
    const file=files[i];
+   setProductPhotoState(i,'uploading');
+   const fingerprint=await uploadFileFingerprint(file);
    const ext=(file.name.split(".").pop()||"jpg").toLowerCase();
-   const path=`products/${productId}/${crypto.randomUUID()}.${ext}`;
-   const uploaded=await uploadImageToR2(path,file,isCurrent);ensureAdminOperationCurrent(isCurrent);
-   added.push({product_id:productId,user_id:userId,image_path:uploaded.key||path,sort_order:i});
+   const path=`products/${productId}/gallery/${fingerprint}.${ext}`;
+   let uploaded;try{uploaded=await uploadImageToR2(path,file,isCurrent)}catch(error){setProductPhotoState(i,'error');throw error}ensureAdminOperationCurrent(isCurrent);
+   const imagePath=uploaded.key||path;
+   const existing=await sb.from("product_images").select("image_path").eq("product_id",productId).eq("image_path",imagePath).limit(1);
+   ensureAdminOperationCurrent(isCurrent);
+   if(existing.error){setProductPhotoState(i,'error');throw new Error("La foto se subió, pero no se pudo comprobar si ya estaba asociada: "+existing.error.message)}
+   if(!existing.data?.length){
+    const ins=await sb.from("product_images").insert({product_id:productId,user_id:userId,image_path:imagePath,sort_order:i}).select("image_path").maybeSingle();
+    ensureAdminOperationCurrent(isCurrent);
+    if(ins.error){setProductPhotoState(i,'error');throw new Error("La foto se subió, pero no se pudo guardar su referencia: "+ins.error.message)}
+   }
+   setProductPhotoState(i,'success');
+   added.push({product_id:productId,user_id:userId,image_path:imagePath,sort_order:i});
  }
- if(added.length){const ins=await sb.from("product_images").insert(added);ensureAdminOperationCurrent(isCurrent);if(ins.error)throw new Error("No se pudieron guardar las fotos adicionales: "+ins.error.message);}
  return added;
 }
 let productPreviewObjectUrls=[];
@@ -3281,8 +3314,21 @@ function renderExistingProductPhotoPreview(){
 function renderPhotoPreview(){
  const box=$("photoPreview");if(!box)return;
  productPreviewObjectUrls.forEach(url=>{try{URL.revokeObjectURL(url)}catch{}});productPreviewObjectUrls=[];
- const files=[...($('pFoto').files||[])];
- box.innerHTML=files.map((f,i)=>{const url=URL.createObjectURL(f);productPreviewObjectUrls.push(url);return `<div class="photoItem"><img src="${esc(url)}" alt="Foto nueva ${i+1}"><span>${editingId?'Nueva '+(i+1):(i===0?'Principal nueva':'Nueva '+(i+1))}</span></div>`}).join('');
+ const files=[...($('pFoto').files||[])];productPhotoUploadFiles=files;
+ box.innerHTML=files.map((f,i)=>{const url=URL.createObjectURL(f);productPreviewObjectUrls.push(url);const state=productPhotoUploadStates[i]||'pending';const label={pending:'Pendiente',uploading:'Subiendo…',success:'Subida correcta',error:'Error'}[state]||'Pendiente';return `<div class="photoItem"><img src="${esc(url)}" alt="Foto nueva ${i+1}"><span>${editingId?'Nueva '+(i+1):(i===0?'Principal nueva':'Nueva '+(i+1))}</span><small class="photoUploadState" data-state="${state}">${label}</small>${state==='error'&&editingId?`<button type="button" class="photoRetryBtn" onclick="retryProductPhoto(${i})">Reintentar esta foto</button>`:''}</div>`}).join('');
+}
+function setProductPhotoState(index,state){productPhotoUploadStates[index]=state;renderPhotoPreview()}
+async function retryProductPhoto(index){
+ const file=productPhotoUploadFiles[index],productId=editingId,userId=adminSessionUserId,authEpoch=adminAuthEpoch;
+ if(!file||!productId||!userId)return alert('Guarda primero el producto. Luego podrás reintentar únicamente esta foto.');
+ const isCurrent=()=>adminAuthOperationStillCurrent(userId,authEpoch)&&String(editingId)===String(productId);
+ setProductPhotoState(index,'uploading');
+ try{
+  const added=await uploadProductImages(productId,[file],userId,isCurrent);ensureAdminOperationCurrent(isCurrent);
+  const product=productos.find(x=>String(x.id)===String(productId));
+  if(product&&!product.image_url&&added[0]){const update=await sb.from('products').update({image_url:added[0].image_path}).eq('id',productId);if(update.error)throw new Error('La foto se subió, pero no se pudo guardar la foto principal: '+update.error.message)}
+  setProductPhotoState(index,'success');toast('Foto subida correctamente.');notifyPublicCatalogChanged('product-images-changed',{productId,refreshImages:true});
+ }catch(error){setProductPhotoState(index,'error');alert('No se pudo subir esta foto. El producto se conserva y puedes reintentarlo sin duplicarlo.\n\n'+(error?.message||error))}
 }
 async function loadExistingProductImages(productId,primaryImage){
  const userId=adminSessionUserId,authEpoch=adminAuthEpoch;
@@ -3775,8 +3821,9 @@ async function uploadVariantPhotos(productId, variants, files,isCurrent=()=>true
  const updates={};
  for(const [key,file] of Object.entries(files)){
    ensureAdminOperationCurrent(isCurrent);
+   const fingerprint=await uploadFileFingerprint(file);
    const ext=(file.name.split('.').pop()||'jpg').toLowerCase();
-   const path=`products/${productId}/variants/${crypto.randomUUID()}.${ext}`;
+   const path=`products/${productId}/variants/${key.replace(/[^a-zA-Z0-9_-]/g,'_')}-${fingerprint}.${ext}`;
    const uploaded=await uploadImageToR2(path,file,isCurrent);ensureAdminOperationCurrent(isCurrent);
    updates[key]=uploaded.key||path;
  }
@@ -3921,6 +3968,7 @@ async function guardarProducto(agregarOtro=false){
 	}
 }
 function limpiarProducto(){
+ productPhotoUploadStates=[];productPhotoUploadFiles=[];
 	variantDraft=[];variantMemory=[];variantEditorCollisionError='';editingId=null;editingProductImageLoadToken++;editingProductImages=[];editingProductImagesLoadError=null;editingSizeGuideImagePath="";sizeGuideImageRemoveRequested=false;
 	const guideInput=$("pGuiaTallasFoto");if(guideInput)guideInput.value="";resetAdminNewColorForm();renderSizeGuidePhotoPreview();
 	$("formTitle").textContent="➕ Nuevo producto";$("pNombre").value="";$("pColores").value="";$("pTallas").value="";$("pCantidad").value=1;$("pCompra").value=0;$("pVenta").value=0;$("pUbicacion").value="";$("pDescripcion").value="";$("pGuiaTallas").value="";$("pFoto").value="";
@@ -5090,7 +5138,7 @@ document.addEventListener("DOMContentLoaded",()=>{
   const couponsHost=$("storefrontCouponsAdminList");if(couponsHost)couponsHost.addEventListener('click',event=>{const edit=event.target.closest('[data-coupon-admin-edit]');if(edit)editStorefrontCoupon(edit.dataset.couponAdminEdit)});
   const couponCodeInput=$("storefrontCouponCode");if(couponCodeInput)couponCodeInput.addEventListener('input',()=>{const normalized=String(couponCodeInput.value||'').trim().toUpperCase();if(couponCodeInput.value!==normalized)couponCodeInput.value=normalized});
   const comboRuleType=$('storefrontComboRuleType');if(comboRuleType)comboRuleType.addEventListener('change',updateStorefrontComboRuleFields);const comboPlacement=$('storefrontComboDisplayLocation');if(comboPlacement)comboPlacement.addEventListener('change',updateStorefrontComboRuleFields);const comboDiscountType=$('storefrontComboDiscountType');if(comboDiscountType)comboDiscountType.addEventListener('change',updateStorefrontComboRuleFields);
-  const f=$("pFoto");if(f)f.addEventListener("change",renderPhotoPreview);
+  const f=$("pFoto");if(f)f.addEventListener("change",()=>{productPhotoUploadStates=[];renderPhotoPreview()});
   const guideFile=$("pGuiaTallasFoto");if(guideFile)guideFile.addEventListener("change",()=>{if(guideFile.files?.length)sizeGuideImageRemoveRequested=false;renderSizeGuidePhotoPreview()});
 
   const box=$("categoryManager");
