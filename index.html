@@ -3041,15 +3041,19 @@ function variantStock(p,color,size){
 }
 function colorStock(p,color){const vs=variantList(p);if(!vs.length)return Number(p.quantity)||0;return vs.filter(x=>normalizeVariantKeyText(x.color)===normalizeVariantKeyText(color)).reduce((s,x)=>s+Number(x.stock||0),0)}
 function sizeStockForColor(p,color,size){return variantStock(p,color,size)}
-function variantImageUrl(p,color){
+function variantImageUrl(p,color,size=''){
 	 const hasDeclaredColors=parseVariantList(p?.colors).length>0;
-	 const targetColor=normalizeVariantKeyText(color);
-	 const v=variantList(p).find(x=>{
+	 const targetColor=normalizeVariantKeyText(color),targetSize=normalizeVariantKeyText(size);
+	 const matches=variantList(p).filter(x=>{
 	   let currentColor=normalizeVariantKeyText(x.color);
-   if(!hasDeclaredColors&&currentColor==='sin color')currentColor='';
-   return currentColor===targetColor&&!!x.image_path;
- });
- return v?.image_path?publicImage(v.image_path):'';
+	   if(!hasDeclaredColors&&currentColor==='sin color')currentColor='';
+	   return currentColor===targetColor&&!!String(x.image_path||'').trim();
+	 });
+	 // If each talla has its own photo, use the selected talla first. Otherwise
+	 // keep the established fallback to any photo belonging to the selected color.
+	 const exactSize=targetSize?matches.find(x=>normalizeVariantKeyText(x.size)===targetSize):null;
+	 const v=exactSize||matches[0];
+	 return v?.image_path?publicImage(v.image_path):'';
 }
 function setCardVariantPhoto(card,p,color){
  const url=variantImageUrl(p,color);if(!url)return;
@@ -3879,7 +3883,7 @@ function detailSelectColor(btn,event){
    box.querySelectorAll('.sizeOption').forEach(x=>{x.classList.remove('active');x.setAttribute('aria-pressed','false')});
    if(first){const b=[...box.querySelectorAll('.sizeOption')].find(x=>normalizeText(x.dataset.value)===normalizeText(first));if(b){b.classList.add('active');b.setAttribute('aria-pressed','true')}size=first}else size='';
  }
- const image=variantImageUrl(detailProduct,color)||(productImages(detailProduct)[0]||'');
+	 const image=variantImageUrl(detailProduct,color,size)||(productImages(detailProduct)[0]||'');
  $('detailImage').alt=String(detailProduct?.name||'Producto');
  $('detailImage').src=image;
  renderDetailGallery(detailProduct,image);

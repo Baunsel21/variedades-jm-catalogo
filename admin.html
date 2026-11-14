@@ -3785,6 +3785,17 @@ async function uploadVariantPhotos(productId, variants, files,isCurrent=()=>true
    return {...v,image_path:updates[key]||v.image_path||''};
  });
 }
+async function verifyVariantPhotoReferences(productId, variants, files, isCurrent=()=>true){
+ if(!productId||!Object.keys(files||{}).length)return;
+ ensureAdminOperationCurrent(isCurrent);
+ const {data,error}=await sb.from('products').select('variants').eq('id',productId).maybeSingle();
+ ensureAdminOperationCurrent(isCurrent);
+ if(error)throw new Error('Las fotos se subieron, pero no se pudo verificar su referencia en Supabase: '+error.message);
+ const saved=parseVariants(data?.variants);
+ const savedByKey=new Map(saved.map(v=>[variantKey(v.color,v.size),v]));
+ const missing=Object.keys(files).filter(key=>!String(savedByKey.get(key)?.image_path||'').trim());
+ if(missing.length)throw new Error('Las fotos se subieron, pero Supabase no confirmó las referencias de '+missing.length+' variante(s). No se marcó el producto como actualizado; vuelve a intentarlo desde el editor.');
+}
 
 function syncAdminNewColorHex(input){
 	const text=$("adminNewColorHex"),picker=$("adminNewColorPicker");if(!text||!picker)return;
@@ -3877,7 +3888,7 @@ async function guardarProducto(agregarOtro=false){
    if(isEditing){
      const {error}=await sb.from("products").update(obj).eq("id",originalProductId);if(!isCurrent())return false;if(error)throw error;
      if(files.length){const added=await uploadProductImages(originalProductId,files,user.id,isCurrent);if(!isCurrent())return false;if(!fotoUrl&&added[0]){const updatePhoto=await sb.from("products").update({image_url:added[0].image_path}).eq("id",originalProductId);if(!isCurrent())return false;if(updatePhoto.error)throw new Error("Las fotos se subieron, pero no se pudo actualizar la foto principal: "+updatePhoto.error.message)}}
-     if(Object.keys(variantFiles).length){const updatedVariants=await uploadVariantPhotos(originalProductId,variantDraft,variantFiles,isCurrent);if(!isCurrent())return false;const updateVariants=await sb.from("products").update({variants:updatedVariants,quantity:totalVariantStock(updatedVariants)}).eq("id",originalProductId);if(!isCurrent())return false;if(updateVariants.error)throw new Error("Las fotos de variantes se subieron, pero no se pudo guardar su inventario: "+updateVariants.error.message)}
+     if(Object.keys(variantFiles).length){const updatedVariants=await uploadVariantPhotos(originalProductId,variantDraft,variantFiles,isCurrent);if(!isCurrent())return false;const updateVariants=await sb.from("products").update({variants:updatedVariants,quantity:totalVariantStock(updatedVariants)}).eq("id",originalProductId);if(!isCurrent())return false;if(updateVariants.error)throw new Error("Las fotos de variantes se subieron, pero no se pudo guardar su inventario: "+updateVariants.error.message);await verifyVariantPhotoReferences(originalProductId,updatedVariants,variantFiles,isCurrent)}
      if(sizeGuideFile){await uploadSizeGuidePhoto(originalProductId,sizeGuideFile,isCurrent);if(!isCurrent())return false}
      toast("Producto actualizado correctamente");
    }else{
@@ -3887,7 +3898,7 @@ async function guardarProducto(agregarOtro=false){
      savedProductId=data.id;editingId=savedProductId;
      $("formTitle").textContent="Completar producto "+(obj.code||"");
      if(files.length){const added=await uploadProductImages(savedProductId,files,user.id,isCurrent);if(!isCurrent())return false;if(added[0]){const updatePhoto=await sb.from("products").update({image_url:added[0].image_path}).eq("id",savedProductId);if(!isCurrent())return false;if(updatePhoto.error)throw new Error("El producto quedó creado, pero no se pudo guardar la foto principal: "+updatePhoto.error.message)}}
-     if(Object.keys(variantFiles).length){const updatedVariants=await uploadVariantPhotos(savedProductId,variantDraft,variantFiles,isCurrent);if(!isCurrent())return false;const updateVariants=await sb.from("products").update({variants:updatedVariants,quantity:totalVariantStock(updatedVariants)}).eq("id",savedProductId);if(!isCurrent())return false;if(updateVariants.error)throw new Error("El producto quedó creado, pero no se pudo guardar el inventario de variantes: "+updateVariants.error.message)}
+     if(Object.keys(variantFiles).length){const updatedVariants=await uploadVariantPhotos(savedProductId,variantDraft,variantFiles,isCurrent);if(!isCurrent())return false;const updateVariants=await sb.from("products").update({variants:updatedVariants,quantity:totalVariantStock(updatedVariants)}).eq("id",savedProductId);if(!isCurrent())return false;if(updateVariants.error)throw new Error("El producto quedó creado, pero no se pudo guardar el inventario de variantes: "+updateVariants.error.message);await verifyVariantPhotoReferences(savedProductId,updatedVariants,variantFiles,isCurrent)}
      if(sizeGuideFile){await uploadSizeGuidePhoto(savedProductId,sizeGuideFile,isCurrent);if(!isCurrent())return false}
      toast("Producto guardado correctamente");
    }
