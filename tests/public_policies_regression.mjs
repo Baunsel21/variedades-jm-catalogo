@@ -46,7 +46,7 @@ for (const section of privacySections) {
 }
 assert.ok(indexHtml.includes('En Sirevya nos comprometemos a proteger los datos personales'));
 assert.ok(privacyHtml.includes('En Sirevya nos comprometemos a proteger los datos personales'));
-assert.ok(privacyHtml.includes('Esta política es un texto informativo preparado para el funcionamiento actual del catálogo.'));
+assert.ok(privacyHtml.includes('Antes de usar esta página como aviso legal definitivo'));
 assert.match(privacyHtml, /href="\/index\.html"/);
 
 const faqQuestions = [

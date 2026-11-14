@@ -11,7 +11,7 @@ const adminHtml = fs.readFileSync(path.join(here, '..', 'admin.html'), 'utf8');
 // Static HTML must not promise free shipping before the runtime settings RPC is verified.
 assert.doesNotMatch(html, /<span>♥ Envío gratis en Cali<\/span>/);
 assert.doesNotMatch(html, /<small>\$0 de envío<\/small>/);
-assert.match(html, /<small>Tarifa pendiente de verificación<\/small>/);
+assert.match(html, /<small>Consulta la tarifa al elegir tu ciudad<\/small>/);
 assert.match(html, /id="cartShippingMessage" class="cartShippingMessage">Consultando la tarifa vigente de envío/);
 assert.match(html, /class="cartShippingTrack" style="display:none" hidden aria-hidden="true"/);
 assert.match(html, /id="cartShippingPercent">—<\/span>/);
@@ -176,7 +176,7 @@ ctx.updateStorefrontShippingCopy();
 ctx.updateCartShippingProgress(100000);
 assert.equal(ctx.ticker.textContent, '✦ Consulta la tarifa vigente al seleccionar tu ciudad');
 assert.equal(ctx.tickerCopy.textContent, ctx.ticker.textContent, 'El clone aria-hidden refleja el mismo estado neutral.');
-assert.equal(ctx.caliBenefit.textContent, 'Tarifa por confirmar');
+assert.equal(ctx.caliBenefit.textContent, 'Selecciona tu ciudad para consultar');
 assert.match(ctx.nodes.get('cartShippingMessage').textContent, /Consultando la tarifa vigente/);
 assert.equal(ctx.track.hidden, true);
 assert.equal(ctx.track.style.display, 'none');
@@ -252,7 +252,7 @@ assert.equal(ctx.track.style.display, 'none');
 assert.equal(ctx.track.attributes['aria-hidden'], 'true');
 assert.equal(ctx.caliRule.heading.textContent, 'Tarifa en Cali');
 assert.equal(ctx.tickerCopy.textContent, ctx.ticker.textContent, 'El clone conserva el mensaje de verificación fallida.');
-assert.equal(ctx.caliBenefit.textContent, 'Tarifa por confirmar');
+assert.equal(ctx.caliBenefit.textContent, 'Selecciona tu ciudad para consultar');
 assert.equal(ctx.localNote.hidden, true);
 
 console.log('PASS prelaunch shipping copy regression: neutral initial state, verified success, destination gating, checkout total gating, and RPC failure.');

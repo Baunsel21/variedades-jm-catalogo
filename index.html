@@ -1794,7 +1794,7 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
   </div>
 </div>
 <main id="inicio" class="wrap">
-<section class="benefits"><div class="benefit"><div class="benefitIcon">📍</div><div><b>Cali</b><small>Tarifa pendiente de verificación</small></div></div><div class="benefit"><div class="benefitIcon">🎁</div><div><b>Otras ciudades</b><small>Consulta tarifas en el carrito</small></div></div><div class="benefit"><div class="benefitIcon">🛡️</div><div><b>Compra segura</b><small>Contra entrega o pago online</small></div></div></section>
+<section class="benefits"><div class="benefit"><div class="benefitIcon">📍</div><div><b>Cali</b><small>Consulta la tarifa al elegir tu ciudad</small></div></div><div class="benefit"><div class="benefitIcon">🎁</div><div><b>Otras ciudades</b><small>La tarifa se calcula según ciudad o zona</small></div></div><div class="benefit"><div class="benefitIcon">🛡️</div><div><b>Compra segura</b><small>Contra entrega o pago online</small></div></div></section>
 <div id="error" class="error"></div>
 
 
@@ -1944,7 +1944,7 @@ main#inicio>.benefits .benefit small{display:block!important;margin-top:3px!impo
     <h3>9. Vigencia y cambios</h3>
     <p>Esta política rige desde la fecha indicada arriba y podrá ser actualizada cuando sea necesario. Las modificaciones relevantes serán publicadas en este mismo espacio.</p>
 
-    <p style="margin-top:20px;font-size:11px;color:#777">Esta política es un texto informativo preparado para el funcionamiento actual del catálogo. Antes de publicar la tienda de forma definitiva, conviene verificar que los datos legales del responsable (por ejemplo, razón social o identificación tributaria, si aplica) coincidan exactamente con los de quien opera Sirevya.</p>
+    <p style="margin-top:20px;font-size:11px;color:#777">La información operativa publicada identifica a Sirevya y sus canales de contacto. Antes de usar esta política como aviso legal definitivo, el titular debe completar y verificar la razón social o nombre legal, identificación tributaria, domicilio para notificaciones y demás datos registrados en el control interno de datos legales pendientes.</p>
   </div>
 </div>
 </div>
@@ -2302,8 +2302,8 @@ function updateStorefrontShippingCopy(){
  const caliNote=document.querySelector('.cartShippingLocalNote');
  if(!storefrontShippingSettingsLoaded||storefrontShippingSettingsLoadError){
   setShippingTickerText('✦ Consulta la tarifa vigente al seleccionar tu ciudad');
-  if(caliBenefit)caliBenefit.textContent='Tarifa por confirmar';
-  if(otherBenefit)otherBenefit.textContent='Tarifa por confirmar';
+  if(caliBenefit)caliBenefit.textContent='Selecciona tu ciudad para consultar';
+  if(otherBenefit)otherBenefit.textContent='Selecciona tu ciudad para consultar';
   if(foot)foot.textContent='Selecciona una ciudad para consultar el envío';
   if(rules[0]){const h=rules[0].querySelector('b'),c=rules[0].querySelector('small');if(h)h.textContent='Tarifa en Cali';if(c)c.textContent='Se confirma al verificar la configuración vigente.';}
   if(rules[1]){const h=rules[1].querySelector('b'),c=rules[1].querySelector('small');if(h)h.textContent='Tarifa por destino';if(c)c.textContent='Selecciona una ciudad para confirmarla.';}
@@ -4725,7 +4725,7 @@ function updateCartShippingProgress(total){
  if(!storefrontShippingSettingsLoaded||storefrontShippingSettingsLoadError){
   if(message)message.textContent=storefrontShippingSettingsLoadError?'No se pudo verificar la tarifa vigente. El envío se confirmará cuando se recupere la conexión.':'Consultando la tarifa vigente de envío…';
   if(fill)fill.style.width='0%';if(truck)truck.style.left='3%';if(percent)percent.textContent='—';
-  if(track){track.hidden=true;track.style.display='none';track.setAttribute('aria-hidden','true');track.setAttribute('aria-valuemax','1');track.setAttribute('aria-valuenow','0');track.setAttribute('aria-valuetext','Tarifa de envío pendiente de verificación');}
+  if(track){track.hidden=true;track.style.display='none';track.setAttribute('aria-hidden','true');track.setAttribute('aria-valuemax','1');track.setAttribute('aria-valuenow','0');track.setAttribute('aria-valuetext','Tarifa de envío no disponible temporalmente');}
   if(caliNote)caliNote.hidden=true;
   return;
  }
