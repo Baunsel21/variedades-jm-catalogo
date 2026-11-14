@@ -315,6 +315,8 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
 .floatingPromoAdminButton{min-width:0;margin:0;padding:12px;border:1px solid #e8dfd4;border-radius:14px;background:#fff}
 .floatingPromoAdminButton legend{padding:0 5px;color:#704b13;font-weight:800;font-family:Georgia,serif}
 .floatingPromoAdminButton label{display:flex;flex-direction:column;gap:4px;margin:8px 0;color:#514a43;font-size:12px;font-weight:700}
+.floatingPromoAdminButton .promoAdminToggle{display:flex;flex-direction:row;align-items:center;gap:7px;margin:2px 0 10px;color:#704b13;font-weight:800}
+.floatingPromoAdminButton .promoAdminToggle input{width:auto;margin:0;accent-color:#7b1730}
 .floatingPromoAdminButton input:not([type=color]),.floatingPromoAdminButton select{box-sizing:border-box;width:100%;min-width:0;margin:0;padding:8px;border:1px solid #ddd1c0;border-radius:9px;background:#fff;color:#302a24;font:inherit}
 .floatingPromoAdminButton input[type=color]{width:100%;height:34px;padding:2px;border:1px solid #ddd1c0;border-radius:8px;background:#fff}
 .floatingPromoAdminBox .promoAdminHelp{margin-top:12px}
@@ -767,19 +769,19 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
               </div>
               <div class="floatingPromoAdminButtons">
                 <fieldset class="floatingPromoAdminButton" data-floating-promo-key="best_selling"><legend>Botón 1 · Más vendido</legend>
-                  <label>Texto<input data-field="label" maxlength="32" value="Más vendido" disabled></label><label>Icono<input data-field="icon" maxlength="8" value="👑" disabled></label>
+                  <label class="promoAdminToggle"><input data-field="enabled" type="checkbox" checked disabled> Mostrar botón</label><label>Texto<input data-field="label" maxlength="32" value="Más vendido" disabled></label><label>Icono<input data-field="icon" maxlength="8" value="👑" disabled></label>
                   <label>Categoría de destino<select data-field="target_category" disabled><option value="">Selecciona una categoría…</option></select></label><label>Orden<select data-field="sort_order" disabled><option value="1">1</option><option value="2">2</option><option value="3">3</option></select></label>
                   <label>Estilo<select data-field="appearance" disabled><option value="gold">Dorado</option><option value="solid">Sólido</option><option value="outline">Contorno</option></select></label>
                   <label>Fondo<input data-field="background_color" type="color" value="#fff8e7" disabled></label><label>Texto<input data-field="text_color" type="color" value="#5d4012" disabled></label><label>Acento<input data-field="accent_color" type="color" value="#c6a15b" disabled></label>
                 </fieldset>
                 <fieldset class="floatingPromoAdminButton" data-floating-promo-key="trending"><legend>Botón 2 · Tendencia</legend>
-                  <label>Texto<input data-field="label" maxlength="32" value="Tendencia" disabled></label><label>Icono<input data-field="icon" maxlength="8" value="🔥" disabled></label>
+                  <label class="promoAdminToggle"><input data-field="enabled" type="checkbox" checked disabled> Mostrar botón</label><label>Texto<input data-field="label" maxlength="32" value="Tendencia" disabled></label><label>Icono<input data-field="icon" maxlength="8" value="🔥" disabled></label>
                   <label>Categoría de destino<select data-field="target_category" disabled><option value="">Selecciona una categoría…</option></select></label><label>Orden<select data-field="sort_order" disabled><option value="1">1</option><option value="2">2</option><option value="3">3</option></select></label>
                   <label>Estilo<select data-field="appearance" disabled><option value="gold">Dorado</option><option value="solid">Sólido</option><option value="outline">Contorno</option></select></label>
                   <label>Fondo<input data-field="background_color" type="color" value="#fff8e7" disabled></label><label>Texto<input data-field="text_color" type="color" value="#5d4012" disabled></label><label>Acento<input data-field="accent_color" type="color" value="#c6a15b" disabled></label>
                 </fieldset>
                 <fieldset class="floatingPromoAdminButton" data-floating-promo-key="top_product"><legend>Botón 3 · Producto Top</legend>
-                  <label>Texto<input data-field="label" maxlength="32" value="Producto Top" disabled></label><label>Icono<input data-field="icon" maxlength="8" value="⭐" disabled></label>
+                  <label class="promoAdminToggle"><input data-field="enabled" type="checkbox" checked disabled> Mostrar botón</label><label>Texto<input data-field="label" maxlength="32" value="Producto Top" disabled></label><label>Icono<input data-field="icon" maxlength="8" value="⭐" disabled></label>
                   <label>Categoría de destino<select data-field="target_category" disabled><option value="">Selecciona una categoría…</option></select></label><label>Orden<select data-field="sort_order" disabled><option value="1">1</option><option value="2">2</option><option value="3">3</option></select></label>
                   <label>Estilo<select data-field="appearance" disabled><option value="gold">Dorado</option><option value="solid">Sólido</option><option value="outline">Contorno</option></select></label>
                   <label>Fondo<input data-field="background_color" type="color" value="#fff8e7" disabled></label><label>Texto<input data-field="text_color" type="color" value="#5d4012" disabled></label><label>Acento<input data-field="accent_color" type="color" value="#c6a15b" disabled></label>
@@ -5160,7 +5162,8 @@ function applyFloatingPromoSettings(campaign){
   const key=fieldset.dataset.floatingPromoKey,button=byKey.get(key);if(!button)return;
   fieldset.querySelectorAll('[data-field]').forEach(field=>{
    const name=field.dataset.field,value=button[name];
-   if(name==='target_category')populateFloatingPromoCategorySelect(field,value);
+   if(name==='enabled')field.checked=value!==false;
+   else if(name==='target_category')populateFloatingPromoCategorySelect(field,value);
    else if(name==='sort_order')field.value=String(Number(value)||1);
    else if(name==='appearance')field.value=['gold','solid','outline'].includes(value)?value:'gold';
    else if(['background_color','text_color','accent_color'].includes(name))field.value=/^#[0-9a-f]{6}$/i.test(String(value||''))?String(value).toLowerCase():'#fff8e7';
@@ -5174,12 +5177,12 @@ function readFloatingPromoSettingsForm(){
  if(!Number.isInteger(visible)||visible<1||visible>30)throw new Error('La duración visible debe estar entre 1 y 30 segundos.');
  const buttons=[...document.querySelectorAll('.floatingPromoAdminButton[data-floating-promo-key]')].map(fieldset=>{
   const item={key:fieldset.dataset.floatingPromoKey};
-  fieldset.querySelectorAll('[data-field]').forEach(field=>{item[field.dataset.field]=field.value});
+  fieldset.querySelectorAll('[data-field]').forEach(field=>{item[field.dataset.field]=field.type==='checkbox'?field.checked:field.value});
   item.label=String(item.label||'').trim();item.icon=String(item.icon||'').trim();item.target_category=String(item.target_category||'').trim();item.sort_order=Number(item.sort_order);
   if(!item.label||item.label.length>32||!item.icon||item.icon.length>8)throw new Error('Cada botón requiere un texto e icono cortos.');
   if(!['gold','solid','outline'].includes(item.appearance))throw new Error('Selecciona un estilo válido para cada botón.');
   for(const color of ['background_color','text_color','accent_color'])if(!/^#[0-9a-f]{6}$/i.test(item[color]||''))throw new Error('Todos los colores deben usar formato HEX.');
-  if($('floatingPromoEnabled')?.checked&&!floatingPromoProductCategories().includes(item.target_category))throw new Error('Cada botón activado debe llevar a una categoría vigente con productos.');
+  if($('floatingPromoEnabled')?.checked&&item.enabled&&!floatingPromoProductCategories().includes(item.target_category))throw new Error('Cada botón activado debe llevar a una categoría vigente con productos.');
   return item;
  });
  if(buttons.length!==3||new Set(buttons.map(item=>item.key)).size!==3||new Set(buttons.map(item=>item.sort_order)).size!==3||buttons.some(item=>![1,2,3].includes(item.sort_order)))throw new Error('Conserva los tres botones y asigna un orden único del 1 al 3.');

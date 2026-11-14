@@ -6193,13 +6193,13 @@ function normalizeFloatingPromoCampaign(payload){
  const categories=new Set((Array.isArray(productos)?productos:[]).map(item=>String(item?.category||'').trim()).filter(Boolean));
  const keys=new Set(),orders=new Set(),normalized=[];
  for(const button of buttons){
-  const key=String(button?.key||''),label=String(button?.label||'').trim(),icon=String(button?.icon||'').trim(),target=String(button?.target_category||'').trim(),order=Number(button?.sort_order);
+  const key=String(button?.key||''),label=String(button?.label||'').trim(),icon=String(button?.icon||'').trim(),target=String(button?.target_category||'').trim(),order=Number(button?.sort_order),enabled=button?.enabled!==false;
   const colors=['background_color','text_color','accent_color'].map(name=>String(button?.[name]||''));
-  if(!FLOATING_PROMO_KEYS.includes(key)||keys.has(key)||!label||label.length>32||!icon||icon.length>8||!Number.isInteger(order)||order<1||order>3||orders.has(order))return null;
+  if(!FLOATING_PROMO_KEYS.includes(key)||keys.has(key)||typeof button?.enabled!=='undefined'&&typeof button.enabled!=='boolean'||!label||label.length>32||!icon||icon.length>8||!Number.isInteger(order)||order<1||order>3||orders.has(order))return null;
   if(colors.some(color=>!/^#[0-9a-f]{6}$/i.test(color))||!['gold','solid','outline'].includes(button?.appearance))return null;
-  if(campaign.enabled===true&&(!target||(catalogInitialLoadComplete&&!categories.has(target))))return null;
+  if(campaign.enabled===true&&enabled&&(!target||(catalogInitialLoadComplete&&!categories.has(target))))return null;
   keys.add(key);orders.add(order);
-  normalized.push({key,label,icon,target_category:target,sort_order:order,appearance:button.appearance,background_color:colors[0].toLowerCase(),text_color:colors[1].toLowerCase(),accent_color:colors[2].toLowerCase()});
+  normalized.push({key,enabled,label,icon,target_category:target,sort_order:order,appearance:button.appearance,background_color:colors[0].toLowerCase(),text_color:colors[1].toLowerCase(),accent_color:colors[2].toLowerCase()});
  }
  if(FLOATING_PROMO_KEYS.some(key=>!keys.has(key))||orders.size!==3)return null;
  const interval=Number(campaign.interval_seconds),visible=Number(campaign.visible_seconds),version=String(campaign.campaign_version??'');
@@ -6208,7 +6208,8 @@ function normalizeFloatingPromoCampaign(payload){
 }
 function floatingPromoCampaignCategoriesExist(campaign){
  const categories=new Set((Array.isArray(productos)?productos:[]).map(item=>String(item?.category||'').trim()).filter(Boolean));
- return !!campaign?.buttons?.length&&campaign.buttons.every(button=>button.target_category&&categories.has(button.target_category));
+ const visibleButtons=(campaign?.buttons||[]).filter(button=>button.enabled!==false);
+ return visibleButtons.length>0&&visibleButtons.every(button=>button.target_category&&categories.has(button.target_category));
 }
 function floatingPromoDismissed(version){
  try{return localStorage.getItem(FLOATING_PROMO_DISMISSAL_KEY)===String(version)}catch{return floatingPromoDismissedSessionVersion===String(version)}
@@ -6233,7 +6234,7 @@ function renderFloatingPromoWidget(campaign){
  const header=document.createElement('div');header.className='floatingPromoHeader';
  const close=document.createElement('button');close.type='button';close.className='floatingPromoClose';close.setAttribute('aria-label','Cerrar campaña flotante');close.title='Cerrar';close.textContent='×';close.addEventListener('click',()=>hideFloatingPromoWidget(true));header.appendChild(close);host.appendChild(header);
  const actions=document.createElement('div');actions.className='floatingPromoActions';
- for(const item of campaign.buttons){
+ for(const item of campaign.buttons.filter(button=>button.enabled!==false)){
   const button=document.createElement('button');button.type='button';button.className=`floatingPromoAction floatingPromoAction--${item.appearance}`;button.dataset.floatingPromoKey=item.key;button.title=item.target_category;
   button.style.setProperty('--fp-bg',item.background_color);button.style.setProperty('--fp-text',item.text_color);button.style.setProperty('--fp-accent',item.accent_color);
   const icon=document.createElement('span');icon.className='floatingPromoActionIcon';icon.setAttribute('aria-hidden','true');icon.textContent=item.icon;

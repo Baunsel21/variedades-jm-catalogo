@@ -6,6 +6,7 @@ const root = new URL('../', import.meta.url);
 const index = readFileSync(new URL('index.html', root), 'utf8');
 const admin = readFileSync(new URL('admin.html', root), 'utf8');
 const migration = readFileSync(new URL('supabase/migrations/20261112010000_storefront_floating_promotions.sql', root), 'utf8');
+const toggleMigration = readFileSync(new URL('supabase/migrations/20261112020000_storefront_floating_promo_button_toggles.sql', root), 'utf8');
 
 const normalizerStart = index.indexOf('function normalizeFloatingPromoCampaign(payload){');
 const normalizerEnd = index.indexOf('\nfunction floatingPromoCampaignCategoriesExist', normalizerStart);
@@ -35,7 +36,15 @@ function normalize(payload, { catalogLoaded = true } = {}) {
 const valid = normalize({ success: true, campaign: { enabled: true, interval_seconds: 20, visible_seconds: 3, campaign_version: 4, buttons: [...buttons].reverse() } });
 assert.equal(valid.enabled, true);
 assert.equal(valid.campaign_version, '4');
+assert.deepEqual(Array.from(valid.buttons, button => button.enabled), [true, true, true], 'los botones legacy sin enabled conservan compatibilidad activa');
 assert.deepEqual(Array.from(valid.buttons, button => button.key), ['best_selling', 'trending', 'top_product'], 'orden final por sort_order');
+for (const disabledKey of ['best_selling', 'trending', 'top_product']) {
+  const mixed = buttons.map(button => ({ ...button, enabled: button.key !== disabledKey }));
+  const normalized = normalize({ success: true, campaign: { enabled: true, interval_seconds: 20, visible_seconds: 3, campaign_version: 5, buttons: mixed } });
+  assert.equal(normalized.buttons.find(button => button.key === disabledKey).enabled, false, `se conserva apagado ${disabledKey}`);
+  assert.equal(normalized.buttons.filter(button => button.enabled !== false).length, 2, `combinación de dos botones para ${disabledKey}`);
+}
+assert.equal(normalize({ success: true, campaign: { enabled: true, interval_seconds: 20, visible_seconds: 3, campaign_version: 6, buttons: buttons.map(button => ({ ...button, enabled: button.key === 'best_selling' })) } }).buttons.filter(button => button.enabled !== false).length, 1, 'combinación de un botón');
 assert.equal(normalize({ success: false, campaign: { enabled: true, buttons } }), null, 'respuesta RPC fallida no se muestra');
 assert.equal(normalize({ success: true, campaign: { enabled: true, interval_seconds: 20, visible_seconds: 3, campaign_version: 4, buttons: buttons.map((button, i) => i === 0 ? { ...button, target_category: 'No existe' } : button) } }), null, 'destino inexistente falla cerrado tras cargar el catálogo');
 assert.equal(normalize({ success: true, campaign: { enabled: true, interval_seconds: 20, visible_seconds: 3, campaign_version: 4, buttons: buttons.map((button, i) => i === 0 ? { ...button, target_category: 'Aún no cargada' } : button) } }, { catalogLoaded: false })?.enabled, true, 'una respuesta temprana espera a la carga del catálogo y se revalida antes de mostrarse');
@@ -56,6 +65,8 @@ assert.match(promoActionCss, /width:102px;height:40px;min-width:102px;min-height
 assert.match(promoWidgetCss, /right:max\(12px,env\(safe-area-inset-right\)\);bottom:calc\(max\(12px,env\(safe-area-inset-bottom\)\) \+ 46px\)/, 'la campaña queda justo encima de WhatsApp y alineada a la derecha');
 assert.match(index, /@media\(max-width:390px\)[\s\S]*\.floatingPromoWidget\{[^}]*width:98px[\s\S]*\.floatingPromoAction\{[^}]*width:98px[^}]*height:38px/, 'la caja compartida se adapta a móvil');
 assert.equal((admin.match(/class="floatingPromoAdminButton"/g) || []).length, 3, 'admin configura exactamente tres botones');
+assert.equal((admin.match(/data-field="enabled" type="checkbox"/g) || []).length, 3, 'admin expone tres interruptores independientes');
+assert.match(admin, /field\.type==='checkbox'\?field\.checked:field\.value/, 'admin conserva el estado checkbox al guardar');
 assert.match(admin, /sb\.rpc\('get_public_storefront_floating_promotions'\)/);
 assert.match(admin, /20261112010000_storefront_floating_promotions\.sql/);
 assert.match(admin, /el formulario queda bloqueado y no muestra valores simulados/);
@@ -80,6 +91,7 @@ assert.ok(renderStart >= 0 && renderEnd > renderStart);
 assert.doesNotMatch(index.slice(renderStart, renderEnd), /innerHTML/, 'el copy administrable se inserta como texto, no HTML');
 assert.doesNotMatch(index.slice(renderStart, renderEnd), /Descubre el catálogo/, 'el diseño del widget conserva solo las tres filas y la X');
 assert.match(index, /floatingPromoCampaignCategoriesExist\(campaign\)/, 'categorías vuelven a validarse antes de mostrar la campaña');
+assert.match(index, /campaign\.buttons\.filter\(button=>button\.enabled!==false\)/, 'solo se renderizan botones activados');
 assert.match(index, /floatingPromoFooterObserver/, 'un observer retira la campaña al entrar al footer');
 
 const blockerStart = index.indexOf('function floatingPromoIsBlocked(){');
@@ -116,6 +128,10 @@ assert.match(migration, /auth\.uid\(\) IS DISTINCT FROM v_admin_user_id/);
 assert.match(migration, /REVOKE ALL ON FUNCTION public\.admin_save_storefront_floating_promotions\(jsonb\) FROM PUBLIC, anon, authenticated/);
 assert.match(migration, /GRANT EXECUTE ON FUNCTION public\.admin_save_storefront_floating_promotions\(jsonb\) TO authenticated/);
 assert.match(migration, /v_enabled AND \(v_category = '' OR NOT EXISTS/);
+assert.match(toggleMigration, /v_button_enabled boolean/);
+assert.match(toggleMigration, /v_button \? 'enabled'/);
+assert.match(toggleMigration, /'enabled', v_button_enabled/);
+assert.match(toggleMigration, /v_enabled AND v_button_enabled AND/);
 
 const clearStart = admin.indexOf('function clearFloatingPromoSettingsForm(){');
 const clearEnd = admin.indexOf('\nfunction floatingPromoProductCategories', clearStart);
