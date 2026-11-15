@@ -151,6 +151,7 @@ const context = vm.createContext({
   },
   hiddenAdminVariantsWithData() { return []; },
   selectedVariantFiles() { return {}; },
+  snapshotAdminUploadFile: async file => file,
   resetAdminNewColorForm() {},
   renderPhotoPreview() {},
   renderSizeGuidePhotoPreview() {},
