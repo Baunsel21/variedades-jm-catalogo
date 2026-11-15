@@ -478,7 +478,7 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
             <div id="sizeGuidePhotoPreview" class="photoPreview" hidden></div>
             <button id="clearSizeGuidePhoto" type="button" class="softbtn" style="display:none;margin-top:8px" onclick="removeSizeGuidePhoto()">Quitar foto de guía</button>
           </div>
-          <label class="full">Fotos del producto<input id="pFoto" type="file" accept="image/*" multiple><small class="muted">Al editar verás primero las fotos que ya están guardadas. Las imágenes que selecciones aquí se añadirán al producto.</small><div id="existingPhotoStatus" class="muted" role="status" style="font-size:12px;margin-top:8px">Las fotos actuales aparecerán al editar un producto.</div><div id="existingPhotoPreview" class="photoPreview"></div><small class="muted" style="display:block;margin-top:10px">Fotos nuevas seleccionadas:</small><div id="photoPreview" class="photoPreview"></div></label>
+          <label class="full">Fotos del producto<input id="pFoto" type="file" accept="image/*" multiple><small id="productPhotoUploadStatus" class="muted" role="status" aria-live="polite"></small><small class="muted">Al editar verás primero las fotos que ya están guardadas. Las imágenes que selecciones aquí se añadirán al producto.</small><div id="existingPhotoStatus" class="muted" role="status" style="font-size:12px;margin-top:8px">Las fotos actuales aparecerán al editar un producto.</div><div id="existingPhotoPreview" class="photoPreview"></div><small class="muted" style="display:block;margin-top:10px">Fotos nuevas seleccionadas:</small><div id="photoPreview" class="photoPreview"></div></label>
         </div><div style="margin-top:17px;display:flex;gap:9px"><button class="primary" onclick="guardarProducto()">💾 Guardar producto</button><button class="primary" onclick="guardarProducto(true)">💾 Guardar y agregar otro</button><button class="softbtn" onclick="limpiarProducto()">Limpiar</button></div></div>
       </section>
 
@@ -1154,9 +1154,10 @@ async function prepareImageForUpload(file){
  const normalExtension=R2_MIME_EXTENSION[contentType]||"";
  const extensionMatches=contentType==="image/jpeg"?(originalExt==="jpg"||originalExt==="jpeg"):originalExt===normalExtension;
  if(!Number(file.size))throw new Error("El archivo seleccionado está vacío. Vuelve a elegir la imagen.");
- // Do not force mobile browsers to decode ordinary supported files merely to compress them.
- // PNG/JPG/WEBP up to 10 MiB are sent as-is; this avoids Android decoder failures and preserves quality.
+ // Compress ordinary large photos when the browser can decode them, but never block a valid
+ // supported mobile image solely because Android's image decoder fails.
  const directUploadLimit=10*1024*1024;
+ const smallImageDirectLimit=1.5*1024*1024;
  if(contentType==="image/gif" && supported){
    // Do not silently turn an animated product GIF into a still image.
    if(file.size>15*1024*1024)throw new Error("El GIF supera 15 MB. Para conservar la animación, reduce su tamaño o usa una versión JPG/WEBP menor de 15 MB.");
@@ -1164,16 +1165,23 @@ async function prepareImageForUpload(file){
     ?file
     :new File([file],uploadBaseName(file)+".gif",{type:"image/gif",lastModified:file.lastModified||Date.now()});
  }
- if(supported && file.size<=directUploadLimit){
-   // Normalize the MIME and extension when Android reports application/octet-stream or a mismatched name.
+ if(supported && file.size<=smallImageDirectLimit){
+   // Small supported images do not need another decode/compression pass.
    return extensionMatches && suppliedType===contentType
     ?file
     :new File([file],uploadBaseName(file)+"."+normalExtension,{type:contentType,lastModified:file.lastModified||Date.now()});
  }
  let decoded;
- try{decoded=await decodeUploadImage(file)}catch{
+ try{decoded=await decodeUploadImage(file)}catch(error){
+   if(supported && file.size<=directUploadLimit){
+     console.warn("El navegador móvil no pudo decodificar la foto; se enviará el archivo original sin compresión.",error);
+     // Graceful fallback: the original file has already been snapshotted and validated.
+     return extensionMatches && suppliedType===contentType
+      ?file
+      :new File([file],uploadBaseName(file)+"."+normalExtension,{type:contentType,lastModified:file.lastModified||Date.now()});
+   }
    const ext=originalExt||"desconocido";
-   throw new Error(`No se pudo preparar la foto “${file.name||"seleccionada"}” (formato ${ext}). En el celular, selecciona una copia JPG, PNG o WEBP y vuelve a intentarlo.`);
+   throw new Error(`No se pudo preparar la foto “${file.name||"seleccionada"}” (formato ${ext}). En el celular, selecciona una copia JPG, PNG o WEBP de hasta 10 MB y vuelve a intentarlo.`);
  }
  try{
    const width=Number(decoded.width)||0,height=Number(decoded.height)||0;
@@ -3366,9 +3374,10 @@ async function uploadProductImages(productId, files, userId,isCurrent=()=>true){
    const path=`products/${productId}/gallery/${fingerprint}.${ext}`;
    let uploaded;try{uploaded=await uploadImageToR2(path,file,isCurrent)}catch(error){setProductPhotoState(0,'error');throw error}ensureAdminOperationCurrent(isCurrent);
    const key=uploaded.key||path;
-   const {error}=await sb.from("products").update({image_url:key}).eq("id",productId);
+   const {data,error}=await sb.from("products").update({image_url:key}).eq("id",productId).select("id").maybeSingle();
    ensureAdminOperationCurrent(isCurrent);
    if(error)throw new Error("La foto se subió a R2, pero no se pudo guardar como foto principal: "+error.message);
+   if(!data?.id)throw new Error("La foto se subió a R2, pero Supabase no confirmó que guardó su referencia en el producto.");
    setProductPhotoState(0,'success');
    toast(files.length>1?"Se guardó la foto principal. La galería múltiple requiere la tabla opcional product_images; no se subieron las otras fotos.":"Foto principal guardada.");
    return [{product_id:productId,user_id:userId,image_path:key,sort_order:0,primaryFallback:true}];
@@ -3390,6 +3399,7 @@ async function uploadProductImages(productId, files, userId,isCurrent=()=>true){
     const ins=await sb.from("product_images").insert({product_id:productId,user_id:userId,image_path:imagePath,sort_order:i}).select("image_path").maybeSingle();
     ensureAdminOperationCurrent(isCurrent);
     if(ins.error){setProductPhotoState(i,'error');throw new Error("La foto se subió, pero no se pudo guardar su referencia: "+ins.error.message)}
+    if(ins.data?.image_path!==imagePath){setProductPhotoState(i,'error');throw new Error("La foto se subió a R2, pero Supabase no confirmó que guardó su referencia en la galería.")}
    }
    setProductPhotoState(i,'success');
    added.push({product_id:productId,user_id:userId,image_path:imagePath,sort_order:i});
@@ -3425,7 +3435,7 @@ async function retryProductPhoto(index){
  try{
   const added=await uploadProductImages(productId,[file],userId,isCurrent);ensureAdminOperationCurrent(isCurrent);
   const product=productos.find(x=>String(x.id)===String(productId));
-  if(product&&!product.image_url&&added[0]){const update=await sb.from('products').update({image_url:added[0].image_path}).eq('id',productId);if(update.error)throw new Error('La foto se subió, pero no se pudo guardar la foto principal: '+update.error.message)}
+  if(product&&!product.image_url&&added[0]){const update=await sb.from('products').update({image_url:added[0].image_path}).eq('id',productId).select('id').maybeSingle();if(update.error)throw new Error('La foto se subió, pero no se pudo guardar la foto principal: '+update.error.message);if(!update.data?.id)throw new Error('La foto se subió a R2, pero Supabase no confirmó la referencia de la foto principal.')}
   setProductPhotoState(index,'success');toast('Foto subida correctamente.');notifyPublicCatalogChanged('product-images-changed',{productId,refreshImages:true});
  }catch(error){setProductPhotoState(index,'error');alert('No se pudo subir esta foto. El producto se conserva y puedes reintentarlo sin duplicarlo.\n\n'+(error?.message||error))}
 }
@@ -3590,9 +3600,10 @@ async function uploadSizeGuidePhoto(productId,file,isCurrent=()=>true){
  const path=`products/${productId}/size-guide/${crypto.randomUUID()}.${ext}`;
  const uploaded=await uploadImageToR2(path,file,isCurrent);ensureAdminOperationCurrent(isCurrent);
  const key=uploaded.key||path;
- const {error}=await sb.from("products").update({size_guide_image:key}).eq("id",productId);
+ const {data,error}=await sb.from("products").update({size_guide_image:key}).eq("id",productId).select("id").maybeSingle();
  ensureAdminOperationCurrent(isCurrent);
  if(error)throw new Error("La foto se subió, pero no se pudo guardar su referencia en el producto: "+error.message);
+ if(!data?.id)throw new Error("La guía se subió a R2, pero Supabase no confirmó que guardó la referencia en el producto.");
  editingSizeGuideImagePath=key;sizeGuideImageRemoveRequested=false;
  return key;
 }
@@ -4053,7 +4064,7 @@ function notifyPublicCatalogChanged(type='catalog',details={}){
  try{
    if(isEditing){
      const {error}=await sb.from("products").update(obj).eq("id",originalProductId);if(!isCurrent())return false;if(error)throw error;
-     if(files.length){const added=await uploadProductImages(originalProductId,files,user.id,isCurrent);if(!isCurrent())return false;if(!fotoUrl&&added[0]){const updatePhoto=await sb.from("products").update({image_url:added[0].image_path}).eq("id",originalProductId);if(!isCurrent())return false;if(updatePhoto.error)throw new Error("Las fotos se subieron, pero no se pudo actualizar la foto principal: "+updatePhoto.error.message)}}
+     if(files.length){const added=await uploadProductImages(originalProductId,files,user.id,isCurrent);if(!isCurrent())return false;if(!fotoUrl&&added[0]){const updatePhoto=await sb.from("products").update({image_url:added[0].image_path}).eq("id",originalProductId).select("id").maybeSingle();if(!isCurrent())return false;if(updatePhoto.error)throw new Error("Las fotos se subieron, pero no se pudo actualizar la foto principal: "+updatePhoto.error.message);if(!updatePhoto.data?.id)throw new Error("Las fotos se subieron a R2, pero Supabase no confirmó la referencia de la foto principal.")}}
      if(Object.keys(variantFiles).length){const updatedVariants=await uploadVariantPhotos(originalProductId,variantDraft,variantFiles,isCurrent);if(!isCurrent())return false;const updateVariants=await sb.from("products").update({variants:updatedVariants,quantity:totalVariantStock(updatedVariants)}).eq("id",originalProductId);if(!isCurrent())return false;if(updateVariants.error)throw new Error("Las fotos de variantes se subieron, pero no se pudo guardar su inventario: "+updateVariants.error.message);await verifyVariantPhotoReferences(originalProductId,updatedVariants,variantFiles,isCurrent)}
      if(sizeGuideFile){await uploadSizeGuidePhoto(originalProductId,sizeGuideFile,isCurrent);if(!isCurrent())return false}
      toast("Producto actualizado correctamente");
@@ -4063,7 +4074,7 @@ function notifyPublicCatalogChanged(type='catalog',details={}){
      if(error)throw error;
      savedProductId=data.id;editingId=savedProductId;
      $("formTitle").textContent="Completar producto "+(obj.code||"");
-     if(files.length){const added=await uploadProductImages(savedProductId,files,user.id,isCurrent);if(!isCurrent())return false;if(added[0]){const updatePhoto=await sb.from("products").update({image_url:added[0].image_path}).eq("id",savedProductId);if(!isCurrent())return false;if(updatePhoto.error)throw new Error("El producto quedó creado, pero no se pudo guardar la foto principal: "+updatePhoto.error.message)}}
+     if(files.length){const added=await uploadProductImages(savedProductId,files,user.id,isCurrent);if(!isCurrent())return false;if(added[0]){const updatePhoto=await sb.from("products").update({image_url:added[0].image_path}).eq("id",savedProductId).select("id").maybeSingle();if(!isCurrent())return false;if(updatePhoto.error)throw new Error("El producto quedó creado, pero no se pudo guardar la foto principal: "+updatePhoto.error.message);if(!updatePhoto.data?.id)throw new Error("El producto quedó creado y la foto subió a R2, pero Supabase no confirmó su referencia principal.")}}
      if(Object.keys(variantFiles).length){const updatedVariants=await uploadVariantPhotos(savedProductId,variantDraft,variantFiles,isCurrent);if(!isCurrent())return false;const updateVariants=await sb.from("products").update({variants:updatedVariants,quantity:totalVariantStock(updatedVariants)}).eq("id",savedProductId);if(!isCurrent())return false;if(updateVariants.error)throw new Error("El producto quedó creado, pero no se pudo guardar el inventario de variantes: "+updateVariants.error.message);await verifyVariantPhotoReferences(savedProductId,updatedVariants,variantFiles,isCurrent)}
      if(sizeGuideFile){await uploadSizeGuidePhoto(savedProductId,sizeGuideFile,isCurrent);if(!isCurrent())return false}
      toast("Producto guardado correctamente");
@@ -5342,7 +5353,7 @@ document.addEventListener("DOMContentLoaded",()=>{
   const couponsHost=$("storefrontCouponsAdminList");if(couponsHost)couponsHost.addEventListener('click',event=>{const edit=event.target.closest('[data-coupon-admin-edit]');if(edit)editStorefrontCoupon(edit.dataset.couponAdminEdit)});
   const couponCodeInput=$("storefrontCouponCode");if(couponCodeInput)couponCodeInput.addEventListener('input',()=>{const normalized=String(couponCodeInput.value||'').trim().toUpperCase();if(couponCodeInput.value!==normalized)couponCodeInput.value=normalized});
   const comboRuleType=$('storefrontComboRuleType');if(comboRuleType)comboRuleType.addEventListener('change',updateStorefrontComboRuleFields);const comboPlacement=$('storefrontComboDisplayLocation');if(comboPlacement)comboPlacement.addEventListener('change',updateStorefrontComboRuleFields);const comboDiscountType=$('storefrontComboDiscountType');if(comboDiscountType)comboDiscountType.addEventListener('change',updateStorefrontComboRuleFields);
-  const f=$("pFoto");if(f)f.addEventListener("change",()=>{productPhotoUploadStates=[];void warmAdminUploadFiles(f);renderPhotoPreview()});
+  const f=$("pFoto");if(f)f.addEventListener("change",()=>{productPhotoUploadStates=[];void warmAdminUploadFiles(f,"productPhotoUploadStatus");renderPhotoPreview()});
   const guideFile=$("pGuiaTallasFoto");if(guideFile)guideFile.addEventListener("change",()=>{if(guideFile.files?.length)sizeGuideImageRemoveRequested=false;void warmAdminUploadFiles(guideFile,"sizeGuideUploadStatus");renderSizeGuidePhotoPreview()});
   document.addEventListener("change",event=>{const variantInput=event.target?.closest?.("#productModal .variantColorPhoto");if(variantInput)void warmAdminUploadFiles(variantInput)},true);
 
