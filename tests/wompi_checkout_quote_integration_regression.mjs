@@ -64,9 +64,12 @@ globalThis.fetch = async (input, init = {}) => {
   if (url.pathname === '/rest/v1/rpc/claim_storefront_wompi_checkout') {
     return jsonResponse({ success: true });
   }
-  if (url.pathname === '/rest/v1/orders' && method === 'POST') {
+  if (url.pathname === '/rest/v1/rpc/create_storefront_wompi_pending_order' && method === 'POST') {
     capturedOrderInserts.push(body);
-    return new Response(null, { status: 201 });
+    return jsonResponse({ success: true, order_id: '33333333-3333-4333-8333-333333333333', reference: body.p_reference });
+  }
+  if (url.pathname === '/rest/v1/orders' && method === 'POST') {
+    throw new Error('El checkout no debe hacer INSERT directo en public.orders.');
   }
   throw new Error(`Unexpected mocked request: ${method} ${url.pathname}`);
 };
@@ -167,14 +170,13 @@ const expectedSignature = createHash('sha256')
 assert.equal(paymentIntent.signature, expectedSignature);
 assert.equal(capturedOrderInserts.length, 1);
 const inserted = capturedOrderInserts[0];
-assert.equal(inserted.payment_method, 'wompi');
-assert.equal(inserted.payment_status, 'PENDING');
-assert.equal(inserted.subtotal, 60000);
-assert.equal(inserted.shipping, 15000);
-assert.equal(inserted.total, 69000);
-assert.equal(inserted.coupon_id, couponId);
-assert.equal(inserted.coupon_code, couponCode);
-assert.equal(inserted.coupon_discount_total, 6000);
+assert.equal(inserted.p_reference, baseBody.reference);
+assert.equal(inserted.p_subtotal, 60000);
+assert.equal(inserted.p_shipping, 15000);
+assert.equal(inserted.p_total, 69000);
+assert.equal(inserted.p_coupon_id, couponId);
+assert.equal(inserted.p_coupon_code, couponCode);
+assert.equal(inserted.p_coupon_discount_total, 6000);
 assert.equal(Object.hasOwn(inserted, 'cedula'), false, 'document must not be copied into the Wompi order payload by this path');
 assert.equal(Object.hasOwn(inserted, 'customer_cedula'), false, 'document must not be copied into the Wompi order payload by this path');
 assert.equal(JSON.stringify(paymentIntent).includes('TEST-DOCUMENTO-001'), false, 'payment intent response must not return the identity document');

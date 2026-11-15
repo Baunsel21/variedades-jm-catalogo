@@ -755,31 +755,31 @@ Deno.serve(async (req: Request): Promise<Response> => {
     // Wompi specifies expiration-time as part of the integrity signature when supplied.
     const signature = await sha256Hex(`${reference}${amountInCents}COP${expirationTime}${integritySecret}`);
     if (!existing) {
-      // Once INSERT starts, a network/5xx result cannot prove that PostgreSQL did
-      // not commit. Keep all holds until TTL rather than racing a later commit.
+      // Insert through a narrow SECURITY DEFINER RPC. This keeps direct table
+      // INSERT closed to browser roles and avoids the PostgREST 403 path caused
+      // by the production orders ACL/schema boundary.
       orderInsertAttempted = true;
-      const orderResponse = await fetch(`${supabaseUrl}/rest/v1/orders`, {
+      const orderResponse = await fetch(`${supabaseUrl}/rest/v1/rpc/create_storefront_wompi_pending_order`, {
         method: "POST",
-        headers: { ...supabaseHeaders(serviceRoleKey), Prefer: "return=minimal" },
+        headers: supabaseHeaders(serviceRoleKey),
         body: JSON.stringify({
-          reference,
-          customer_name: name,
-          phone,
-          city,
-          address,
-          neighborhood,
-          items: quote.items,
-          subtotal,
-          shipping,
-          total: totalCop,
-          coupon_id: couponCode ? quoteCouponId : null,
-          coupon_code: couponCode || null,
-          coupon_discount_total: couponCode ? couponDiscountTotal : 0,
-          payment_method: "wompi",
-          payment_status: "PENDING",
+          p_reference: reference,
+          p_customer_name: name,
+          p_phone: phone,
+          p_city: city,
+          p_address: address,
+          p_neighborhood: neighborhood,
+          p_items: quote.items,
+          p_subtotal: subtotal,
+          p_shipping: shipping,
+          p_total: totalCop,
+          p_coupon_id: couponCode ? quoteCouponId : null,
+          p_coupon_code: couponCode || null,
+          p_coupon_discount_total: couponCode ? couponDiscountTotal : 0,
         }),
       });
-      if (!orderResponse.ok) {
+      const orderResult = rpcObject(await readJson(orderResponse));
+      if (!orderResponse.ok || orderResult?.success !== true) {
         return json({
           code: "WOMPI_ORDER_INSERT_UNCONFIRMED",
           error: "No se pudo confirmar si el pedido quedó registrado. Esta solicitud no abrió la sesión de pago; espera el vencimiento de la reserva antes de volver a intentarlo.",
