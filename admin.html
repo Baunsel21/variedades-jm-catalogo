@@ -1153,15 +1153,22 @@ async function prepareImageForUpload(file){
  const supported=R2_ALLOWED_IMAGE_TYPES.has(contentType);
  const normalExtension=R2_MIME_EXTENSION[contentType]||"";
  const extensionMatches=contentType==="image/jpeg"?(originalExt==="jpg"||originalExt==="jpeg"):originalExt===normalExtension;
- // Keep normal-sized supported photos untouched to preserve their original quality.
- if(supported && file.size<=1.5*1024*1024 && extensionMatches && suppliedType===contentType)return file;
+ if(!Number(file.size))throw new Error("El archivo seleccionado está vacío. Vuelve a elegir la imagen.");
+ // Do not force mobile browsers to decode ordinary supported files merely to compress them.
+ // PNG/JPG/WEBP up to 10 MiB are sent as-is; this avoids Android decoder failures and preserves quality.
+ const directUploadLimit=10*1024*1024;
  if(contentType==="image/gif" && supported){
    // Do not silently turn an animated product GIF into a still image.
    if(file.size>15*1024*1024)throw new Error("El GIF supera 15 MB. Para conservar la animación, reduce su tamaño o usa una versión JPG/WEBP menor de 15 MB.");
-   return new File([file],uploadBaseName(file)+".gif",{type:"image/gif",lastModified:file.lastModified||Date.now()});
+   return extensionMatches && suppliedType===contentType
+    ?file
+    :new File([file],uploadBaseName(file)+".gif",{type:"image/gif",lastModified:file.lastModified||Date.now()});
  }
- if(supported && file.size<=1.5*1024*1024){
-   return new File([file],uploadBaseName(file)+"."+normalExtension,{type:contentType,lastModified:file.lastModified||Date.now()});
+ if(supported && file.size<=directUploadLimit){
+   // Normalize the MIME and extension when Android reports application/octet-stream or a mismatched name.
+   return extensionMatches && suppliedType===contentType
+    ?file
+    :new File([file],uploadBaseName(file)+"."+normalExtension,{type:contentType,lastModified:file.lastModified||Date.now()});
  }
  let decoded;
  try{decoded=await decodeUploadImage(file)}catch{
