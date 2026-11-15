@@ -474,6 +474,7 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
             <label for="pGuiaTallasFoto" class="sizeGuideUploadLabel">Foto de la guía de tallas (opcional)</label>
             <input id="pGuiaTallasFoto" type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/avif">
             <small class="muted">La foto se mostrará completa y adaptada al ancho del apartado “Guía de tallas” del catálogo.</small>
+            <small id="sizeGuideUploadStatus" class="muted" role="status" aria-live="polite"></small>
             <div id="sizeGuidePhotoPreview" class="photoPreview" hidden></div>
             <button id="clearSizeGuidePhoto" type="button" class="softbtn" style="display:none;margin-top:8px" onclick="removeSizeGuidePhoto()">Quitar foto de guía</button>
           </div>
@@ -1087,6 +1088,50 @@ const R2_EXTENSION_MIME={jpg:"image/jpeg",jpeg:"image/jpeg",png:"image/png",webp
 const R2_MIME_EXTENSION={"image/jpeg":"jpg","image/png":"png","image/webp":"webp","image/gif":"gif","image/avif":"avif"};
 function uploadExtension(file){return String(file?.name||"").split(".").pop().toLowerCase()}
 function uploadBaseName(file){return String(file?.name||"foto").replace(/\.[^.]*$/,'').replace(/[^a-zA-Z0-9_-]/g,'_').slice(0,70)||"foto"}
+// Copy selected mobile files into an in-memory File immediately after selection.
+// Android document providers can revoke the temporary file reference before a later upload.
+const adminUploadFileSnapshots=new WeakMap();
+async function readAdminUploadFileBytes(file){
+ try{return await file.arrayBuffer()}catch(arrayBufferError){
+  if(typeof FileReader!=='function')throw arrayBufferError;
+  return await new Promise((resolve,reject)=>{
+   const reader=new FileReader();
+   reader.onload=()=>reader.result instanceof ArrayBuffer?resolve(reader.result):reject(new Error('El lector no devolvió los bytes de la imagen.'));
+   reader.onerror=()=>reject(reader.error||arrayBufferError);
+   reader.onabort=()=>reject(new Error('La lectura de la imagen fue cancelada.'));
+   try{reader.readAsArrayBuffer(file)}catch(error){reject(error)}
+  });
+ }
+}
+async function snapshotAdminUploadFile(file){
+ if(!file)return file;
+ if((typeof file!=='object'&&typeof file!=='function')||typeof file.arrayBuffer!=='function')throw new Error('El archivo seleccionado no está disponible. Vuelve a elegir la imagen desde el teléfono.');
+ let pending=adminUploadFileSnapshots.get(file);
+ if(!pending){
+  pending=(async()=>{
+   const bytes=await readAdminUploadFileBytes(file);
+   if(!(bytes instanceof ArrayBuffer)||!bytes.byteLength)throw new Error('El archivo seleccionado está vacío o el teléfono no permitió leerlo.');
+   if(Number(file.size)>0&&bytes.byteLength!==Number(file.size))throw new Error('La lectura de la imagen quedó incompleta.');
+   return new File([bytes],String(file.name||'imagen.jpg'),{type:String(file.type||'application/octet-stream'),lastModified:Number(file.lastModified)||Date.now()});
+  })();
+  adminUploadFileSnapshots.set(file,pending);
+ }
+ try{return await pending}catch(error){adminUploadFileSnapshots.delete(file);throw new Error('Android o el navegador perdió el acceso temporal a esa imagen. Vuelve a seleccionarla desde Imágenes o Descargas y espera a que termine de prepararse. Detalle: '+String(error?.message||error));}
+}
+async function warmAdminUploadFiles(input,statusId=''){
+ const files=Array.from(input?.files||[]);if(!files.length)return true;
+ const status=statusId?$(statusId):null;
+ if(status)status.textContent='Preparando una copia segura de la imagen…';
+ try{
+  await Promise.all(files.map(snapshotAdminUploadFile));
+  if(status)status.textContent='Imagen lista para subir.';
+  return true;
+ }catch(error){
+  if(status)status.textContent='No se pudo leer la imagen. Vuelve a seleccionarla desde Imágenes o Descargas.';
+  console.warn('No se pudo preparar el archivo seleccionado:',error);
+  return false;
+ }
+}
 function decodeUploadImage(file){
  if(typeof createImageBitmap==="function")return createImageBitmap(file).catch(()=>decodeWithImageElement(file));
  return decodeWithImageElement(file);
@@ -1100,6 +1145,7 @@ function decodeWithImageElement(file){
  });
 }
 async function prepareImageForUpload(file){
+ file=await snapshotAdminUploadFile(file);
  const originalExt=uploadExtension(file);
  const suppliedType=String(file?.type||"").split(";")[0].trim().toLowerCase();
  const inferredType=R2_EXTENSION_MIME[originalExt]||"";
@@ -1156,6 +1202,7 @@ async function prepareImageForUpload(file){
 }
 const waitForUploadRetry=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 async function uploadFileFingerprint(file){
+ file=await snapshotAdminUploadFile(file);
  if(!file||typeof crypto?.subtle?.digest!=='function')return `${file?.name||'foto'}-${file?.size||0}-${file?.lastModified||0}`.replace(/[^a-zA-Z0-9_-]/g,'_').slice(0,48);
  const bytes=await file.arrayBuffer(),digest=await crypto.subtle.digest('SHA-256',bytes);
  return [...new Uint8Array(digest)].map(x=>x.toString(16).padStart(2,'0')).join('').slice(0,32);
@@ -3980,6 +4027,16 @@ function notifyPublicCatalogChanged(type='catalog',details={}){
 	const confirmedHidden=[...hiddenPhotos,...hiddenHexOnly];
 	if(confirmedHidden.length)variantMemory=discardHiddenAdminVariants(variantMemory,confirmedHidden);
 	const variantFiles=selectedVariantFiles();
+ try{
+  // Read every selected image before touching the product row. This avoids partial saves
+  // when Android revokes a picker reference while other Supabase work is in progress.
+  await Promise.all([...files,sizeGuideFile,...Object.values(variantFiles)].filter(Boolean).map(snapshotAdminUploadFile));
+  if(!isCurrent())return false;
+ }catch(error){
+  if(!isCurrent())return false;
+  alert('No se guardó ni modificó el producto porque el teléfono no permitió leer una de las imágenes. Vuelve a seleccionarla desde Imágenes o Descargas y espera a que aparezca "Imagen lista para subir".\\n\\n'+(error?.message||error));
+  return false;
+ }
  const variantStock=variantDraft.length?totalVariantStock(variantDraft):(+$('pCantidad').value||0);
  const obj={name:nombre,category:$("pCategoria").value,colors:splitList($("pColores").value),sizes:splitList($("pTallas").value),variants:variantDraft,quantity:variantStock,cost_price:+$("pCompra").value||0,sale_price:+$("pVenta").value||0,location:$("pUbicacion").value.trim(),description:$("pDescripcion").value.trim(),size_guide:$("pGuiaTallas").value.trim(),size_guide_image:sizeGuideImageRemoveRequested?"":existingGuideImage,image_url:fotoUrl};
  let user;
@@ -5278,8 +5335,9 @@ document.addEventListener("DOMContentLoaded",()=>{
   const couponsHost=$("storefrontCouponsAdminList");if(couponsHost)couponsHost.addEventListener('click',event=>{const edit=event.target.closest('[data-coupon-admin-edit]');if(edit)editStorefrontCoupon(edit.dataset.couponAdminEdit)});
   const couponCodeInput=$("storefrontCouponCode");if(couponCodeInput)couponCodeInput.addEventListener('input',()=>{const normalized=String(couponCodeInput.value||'').trim().toUpperCase();if(couponCodeInput.value!==normalized)couponCodeInput.value=normalized});
   const comboRuleType=$('storefrontComboRuleType');if(comboRuleType)comboRuleType.addEventListener('change',updateStorefrontComboRuleFields);const comboPlacement=$('storefrontComboDisplayLocation');if(comboPlacement)comboPlacement.addEventListener('change',updateStorefrontComboRuleFields);const comboDiscountType=$('storefrontComboDiscountType');if(comboDiscountType)comboDiscountType.addEventListener('change',updateStorefrontComboRuleFields);
-  const f=$("pFoto");if(f)f.addEventListener("change",()=>{productPhotoUploadStates=[];renderPhotoPreview()});
-  const guideFile=$("pGuiaTallasFoto");if(guideFile)guideFile.addEventListener("change",()=>{if(guideFile.files?.length)sizeGuideImageRemoveRequested=false;renderSizeGuidePhotoPreview()});
+  const f=$("pFoto");if(f)f.addEventListener("change",()=>{productPhotoUploadStates=[];void warmAdminUploadFiles(f);renderPhotoPreview()});
+  const guideFile=$("pGuiaTallasFoto");if(guideFile)guideFile.addEventListener("change",()=>{if(guideFile.files?.length)sizeGuideImageRemoveRequested=false;void warmAdminUploadFiles(guideFile,"sizeGuideUploadStatus");renderSizeGuidePhotoPreview()});
+  document.addEventListener("change",event=>{const variantInput=event.target?.closest?.("#productModal .variantColorPhoto");if(variantInput)void warmAdminUploadFiles(variantInput)},true);
 
   const box=$("categoryManager");
   if(box){
