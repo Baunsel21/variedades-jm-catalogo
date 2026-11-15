@@ -721,6 +721,19 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
             <div id="wompiReconciliationStatus" class="status" role="status" aria-live="polite">Las conciliaciones se consultarán al abrir Configuración.</div>
             <div id="wompiReconciliationList" style="margin-top:12px"></div>
           </div>
+          <div class="box" style="grid-column:1/-1;border-color:#e6c96f" id="wompiManualRecoveryBox">
+            <h3 style="margin:0 0 7px">🛡️ Verificación manual de checkout Wompi ambiguo</h3>
+            <p class="muted" style="margin-top:0">Uso excepcional. Esta acción <strong>no consulta Wompi automáticamente</strong>, no marca ERROR ni inicia un pago. Antes de continuar, revisa el comercio en el panel oficial de <strong>Wompi Producción</strong> y confirma que no existe una transacción para el intento/referencia. La base conservará el pedido y la reserva; el servidor volverá a aplicar su ventana de seguridad.</p>
+            <div class="promoAdminGrid" style="grid-template-columns:repeat(auto-fit,minmax(230px,1fr))">
+              <label>Qué se va a verificar<select id="wompiManualRecoveryMode"><option value="attempt">Intento iniciado sin transaction_id</option><option value="order">Pedido creado sin intento emitido</option></select></label>
+              <label id="wompiManualRecoveryReferenceLabel">Referencia del intento<input id="wompiManualRecoveryReference" maxlength="120" autocomplete="off" placeholder="SW- seguido de 32 caracteres hexadecimales"></label>
+              <label class="promoToggleRow" style="align-items:flex-start"><input id="wompiManualRecoveryConfirm" type="checkbox"> <span id="wompiManualRecoveryConfirmText">Confirmo que revisé el comercio de Wompi Producción y no hay una transacción asociada. No estoy declarando un pago ERROR.</span></label>
+              <label>Confirmación escrita<input id="wompiManualRecoveryPhrase" maxlength="40" autocomplete="off" placeholder="Escribe: REVISION MANUAL WOMPI PRODUCCION"></label>
+            </div>
+            <p class="paymentSettingsHelp">La recuperación solo será posible si el ledger confirma que el intento/orden sigue sin conciliarse, se cumple la espera de seguridad y la cotización e inventario pueden revalidarse de forma atómica. Si existe una transacción pendiente, aprobada o incierta, el sistema conservará el bloqueo.</p>
+            <button id="submitWompiManualAttestationBtn" class="primary" type="button" onclick="submitWompiManualAttestation()">Registrar verificación manual</button>
+            <div id="wompiManualRecoveryStatus" class="status" role="status" aria-live="polite" style="margin-top:10px">Requiere una sesión administrativa autorizada.</div>
+          </div>
           <div class="box" style="grid-column:1/-1" id="telegramTestBox">
             <div class="rowBetween" style="align-items:flex-start;gap:16px;flex-wrap:wrap">
               <div style="flex:1;min-width:220px"><h3 style="margin-bottom:7px">🔔 Prueba de conexión con Telegram</h3><p class="muted" style="margin-top:0">Envía un único mensaje fijo al chat guardado en los secretos de Supabase. No incluye pedidos, clientes ni datos personales; no activa todavía notificaciones automáticas de eventos.</p></div>
@@ -1773,6 +1786,81 @@ async function loadWompiReconciliation(showStatus=true){
   if(list)list.innerHTML='<div class="empty">No se pudieron consultar las conciliaciones.</div>';
   if(status){status.className='status err';status.textContent='No se pudo consultar la conciliación. Comprueba que tu usuario sea el administrador autorizado.';}
  }finally{if(isCurrent()&&button)button.disabled=false;}
+}
+
+let wompiManualAttestationBusy=false;
+function setWompiManualRecoveryStatus(message,type=''){
+ const status=$('wompiManualRecoveryStatus');if(!status)return;
+ status.className=`status${type?' '+type:''}`;status.textContent=message;
+}
+function updateWompiManualRecoveryMode(){
+ const isOrder=$('wompiManualRecoveryMode')?.value==='order';
+ const label=$('wompiManualRecoveryReferenceLabel'),input=$('wompiManualRecoveryReference');
+ if(label)label.firstChild.textContent=isOrder?'Referencia del pedido':'Referencia del intento';
+ if(input)input.placeholder=isOrder?'Referencia original del pedido':'SW- seguido de 32 caracteres hexadecimales';
+ const confirmText=$('wompiManualRecoveryConfirmText');
+ if(confirmText)confirmText.textContent=isOrder
+  ?'Confirmo que revisé Wompi Producción y verifiqué que nunca se emitió un intento ni se abrió una sesión de pago. No estoy declarando un pago ERROR.'
+  :'Confirmo que revisé Wompi Producción y no hay una transacción asociada a este intento. No estoy declarando un pago ERROR.';
+ const confirmation=$('wompiManualRecoveryConfirm'),phrase=$('wompiManualRecoveryPhrase');
+ if(confirmation)confirmation.checked=false;if(phrase)phrase.value='';
+}
+$('wompiManualRecoveryMode')?.addEventListener('change',updateWompiManualRecoveryMode);
+function wompiManualRecoveryCodeMessage(code){
+ const messages={
+  WOMPI_MANUAL_RECOVERY_WAIT:'La espera de seguridad aún no termina. El pedido y la reserva siguen protegidos; vuelve a revisar después del momento indicado.',
+  WOMPI_MANUAL_RECOVERY_STATE_CONFLICT:'El estado actual no permite esta verificación. No se cambió el pedido ni se liberó su reserva.',
+  WOMPI_MANUAL_ATTESTATION_REQUIRED:'Falta la confirmación manual requerida.',
+  WOMPI_ATTEMPT_NOT_FOUND:'No se encontró un intento elegible. No se modificó el pedido.',
+  WOMPI_NO_UNATTEMPTED_REQUEST:'No se encontró un pedido elegible sin intento emitido.',
+  WOMPI_REQUEST_STATE_CONFLICT:'La solicitud no está en un estado recuperable. Se conservó el bloqueo.',
+ };
+ return messages[code]||'La verificación no se completó. El pedido y la reserva permanecen protegidos.';
+}
+async function submitWompiManualAttestation(){
+ const userId=adminSessionUserId,authEpoch=adminAuthEpoch,isCurrent=()=>adminAuthOperationStillCurrent(userId,authEpoch);
+ const button=$('submitWompiManualAttestationBtn');
+ if(wompiManualAttestationBusy)return;
+ if(!sb||!userId||!isCurrent()){setWompiManualRecoveryStatus('Inicia sesión con la cuenta administradora autorizada.','err');return;}
+ const mode=$('wompiManualRecoveryMode')?.value==='order'?'order':'attempt';
+ const reference=String($('wompiManualRecoveryReference')?.value||'').trim();
+ const confirmed=$('wompiManualRecoveryConfirm')?.checked===true;
+ const phrase=String($('wompiManualRecoveryPhrase')?.value||'').trim().toUpperCase();
+ const validReference=mode==='attempt'?/^SW-[A-F0-9]{32}$/.test(reference):/^[A-Za-z0-9_-]{1,120}$/.test(reference);
+ if(!validReference){setWompiManualRecoveryStatus(mode==='attempt'?'Ingresa una referencia de intento Wompi válida.':'Ingresa la referencia original del pedido.','err');return;}
+ if(!confirmed||phrase!=='REVISION MANUAL WOMPI PRODUCCION'){
+  setWompiManualRecoveryStatus('Marca la confirmación y escribe exactamente “REVISION MANUAL WOMPI PRODUCCION”.','err');return;
+ }
+ const action=mode==='attempt'?'attest_no_transaction':'attest_no_attempt';
+ const warning=mode==='attempt'
+  ?'¿Confirmas que revisaste Wompi Producción y no existe una transacción para este intento? No se consultará Wompi automáticamente ni se marcará ERROR.'
+  :'¿Confirmas que revisaste Wompi Producción y el pedido nunca tuvo un intento/sesión de pago? No se consultará Wompi automáticamente ni se iniciará un pago.';
+ if(typeof window.confirm==='function'&&!window.confirm(warning))return;
+ wompiManualAttestationBusy=true;if(button)button.disabled=true;
+ setWompiManualRecoveryStatus('Registrando la atestación auditada; no se iniciará ningún pago…');
+ try{
+  const body=mode==='attempt'
+   ?{action,attempt_reference:reference,confirm_no_transaction:true}
+   :{action,order_reference:reference,confirm_no_transaction:true};
+  const result=await sb.functions.invoke('admin-wompi-legacy-recovery',{body});
+  if(!isCurrent())return;
+  let data=result?.data||null;
+  if(result?.error){
+   let code='';try{const details=await result.error.context?.json?.();code=String(details?.code||'')}catch{}
+   setWompiManualRecoveryStatus(wompiManualRecoveryCodeMessage(code),'err');return;
+  }
+  if(!data||data.success!==true){setWompiManualRecoveryStatus(wompiManualRecoveryCodeMessage(String(data?.code||'')),'err');return;}
+  const retryAt=Date.parse(String(data.retryAfter||''));
+  const retryText=Number.isFinite(retryAt)?new Date(retryAt).toLocaleString('es-CO',{timeZone:'America/Bogota'}):'después de la ventana de seguridad';
+  setWompiManualRecoveryStatus(`Verificación registrada. El pedido y la reserva se conservaron; no se inició ningún pago. El checkout no podrá recuperarse antes de ${retryText}.`,'ok');
+  const confirmation=$('wompiManualRecoveryConfirm'),phraseInput=$('wompiManualRecoveryPhrase');
+  if(confirmation)confirmation.checked=false;if(phraseInput)phraseInput.value='';
+ }catch{
+  if(isCurrent())setWompiManualRecoveryStatus('No se confirmó el resultado. No repitas la acción a ciegas; el request permanece protegido y debe volver a consultarse.','err');
+ }finally{
+  wompiManualAttestationBusy=false;
+  if(isCurrent()&&button)button.disabled=false;
+ }
 }
 
 const dashboardWompiReviewStateBySession=new Map();

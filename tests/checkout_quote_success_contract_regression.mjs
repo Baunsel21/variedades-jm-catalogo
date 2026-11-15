@@ -74,6 +74,7 @@ async function runCheckout({ city, payment, subtotal, discount, quote, expectedD
   let updateSummaryCalls = 0;
   let wompiCalls = 0;
   let codCalls = 0;
+  let payloadBuildCalls = 0;
   let resetCalls = 0;
   let capturedPayload = null;
   let receivedQuote = null;
@@ -90,6 +91,13 @@ async function runCheckout({ city, payment, subtotal, discount, quote, expectedD
     onlinePaymentsEnabled: true,
     checkoutCouponCode: '',
     normalizeCheckoutCouponCode: value => String(value || '').trim().toUpperCase(),
+    getCheckoutQuoteFingerprint: (_items, code = '') => JSON.stringify({ city, code }),
+    cloneCheckoutSnapshotValue: value => structuredClone(value),
+    wompiCheckoutFormStateFromPayload: payload => ({ name: payload.name, city: payload.city, phone: payload.phone, address: payload.address }),
+    wompiCheckoutCartFingerprint: items => JSON.stringify(items.map(item => [item.id, item.qty, item.color || '', item.size || '', item.price ?? null])),
+    checkoutSnapshotMatchesCurrent: () => true,
+    createImmutableWompiCheckoutSnapshot: values => ({ version: 1, ...values }),
+    captureWompiReservationState: () => ({ activeReference: '', pendingReference: '', activeItems: [], records: [], couponReference: '', couponFingerprint: '' }),
     currentCheckoutCouponQuote: () => null,
     setCheckoutServerQuote(quote) { receivedQuote = quote; context.checkoutShipping = quote.shipping; },
     checkoutDisplayPricing: () => ({ isCouponQuote: false, subtotal, discountTotal: discount }),
@@ -120,9 +128,9 @@ async function runCheckout({ city, payment, subtotal, discount, quote, expectedD
         return { data: quote, error: null };
       },
     },
-    async requestCheckoutQuote(_code, items) {
+    async requestCheckoutQuote(_code, items, quoteCity) {
       const { data, error } = await context.sb.rpc('get_storefront_cart_quote', {
-        p_city: city,
+        p_city: quoteCity,
         p_items: items.map(item => ({ id: String(item.id), qty: Math.max(1, Number(item.qty) || 1),
           color: String(item.color || '').trim(), size: String(item.size || '').trim() })),
       });
@@ -130,8 +138,8 @@ async function runCheckout({ city, payment, subtotal, discount, quote, expectedD
       return data;
     },
     updateCheckoutSummary() { updateSummaryCalls += 1; },
-    buildOrderPayload: () => ({ name: 'Fixture', city, phone: '0000000000', address: 'Synthetic address' }),
-    payWithWompi(payload) { wompiCalls += 1; capturedPayload = { ...payload }; },
+    buildOrderPayload: () => { payloadBuildCalls += 1; return { name: 'Fixture', city, phone: '0000000000', address: 'Synthetic address' }; },
+    payWithWompi(snapshot) { wompiCalls += 1; capturedPayload = snapshot; },
     async saveContraEntregaOrder(payload) { codCalls += 1; capturedPayload = { ...payload }; },
     showToast(message) { messages.push(String(message)); },
     resetWompiButton() { resetCalls += 1; },
@@ -145,12 +153,19 @@ async function runCheckout({ city, payment, subtotal, discount, quote, expectedD
   assert.equal(syntheticItems[0].id, 'synthetic-product');
 
   if (expectedDispatch) {
+    assert.equal(payloadBuildCalls, 1, `${name}: el payload se construye una sola vez, sin cambiar el flujo de COD`);
     assert.equal(payment === 'Contra entrega' ? codCalls : wompiCalls, 1, `${name}: se despacha el método seleccionado una sola vez`);
     assert.equal(payment === 'Contra entrega' ? wompiCalls : codCalls, 0, `${name}: no se invoca el otro método de pago`);
-    assert.equal(capturedPayload.shipping, quote.shipping, `${name}: envío autoritativo en el payload`);
-    assert.equal(capturedPayload.expected_total, quote.total, `${name}: total autoritativo en el payload`);
-    assert.equal(capturedPayload.expected_discount_total, quote.discount_total, `${name}: descuento autoritativo en el payload`);
-    assert.equal(capturedPayload.storefront_pricing_version, 'combo-discounts-v1');
+    const dispatchedPayload = payment === 'Contra entrega' ? capturedPayload : capturedPayload.payload;
+    assert.equal(dispatchedPayload.shipping, quote.shipping, `${name}: envío autoritativo en el payload`);
+    assert.equal(dispatchedPayload.expected_total, quote.total, `${name}: total autoritativo en el payload`);
+    assert.equal(dispatchedPayload.expected_discount_total, quote.discount_total, `${name}: descuento autoritativo en el payload`);
+    assert.equal(dispatchedPayload.storefront_pricing_version, 'combo-discounts-v1');
+    if (payment !== 'Contra entrega') {
+      assert.equal(capturedPayload.version, 1, `${name}: Wompi recibe un único snapshot versionado`);
+      assert.equal(capturedPayload.quote.total, quote.total, `${name}: el snapshot contiene la cotización validada`);
+      assert.equal(capturedPayload.inputFingerprint.length > 0, true, `${name}: la confirmación queda ligada a su huella`);
+    }
     assert.equal(context.checkoutShipping, quote.shipping);
     assert.equal(updateSummaryCalls, 1, `${name}: el resumen refleja la cotización aceptada`);
     assert.equal(resetCalls, 0);

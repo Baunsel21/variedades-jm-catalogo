@@ -2078,6 +2078,11 @@ let checkoutServerQuote=null;
 let checkoutServerQuoteFingerprint='';
 // Confirmación transitoria en memoria; no persiste datos personales en localStorage.
 let wompiNewOrderConfirmationFingerprint='',wompiNewOrderConfirmationReference='';
+let activeWompiCheckoutSnapshot=null,activeWompiCheckoutChangedFields=new Set();
+const WOMPI_CHECKOUT_REQUESTS_KEY='jm_wompi_checkout_requests_v1';
+let activeWompiCheckoutRequestId='',activeWompiCheckoutRequestReference='',activeWompiCheckoutRequestSent=false;
+let activeWompiCheckoutRequestCancelPromise=null,activeWompiCheckoutRequestCancelResult=null,activeWompiCheckoutRequestHeaders=null,activeWompiCheckoutRequestRecord=null;
+let activeWompiCheckoutRequestInvalidated=false,activeWompiCheckoutRedirectStarted=false;
 let storefrontCouponSettingsLoaded=false,storefrontCouponsEnabled=false,storefrontCouponToggleSupported=false,storefrontCouponSettingsPromise=null,storefrontCouponSettingsRequestToken=0,checkoutCouponPanelOpen=false;
 
 function syncStorefrontCouponControls(){
@@ -2122,6 +2127,118 @@ async function refreshStorefrontCouponSettings(force=false){
 
 function normalizeCheckoutCouponCode(value){return String(value??'').trim().toUpperCase()}
 function checkoutQuoteItems(items=getCheckoutItems()){return (Array.isArray(items)?items:[]).map(x=>({id:String(x?.id??''),qty:Math.max(1,Number(x?.qty)||1),color:String(x?.color||'').trim(),size:String(x?.size||'').trim()}))}
+function cloneCheckoutSnapshotValue(value){try{if(typeof structuredClone==='function')return structuredClone(value)}catch{}return JSON.parse(JSON.stringify(value))}
+function freezeCheckoutSnapshotValue(value){if(value&&typeof value==='object'&&!Object.isFrozen(value)){Object.values(value).forEach(freezeCheckoutSnapshotValue);Object.freeze(value)}return value}
+function normalizeCheckoutSnapshotField(field,value){
+ const text=String(value??'').normalize('NFC').trim().replace(/\s+/g,' ');
+ if(field==='email')return text.toLocaleLowerCase('es-CO');
+ if(field==='phone')return text.replace(/\D/g,'').slice(-10);
+ if(field==='city')return normalizeDeliveryCity(canonicalLocalDeliveryCity(text)||text);
+ if(field==='coupon')return normalizeCheckoutCouponCode(text);
+ if(field==='cedulaType'||field==='payment')return text.toUpperCase();
+ if(field==='cedula')return text.toUpperCase().replace(/[\s-]+/g,'');
+ return text.toLocaleLowerCase('es-CO');
+}
+function wompiCheckoutFormStateFromPayload(payload){
+ return {name:normalizeCheckoutSnapshotField('name',payload?.name),cedulaType:normalizeCheckoutSnapshotField('cedulaType',payload?.cedula_type),cedula:normalizeCheckoutSnapshotField('cedula',payload?.cedula),
+  phone:normalizeCheckoutSnapshotField('phone',payload?.phone),email:normalizeCheckoutSnapshotField('email',payload?.email),city:normalizeCheckoutSnapshotField('city',payload?.city),
+  address:normalizeCheckoutSnapshotField('address',payload?.address),neighborhood:normalizeCheckoutSnapshotField('neighborhood',payload?.neighborhood),
+  coupon:normalizeCheckoutSnapshotField('coupon',payload?.coupon_code),payment:normalizeCheckoutSnapshotField('payment',payload?.payment)};
+}
+function currentWompiCheckoutFormState(){
+ return {name:normalizeCheckoutSnapshotField('name',$('customerName')?.value),cedulaType:normalizeCheckoutSnapshotField('cedulaType',$('customerCedulaType')?.value),cedula:normalizeCheckoutSnapshotField('cedula',$('customerCedula')?.value),
+  phone:normalizeCheckoutSnapshotField('phone',$('customerPhone')?.value),email:normalizeCheckoutSnapshotField('email',$('customerEmail')?.value),city:normalizeCheckoutSnapshotField('city',checkoutCityValue()),
+  address:normalizeCheckoutSnapshotField('address',$('customerAddress')?.value),neighborhood:normalizeCheckoutSnapshotField('neighborhood',$('customerNeighborhood')?.value),
+  coupon:normalizeCheckoutSnapshotField('coupon',$('couponCode')?$('couponCode').value:checkoutCouponCode),payment:normalizeCheckoutSnapshotField('payment',selectedPayment())};
+}
+function wompiCheckoutCartFingerprint(items){
+ const rows=(Array.isArray(items)?items:[]).map(item=>({id:String(item?.id??''),qty:Math.max(1,Number(item?.qty)||1),color:String(item?.color||'').normalize('NFC').trim(),size:String(item?.size||'').normalize('NFC').trim(),price:Number.isFinite(Number(item?.price))?Number(item.price):null}))
+  .sort((a,b)=>a.id.localeCompare(b.id)||a.color.localeCompare(b.color)||a.size.localeCompare(b.size)||a.qty-b.qty);
+ return JSON.stringify(rows);
+}
+function checkoutSnapshotMatchesCurrent(snapshot){
+ return !!snapshot&&JSON.stringify(currentWompiCheckoutFormState())===JSON.stringify(snapshot.formState)&&wompiCheckoutCartFingerprint(getCheckoutItems())===snapshot.cartFingerprint;
+}
+function createImmutableWompiCheckoutSnapshot({payload,quote,items,couponCode,inputFingerprint,formState,cartFingerprint,reservationState}){
+ const data={version:1,payload,quote:normalizeCheckoutQuote(quote),items,couponCode:normalizeCheckoutCouponCode(couponCode),inputFingerprint,formState,cartFingerprint,reservationState};
+ return freezeCheckoutSnapshotValue(cloneCheckoutSnapshotValue(data));
+}
+function trackActiveWompiSnapshotInput(event){
+ const snapshot=activeWompiCheckoutSnapshot;if(!snapshot)return;
+ const target=event?.target,id=String(target?.id||'');
+ const field=({customerName:'name',customerCedulaType:'cedulaType',customerCedula:'cedula',customerPhone:'phone',customerEmail:'email',customerCity:'city',customerCityOther:'city',customerAddress:'address',customerNeighborhood:'neighborhood',couponCode:'coupon'})[id]||(target?.name==='paymentMethod'?'payment':'');
+ if(!field)return;
+ const current=currentWompiCheckoutFormState()[field];
+ if(current===snapshot.formState[field])activeWompiCheckoutChangedFields.delete(field);else activeWompiCheckoutChangedFields.add(field);
+ if(activeWompiCheckoutRequestSent&&activeWompiCheckoutChangedFields.has(field))invalidateActiveWompiCheckoutRequest();
+}
+function trackActiveWompiSnapshotCart(){
+ const snapshot=activeWompiCheckoutSnapshot;if(!snapshot)return;
+ if(wompiCheckoutCartFingerprint(getCheckoutItems())===snapshot.cartFingerprint)activeWompiCheckoutChangedFields.delete('items');else activeWompiCheckoutChangedFields.add('items');
+ if(activeWompiCheckoutRequestSent&&activeWompiCheckoutChangedFields.has('items'))invalidateActiveWompiCheckoutRequest();
+}
+function hasActiveWompiSnapshotChanges(snapshot){return activeWompiCheckoutSnapshot!==snapshot||activeWompiCheckoutChangedFields.size>0||activeWompiCheckoutRequestInvalidated}
+function readWompiCheckoutRequestRecords(){
+ try{
+  const raw=JSON.parse(localStorage.getItem(WOMPI_CHECKOUT_REQUESTS_KEY)||'[]');
+  if(!Array.isArray(raw))return [];
+  const cutoff=Date.now()-90*24*60*60*1000;
+  return raw.filter(row=>row&&/^[A-Za-z0-9_-]{1,120}$/.test(String(row.reference||''))&&/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(row.requestId||''))&&Number(row.updatedAt)>=cutoff&&['inflight','published','manual','terminal','cancelled','snapshot_mismatch','unknown'].includes(String(row.status||'')));
+ }catch{return []}
+}
+function writeWompiCheckoutRequestRecords(records){
+ try{localStorage.setItem(WOMPI_CHECKOUT_REQUESTS_KEY,JSON.stringify(records.slice(-60)))}catch{}
+}
+function findWompiCheckoutRequestRecord(reference){
+ return readWompiCheckoutRequestRecords().filter(row=>row.reference===reference).sort((a,b)=>Number(b.updatedAt)-Number(a.updatedAt))[0]||null;
+}
+function storeWompiCheckoutRequestRecord(record){
+ const rows=readWompiCheckoutRequestRecords().filter(row=>row.requestId!==record.requestId);
+ rows.push({...record,updatedAt:Date.now()});writeWompiCheckoutRequestRecords(rows);
+}
+function updateWompiCheckoutRequestStatus(requestId,status){
+ if(!requestId)return;
+ const row=readWompiCheckoutRequestRecords().find(item=>item.requestId===requestId);
+ if(row)storeWompiCheckoutRequestRecord({...row,status});
+}
+function newWompiCheckoutRequestId(){
+ if(crypto?.randomUUID)return crypto.randomUUID();
+ const bytes=new Uint8Array(16);crypto.getRandomValues(bytes);bytes[6]=(bytes[6]&15)|64;bytes[8]=(bytes[8]&63)|128;
+ const hex=[...bytes].map(x=>x.toString(16).padStart(2,'0')).join('');
+ return `${hex.slice(0,8)}-${hex.slice(8,12)}-${hex.slice(12,16)}-${hex.slice(16,20)}-${hex.slice(20)}`;
+}
+function selectWompiCheckoutRequest(reference){
+ const prior=findWompiCheckoutRequestRecord(reference);
+ if(prior&&['cancelled','snapshot_mismatch'].includes(prior.status))return {requiresNewReference:true,record:prior};
+ if(prior&&prior.status!=='terminal')return {requestId:prior.requestId,record:prior};
+ const record={requestId:newWompiCheckoutRequestId(),reference,status:'inflight',updatedAt:Date.now()};
+ storeWompiCheckoutRequestRecord(record);return {requestId:record.requestId,record};
+}
+function invalidateActiveWompiCheckoutRequest(){
+ if(!activeWompiCheckoutRequestSent)return;
+ activeWompiCheckoutRequestInvalidated=true;
+ activeWompiCheckoutChangedFields.add('__request_invalidated__');
+ void cancelActiveWompiCheckoutRequest();
+}
+async function cancelActiveWompiCheckoutRequest(){
+ if(!activeWompiCheckoutRequestId||!activeWompiCheckoutRequestSent)return {state:'not_sent'};
+ if(activeWompiCheckoutRequestCancelResult)return activeWompiCheckoutRequestCancelResult;
+ if(activeWompiCheckoutRequestCancelPromise)return activeWompiCheckoutRequestCancelPromise;
+ const requestId=activeWompiCheckoutRequestId,headers={...(activeWompiCheckoutRequestHeaders||{'Content-Type':'application/json','apikey':SUPABASE_KEY})};
+ const task=(async()=>{
+  try{
+   const response=await fetch(WOMPI_SIGNATURE_ENDPOINT,{method:'POST',headers,keepalive:true,body:JSON.stringify({action:'cancel_request',checkout_request_id:requestId})});
+   const data=await response.json().catch(()=>({}));
+   if(!response.ok||data?.success!==true){updateWompiCheckoutRequestStatus(requestId,'unknown');return {state:'unknown'};}
+   const state=String(data.state||'unknown');
+   updateWompiCheckoutRequestStatus(requestId,state==='cancelled'?'cancelled':state==='terminal'?'terminal':state==='published'?'published':state==='manual_recovery_required'?'manual':'unknown');
+   return {state,released:data.released===true,manualRecoveryRequired:data.manual_recovery_required===true};
+  }catch{updateWompiCheckoutRequestStatus(requestId,'unknown');return {state:'unknown'};}
+ })();
+ activeWompiCheckoutRequestCancelPromise=task;
+	 try{const result=await task;if(result.state!=='unknown')activeWompiCheckoutRequestCancelResult=result;return result}
+	 finally{if(activeWompiCheckoutRequestCancelPromise===task)activeWompiCheckoutRequestCancelPromise=null;}
+}
 function getCheckoutQuoteFingerprint(items=getCheckoutItems(),code=checkoutCouponCode){
  const email=String($('customerEmail')?.value||'').trim().toLocaleLowerCase('es-CO');
  const phone=String($('customerPhone')?.value||'').trim();
@@ -2180,7 +2297,7 @@ function clearCheckoutCouponState(clearInput=true){
 }
 function setCheckoutCouponQuote(quote,requiresConfirmation=false){
  clearCheckoutServerQuote();
- checkoutCouponQuote=quote;checkoutCouponQuoteFingerprint=getCheckoutQuoteFingerprint(getCheckoutItems(),checkoutCouponCode);checkoutCouponQuoteRequiresConfirmation=!!requiresConfirmation;
+	 checkoutCouponQuote=quote;checkoutCouponQuoteFingerprint=getCheckoutQuoteFingerprint(getCheckoutItems(),checkoutCouponCode);checkoutCouponQuoteRequiresConfirmation=!!requiresConfirmation;
  const shipping=Number(quote?.shipping);if(Number.isSafeInteger(shipping)&&shipping>=0)checkoutShipping=shipping;
 }
 function quoteLineItemsForCheckout(quote,items=getCheckoutItems()){
@@ -2227,10 +2344,10 @@ function quoteHasValidTotals(row,withCoupon=false){
 	  Number.isSafeInteger(original)&&original>=0&&Number.isSafeInteger(discounted)&&discounted>=0&&Number.isSafeInteger(coupon)&&coupon>=0&&
 	  discount<=original&&discounted===original-discount&&total===discounted+shipping&&coupon<=discount&&(!withCoupon||coupon>0);
 }
-async function requestCheckoutQuote(code,items=getCheckoutItems()){
+async function requestCheckoutQuote(code,items=getCheckoutItems(),city=checkoutCityValue()){
  const normalized=normalizeCheckoutCouponCode(code);
  if(normalized&&(!storefrontCouponSettingsLoaded||!storefrontCouponsEnabled)){const failure=new Error('COUPONS_DISABLED');failure.code='COUPONS_DISABLED';failure.couponError=true;throw failure;}
- const common={p_items:checkoutQuoteItems(items),p_city:checkoutCityValue()};
+ const common={p_items:checkoutQuoteItems(items),p_city:String(city||'').trim()};
  const rpcName=normalized?'get_storefront_cart_quote_with_coupon':'get_storefront_cart_quote';
 		 const args=normalized?{...common,p_coupon_code:normalized,p_customer_email:'',p_customer_phone:''}:common;
  const {data,error}=await storefrontRpcWithTimeout(rpcName,args);
@@ -2519,6 +2636,17 @@ function getReservationRegistry(){
    try{saveReservationRegistry(active)}catch(e){console.warn('No se pudo actualizar el registro local de reservas.',e)}
  }
  return active.sort((a,b)=>Number(a.startedAt)-Number(b.startedAt));
+}
+function captureWompiReservationState({items,couponCode,inputFingerprint}){
+ const activeReference=getActiveReservationReference()||getPendingWompiReference()||'';
+ const activeItems=getActiveReservationItems();
+ const couponReservationFingerprint=couponCode?inputFingerprint:'';
+ const couponScopedRecord=couponCode&&checkoutCouponReservationReference&&checkoutCouponReservationFingerprint===couponReservationFingerprint
+  ?findReservationRecordByReference(checkoutCouponReservationReference):null;
+ const matchingRecord=couponCode
+  ?(couponScopedRecord||(activeReference&&reservationItemsMatch(activeItems,items)?findReservationRecordByReference(activeReference):findReservationRecordForItems(items)))
+  :(activeReference&&reservationItemsMatch(activeItems,items)?findReservationRecordByReference(activeReference):findReservationRecordForItems(items));
+ return {activeReference,pendingReference:getPendingWompiReference()||'',activeItems,matchingRecord,couponReference:checkoutCouponReservationReference,couponFingerprint:checkoutCouponReservationFingerprint};
 }
 function findReservationRecordByReference(reference){
  if(!reference)return null;
@@ -4698,6 +4826,7 @@ function restoreCheckoutFromReservation(){
 }
 function saveWompiCart(){
  try{ localStorage.setItem(WOMPI_CART_KEY,JSON.stringify(cart)); }catch(e){}
+ trackActiveWompiSnapshotCart();
 }
 function addToCart(p,event){
  if(event){event.preventDefault();event.stopPropagation()}
@@ -5189,46 +5318,43 @@ window.addEventListener('pageshow',event=>{
  }
 });
 
-async function payWithWompi(payload,confirmedQuote,confirmedQuoteFingerprint){
+async function payWithWompi(confirmedSnapshot){
  // Tomar el guard sincrónicamente: las validaciones asíncronas no deben dejar
  // una ventana para doble toque o dos solicitudes de checkout simultáneas.
  if(window.__sirevyaWompiInProgress){
    showToast('Estamos preparando tu pago. Espera un momento sin volver a pulsar.');
    return;
  }
- window.__sirevyaWompiInProgress=true;
- const btn=$('checkoutConfirmBtn');
- if(btn){btn.disabled=true;btn.textContent='⏳ Verificando cotización...'}
- let reservationReference='';
+	 window.__sirevyaWompiInProgress=true;
+	 const btn=$('checkoutConfirmBtn');
+	 if(btn){btn.disabled=true;btn.textContent='⏳ Verificando cotización...'}
+	 activeWompiCheckoutRequestId='';activeWompiCheckoutRequestReference='';activeWompiCheckoutRequestSent=false;
+	 activeWompiCheckoutRequestCancelPromise=null;activeWompiCheckoutRequestCancelResult=null;activeWompiCheckoutRequestHeaders=null;activeWompiCheckoutRequestRecord=null;activeWompiCheckoutRequestInvalidated=false;activeWompiCheckoutRedirectStarted=false;
+	 let reservationReference='';
+ let activeSnapshotForThisCall=null;
  let confirmedSeparateOrder=false,supersededOrderReference='';
  try{
+  const snapshot=confirmedSnapshot;
+  if(!snapshot||snapshot.version!==1||!snapshot.payload||!snapshot.quote||!Array.isArray(snapshot.items)||!snapshot.reservationState)throw new Error('No se conservó la confirmación de compra. Revisa el checkout y confirma nuevamente; no se abrió Wompi.');
+  const payload=cloneCheckoutSnapshotValue(snapshot.payload);
+  const checkoutItems=cloneCheckoutSnapshotValue(snapshot.items).map(x=>({...x,id:String(x.id),qty:Math.max(1,Number(x.qty)||1),color:String(x.color||'').trim(),size:String(x.size||'').trim()}));
+  const couponCode=normalizeCheckoutCouponCode(snapshot.couponCode);
+  const authoritativeComboQuote=normalizeCheckoutQuote(cloneCheckoutSnapshotValue(snapshot.quote));
+  if(!checkoutSnapshotMatchesCurrent(snapshot))throw new Error('Los datos del checkout cambiaron antes de iniciar el pago. Revisa la información y confirma nuevamente; no se abrió Wompi.');
+  activeWompiCheckoutSnapshot=snapshot;activeWompiCheckoutChangedFields=new Set();activeSnapshotForThisCall=snapshot;
   await refreshOnlinePaymentSetting({silent:true});
   syncPaymentOptions();
   if(!onlinePaymentsEnabled)throw new Error('Los pagos en línea están desactivados. Selecciona pago contraentrega en una ciudad habilitada.');
+  if(hasActiveWompiSnapshotChanges(snapshot))throw new Error('Cambió un dato del pedido mientras verificábamos el medio de pago. Revisa el checkout y confirma nuevamente; no se inició el pago.');
   if(!Number.isSafeInteger(Math.round(Number(payload.expected_total)))||Math.round(Number(payload.expected_total))<=0)throw new Error('Wompi no permite un total de $0. Elige contraentrega si está habilitada para esta ciudad.');
   // Web Checkout debe iniciarse desde la página segura publicada, no desde una
   // copia abierta como content:// o file:// en el administrador de descargas.
   if(location.protocol!=='https:' || !location.hostname)throw new Error('Para continuar con Wompi, abre el catálogo publicado en https://sirevya.com.co; el archivo descargado no puede completar el pago de forma fiable.');
 
-  const checkoutItems=getCheckoutItems().map(x=>({
-    ...x,
-    id:String(x.id),
-    qty:Math.max(1,Number(x.qty)||1),
-    color:String(x.color||'').trim(),
-    size:String(x.size||'').trim()
-  }));
   if(!checkoutItems.length)throw new Error('No hay productos para reservar.');
-
-  const couponCode=normalizeCheckoutCouponCode(payload.coupon_code);
-  const currentCouponCode=normalizeCheckoutCouponCode($('couponCode')?.value||checkoutCouponCode);
-  if(confirmedQuoteFingerprint!==getCheckoutQuoteFingerprint(checkoutItems,currentCouponCode)){
-   updateShipping();updateCheckoutSummary();
-   throw new Error('El carrito, la ciudad o el cupón cambiaron después de cotizar. Revisa el desglose actualizado y confirma de nuevo; no se abrió Wompi.');
-  }
   // Reutilizar el snapshot que confirmCheckout ya validó contra Supabase. La
   // Edge Function vuelve a cotizar y valida los importes antes de crear una
-  // reserva o pedido; no hacemos una segunda lectura cliente con estado mutable.
-  const authoritativeComboQuote=normalizeCheckoutQuote(confirmedQuote);
+  // reserva o pedido; no se reconstruyen datos comerciales desde el formulario.
   if(!quoteHasValidTotals(authoritativeComboQuote,!!couponCode))throw new Error('No se pudo conservar la cotización que acabas de confirmar. Revisa el carrito y vuelve a confirmar; no se abrió Wompi.');
   const quotedShipping=Number(authoritativeComboQuote.shipping);
   const quotedTotal=Math.round(Number(authoritativeComboQuote.total));
@@ -5260,20 +5386,17 @@ async function payWithWompi(payload,confirmedQuote,confirmedQuoteFingerprint){
     wompiNewOrderConfirmationFingerprint='';wompiNewOrderConfirmationReference='';
    }
   }
+  const functionHeaders={'Content-Type':'application/json','apikey':SUPABASE_KEY};
+  try{
+    const {data:authState}=await sb.auth.getSession();
+    if(authState?.session?.access_token)functionHeaders.Authorization='Bearer '+authState.session.access_token;
+  }catch(sessionError){console.warn('No se pudo recuperar una sesión opcional para preparar el pago.',sessionError)}
+  if(hasActiveWompiSnapshotChanges(snapshot))throw new Error('Cambió un dato del pedido mientras preparábamos el checkout. Revisa el checkout y confirma nuevamente; no se inició el pago.');
   if(btn)btn.textContent='⏳ Reservando producto...';
 
-  const storedReference=confirmedSeparateOrder?'':(getActiveReservationReference()||getPendingWompiReference()||'');
-  const storedItems=confirmedSeparateOrder?[]:getActiveReservationItems();
-  const couponReservationFingerprint=couponCode?getCheckoutQuoteFingerprint(checkoutItems,couponCode):'';
-	  const couponScopedRecord=!confirmedSeparateOrder&&couponCode&&checkoutCouponReservationReference&&checkoutCouponReservationFingerprint===couponReservationFingerprint
-	    ?findReservationRecordByReference(checkoutCouponReservationReference):null;
-	  const matchingRecord=confirmedSeparateOrder?null:(couponCode
-	    ?(couponScopedRecord||(storedReference&&reservationItemsMatch(storedItems,checkoutItems)
-	      ?findReservationRecordByReference(storedReference)
-	      :findReservationRecordForItems(checkoutItems)))
-	    :(storedReference&&reservationItemsMatch(storedItems,checkoutItems)
-	      ?findReservationRecordByReference(storedReference)
-	      :findReservationRecordForItems(checkoutItems)));
+  const reservationState=snapshot.reservationState;
+  const couponReservationFingerprint=couponCode?snapshot.inputFingerprint:'';
+  const matchingRecord=confirmedSeparateOrder?null:reservationState.matchingRecord;
 
   if(confirmedSeparateOrder){
     // La referencia anterior pertenece a otra identidad/dirección; conservarla
@@ -5304,9 +5427,19 @@ async function payWithWompi(payload,confirmedQuote,confirmedQuoteFingerprint){
   // una segunda referencia intermedia que pudiera provocar otra reserva al volver.
   let paymentReference=reservationReference;
   saveActiveReservationReference(reservationReference);
-  saveActiveReservationItems(checkoutItems);
-  payload.reference=paymentReference;
-  if(confirmedSeparateOrder){
+	 saveActiveReservationItems(checkoutItems);
+	 payload.reference=paymentReference;
+	 let requestSelection=selectWompiCheckoutRequest(paymentReference);
+	 if(requestSelection.requiresNewReference){
+	  reservationReference=generateReservationReference();paymentReference=reservationReference;
+	  saveReservationDraft(reservationReference,checkoutItems);saveActiveReservationReference(reservationReference);saveActiveReservationItems(checkoutItems);
+	  if(couponCode){checkoutCouponReservationReference=reservationReference;checkoutCouponReservationFingerprint=couponReservationFingerprint;}
+	  payload.reference=paymentReference;requestSelection=selectWompiCheckoutRequest(paymentReference);
+	 }
+	 if(!requestSelection.requestId)throw new Error('No se pudo conservar una referencia segura de checkout. Revisa el carrito y confirma nuevamente; no se abrió Wompi.');
+	 activeWompiCheckoutRequestId=requestSelection.requestId;activeWompiCheckoutRequestReference=paymentReference;activeWompiCheckoutRequestRecord=requestSelection.record||null;
+	 payload.checkout_request_id=activeWompiCheckoutRequestId;
+	 if(confirmedSeparateOrder){
    payload.confirm_new_order_after_terminal_mismatch=true;
    payload.supersedes_reference=supersededOrderReference;
   }else{
@@ -5316,27 +5449,30 @@ async function payWithWompi(payload,confirmedQuote,confirmedQuoteFingerprint){
 
   if(btn)btn.textContent='⏳ Preparando pago...';
 
-  // La llamada fetch directa debe incluir apikey (el cliente supabase sí lo hace
-  // automáticamente). Si existe sesión, se envía también el JWT de esa sesión.
   // Para compradores anónimos, wompi-create-checkout debe estar desplegada con
   // verify_jwt=false y validar precio/stock desde el servidor.
-  const functionHeaders={'Content-Type':'application/json','apikey':SUPABASE_KEY};
-  try{
-    const {data:authState}=await sb.auth.getSession();
-    if(authState?.session?.access_token)functionHeaders.Authorization='Bearer '+authState.session.access_token;
-  }catch(sessionError){console.warn('No se pudo recuperar una sesión opcional para preparar el pago.',sessionError)}
   // Una reserva activa idéntica o una referencia vieja sin order puede reintentarse
   // una vez con su referencia segura. Un terminal_grace nunca se reintenta aquí:
   // se limpia solo el draft de pago, se conserva el carrito y se espera al servidor.
-  let response,data;
-  for(let preparationAttempt=0;preparationAttempt<2;preparationAttempt++){
-   response=await checkoutFetchWithTimeout(WOMPI_SIGNATURE_ENDPOINT,{
+	 let response,data,requestCancellationResult=null;
+	 for(let preparationAttempt=0;preparationAttempt<2;preparationAttempt++){
+	  if(hasActiveWompiSnapshotChanges(snapshot))throw new Error('Cambió un dato del pedido antes de enviar la solicitud. Revisa el checkout y confirma nuevamente; no se inició el pago.');
+	  activeWompiCheckoutRequestHeaders={...functionHeaders};activeWompiCheckoutRequestSent=true;
+	  updateWompiCheckoutRequestStatus(activeWompiCheckoutRequestId,'inflight');
+	  response=await checkoutFetchWithTimeout(WOMPI_SIGNATURE_ENDPOINT,{
     method:'POST',
     headers:functionHeaders,
     body:JSON.stringify(payload)
-   });
-   data=await response.json().catch(()=>({}));
-   if(response.status===409&&['WOMPI_ACTIVE_RESERVATION','WOMPI_REFERENCE_STALE','WOMPI_REUSE_EXISTING_ORDER'].includes(data?.code)&&preparationAttempt===0){
+	  });
+	  data=await response.json().catch(()=>({}));
+	  if(!response.ok){
+	   requestCancellationResult=await cancelActiveWompiCheckoutRequest();
+	   if(data?.code==='WOMPI_REQUEST_SNAPSHOT_MISMATCH'&&requestCancellationResult.state==='cancelled')updateWompiCheckoutRequestStatus(activeWompiCheckoutRequestId,'snapshot_mismatch');
+	   if(requestCancellationResult.state==='manual_recovery_required')updateWompiCheckoutRequestStatus(activeWompiCheckoutRequestId,'manual');
+	  }else updateWompiCheckoutRequestStatus(activeWompiCheckoutRequestId,'published');
+	  if(response.status===409&&['WOMPI_ACTIVE_RESERVATION','WOMPI_REFERENCE_STALE','WOMPI_REUSE_EXISTING_ORDER'].includes(data?.code)&&preparationAttempt===0){
+    if(requestCancellationResult?.state==='manual_recovery_required')throw new Error('La solicitud anterior ya creó un pedido o intento y se conserva protegido. No se inició otro pago; se requiere conciliación antes de continuar.');
+    if(!['cancelled','terminal'].includes(String(requestCancellationResult?.state||'')))throw new Error('No se pudo confirmar la cancelación del request anterior. Se conserva protegido y no se iniciará otro checkout.');
     const reusedReference=['WOMPI_ACTIVE_RESERVATION','WOMPI_REUSE_EXISTING_ORDER'].includes(data?.code)?String(data.existingReference||''):'';
     if(confirmedSeparateOrder&&data?.code==='WOMPI_REUSE_EXISTING_ORDER'&&reusedReference){
      // El servidor volvió a verificar que era exactamente el mismo pedido; cancelar la intención de crear uno nuevo.
@@ -5357,6 +5493,15 @@ async function payWithWompi(payload,confirmedQuote,confirmedQuoteFingerprint){
     saveActiveReservationItems(checkoutItems);
     if(couponCode){checkoutCouponReservationReference=reservationReference;checkoutCouponReservationFingerprint=couponReservationFingerprint;}
     payload.reference=paymentReference;
+    let nextRequest=selectWompiCheckoutRequest(paymentReference);
+    if(nextRequest.requiresNewReference){
+     const replacement={requestId:newWompiCheckoutRequestId(),reference:paymentReference,status:'inflight',updatedAt:Date.now()};
+     storeWompiCheckoutRequestRecord(replacement);nextRequest={requestId:replacement.requestId,record:replacement};
+    }
+    if(!nextRequest.requestId)throw new Error('No se pudo establecer una clave idempotente para el retry. No se abrió Wompi.');
+    activeWompiCheckoutRequestId=nextRequest.requestId;activeWompiCheckoutRequestReference=paymentReference;activeWompiCheckoutRequestRecord=nextRequest.record||null;
+	   activeWompiCheckoutRequestSent=false;activeWompiCheckoutRequestCancelPromise=null;activeWompiCheckoutRequestCancelResult=null;activeWompiCheckoutRequestInvalidated=false;activeWompiCheckoutRedirectStarted=false;
+    payload.checkout_request_id=activeWompiCheckoutRequestId;
     if(btn)btn.textContent='⏳ Reintentando pago...';
     continue;
    }
@@ -5373,11 +5518,10 @@ async function payWithWompi(payload,confirmedQuote,confirmedQuoteFingerprint){
 
   if(!response.ok){
    if(data?.code==='WOMPI_NEW_ORDER_CONFIRMATION_REQUIRED'){
-    const currentCouponCode=normalizeCheckoutCouponCode($('couponCode')?.value||checkoutCouponCode);
-    if(confirmedQuoteFingerprint!==getCheckoutQuoteFingerprint(getCheckoutItems(),currentCouponCode)){
+    if(hasActiveWompiSnapshotChanges(snapshot)){
      wompiNewOrderConfirmationFingerprint='';wompiNewOrderConfirmationReference='';
      updateShipping();updateCheckoutSummary();
-     throw new Error('El carrito, la ciudad o el cupón cambiaron mientras se verificaba el pedido anterior. Revisa el nuevo desglose y confirma de nuevo; no se creó otra orden ni reserva.');
+     throw new Error('Los datos del pedido cambiaron mientras se verificaba el pedido anterior. Revisa el nuevo desglose y confirma de nuevo; no se creó otra orden ni reserva.');
     }
     const currentQuote=normalizeCheckoutQuote(data.quote);
     if(!quoteHasValidTotals(currentQuote,!!couponCode)){
@@ -5392,7 +5536,7 @@ async function payWithWompi(payload,confirmedQuote,confirmedQuoteFingerprint){
     const couponDiscount=Math.round(Number(currentQuote.coupon_discount_total)||0);
     const shipping=Math.round(Number(currentQuote.shipping));
     const total=Math.round(Number(currentQuote.total));
-    const visiblePayload=buildOrderPayload();
+    const visiblePayload=cloneCheckoutSnapshotValue(payload);
     visiblePayload.shipping=shipping;visiblePayload.expected_total=total;visiblePayload.expected_discount_total=totalDiscount;
     visiblePayload.expected_coupon_discount_total=couponDiscount;
     const oldReference=String(data.existingReference||'').trim();
@@ -5408,16 +5552,15 @@ async function payWithWompi(payload,confirmedQuote,confirmedQuoteFingerprint){
     throw new Error(`${data.error||'El pedido anterior no coincide con los datos actuales.'} ${breakdown}`);
    }
    if(data?.code==='WOMPI_QUOTE_CHANGED'){
-    const couponCode=normalizeCheckoutCouponCode(payload.coupon_code);
-    const currentCouponCode=normalizeCheckoutCouponCode($('couponCode')?.value||checkoutCouponCode);
-    if(confirmedQuoteFingerprint!==getCheckoutQuoteFingerprint(getCheckoutItems(),currentCouponCode)){
+    if(hasActiveWompiSnapshotChanges(snapshot)){
       updateShipping();updateCheckoutSummary();
-      throw new Error('El carrito, la ciudad o el cupón cambiaron mientras se verificaba el precio. Revisa el checkout y confirma otra vez; no se abrió Wompi.');
+      throw new Error('Los datos del pedido cambiaron mientras se verificaba el precio. Revisa el checkout y confirma otra vez; no se abrió Wompi.');
     }
     let authoritativeServerQuote=normalizeCheckoutQuote(data.quote);
     if(!quoteHasValidTotals(authoritativeServerQuote,!!couponCode)){
-      try{authoritativeServerQuote=await requestCheckoutQuote(couponCode,checkoutItems)}catch{}
+      try{authoritativeServerQuote=await requestCheckoutQuote(couponCode,checkoutItems,snapshot.payload.city)}catch{}
     }
+    if(hasActiveWompiSnapshotChanges(snapshot))throw new Error('Los datos del pedido cambiaron mientras actualizábamos la cotización. Revisa el checkout y confirma nuevamente; no se abrió Wompi.');
     if(!quoteHasValidTotals(authoritativeServerQuote,!!couponCode))throw new Error('Supabase detectó una cotización distinta, pero no se pudo cargar un desglose completo. No se abrió Wompi; actualiza el checkout e inténtalo de nuevo.');
     if(couponCode){
       setCheckoutCouponQuote(authoritativeServerQuote,true);setCheckoutCouponStatus('La cotización vigente cambió. Revisa el desglose actualizado y confirma nuevamente.','error');
@@ -5433,7 +5576,7 @@ async function payWithWompi(payload,confirmedQuote,confirmedQuoteFingerprint){
     const total=Math.round(Number(authoritativeServerQuote.total));
     const breakdown=`Desglose vigente: subtotal ${money(subtotal)}; otros descuentos ${money(otherDiscount)}; cupón ${money(couponDiscount)}; envío ${money(shipping)}; total ${money(total)}. Revisa y confirma nuevamente.`;
     if(confirmedSeparateOrder){
-     const visiblePayload=buildOrderPayload();visiblePayload.shipping=shipping;visiblePayload.expected_total=total;
+     const visiblePayload=cloneCheckoutSnapshotValue(payload);visiblePayload.shipping=shipping;visiblePayload.expected_total=total;
      visiblePayload.expected_discount_total=totalDiscount;visiblePayload.expected_coupon_discount_total=couponDiscount;
      wompiNewOrderConfirmationFingerprint=getWompiOrderSnapshotFingerprint(visiblePayload,authoritativeServerQuote,checkoutItems);
      wompiNewOrderConfirmationReference=supersededOrderReference;
@@ -5475,6 +5618,9 @@ async function payWithWompi(payload,confirmedQuote,confirmedQuoteFingerprint){
   // contrato cambia, no mutar la reserva desde el cliente ni abrir Wompi.
   if(data.reference!==paymentReference){
     throw new Error('No se abrió Wompi porque el servidor devolvió una referencia distinta a la reserva del carrito. No se modificó ninguna reserva desde el navegador; vuelve a intentar con el carrito actual.');
+  }
+  if(hasActiveWompiSnapshotChanges(snapshot)){
+    throw new Error('Los datos del checkout cambiaron mientras el servidor validaba el pedido. No se abrió Wompi. El estado preparado queda protegido; vuelve a comprobar el pedido antes de continuar.');
   }
 
   saveActiveReservationItems(checkoutItems);
@@ -5524,22 +5670,29 @@ async function payWithWompi(payload,confirmedQuote,confirmedQuoteFingerprint){
   document.body.appendChild(form);
   // Mantener el envío del formulario HTML GET estándar que exige Web Checkout.
   // Se cierra el modal antes de navegar; el destino es la pestaña actual.
-  closeCheckout();
-  if(btn){btn.disabled=true;btn.textContent='↗ Redirigiendo a Wompi...'}
-  form.submit();
+	  closeCheckout();
+	  if(btn){btn.disabled=true;btn.textContent='↗ Redirigiendo a Wompi...'}
+	  activeWompiCheckoutRedirectStarted=true;
+	  form.submit();
 
- }catch(err){
-  console.error('No se pudo preparar el pago Wompi.');
+	 }catch(err){
+	  if(activeWompiCheckoutRequestSent&&!activeWompiCheckoutRedirectStarted){
+	   const cancellation=await cancelActiveWompiCheckoutRequest();
+	   if(cancellation.state==='manual_recovery_required')updateWompiCheckoutRequestStatus(activeWompiCheckoutRequestId,'manual');
+	  }
+	  console.error('No se pudo preparar el pago Wompi.');
 
   // Nunca liberar inventario desde el navegador: la respuesta puede haberse
   // perdido después de guardar el pedido. La Edge libera solo tras comprobar el
   // estado del pedido; cualquier hold incierto conserva su TTL de 10 minutos.
 
-  showToast(err.message||'No fue posible abrir Wompi.');
-  resetWompiButton();
- }finally{
-  window.__sirevyaWompiInProgress=false;
- }
+	 showToast(err.message||'No fue posible abrir Wompi.');
+	 resetWompiButton();
+	}finally{
+	 if(activeWompiCheckoutSnapshot===activeSnapshotForThisCall){activeWompiCheckoutSnapshot=null;activeWompiCheckoutChangedFields.clear();}
+	 activeWompiCheckoutRequestId='';activeWompiCheckoutRequestReference='';activeWompiCheckoutRequestSent=false;activeWompiCheckoutRequestCancelPromise=null;activeWompiCheckoutRequestCancelResult=null;activeWompiCheckoutRequestHeaders=null;activeWompiCheckoutRequestRecord=null;activeWompiCheckoutRequestInvalidated=false;activeWompiCheckoutRedirectStarted=false;
+	 window.__sirevyaWompiInProgress=false;
+	}
 }
 
 let contraEntregaInProgress=false;
@@ -5754,37 +5907,53 @@ function displayCheckoutValidation(errors){
  showToast('Completa todos los campos obligatorios, incluida la cédula o documento.');
 }
 document.addEventListener('input',event=>{
- const id=event.target?.id||'';
+	 trackActiveWompiSnapshotInput(event);
+	 const id=event.target?.id||'';
  if(['customerName','customerCedulaType','customerCedula','customerPhone','customerEmail','customerCity','customerCityOther','customerAddress','customerNeighborhood'].includes(id))clearCheckoutFieldError(id);
  if(['customerName','customerPhone','customerEmail','customerCity','customerCityOther','customerAddress','customerNeighborhood'].includes(id)){invalidateCheckoutCouponQuote();if($('checkoutModal')?.classList.contains('open'))updateShipping();}
  if(id==='couponCode'){const input=$('couponCode');const normalized=normalizeCheckoutCouponCode(input?.value||'');if(input&&input.value!==normalized)input.value=normalized;checkoutCouponCode=normalized;invalidateCheckoutCouponQuote('El código cambió. Pulsa Aplicar para validarlo de nuevo.');if($('checkoutModal')?.classList.contains('open'))updateShipping();}
 });
 document.addEventListener('change',event=>{
- const id=event.target?.id||'';
+	 trackActiveWompiSnapshotInput(event);
+	 const id=event.target?.id||'';
  if(['customerName','customerCedulaType','customerCedula','customerPhone','customerEmail','customerCity','customerCityOther','customerAddress','customerNeighborhood'].includes(id))clearCheckoutFieldError(id);
  if(['customerName','customerPhone','customerEmail','customerCity','customerCityOther','customerAddress','customerNeighborhood'].includes(id)){invalidateCheckoutCouponQuote();if($('checkoutModal')?.classList.contains('open'))updateShipping();}
- if(event.target?.name==='paymentMethod')updateShipping();
+	 if(event.target?.name==='paymentMethod')updateShipping();
+});
+window.addEventListener('storage',event=>{
+	 if(event.key!==WOMPI_CART_KEY||!activeWompiCheckoutSnapshot)return;
+	 let items=[];try{const parsed=JSON.parse(event.newValue||'[]');if(Array.isArray(parsed))items=parsed}catch{}
+	 if(wompiCheckoutCartFingerprint(items)===activeWompiCheckoutSnapshot.cartFingerprint)activeWompiCheckoutChangedFields.delete('items');
+	 else{activeWompiCheckoutChangedFields.add('items');if(activeWompiCheckoutRequestSent)invalidateActiveWompiCheckoutRequest();}
+});
+window.addEventListener('pagehide',()=>{
+ if(activeWompiCheckoutRequestSent&&!activeWompiCheckoutRedirectStarted){activeWompiCheckoutRequestInvalidated=true;void cancelActiveWompiCheckoutRequest();}
 });
 
 async function confirmCheckout(){
- const checkoutItems=getCheckoutItems();
+	 const checkoutItems=cloneCheckoutSnapshotValue(getCheckoutItems());
  if(!checkoutItems.length){showToast('Tu carrito está vacío.');return;}
  const validationErrors=getCheckoutValidationErrors();
  if(validationErrors.length){displayCheckoutValidation(validationErrors);resetWompiButton();return;}
- clearCheckoutValidation();
- const couponCode=normalizeCheckoutCouponCode($('couponCode')?.value||checkoutCouponCode);
- checkoutCouponCode=couponCode;
- const confirmationFingerprint=getCheckoutQuoteFingerprint(checkoutItems,couponCode);
+	 clearCheckoutValidation();
+	 const couponCode=normalizeCheckoutCouponCode($('couponCode')?.value||checkoutCouponCode);
+	 checkoutCouponCode=couponCode;
+	 const paymentAtClick=selectedPayment();
+	 const confirmedPayload=paymentAtClick==='Contra entrega'?null:buildOrderPayload();
+	 if(confirmedPayload)confirmedPayload.coupon_code=couponCode;
+	 const inputSnapshot=confirmedPayload?{payload:confirmedPayload,formState:wompiCheckoutFormStateFromPayload(confirmedPayload),cartFingerprint:wompiCheckoutCartFingerprint(checkoutItems)}:null;
+	 const confirmationFingerprint=getCheckoutQuoteFingerprint(checkoutItems,couponCode);
  if(couponCode&&!await refreshStorefrontCouponSettings(true)){showToast('Los cupones están desactivados o no se pudo confirmar su configuración. No se aplicará el descuento ni se iniciará el pago.');resetWompiButton();return;}
  if(couponCode&&!currentCheckoutCouponQuote()){
   setCheckoutCouponStatus('El cupón necesita validarse con estos datos. Pulsa Aplicar antes de confirmar.','error');
   showToast('Vuelve a aplicar el cupón antes de continuar. No se abrió ningún pago ni se creó el pedido.');
   return;
- }
- const displayedPricing=checkoutDisplayPricing();
- const totalDisplayedBeforeRefresh=Math.round(displayedPricing.isCouponQuote?displayedPricing.total:displayedPricing.subtotal+checkoutShipping);
- const paymentBeforeRefresh=selectedPayment();
- const onlinePaymentsWereEnabled=onlinePaymentsEnabled;
+	 }
+	 const displayedPricing=checkoutDisplayPricing();
+	 const couponQuoteBeforeRefresh=paymentAtClick==='Contra entrega'?null:currentCheckoutCouponQuote();
+	 const totalDisplayedBeforeRefresh=Math.round(displayedPricing.isCouponQuote?displayedPricing.total:displayedPricing.subtotal+checkoutShipping);
+	 const paymentBeforeRefresh=selectedPayment();
+	 const onlinePaymentsWereEnabled=onlinePaymentsEnabled;
  await refreshOnlinePaymentSetting({silent:true});
  await refreshCODPaymentSettings({silent:true});
  const shippingSettingsVerified=await loadStorefrontShippingSettings(true);
@@ -5796,26 +5965,39 @@ async function confirmCheckout(){
    return;
  }
  const payment=selectedPayment();
- if(!payment){showToast(onlinePaymentsEnabled?'Selecciona una forma de pago para continuar.':'Los pagos en línea están desactivados. Elige una ciudad habilitada para contraentrega.');return;}
- if(!onlinePaymentsEnabled&&payment!=='Contra entrega'){showToast('Los pagos en línea están desactivados. Selecciona pago contraentrega en una ciudad habilitada.');syncPaymentOptions();return;}
- if(payment==='Contra entrega'&&!isLocalCODCity(checkoutCityValue())){
+	 if(!payment){showToast(onlinePaymentsEnabled?'Selecciona una forma de pago para continuar.':'Los pagos en línea están desactivados. Elige una ciudad habilitada para contraentrega.');return;}
+	 if(!onlinePaymentsEnabled&&payment!=='Contra entrega'){showToast('Los pagos en línea están desactivados. Selecciona pago contraentrega en una ciudad habilitada.');syncPaymentOptions();return;}
+	 if(payment!=='Contra entrega'&&(!confirmedPayload||!inputSnapshot)){showToast('La forma de pago cambió durante la verificación. Revisa el checkout y confirma nuevamente; no se inició el pago.');return;}
+	 if(payment==='Contra entrega'&&!isLocalCODCity(checkoutCityValue())){
    if(onlinePaymentsEnabled){const online=document.querySelector('input[name="paymentMethod"][value="PSE"]');if(online)online.checked=true;}
    else {const cod=document.querySelector('input[name="paymentMethod"][value="Contra entrega"]');if(cod)cod.checked=false;}
    showToast(onlinePaymentsEnabled?'La tienda no habilitó contraentrega para esa ciudad. Selecciona un pago en línea.':'Los pagos en línea están desactivados. La ciudad elegida no está habilitada para contraentrega.');
-   updateContraEntregaAvailability(checkoutCityValue());updateShipping();return;
- }
- try{
-  if(!couponCode)await loadStorefrontProductCombos({force:true});
-  const beforeQuote=checkoutDisplayPricing();
-  const beforeCouponQuote=currentCheckoutCouponQuote();
-  const cartQuote=await requestCheckoutQuote(couponCode,checkoutItems);
-  const currentCouponCode=normalizeCheckoutCouponCode($('couponCode')?.value||checkoutCouponCode);
-  if(confirmationFingerprint!==getCheckoutQuoteFingerprint(getCheckoutItems(),currentCouponCode)){
-   updateShipping();updateCheckoutSummary();
-   showToast('El carrito, la ciudad o los datos del cupón cambiaron mientras verificábamos el total. Revisa el desglose y confirma otra vez; no se creó ningún pedido ni reserva.');
-   return;
-  }
-  if(couponCode)clearCheckoutServerQuote();else setCheckoutServerQuote(cartQuote,checkoutItems);
+	   updateContraEntregaAvailability(checkoutCityValue());updateShipping();return;
+	 }
+	 try{
+	  if(!couponCode)await loadStorefrontProductCombos({force:true});
+	  if(payment!=='Contra entrega'&&!checkoutSnapshotMatchesCurrent(inputSnapshot)){
+	   updateShipping();updateCheckoutSummary();
+	   showToast('Los datos del pedido cambiaron durante la verificación. Revisa la información y confirma nuevamente; no se creó ningún pedido ni reserva.');
+	   return;
+	  }
+	  const beforeQuote=payment==='Contra entrega'?checkoutDisplayPricing():displayedPricing;
+	  const beforeCouponQuote=payment==='Contra entrega'?currentCheckoutCouponQuote():couponQuoteBeforeRefresh;
+	  const quoteCity=payment==='Contra entrega'?checkoutCityValue():confirmedPayload.city;
+	  const cartQuote=await requestCheckoutQuote(couponCode,checkoutItems,quoteCity);
+	  if(payment==='Contra entrega'){
+	   const currentCouponCode=normalizeCheckoutCouponCode($('couponCode')?.value||checkoutCouponCode);
+	   if(confirmationFingerprint!==getCheckoutQuoteFingerprint(getCheckoutItems(),currentCouponCode)){
+	    updateShipping();updateCheckoutSummary();
+	    showToast('El carrito, la ciudad o los datos del cupón cambiaron mientras verificábamos el total. Revisa el desglose y confirma otra vez; no se creó ningún pedido ni reserva.');
+	    return;
+	   }
+	  }else if(!checkoutSnapshotMatchesCurrent(inputSnapshot)){
+	   updateShipping();updateCheckoutSummary();
+	   showToast('Los datos del pedido cambiaron mientras verificábamos el total. Revisa la información y confirma otra vez; no se creó ningún pedido ni reserva.');
+	   return;
+	  }
+	  if(couponCode)clearCheckoutServerQuote();else setCheckoutServerQuote(cartQuote,checkoutItems);
   const serverShipping=Number(cartQuote.shipping),serverTotal=Math.round(Number(cartQuote.total));
   const serverDiscount=Math.round(Number(cartQuote.discount_total));
   const serverCouponDiscount=Math.round(Number(cartQuote.coupon_discount_total)||0);
@@ -5825,19 +6007,21 @@ async function confirmCheckout(){
   if(!Number.isSafeInteger(serverShipping)||serverShipping<0||!Number.isSafeInteger(serverTotal)||serverTotal<0||!Number.isSafeInteger(serverDiscount)||serverDiscount<0||
      serverTotal!==totalDisplayedBeforeRefresh||serverTotal!==Math.round(couponCode?Number(beforeCouponQuote?.total):beforeQuote.subtotal+checkoutShipping)||
      serverShipping!==visibleShipping||serverDiscount!==visibleDiscount||serverCouponDiscount!==visibleCouponDiscount){
-   if(couponCode){setCheckoutCouponQuote(cartQuote,true);setCheckoutCouponStatus('La cotización del cupón se actualizó. Revisa subtotal, descuento, envío y total; confirma nuevamente.','error');}
+	  if(couponCode){setCheckoutCouponQuote(cartQuote,true);setCheckoutCouponStatus('La cotización del cupón se actualizó. Revisa subtotal, descuento, envío y total; confirma nuevamente.','error');}
    else if(Number.isSafeInteger(serverShipping)&&serverShipping>=0)checkoutShipping=serverShipping;
    updateShipping();
    showToast('La tarifa, el descuento o el total cambiaron. Revisa la cotización actualizada y pulsa confirmar otra vez; no se creó ningún pedido ni se inició un cobro.');
    return;
   }
-  if(couponCode){setCheckoutCouponQuote(cartQuote,false);setCheckoutCouponStatus(serverCouponDiscount>0?`Cupón aplicado. Descuento: ${money(serverCouponDiscount)}.`:'Cupón validado por el servidor.','success');}
-  checkoutShipping=serverShipping;updateCheckoutSummary();
-  const payload=buildOrderPayload();
-  payload.shipping=serverShipping;payload.expected_total=serverTotal;payload.expected_discount_total=serverDiscount;payload.expected_coupon_discount_total=serverCouponDiscount;payload.storefront_pricing_version=couponCode?'coupon-discounts-v1':'combo-discounts-v1';
-  if(payment!=='Contra entrega'){
-   if(serverTotal<=0){showToast('Wompi no permite un total de $0. Elige contraentrega si está habilitada para esta ciudad.');resetWompiButton();return;}
-   payWithWompi(payload,cartQuote,confirmationFingerprint);return;
+	  if(couponCode){setCheckoutCouponQuote(cartQuote,false);setCheckoutCouponStatus(serverCouponDiscount>0?`Cupón aplicado. Descuento: ${money(serverCouponDiscount)}.`:'Cupón validado por el servidor.','success');}
+	  checkoutShipping=serverShipping;updateCheckoutSummary();
+	  const payload=payment==='Contra entrega'?buildOrderPayload():cloneCheckoutSnapshotValue(confirmedPayload);
+	  payload.shipping=serverShipping;payload.expected_total=serverTotal;payload.expected_discount_total=serverDiscount;payload.expected_coupon_discount_total=serverCouponDiscount;payload.storefront_pricing_version=couponCode?'coupon-discounts-v1':'combo-discounts-v1';
+	  if(payment!=='Contra entrega'){
+	   if(serverTotal<=0){showToast('Wompi no permite un total de $0. Elige contraentrega si está habilitada para esta ciudad.');resetWompiButton();return;}
+	   const snapshot=createImmutableWompiCheckoutSnapshot({payload,quote:cartQuote,items:checkoutItems,couponCode,inputFingerprint:confirmationFingerprint,
+	    formState:inputSnapshot.formState,cartFingerprint:inputSnapshot.cartFingerprint,reservationState:captureWompiReservationState({items:checkoutItems,couponCode,inputFingerprint:confirmationFingerprint})});
+	   payWithWompi(snapshot);return;
   }
   await saveContraEntregaOrder(payload);
  }catch(quoteError){

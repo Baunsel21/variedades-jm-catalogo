@@ -34,6 +34,7 @@ let quoteFixture;
 let preparationFixture = null;
 let mockCalls = [];
 const capturedOrderInserts = [];
+const checkoutRequests = new Map();
 const expirationTime = new Date(Date.now() + 30 * 60 * 1000).toISOString();
 const attemptReferences = [
   'SW-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
@@ -41,8 +42,11 @@ const attemptReferences = [
   'SW-CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC',
   'SW-DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD',
   'SW-EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE',
+  'SW-FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF',
 ];
 let attemptNumber = 0;
+let failNextBeginAttemptResponse = false;
+const unattemptedResumeCalls = [];
 let orderState = null;
 let terminalOrderAvailableForRetry = false;
 let terminalAttemptsFixture = [];
@@ -63,6 +67,83 @@ globalThis.fetch = async (input, init = {}) => {
   mockCalls.push({ url: url.toString(), path: url.pathname, method, body });
 
   if (url.origin !== env.SUPABASE_URL) throw new Error(`Blocked non-mock origin: ${url.origin}`);
+  if (url.pathname === '/rest/v1/rpc/start_storefront_wompi_checkout_request') {
+    const prior = checkoutRequests.get(body.p_request_id);
+    if (prior && (prior.reference !== body.p_reference || prior.snapshotHash !== body.p_snapshot_hash)) {
+      return jsonResponse({ success: false, code: 'WOMPI_REQUEST_SNAPSHOT_MISMATCH' });
+    }
+    if (!prior) checkoutRequests.set(body.p_request_id, { reference: body.p_reference, snapshotHash: body.p_snapshot_hash, cartHash: body.p_cart_hash, phoneHash: body.p_customer_phone_hash, state: 'started', orderCreatedByRequest: false });
+    const record = checkoutRequests.get(body.p_request_id);
+    if (record.state === 'published') return jsonResponse({ success: false, code: 'WOMPI_REQUEST_NOT_REPLAYABLE' });
+    if (record.state === 'cancelled' || record.state === 'manual_recovery_required') return jsonResponse({ success: false, code: record.state === 'cancelled' ? 'WOMPI_REQUEST_CANCELLED' : 'WOMPI_MANUAL_RECOVERY_REQUIRED' });
+    return jsonResponse({ success: true, request_state: record.state, replay_ready: false, reference: record.reference, order_created_by_request: record.orderCreatedByRequest });
+  }
+  if (url.pathname === '/rest/v1/rpc/advance_storefront_wompi_checkout_request') {
+    const record = checkoutRequests.get(body.p_request_id);
+    if (!record || record.snapshotHash !== body.p_snapshot_hash) return jsonResponse({ success: false, code: 'WOMPI_REQUEST_SNAPSHOT_MISMATCH' });
+    const args = body.p_args || {};
+    switch (body.p_step) {
+      case 'retry_lock': {
+        const result = terminalOrderAvailableForRetry && orderState && ['ERROR', 'DECLINED', 'VOIDED'].includes(orderState.payment_status)
+          ? (body.p_request_id && record.reference === orderState.reference
+            ? { success: true, reference: orderState.reference, retry_after_terminal: true, expires_at: expirationTime }
+            : { success: false, code: 'WOMPI_REUSE_EXISTING_ORDER', existing_reference: orderState.reference })
+          : { success: false, code: 'WOMPI_NO_RETRYABLE_ORDER' };
+        if (result.success) record.state = 'lock_active';
+        return jsonResponse(result);
+      }
+      case 'reserve_lock': record.state = 'lock_active'; return jsonResponse({ success: true, code: 'WOMPI_LOCK_CREATED', expires_at: expirationTime });
+      case 'prepare': if (preparationFixture) return jsonResponse(preparationFixture); record.state = 'prepared'; return jsonResponse({ success: true, expires_at: expirationTime, quote: quoteFixture });
+      case 'claim': record.state = 'claimed'; return jsonResponse({ success: true });
+      case 'create_order': {
+        const insert = { p_reference: record.reference, ...args };
+        capturedOrderInserts.push(insert);
+        orderState = { reference: record.reference, created_at: new Date().toISOString(), payment_method: 'wompi', payment_status: 'PENDING', transaction_id: null,
+          customer_name: args.p_customer_name, phone: args.p_phone, city: args.p_city, address: args.p_address, neighborhood: args.p_neighborhood,
+          items: args.p_items, subtotal: args.p_subtotal, shipping: args.p_shipping, total: args.p_total, coupon_id: args.p_coupon_id,
+          coupon_code: args.p_coupon_code, coupon_discount_total: args.p_coupon_discount_total,
+          wompi_reconciliation_required: false, coupon_reconciliation_required: false };
+        record.state = 'order_created'; record.orderCreatedByRequest = true;
+        return jsonResponse({ success: true, order_id: '33333333-3333-4333-8333-333333333333', reference: record.reference });
+      }
+      case 'mark_existing_order': record.state = 'order_created'; return jsonResponse({ success: true, reference: record.reference });
+      case 'begin_attempt': {
+        if (failNextBeginAttemptResponse) { failNextBeginAttemptResponse = false; return jsonResponse({ success: false, code: 'SYNTHETIC_RESPONSE_LOST_BEFORE_ATTEMPT' }, 503); }
+        beginAttemptCalls.push({ p_order_reference: record.reference, ...args });
+        const currentAttemptReference = attemptReferences[attemptNumber++];
+        if (orderState) { orderState.payment_status = 'PENDING'; orderState.transaction_id = null; }
+        record.state = 'attempt_issued'; record.attemptReference = currentAttemptReference;
+        return jsonResponse({ success: true, order_reference: record.reference, attempt_reference: currentAttemptReference,
+          amount_in_cents: Math.round(Number(quoteFixture.total) * 100), currency: 'COP', environment: 'prod', status: 'INITIATED' });
+      }
+      default: return jsonResponse({ success: false, code: 'WOMPI_REQUEST_STEP_INVALID' });
+    }
+  }
+  if (url.pathname === '/rest/v1/rpc/publish_storefront_wompi_checkout_request') {
+    const record = checkoutRequests.get(body.p_request_id);
+    if (!record || record.state !== 'attempt_issued') return jsonResponse({ success: false, code: record?.state === 'published' ? 'WOMPI_REQUEST_ALREADY_PUBLISHED' : 'WOMPI_REQUEST_PUBLISH_DENIED' });
+    record.state = 'published';
+    return jsonResponse({ success: true, state: 'published' });
+  }
+  if (url.pathname === '/rest/v1/rpc/cancel_storefront_wompi_checkout_request') {
+    const record = checkoutRequests.get(body.p_request_id);
+    if (!record) return jsonResponse({ success: true, state: 'cancelled', released: false, tombstone: true });
+    if (record.state === 'published') return jsonResponse({ success: true, state: 'published', released: false, manual_recovery_required: true });
+    if (record.state === 'order_created' || record.state === 'attempt_issued') { record.state = 'manual_recovery_required'; return jsonResponse({ success: true, state: record.state, released: false, manual_recovery_required: true }); }
+    record.state = 'cancelled';
+    return jsonResponse({ success: true, state: 'cancelled', released: true });
+  }
+  if (url.pathname === '/rest/v1/rpc/resume_storefront_wompi_unattempted_request') {
+    const record = checkoutRequests.get(body.p_request_id);
+    unattemptedResumeCalls.push(body);
+    if (!record || record.state !== 'order_created' || !record.orderCreatedByRequest || orderState?.reference !== record.reference ||
+        orderState?.payment_status !== 'PENDING' || orderState?.transaction_id) {
+      return jsonResponse({ success: false, code: 'WOMPI_REQUEST_NOT_RESUMABLE' });
+    }
+    record.state = 'prepared';
+    return jsonResponse({ success: true, reference: record.reference, expires_at: expirationTime, reservation_revalidated: true,
+      quote: quoteFixture, items: quoteFixture.items });
+  }
   if (url.pathname === '/rest/v1/rpc/get_online_payment_status') {
     return jsonResponse([{ online_payments_enabled: true }]);
   }
@@ -187,6 +268,7 @@ quoteFixture = {
     coupon_discount_total: 6000,
   }],
 };
+const originalQuoteFixture = structuredClone(quoteFixture);
 const baseBody = {
   reference: 'SIREVYA-SYNTHETIC-CHECKOUT-001',
   environment: 'prod',
@@ -245,11 +327,13 @@ function setVerifiedTerminalFixture(order, { statuses = ['ERROR', 'ERROR'], ageM
     cart_hash: cartHash,
   };
 }
+let requestIdSequence = 0;
 function request(body) {
+  const requestId = body.checkout_request_id || `00000000-0000-4000-8000-${String(++requestIdSequence).padStart(12, '0')}`;
   return new Request('https://edge.invalid/wompi-create-checkout', {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(body),
+    headers: { 'content-type': 'application/json', origin: 'https://sirevya.com.co' },
+    body: JSON.stringify({ ...body, checkout_request_id: requestId }),
   });
 }
 
@@ -299,8 +383,7 @@ assert.equal(atomicMismatchBody.shipping, 16000);
 assert.equal(atomicMismatchBody.quote, undefined, 'atomic 409s from v41 likewise require a read-only client quote refresh');
 assert.equal(capturedOrderInserts.length, 0, 'atomic quote changes must not create an order');
 assert.equal(beginAttemptCalls.length, 0, 'atomic quote changes must not start a payment attempt');
-assert.ok(!mockCalls.some(call => call.path === '/rest/v1/rpc/create_storefront_wompi_pending_order'));
-assert.ok(!mockCalls.some(call => call.path === '/rest/v1/rpc/begin_storefront_wompi_payment_attempt'));
+assert.ok(!mockCalls.some(call => call.path === '/rest/v1/rpc/advance_storefront_wompi_checkout_request' && ['create_order','begin_attempt'].includes(call.body.p_step)));
 preparationFixture = null;
 
 // A synthetic accepted quote may prepare a pending order entirely inside the fetch mock.
@@ -340,12 +423,39 @@ assert.equal(Object.hasOwn(inserted, 'customer_cedula'), false, 'document must n
 assert.equal(JSON.stringify(paymentIntent).includes('TEST-DOCUMENTO-001'), false, 'payment intent response must not return the identity document');
 assert.ok(mockCalls.every(call => new URL(call.url).origin === env.SUPABASE_URL));
 assert.ok(!mockCalls.some(call => new URL(call.url).hostname.endsWith('wompi.co')), 'the harness must not call Wompi or create a charge');
-assert.ok(mockCalls.some(call => call.path === '/rest/v1/rpc/prepare_storefront_wompi_checkout' && call.body.p_coupon_code === couponCode));
-assert.ok(mockCalls.some(call => call.path === '/rest/v1/rpc/prepare_storefront_wompi_checkout' && call.body.p_expected_quote.total === 69000));
-assert.ok(mockCalls.some(call => call.path === '/rest/v1/rpc/prepare_storefront_wompi_retry_lock'));
-assert.ok(mockCalls.some(call => call.path === '/rest/v1/rpc/begin_storefront_wompi_payment_attempt' &&
-  call.body.p_order_reference === baseBody.reference && call.body.p_expected_quote.total === 69000 &&
-  call.body.p_customer_phone === baseBody.phone && call.body.p_is_new_order === true));
+assert.ok(mockCalls.some(call => call.path === '/rest/v1/rpc/advance_storefront_wompi_checkout_request' && call.body.p_step === 'prepare' && call.body.p_args.p_coupon_code === couponCode));
+assert.ok(mockCalls.some(call => call.path === '/rest/v1/rpc/advance_storefront_wompi_checkout_request' && call.body.p_step === 'prepare' && call.body.p_args.p_expected_quote.total === 69000));
+assert.ok(mockCalls.some(call => call.path === '/rest/v1/rpc/advance_storefront_wompi_checkout_request' && call.body.p_step === 'retry_lock'));
+assert.ok(mockCalls.some(call => call.path === '/rest/v1/rpc/advance_storefront_wompi_checkout_request' && call.body.p_step === 'begin_attempt' &&
+  call.body.p_args.p_order_reference === baseBody.reference && call.body.p_args.p_expected_quote.total === 69000 &&
+  call.body.p_args.p_customer_phone === baseBody.phone && call.body.p_args.p_is_new_order === true));
+const legacyDirectMutationPaths = new Set([
+  '/rest/v1/rpc/reserve_storefront_wompi_checkout_lock',
+  '/rest/v1/rpc/prepare_storefront_wompi_checkout',
+  '/rest/v1/rpc/claim_storefront_wompi_checkout',
+  '/rest/v1/rpc/create_storefront_wompi_pending_order',
+  '/rest/v1/rpc/begin_storefront_wompi_payment_attempt',
+]);
+assert.ok(!mockCalls.some(call => legacyDirectMutationPaths.has(call.path)), 'all checkout mutations must pass through the request-fenced RPC, never the old direct path');
+
+// A response can be lost or the browser can cancel after the server published the signature.
+// Keep the order protected, refuse to re-issue the same payment session and create no duplicate.
+const acceptedRequestId = mockCalls.find(call => call.path === '/rest/v1/rpc/start_storefront_wompi_checkout_request')?.body.p_request_id;
+assert.ok(acceptedRequestId);
+const preCancelOrderCount = capturedOrderInserts.length, preCancelAttemptCount = beginAttemptCalls.length;
+const lateBrowserCancel = await handlers.checkout(request({ action: 'cancel_request', checkout_request_id: acceptedRequestId }));
+assert.equal(lateBrowserCancel.status, 200);
+const lateCancelResult = await lateBrowserCancel.json();
+assert.equal(lateCancelResult.state, 'published');
+assert.equal(lateCancelResult.released, false, 'published/ambiguous payment keeps its reservation and order protected');
+const samePublishedReplay = await handlers.checkout(request({ ...baseBody, checkout_request_id: acceptedRequestId }));
+assert.equal(samePublishedReplay.status, 409);
+assert.equal((await samePublishedReplay.json()).code, 'WOMPI_REQUEST_NOT_REPLAYABLE');
+assert.equal(capturedOrderInserts.length, preCancelOrderCount, 'replaying a published request cannot create another order');
+assert.equal(beginAttemptCalls.length, preCancelAttemptCount, 'replaying a published request cannot create another attempt');
+assert.equal(orderState.payment_status, 'PENDING');
+assert.equal(orderState.transaction_id, null, 'cancellation never fabricates a payment result');
+assert.ok(!mockCalls.some(call => new URL(call.url).hostname.endsWith('wompi.co')));
 
 // A verified terminal order can be found from a newly generated browser reference,
 // then resumed with its original stable order/reservation reference after cooldown.
@@ -367,7 +477,7 @@ assert.equal(discoveryBody.code, 'WOMPI_REUSE_EXISTING_ORDER');
 assert.equal(discoveryBody.existingReference, baseBody.reference);
 assert.equal(beginAttemptCalls.length, 1, 'discovery must not create an attempt until the stable order reference is reused');
 assert.equal(capturedOrderInserts.length, 1, 'discovery must not create a duplicate order');
-assert.ok(mockCalls.some(call => call.path === '/rest/v1/rpc/prepare_storefront_wompi_retry_lock'),
+assert.ok(mockCalls.some(call => call.path === '/rest/v1/rpc/advance_storefront_wompi_checkout_request' && call.body.p_step === 'retry_lock'),
   'unrelated legacy PENDING carts must not stop lookup of the same verified recoverable order');
 
 // Unknown pending attempts for the exact same cart remain blocked, including after the old TTL.
@@ -382,7 +492,7 @@ mockCalls = [];
 const sameCartUnlinked = await handlers.checkout(request({ ...baseBody, reference: 'JMRES-SYNTHETIC-NEW-BROWSER-REF' }));
 assert.equal(sameCartUnlinked.status, 409);
 assert.equal((await sameCartUnlinked.json()).code, 'WOMPI_ATTEMPT_UNVERIFIED');
-assert.ok(!mockCalls.some(call => call.path === '/rest/v1/rpc/prepare_storefront_wompi_retry_lock'),
+assert.ok(!mockCalls.some(call => call.path === '/rest/v1/rpc/advance_storefront_wompi_checkout_request' && call.body.p_step === 'retry_lock'),
   'same-cart unlinked legacy attempts must fail closed until reconciled');
 
 pendingRowsFixture[0].transaction_id = 'TX-SYNTHETIC-SAME-CART-PENDING';
@@ -390,7 +500,7 @@ mockCalls = [];
 const sameCartLinked = await handlers.checkout(request({ ...baseBody, reference: 'JMRES-SYNTHETIC-NEW-BROWSER-REF' }));
 assert.equal(sameCartLinked.status, 409);
 assert.equal((await sameCartLinked.json()).code, 'WOMPI_TRANSACTION_PENDING');
-assert.ok(!mockCalls.some(call => call.path === '/rest/v1/rpc/prepare_storefront_wompi_retry_lock'),
+assert.ok(!mockCalls.some(call => call.path === '/rest/v1/rpc/advance_storefront_wompi_checkout_request' && call.body.p_step === 'retry_lock'),
   'same-cart linked PENDING transactions must not start another payment');
 
 pendingRowsFixture = [];
@@ -405,7 +515,7 @@ assert.equal(capturedOrderInserts.length, 1, 'retry must not insert another orde
 assert.equal(beginAttemptCalls.length, 2, 'retry inserts exactly one new attempt row');
 assert.equal(beginAttemptCalls[1].p_is_new_order, false);
 assert.equal(beginAttemptCalls[1].p_order_reference, baseBody.reference);
-assert.ok(!mockCalls.some(call => call.path === '/rest/v1/rpc/reserve_storefront_wompi_checkout_lock'),
+assert.ok(!mockCalls.some(call => call.path === '/rest/v1/rpc/advance_storefront_wompi_checkout_request' && call.body.p_step === 'reserve_lock'),
   'retry reactivates the existing lock instead of creating a second checkout lock');
 const retrySignature = createHash('sha256')
   .update(`${attemptReferences[1]}6900000COP${retryIntent.expirationTime}${env.WOMPI_INTEGRITY_SECRET}`)
@@ -420,7 +530,7 @@ assert.equal(unresolvedRetry.status, 409);
 assert.equal((await unresolvedRetry.json()).code, 'WOMPI_UNRESOLVED_RESERVATION');
 assert.equal(capturedOrderInserts.length, 1, 'an unlinked retry remains blocked rather than creating a second order');
 assert.equal(beginAttemptCalls.length, 2, 'an unresolved attempt cannot start another Wompi session');
-assert.ok(!mockCalls.some(call => call.path === '/rest/v1/rpc/reserve_storefront_wompi_checkout_lock'),
+assert.ok(!mockCalls.some(call => call.path === '/rest/v1/rpc/advance_storefront_wompi_checkout_request' && call.body.p_step === 'reserve_lock'),
   'unresolved attempts never acquire a second lock');
 
 // A terminal order with the same cart/price but a different delivery address must
@@ -429,13 +539,7 @@ orderState = structuredClone(terminalOrderSnapshot);
 terminalOrderAvailableForRetry = true;
 pendingRowsFixture = [];
 const separateAddress = 'Avenida 9 # 8-7, Apto 301';
-const mutations = new Set([
-  '/rest/v1/rpc/reserve_storefront_wompi_checkout_lock',
-  '/rest/v1/rpc/prepare_storefront_wompi_checkout',
-  '/rest/v1/rpc/claim_storefront_wompi_checkout',
-  '/rest/v1/rpc/create_storefront_wompi_pending_order',
-  '/rest/v1/rpc/begin_storefront_wompi_payment_attempt',
-]);
+const mutationSteps = new Set(['reserve_lock','prepare','claim','create_order','begin_attempt']);
 mockCalls = [];
 const mismatchPrompt = await handlers.checkout(request({ ...baseBody, reference: baseBody.reference, address: separateAddress }));
 assert.equal(mismatchPrompt.status, 409);
@@ -443,7 +547,7 @@ const mismatchPromptBody = await mismatchPrompt.json();
 assert.equal(mismatchPromptBody.code, 'WOMPI_NEW_ORDER_CONFIRMATION_REQUIRED');
 assert.equal(mismatchPromptBody.existingReference, baseBody.reference);
 assert.equal(mismatchPromptBody.quote.total, 69000);
-assert.ok(!mockCalls.some(call => mutations.has(call.path)), 'mismatch prompt must not reserve inventory, insert an order, or start an attempt');
+assert.ok(!mockCalls.some(call => call.path === '/rest/v1/rpc/advance_storefront_wompi_checkout_request' && mutationSteps.has(call.body.p_step)), 'mismatch prompt must not reserve inventory, insert an order, or start an attempt');
 assert.equal(capturedOrderInserts.length, 1);
 assert.equal(beginAttemptCalls.length, 2);
 
@@ -461,7 +565,7 @@ const activeOldHold = await handlers.checkout(request({
 }));
 assert.equal(activeOldHold.status, 409);
 assert.equal((await activeOldHold.json()).code, 'WOMPI_UNRESOLVED_RESERVATION');
-assert.ok(!mockCalls.some(call => mutations.has(call.path)), 'an unexpired old hold must prevent any second reservation or order');
+assert.ok(!mockCalls.some(call => call.path === '/rest/v1/rpc/advance_storefront_wompi_checkout_request' && mutationSteps.has(call.body.p_step)), 'an unexpired old hold must prevent any second reservation or order');
 
 setVerifiedTerminalFixture(orderState);
 activeReservationFixture = [{
@@ -473,7 +577,7 @@ mockCalls = [];
 const convertedOldHold = await handlers.checkout(request({ ...baseBody, reference: baseBody.reference, address: separateAddress }));
 assert.equal(convertedOldHold.status, 409);
 assert.equal((await convertedOldHold.json()).code, 'WOMPI_UNRESOLVED_RESERVATION');
-assert.ok(!mockCalls.some(call => mutations.has(call.path)), 'a converted old hold must never permit duplicate inventory deduction');
+assert.ok(!mockCalls.some(call => call.path === '/rest/v1/rpc/advance_storefront_wompi_checkout_request' && mutationSteps.has(call.body.p_step)), 'a converted old hold must never permit duplicate inventory deduction');
 
 // Even if the order row says ERROR, any pending/approved historical ledger item or
 // an unexpired terminal grace keeps the new-order path fail-closed.
@@ -483,14 +587,14 @@ for (const unverifiedStatus of ['PENDING', 'APPROVED']) {
   const blocked = await handlers.checkout(request({ ...baseBody, reference: baseBody.reference, address: separateAddress }));
   assert.equal(blocked.status, 409);
   assert.equal((await blocked.json()).code, 'WOMPI_ATTEMPT_UNVERIFIED');
-  assert.ok(!mockCalls.some(call => mutations.has(call.path)));
+  assert.ok(!mockCalls.some(call => call.path === '/rest/v1/rpc/advance_storefront_wompi_checkout_request' && mutationSteps.has(call.body.p_step)));
 }
 setVerifiedTerminalFixture(orderState, { ageMinutes: 5 });
 mockCalls = [];
 const graceBlocked = await handlers.checkout(request({ ...baseBody, reference: baseBody.reference, address: separateAddress }));
 assert.equal(graceBlocked.status, 409);
 assert.equal((await graceBlocked.json()).code, 'WOMPI_ATTEMPT_UNVERIFIED');
-assert.ok(!mockCalls.some(call => mutations.has(call.path)));
+assert.ok(!mockCalls.some(call => call.path === '/rest/v1/rpc/advance_storefront_wompi_checkout_request' && mutationSteps.has(call.body.p_step)));
 
 // After restoring two old ERROR attempts beyond 15 minutes, the user-confirmed
 // separate purchase uses a client-persisted fresh reference; the old order remains untouched.
@@ -519,7 +623,7 @@ assert.equal(immutableOldOrder.payment_status, 'ERROR');
 assert.equal(immutableOldOrder.transaction_id, terminalOrderSnapshot.transaction_id);
 assert.ok(!mockCalls.some(call => call.path === '/rest/v1/orders' && ['POST', 'PATCH', 'DELETE'].includes(call.method)),
   'the previous order is never modified directly');
-assert.equal(mockCalls.filter(call => call.path === '/rest/v1/rpc/reserve_storefront_wompi_checkout_lock').length, 1,
+assert.equal(mockCalls.filter(call => call.path === '/rest/v1/rpc/advance_storefront_wompi_checkout_request' && call.body.p_step === 'reserve_lock').length, 1,
   'the confirmed new order takes one lock only');
 assert.ok(!mockCalls.some(call => new URL(call.url).hostname.endsWith('wompi.co')),
   'the synthetic regression never opens Wompi or creates a payment');
@@ -570,8 +674,8 @@ assert.equal(cor038Intent.total, 2000);
 assert.equal(cor038Intent.amountInCents, 200000);
 assert.equal(cor038Intent.currency, 'COP');
 assert.equal(cor038Intent.attemptReference, attemptReferences[3]);
-assert.ok(mockCalls.some(call => call.path === '/rest/v1/rpc/prepare_storefront_wompi_checkout' &&
-  call.body.p_city === 'Cali' && call.body.p_expected_quote.total === 2000 && call.body.p_expected_quote.shipping === 0));
+assert.ok(mockCalls.some(call => call.path === '/rest/v1/rpc/advance_storefront_wompi_checkout_request' && call.body.p_step === 'prepare' &&
+  call.body.p_args.p_city === 'Cali' && call.body.p_args.p_expected_quote.total === 2000 && call.body.p_args.p_expected_quote.shipping === 0));
 assert.ok(!mockCalls.some(call => new URL(call.url).hostname.endsWith('wompi.co')),
   'the COR-038 regression must not open Wompi or create a charge');
 
@@ -611,7 +715,7 @@ assert.equal(cor038MismatchBody.code, 'WOMPI_NEW_ORDER_CONFIRMATION_REQUIRED');
 assert.equal(cor038MismatchBody.existingReference, oldCor038Reference);
 assert.equal(cor038MismatchBody.quote.total, 2000);
 assert.equal(cor038MismatchBody.quote.shipping, 0);
-assert.ok(!mockCalls.some(call => mutations.has(call.path)), 'COR-038 mismatch must not create a reservation/order/attempt before confirmation');
+assert.ok(!mockCalls.some(call => call.path === '/rest/v1/rpc/advance_storefront_wompi_checkout_request' && mutationSteps.has(call.body.p_step)), 'COR-038 mismatch must not create a reservation/order/attempt before confirmation');
 
 mockCalls = [];
 const cor038Confirmed = await handlers.checkout(request({
@@ -632,4 +736,36 @@ assert.equal(beginAttemptCalls[4].p_order_reference, 'JMRES-SYNTHETIC-COR-038-SE
 assert.equal(oldCor038Order.payment_status, 'ERROR', 'the historical order remains terminal and unchanged');
 assert.ok(!mockCalls.some(call => new URL(call.url).hostname.endsWith('wompi.co')),
   'the confirmed COR-038 fixture still never opens Wompi or creates a charge');
-console.log('PASS Wompi checkout integration: COR-038/Cali COP 2,000, $0 shipping; exact same-snapshot retry reuses the order; different identity/address requires a second confirmation and a new reference; PENDING/APPROVED history and 15-minute grace block; no external calls or real payments.');
+
+// If the server response is lost after creating an order but before any attempt,
+// the browser can reopen with its persisted request ID; the server atomically
+// revalidates the same hold and starts the first attempt on the same order.
+const lostResponseReference = 'SIREVYA-SYNTHETIC-LOST-BEFORE-ATTEMPT';
+const lostResponseRequestId = '00000000-0000-4000-8000-000000000099';
+quoteFixture = structuredClone(originalQuoteFixture);
+orderState = null;
+pendingRowsFixture = [];
+failNextBeginAttemptResponse = true;
+const orderCountBeforeLostResponse = capturedOrderInserts.length;
+const attemptCountBeforeLostResponse = beginAttemptCalls.length;
+mockCalls = [];
+const lostBeforeAttempt = await handlers.checkout(request({ ...baseBody, reference: lostResponseReference, checkout_request_id: lostResponseRequestId }));
+assert.equal(lostBeforeAttempt.status, 503);
+assert.equal(capturedOrderInserts.length, orderCountBeforeLostResponse + 1, 'the first request creates only its one synthetic order before the mocked response loss');
+assert.equal(beginAttemptCalls.length, attemptCountBeforeLostResponse, 'no payment attempt exists when the response is lost at this boundary');
+assert.equal(checkoutRequests.get(lostResponseRequestId).state, 'order_created');
+assert.equal(checkoutRequests.get(lostResponseRequestId).orderCreatedByRequest, true);
+mockCalls = [];
+const resumedLostResponse = await handlers.checkout(request({ ...baseBody, reference: lostResponseReference, checkout_request_id: lostResponseRequestId }));
+assert.equal(resumedLostResponse.status, 200);
+const resumedLostIntent = await resumedLostResponse.json();
+assert.equal(resumedLostIntent.reference, lostResponseReference, 'recovery keeps the same order/reference');
+assert.equal(resumedLostIntent.attemptReference, attemptReferences[5], 'recovery creates one first attempt only after atomic revalidation');
+assert.equal(unattemptedResumeCalls.at(-1).p_request_id, lostResponseRequestId);
+assert.equal(unattemptedResumeCalls.at(-1).p_expected_quote.total, 69000);
+assert.equal(capturedOrderInserts.length, orderCountBeforeLostResponse + 1, 'reopening does not create a duplicate order');
+assert.equal(beginAttemptCalls.length, attemptCountBeforeLostResponse + 1, 'reopening creates exactly one payment attempt');
+assert.equal(beginAttemptCalls.at(-1).p_is_new_order, true, 'first attempt on the same recovered order is not misclassified as a terminal retry');
+assert.equal(checkoutRequests.get(lostResponseRequestId).state, 'published');
+assert.ok(!mockCalls.some(call => new URL(call.url).hostname.endsWith('wompi.co')), 'response-loss recovery never calls Wompi');
+console.log('PASS Wompi checkout integration: request-fenced start/steps/publish; lost response resumes same request/order before any attempt; cancellation/replay stays protected; COR-038/Cali COP 2,000; verified terminal retries and PENDING/APPROVED/grace guards; no external calls or real payments.');

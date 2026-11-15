@@ -404,54 +404,38 @@ async function releaseAttemptReservations(
   return couponReleased && inventoryReleased && lockReleased;
 }
 
-async function reserveWompiCheckoutLock(args: {
-  supabaseUrl: string;
-  serviceRoleKey: string;
-  reference: string;
-  customerPhone: string;
-  cartHash: string;
-}): Promise<{ responseOk: boolean; success: boolean; code?: string; existingReference?: string; expiresAt?: string; message?: string }> {
+async function checkoutRequestRpc(
+  supabaseUrl: string,
+  serviceRoleKey: string,
+  functionName: string,
+  args: Record<string, unknown>,
+): Promise<{ responseOk: boolean; result: any }> {
   try {
-    const response = await fetch(`${args.supabaseUrl}/rest/v1/rpc/reserve_storefront_wompi_checkout_lock`, {
+    const response = await fetch(`${supabaseUrl}/rest/v1/rpc/${functionName}`, {
       method: "POST",
-      headers: supabaseHeaders(args.serviceRoleKey),
-      body: JSON.stringify({
-        p_reference: args.reference,
-        p_customer_phone: args.customerPhone,
-        p_cart_hash: args.cartHash,
-        p_minutes: 10,
-      }),
+      headers: supabaseHeaders(serviceRoleKey),
+      body: JSON.stringify(args),
     });
-    const result = rpcObject(await readJson(response));
-    return {
-      responseOk: response.ok,
-      success: response.ok && result?.success === true,
-      code: typeof result?.code === "string" ? result.code : undefined,
-      existingReference: typeof result?.existing_reference === "string" ? result.existing_reference : undefined,
-      expiresAt: typeof result?.expires_at === "string" ? result.expires_at : undefined,
-      message: typeof result?.message === "string" ? result.message : undefined,
-    };
+    return { responseOk: response.ok, result: rpcObject(await readJson(response)) };
   } catch {
-    return { responseOk: false, success: false };
+    return { responseOk: false, result: null };
   }
 }
 
-async function claimWompiCheckout(supabaseUrl: string, serviceRoleKey: string, reference: string): Promise<{ responseOk: boolean; success: boolean; code?: string }> {
-  try {
-    const response = await fetch(`${supabaseUrl}/rest/v1/rpc/claim_storefront_wompi_checkout`, {
-      method: "POST",
-      headers: supabaseHeaders(serviceRoleKey),
-      body: JSON.stringify({ p_reference: reference }),
-    });
-    const result = rpcObject(await readJson(response));
-    return {
-      responseOk: response.ok,
-      success: response.ok && result?.success === true,
-      code: typeof result?.code === "string" ? result.code : undefined,
-    };
-  } catch {
-    return { responseOk: false, success: false };
-  }
+async function advanceCheckoutRequest(
+  supabaseUrl: string,
+  serviceRoleKey: string,
+  requestId: string,
+  snapshotHash: string,
+  step: string,
+  args: Record<string, unknown>,
+): Promise<{ responseOk: boolean; result: any }> {
+  return await checkoutRequestRpc(supabaseUrl, serviceRoleKey, "advance_storefront_wompi_checkout_request", {
+    p_request_id: requestId,
+    p_snapshot_hash: snapshotHash,
+    p_step: step,
+    p_args: args,
+  });
 }
 
 Deno.serve(async (req: Request): Promise<Response> => {
@@ -462,6 +446,32 @@ Deno.serve(async (req: Request): Promise<Response> => {
   try {
     let body: any;
     try { body = await req.json(); } catch { return json({ error: "El cuerpo de la solicitud no es JSON válido." }, 400); }
+
+    if (body?.action === "cancel_request") {
+      const origin = String(req.headers.get("origin") ?? "").replace(/\/$/, "");
+      if (!new Set(["https://sirevya.com.co", "https://www.sirevya.com.co"]).has(origin)) {
+        return json({ code: "WOMPI_REQUEST_CANCEL_ORIGIN_INVALID", error: "No se pudo validar el origen de la cancelación." }, 403);
+      }
+      const requestId = String(body?.checkout_request_id ?? "").trim();
+      if (!UUID_PATTERN.test(requestId)) return json({ code: "WOMPI_REQUEST_ID_INVALID" }, 400);
+      const supabaseUrl = Deno.env.get("SUPABASE_URL");
+      const serviceRoleKey = getSupabaseServiceKey();
+      if (!supabaseUrl || !serviceRoleKey) return json({ code: "WOMPI_REQUEST_CANCEL_UNAVAILABLE" }, 503);
+      const cancelled = await checkoutRequestRpc(supabaseUrl, serviceRoleKey, "cancel_storefront_wompi_checkout_request", {
+        p_request_id: requestId,
+      });
+      if (!cancelled.responseOk || cancelled.result?.success !== true) {
+        return json({ code: "WOMPI_REQUEST_CANCEL_UNCONFIRMED", error: "La cancelación no pudo confirmarse; el checkout se conserva protegido para recuperación." }, 503);
+      }
+      return json({
+        success: true,
+        state: String(cancelled.result?.state ?? "unknown"),
+        released: cancelled.result?.released === true,
+        manual_recovery_required: cancelled.result?.manual_recovery_required === true,
+        tombstone: cancelled.result?.tombstone === true,
+      });
+    }
+    if (body?.action != null) return json({ code: "WOMPI_REQUEST_ACTION_INVALID" }, 400);
 
     const requestedWompiEnvironment = normalizeWompiEnvironment(body?.environment);
     const wompiEnvironment = WOMPI_PRODUCTION_ENVIRONMENT;
@@ -667,13 +677,89 @@ Deno.serve(async (req: Request): Promise<Response> => {
     }
 
     let reference = String(body?.reference ?? "").trim();
-    if (!reference) reference = `JM-${crypto.randomUUID().replaceAll("-", "").slice(0, 24)}`;
+    if (!reference) return json({ code: "WOMPI_REFERENCE_REQUIRED", error: "Actualiza el checkout para conservar la misma referencia de reserva durante una recuperación." }, 400);
     if (!/^[A-Za-z0-9_-]{1,120}$/.test(reference)) {
       return json({ error: "La referencia del pedido no tiene un formato válido." }, 400);
+    }
+    const checkoutRequestId = String(body?.checkout_request_id ?? "").trim();
+    if (!UUID_PATTERN.test(checkoutRequestId)) {
+      return json({ code: "WOMPI_REQUEST_ID_REQUIRED", error: "Actualiza el checkout para proteger la continuidad de la reserva y evitar órdenes duplicadas." }, 400);
+    }
+    const canonicalItems = canonicalCart(items);
+    if (!canonicalItems || canonicalCart(quote.items) !== canonicalItems) {
+      return json({ code: "WOMPI_REQUEST_CART_INVALID", error: "No se pudo vincular la cesta cotizada con la reserva actual." }, 400);
+    }
+    const cartHash = await sha256Hex(canonicalItems);
+    const normalizedPhone = phone.replace(/\D/g, "").slice(-10);
+    if (!/^\d{10}$/.test(normalizedPhone)) return json({ code: "WOMPI_REQUEST_PHONE_INVALID" }, 400);
+    const customerPhoneHash = await sha256Hex(normalizedPhone);
+    const requestSnapshotHash = await sha256Hex(JSON.stringify({
+      reference,
+      name: snapshotTextKey(name),
+      phone: normalizedPhone,
+      email: email.toLowerCase(),
+      city: snapshotCityKey(city),
+      address: snapshotTextKey(address),
+      neighborhood: snapshotTextKey(neighborhood),
+      couponCode,
+      cart: canonicalItems,
+      quoteItems: canonicalQuoteItems(quote.items),
+      currency: "COP",
+      subtotal,
+      discountTotal,
+      discountedSubtotal,
+      couponDiscountTotal,
+      couponId: quoteCouponId,
+      quoteCouponCode,
+      shipping,
+      total: totalCop,
+    }));
+    const requestStart = await checkoutRequestRpc(supabaseUrl, serviceRoleKey, "start_storefront_wompi_checkout_request", {
+      p_request_id: checkoutRequestId,
+      p_reference: reference,
+      p_snapshot_hash: requestSnapshotHash,
+      p_cart_hash: cartHash,
+      p_customer_phone_hash: customerPhoneHash,
+    });
+    if (!requestStart.responseOk || !requestStart.result) {
+      return json({ code: "WOMPI_REQUEST_START_UNCONFIRMED", error: "No se pudo confirmar de forma idempotente el estado del checkout. Conserva la reserva; no se abrió Wompi." }, 503);
+    }
+    if (requestStart.result.success !== true) {
+      const code = String(requestStart.result.code ?? "WOMPI_REQUEST_START_FAILED");
+      return json({ code, canRetryWithNewReference: false, error: code === "WOMPI_MANUAL_RECOVERY_REQUIRED"
+        ? "Este pedido se conserva protegido y requiere una conciliación administrativa antes de continuar."
+        : code === "WOMPI_MANUAL_RETRY_GRACE"
+          ? "La verificación administrativa terminó, pero aún debe cumplirse la ventana de seguridad antes del reintento."
+          : code === "WOMPI_REQUEST_CANCELLED"
+            ? "La solicitud anterior fue cancelada; confirma nuevamente para continuar con una referencia segura."
+            : code === "WOMPI_REQUEST_NOT_REPLAYABLE"
+              ? "El intento anterior no puede reproducirse. Confirma nuevamente para iniciar una validación segura del mismo pedido."
+              : "No se pudo validar la continuidad de este checkout. No se creó otro pedido ni se inició un pago." }, 409);
+    }
+    const requestState = String(requestStart.result.request_state ?? "started");
+    const requestOrderCreatedByThis = requestStart.result.order_created_by_request === true;
+    if (requestStart.result.replay_ready === true) {
+      const replayAttemptReference = String(requestStart.result.attempt_reference ?? "");
+      const replayAmountInCents = copAmount(requestStart.result.amount_in_cents);
+      const replayExpiry = String(requestStart.result.expires_at ?? "");
+      const replayExpiryMs = Date.parse(replayExpiry);
+      if (!/^SW-[A-F0-9]{32}$/.test(replayAttemptReference) || replayAmountInCents !== amountInCents ||
+          !Number.isFinite(replayExpiryMs) || replayExpiryMs <= Date.now() || requestStart.result.reference !== reference) {
+        return json({ code: "WOMPI_REQUEST_REPLAY_INVALID", error: "No se pudo reanudar exactamente la sesión Wompi anterior. El pedido permanece protegido." }, 409);
+      }
+      const replaySignature = await sha256Hex(`${replayAttemptReference}${replayAmountInCents}COP${new Date(replayExpiryMs).toISOString()}${integritySecret}`);
+      return json({ environment: wompiEnvironment, reference, attemptReference: replayAttemptReference,
+        amountInCents: replayAmountInCents, signature: replaySignature, expirationTime: new Date(replayExpiryMs).toISOString(),
+        subtotal, discountTotal, couponDiscountTotal, shipping, total: totalCop, currency: "COP",
+        replayed: true, newOrderAfterTerminalMismatch: false });
     }
 
     // A terminal order may resume only through the verified-attempt ledger below.
     // An unlinked or unknown payment state never gets a fresh order/reference.
+    let resumesUnattemptedOrder = requestState === "order_created" && requestOrderCreatedByThis &&
+      !String(requestStart.result.attempt_reference ?? "").trim();
+    let manualRetryReady = false;
+    let manualRetryPreparation: any = null;
     let existingTerminalTransaction = false;
     let forceNewOrderAuthorized = false;
     const userConfirmedSeparateOrder = body?.confirm_new_order_after_terminal_mismatch === true;
@@ -691,7 +777,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
       const pendingAndUnlinked = String(existing.payment_method ?? "").toLowerCase() === "wompi" &&
         String(existing.payment_status ?? "").toUpperCase() === "PENDING" &&
         !String(existing.transaction_id ?? "").trim();
-      if (pendingAndUnlinked) {
+      if (pendingAndUnlinked && !resumesUnattemptedOrder && requestState !== "attempt_issued" &&
+          !(requestState === "started" && requestOrderCreatedByThis)) {
         return json({
           code: unlinkedWompiOrderExpired(existing) ? "WOMPI_ATTEMPT_UNVERIFIED" : "WOMPI_UNRESOLVED_RESERVATION",
           canRetryWithNewReference: false,
@@ -700,6 +787,31 @@ Deno.serve(async (req: Request): Promise<Response> => {
             ? "El pedido anterior sigue sin un estado terminal verificado por Wompi. No se creará otra orden automáticamente; contacta soporte para revisar el intento."
             : "Este pedido Wompi sigue pendiente y sin transacción vinculada. Espera la confirmación; no se abrirá otro intento ni otra orden mientras su estado sea ambiguo.",
         }, 409);
+      }
+      if (pendingAndUnlinked && requestState === "started" && requestOrderCreatedByThis) {
+        const manualPrepare = await checkoutRequestRpc(supabaseUrl, serviceRoleKey, "prepare_storefront_wompi_manual_retry_lock", {
+          p_request_id: checkoutRequestId,
+          p_snapshot_hash: requestSnapshotHash,
+          p_customer_name: name,
+          p_customer_phone: phone,
+          p_city: city,
+          p_address: address,
+          p_neighborhood: neighborhood,
+          p_customer_email: email,
+          p_items: quote.items,
+          p_coupon_code: couponCode,
+          p_expected_quote: quote,
+          p_cart_hash: cartHash,
+        });
+        if (!manualPrepare.responseOk || manualPrepare.result?.success !== true) {
+          const code = String(manualPrepare.result?.code ?? "WOMPI_MANUAL_RECOVERY_UNCONFIRMED");
+          return json({ code, canRetryWithNewReference: false,
+            error: code === "WOMPI_MANUAL_RETRY_GRACE"
+              ? "La verificación individual se registró, pero aún debe cumplirse la ventana de seguridad antes de renovar la misma reserva."
+              : "El pedido anterior permanece protegido. No se creó otra reserva ni se abrió Wompi; requiere conciliación administrativa." }, 409);
+        }
+        manualRetryReady = true;
+        manualRetryPreparation = manualPrepare.result;
       }
       const existingStatus = String(existing.payment_status ?? "").trim().toUpperCase();
       const existingTransactionId = String(existing.transaction_id ?? "").trim();
@@ -749,6 +861,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
             existingReference: String(existing.reference),
             error: "La confirmación se recibió con la referencia del pedido anterior. No se modificó esa orden; vuelve a confirmar para generar una referencia nueva y segura." }, 409);
         }
+      } else if (resumesUnattemptedOrder || manualRetryReady || requestState === "attempt_issued") {
+        existingTerminalTransaction = false;
       } else {
         return json({ error: "Esta referencia ya corresponde a otro intento, a una transacción vinculada o a datos distintos. No se reutilizó el pedido anterior." }, 409);
       }
@@ -837,19 +951,40 @@ Deno.serve(async (req: Request): Promise<Response> => {
         error: "Hay un pedido Wompi del mismo carrito sin estado terminal verificado. No se abrirá otra sesión para evitar duplicar el pago; contacta soporte para conciliación.",
       }, 409);
     }
-    const canonicalItems = canonicalCart(items);
-    if (!canonicalItems) return json({ error: "No se pudo normalizar el carrito para reservarlo." }, 400);
-    const cartHash = await sha256Hex(canonicalItems);
-    const retryLockResponse = await fetch(`${supabaseUrl}/rest/v1/rpc/prepare_storefront_wompi_retry_lock`, {
-      method: "POST",
-      headers: supabaseHeaders(serviceRoleKey),
-      body: JSON.stringify({ p_reference: reference, p_customer_phone: phone, p_cart_hash: cartHash, p_minutes: 10 }),
-    });
-    let retryLock = rpcObject(await readJson(retryLockResponse));
-    if (!retryLockResponse.ok || !retryLock || typeof retryLock.success !== "boolean") {
-      return json({ error: "No se pudo comprobar si existe un intento terminal reanudable. No se abrió otro pago." }, 503);
+    let retryLock: any = { success: false, code: "WOMPI_NO_RETRYABLE_ORDER", reference };
+    let retryLockReady = manualRetryReady;
+    let resumedOrderPreparation: any = manualRetryPreparation;
+    if (resumesUnattemptedOrder) {
+      const resumed = await checkoutRequestRpc(supabaseUrl, serviceRoleKey, "resume_storefront_wompi_unattempted_request", {
+        p_request_id: checkoutRequestId,
+        p_snapshot_hash: requestSnapshotHash,
+        p_customer_name: name,
+        p_customer_phone: phone,
+        p_city: city,
+        p_address: address,
+        p_neighborhood: neighborhood,
+        p_customer_email: email,
+        p_items: quote.items,
+        p_coupon_code: couponCode,
+        p_expected_quote: quote,
+        p_cart_hash: cartHash,
+      });
+      if (!resumed.responseOk || resumed.result?.success !== true) {
+        return json({ code: String(resumed.result?.code ?? "WOMPI_REQUEST_RESUME_UNCONFIRMED"),
+          error: "No se pudo revalidar atómicamente el mismo pedido y su reserva. El pedido permanece protegido; no se creó otra reserva ni se abrió Wompi." }, 409);
+      }
+      resumedOrderPreparation = resumed.result;
+      retryLockReady = true;
+      retryLock = { success: true, reference, expires_at: resumed.result.expires_at };
+    } else if (!retryLockReady) {
+      const retryLockCall = await advanceCheckoutRequest(supabaseUrl, serviceRoleKey, checkoutRequestId,
+        requestSnapshotHash, "retry_lock", { p_customer_phone: phone, p_cart_hash: cartHash, p_minutes: 10 });
+      retryLock = retryLockCall.result;
+      if (!retryLockCall.responseOk || !retryLock || typeof retryLock.success !== "boolean") {
+        return json({ code: "WOMPI_RETRY_LOCK_UNCONFIRMED", error: "No se pudo comprobar si existe un intento terminal reanudable. No se abrió otro pago." }, 503);
+      }
+      retryLockReady = retryLock.success === true;
     }
-    let retryLockReady = retryLock.success === true;
     if (!retryLockReady && retryLock.code === "WOMPI_REUSE_EXISTING_ORDER") {
       const priorReference = String(retryLock.existing_reference ?? "").trim();
       if (!priorReference) {
@@ -920,19 +1055,15 @@ Deno.serve(async (req: Request): Promise<Response> => {
       return json({ code: retryLock.code ?? "WOMPI_ATTEMPT_HISTORY_REQUIRED", canRetryWithNewReference: false,
         error: "El pedido terminó, pero no existe un historial verificado y vencido que permita reabrirlo. No se creó un pedido nuevo." }, 409);
     }
-    if (retryLockReady && String(retryLock.reference ?? "") !== reference) {
+    if (retryLockReady && retryLock.reference != null && String(retryLock.reference) !== reference) {
       return json({ code: "WOMPI_RETRY_REFERENCE_MISMATCH", canRetryWithNewReference: false,
         error: "La referencia de la reanudación no coincide con el pedido actual. No se inició el pago." }, 409);
     }
     let checkoutLock: any = { responseOk: true, success: true };
     if (!retryLockReady) {
-      checkoutLock = await reserveWompiCheckoutLock({
-        supabaseUrl,
-        serviceRoleKey,
-        reference,
-        customerPhone: phone,
-        cartHash,
-      });
+      const reserveCall = await advanceCheckoutRequest(supabaseUrl, serviceRoleKey, checkoutRequestId,
+        requestSnapshotHash, "reserve_lock", { p_customer_phone: phone, p_cart_hash: cartHash, p_minutes: 10 });
+      checkoutLock = { responseOk: reserveCall.responseOk, ...reserveCall.result };
     }
     if (!checkoutLock.responseOk) {
       // The RPC may have committed before its response was lost. Never perform a
@@ -963,21 +1094,22 @@ Deno.serve(async (req: Request): Promise<Response> => {
     // Re-quote and reserve pricing-sensitive inventory/coupon state in one SQL transaction.
     // The RPC locks product, combo, shipping and coupon rows, then compares this
     // server-owned quote with the current one before it creates any hold.
-    const preparationResponse = await fetch(`${supabaseUrl}/rest/v1/rpc/prepare_storefront_wompi_checkout`, {
-      method: "POST",
-      headers: supabaseHeaders(serviceRoleKey),
-      body: JSON.stringify({
-        p_reference: reference,
-        p_items: items,
-        p_city: city,
-        p_coupon_code: couponCode,
-        p_customer_email: email,
-        p_customer_phone: phone,
-        p_expected_quote: quote,
-      }),
-    });
-    const preparation = rpcObject(await readJson(preparationResponse));
-    if (!preparationResponse.ok || preparation?.success !== true) {
+    let preparationResponseOk = true;
+    let preparation: any = resumedOrderPreparation;
+    if (!preparation) {
+      const preparationCall = await advanceCheckoutRequest(supabaseUrl, serviceRoleKey, checkoutRequestId,
+        requestSnapshotHash, "prepare", {
+          p_items: items,
+          p_city: city,
+          p_coupon_code: couponCode,
+          p_customer_email: email,
+          p_customer_phone: phone,
+          p_expected_quote: quote,
+        });
+      preparationResponseOk = preparationCall.responseOk;
+      preparation = preparationCall.result;
+    }
+    if (!preparationResponseOk || preparation?.success !== true) {
       // The preparation RPC is transactional, but a lost response is ambiguous.
       // Leave any hold to TTL instead of racing another request with cleanup.
       const preparedQuote = rpcObject(preparation?.quote);
@@ -994,7 +1126,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         error: String(preparation?.message ?? (quoteChanged
           ? "El precio, descuento, cupón o envío cambió durante la preparación. Revisa el nuevo total y confirma otra vez."
           : "No se pudo confirmar de forma atómica la cotización y sus reservas; no se inició el pago.")),
-      }, quoteChanged || preparationResponse.ok ? 409 : 502);
+      }, quoteChanged || preparationResponseOk ? 409 : 502);
     }
     const expiryDate = new Date(String(preparation.expires_at ?? ""));
     const expiryMs = expiryDate.getTime();
@@ -1005,7 +1137,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
     // Only one request can claim the hosted checkout session for this lock.
     // A lost claim response is left to TTL; another request may already own it.
-    const checkoutClaim = await claimWompiCheckout(supabaseUrl, serviceRoleKey, reference);
+    const checkoutClaimCall = await advanceCheckoutRequest(supabaseUrl, serviceRoleKey, checkoutRequestId,
+      requestSnapshotHash, "claim", {});
+    const checkoutClaim = { responseOk: checkoutClaimCall.responseOk, ...checkoutClaimCall.result };
     if (!checkoutClaim.responseOk) {
       return json({ error: "No se pudo confirmar un claim exclusivo del checkout. Espera el vencimiento antes de reintentar." }, 503);
     }
@@ -1022,10 +1156,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
       // INSERT closed to browser roles and avoids the PostgREST 403 path caused
       // by the production orders ACL/schema boundary.
       orderInsertAttempted = true;
-      const orderResponse = await fetch(`${supabaseUrl}/rest/v1/rpc/create_storefront_wompi_pending_order`, {
-        method: "POST",
-        headers: supabaseHeaders(serviceRoleKey),
-        body: JSON.stringify({
+      const orderCall = await advanceCheckoutRequest(supabaseUrl, serviceRoleKey, checkoutRequestId,
+        requestSnapshotHash, "create_order", {
           p_reference: reference,
           p_customer_name: name,
           p_phone: phone,
@@ -1039,22 +1171,25 @@ Deno.serve(async (req: Request): Promise<Response> => {
           p_coupon_id: couponCode ? quoteCouponId : null,
           p_coupon_code: couponCode || null,
           p_coupon_discount_total: couponCode ? couponDiscountTotal : 0,
-        }),
-      });
-      const orderResult = rpcObject(await readJson(orderResponse));
-      if (!orderResponse.ok || orderResult?.success !== true) {
+        });
+      if (!orderCall.responseOk || orderCall.result?.success !== true) {
         return json({
           code: "WOMPI_ORDER_INSERT_UNCONFIRMED",
           error: "No se pudo confirmar si el pedido quedó registrado. Esta solicitud no abrió la sesión de pago; espera el vencimiento de la reserva antes de volver a intentarlo.",
         }, 503);
       }
       orderInsertAttempted = false;
+    } else {
+      const linkCall = await advanceCheckoutRequest(supabaseUrl, serviceRoleKey, checkoutRequestId,
+        requestSnapshotHash, "mark_existing_order", { p_terminal_retry_verified: existingTerminalTransaction });
+      if (!linkCall.responseOk || linkCall.result?.success !== true) {
+        return json({ code: String(linkCall.result?.code ?? "WOMPI_ORDER_REUSE_UNCONFIRMED"),
+          error: "No se pudo demostrar que el pedido existente pertenece a este reintento seguro. No se creó otro pedido ni se abrió Wompi." }, 409);
+      }
     }
 
-    const beginAttemptResponse = await fetch(`${supabaseUrl}/rest/v1/rpc/begin_storefront_wompi_payment_attempt`, {
-      method: "POST",
-      headers: supabaseHeaders(serviceRoleKey),
-      body: JSON.stringify({
+    const beginAttemptCall = await advanceCheckoutRequest(supabaseUrl, serviceRoleKey, checkoutRequestId,
+      requestSnapshotHash, "begin_attempt", {
         p_order_reference: reference,
         p_customer_name: name,
         p_customer_phone: phone,
@@ -1063,10 +1198,12 @@ Deno.serve(async (req: Request): Promise<Response> => {
         p_neighborhood: neighborhood,
         p_expected_quote: quote,
         p_cart_hash: cartHash,
-        p_is_new_order: !existing,
-      }),
-    });
-    const attemptResult = rpcObject(await readJson(beginAttemptResponse));
+        p_is_new_order: !existing || resumesUnattemptedOrder,
+        p_expiration_time: expirationTime,
+        p_amount_in_cents: amountInCents,
+      });
+    const beginAttemptResponse = { ok: beginAttemptCall.responseOk };
+    const attemptResult = beginAttemptCall.result;
     const attemptReference = String(attemptResult?.attempt_reference ?? "");
     if (!beginAttemptResponse.ok || attemptResult?.success !== true || !/^SW-[A-F0-9]{32}$/.test(attemptReference) ||
         Number(attemptResult?.amount_in_cents) !== amountInCents || String(attemptResult?.currency ?? "").toUpperCase() !== "COP" ||
@@ -1081,6 +1218,17 @@ Deno.serve(async (req: Request): Promise<Response> => {
     // Wompi receives and signs a unique attempt reference; the stable order
     // reference remains the key for inventory, coupons, order, and checkout lock.
     const signature = await sha256Hex(`${attemptReference}${amountInCents}COP${expirationTime}${integritySecret}`);
+    const publish = await checkoutRequestRpc(supabaseUrl, serviceRoleKey, "publish_storefront_wompi_checkout_request", {
+      p_request_id: checkoutRequestId,
+      p_snapshot_hash: requestSnapshotHash,
+      p_attempt_reference: attemptReference,
+      p_amount_in_cents: amountInCents,
+      p_expiration_time: expirationTime,
+    });
+    if (!publish.responseOk || publish.result?.success !== true) {
+      return json({ code: String(publish.result?.code ?? "WOMPI_REQUEST_PUBLISH_UNCONFIRMED"),
+        error: "La solicitud de checkout fue cancelada o no pudo confirmarse de forma atómica. No se abrió Wompi; el pedido y la reserva permanecen protegidos." }, 409);
+    }
     return json({ environment: wompiEnvironment, reference, attemptReference, amountInCents, signature, expirationTime, subtotal, discountTotal, couponDiscountTotal, shipping, total: totalCop, currency: "COP", newOrderAfterTerminalMismatch: forceNewOrderAuthorized });
   } catch {
     // Deliberately do not log request data: coupon codes and customer PII must not

@@ -112,14 +112,14 @@ Deno.serve(async (request: Request): Promise<Response> => {
     const supabaseUrl = envValue("SUPABASE_URL").replace(/\/+$/, "");
     const publicKey = envValue("SUPABASE_PUBLISHABLE_KEY") || envValue("SUPABASE_ANON_KEY");
     const serviceKey = supabaseServiceKey();
-    const wompiPrivateKey = envValue("WOMPI_PRIVATE_KEY");
-    if (!userToken || !supabaseUrl || !publicKey || !serviceKey || !wompiPrivateKey) {
+    if (!userToken || !supabaseUrl || !publicKey || !serviceKey) {
       return json({ error: "No se pudo preparar la recuperación segura." }, 503, origin);
     }
 
     const userHeaders = { apikey: publicKey, Authorization: `Bearer ${userToken}`, Accept: "application/json" };
     const userResult = await fetchJson(`${supabaseUrl}/auth/v1/user`, { method: "GET", headers: userHeaders });
-    if (!userResult.ok || typeof userResult.data?.id !== "string") {
+    const adminUserId = typeof userResult.data?.id === "string" ? userResult.data.id : "";
+    if (!userResult.ok || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(adminUserId)) {
       return json({ error: "Se requiere una sesión administrativa válida." }, 401, origin);
     }
     const adminResult = await fetchJson(`${supabaseUrl}/rest/v1/rpc/is_store_admin`, {
@@ -131,10 +131,54 @@ Deno.serve(async (request: Request): Promise<Response> => {
 
     let body: any;
     try { body = await request.json(); } catch { return json({ error: "Solicitud no válida." }, 400, origin); }
-    if (!body || typeof body !== "object" || Array.isArray(body) ||
-        Object.keys(body).some((key) => !["reference", "transaction_ids"].includes(key))) {
+    if (!body || typeof body !== "object" || Array.isArray(body)) {
       return json({ error: "La solicitud contiene campos no permitidos." }, 400, origin);
     }
+
+    if (body.action === "attest_no_transaction" || body.action === "attest_no_attempt") {
+      const isAttempt = body.action === "attest_no_transaction";
+      const allowedKeys = isAttempt
+        ? ["action", "attempt_reference", "confirm_no_transaction"]
+        : ["action", "order_reference", "confirm_no_transaction"];
+      if (Object.keys(body).some((key) => !allowedKeys.includes(key)) || body.confirm_no_transaction !== true) {
+        return json({ error: "Se requiere una confirmación explícita de revisión en Wompi Producción." }, 400, origin);
+      }
+      const attemptReference = isAttempt && typeof body.attempt_reference === "string" ? body.attempt_reference.trim() : "";
+      const orderReference = !isAttempt ? safeReference(body.order_reference) : "";
+      if ((isAttempt && !/^SW-[A-F0-9]{32}$/.test(attemptReference)) || (!isAttempt && !orderReference)) {
+        return json({ error: "La referencia para la verificación manual no es válida." }, 400, origin);
+      }
+      const rpcName = isAttempt ? "verify_storefront_wompi_no_transaction" : "verify_storefront_wompi_no_attempt";
+      const rpcBody = isAttempt
+        ? { p_attempt_reference: attemptReference, p_admin_user_id: adminUserId, p_confirmed: true }
+        : { p_order_reference: orderReference, p_admin_user_id: adminUserId, p_confirmed: true };
+      const attestationResult = await fetchJson(`${supabaseUrl}/rest/v1/rpc/${rpcName}`, {
+        method: "POST", headers: supabaseHeaders(serviceKey), body: JSON.stringify(rpcBody),
+      });
+      const attestation = Array.isArray(attestationResult.data) ? attestationResult.data[0] : attestationResult.data;
+      if (!attestationResult.ok || attestation?.success !== true) {
+        const code = typeof attestation?.code === "string" && /^WOMPI_[A-Z0-9_]+$/.test(attestation.code)
+          ? attestation.code
+          : "WOMPI_MANUAL_ATTESTATION_FAILED";
+        return json({ success: false, code }, 409, origin);
+      }
+      return json({
+        success: true,
+        state: typeof attestation.state === "string" ? attestation.state : "no_transaction_verified",
+        retryAfter: typeof attestation.retry_after === "string" ? attestation.retry_after : null,
+        orderPreserved: attestation.order_preserved !== false,
+        reservationReleased: attestation.reservation_released === true,
+        attemptIssued: attestation.attempt_issued === true,
+        paymentStarted: false,
+        idempotent: attestation.idempotent === true,
+      }, 200, origin);
+    }
+
+    if (Object.keys(body).some((key) => !["reference", "transaction_ids"].includes(key))) {
+      return json({ error: "La solicitud contiene campos no permitidos." }, 400, origin);
+    }
+    const wompiPrivateKey = envValue("WOMPI_PRIVATE_KEY");
+    if (!wompiPrivateKey) return json({ error: "No se pudo preparar la recuperación segura." }, 503, origin);
     const reference = safeReference(body.reference);
     const transactionIds = Array.isArray(body.transaction_ids) ? body.transaction_ids.map(safeTransactionId) : [];
     if (!reference || transactionIds.length !== 2 || transactionIds.some((id: string) => !id) ||
