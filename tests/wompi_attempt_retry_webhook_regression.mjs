@@ -220,8 +220,8 @@ for (const status of ['PENDING', 'ERROR', 'DECLINED', 'VOIDED', 'APPROVED']) {
   assert.ok(requests.some(call => call.url.pathname === '/rest/v1/orders' && call.method === 'GET'));
 }
 
-// Wompi's documented event schema has no environment field. A valid signed event
-// must pass the production-secret and authenticated production-API checks without it.
+// Wompi's documented event schema includes an explicit environment field.
+// A missing environment must fail closed before any API/database request.
 scenario = makeScenario({ status: 'PENDING', transactionId: 'TX-NO-ENV-001' });
 requests.length = 0;
 Object.keys(sideEffects).forEach(key => { sideEffects[key] = 0; });
@@ -231,10 +231,8 @@ delete documentedPayload.environment;
 const missingEnvironmentResponse = await handlers.webhook(new Request('https://edge.invalid/wompi-webhook', {
   method: 'POST', headers: documentedRequest.headers, body: JSON.stringify(documentedPayload),
 }));
-assert.equal(missingEnvironmentResponse.status, 200, 'documented signed event without environment must be accepted');
-assert.equal((await missingEnvironmentResponse.json()).status, 'PENDING');
-assert.equal(sideEffects.inventoryConfirm, 0);
-assert.equal(sideEffects.inventoryRelease, 0);
+assert.equal(missingEnvironmentResponse.status, 400, 'event without required environment must be rejected');
+assert.equal(requests.length, 0, 'missing environment must be rejected before network side effects');
 
 // An explicit Sandbox label is still rejected before any API or database request.
 requests.length = 0;
