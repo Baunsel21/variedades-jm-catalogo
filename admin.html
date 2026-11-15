@@ -1105,7 +1105,7 @@ async function readAdminUploadFileBytes(file){
 }
 async function snapshotAdminUploadFile(file){
  if(!file)return file;
- if((typeof file!=='object'&&typeof file!=='function')||typeof file.arrayBuffer!=='function')throw new Error('El archivo seleccionado no está disponible. Vuelve a elegir la imagen desde el teléfono.');
+ if((typeof file!=='object'&&typeof file!=='function')||(typeof file.arrayBuffer!=='function'&&typeof FileReader!=='function'))throw new Error('El archivo seleccionado no está disponible. Vuelve a elegir la imagen desde el teléfono.');
  let pending=adminUploadFileSnapshots.get(file);
  if(!pending){
   pending=(async()=>{
@@ -4100,7 +4100,7 @@ function notifyPublicCatalogChanged(type='catalog',details={}){
 function limpiarProducto(){
  productPhotoUploadStates=[];productPhotoUploadFiles=[];
 	variantDraft=[];variantMemory=[];variantEditorCollisionError='';editingId=null;editingProductImageLoadToken++;editingProductImages=[];editingProductImagesLoadError=null;editingSizeGuideImagePath="";sizeGuideImageRemoveRequested=false;
-	const guideInput=$("pGuiaTallasFoto");if(guideInput)guideInput.value="";resetAdminNewColorForm();renderSizeGuidePhotoPreview();
+	const guideInput=$("pGuiaTallasFoto");if(guideInput)guideInput.value="";const productUploadStatus=$("productPhotoUploadStatus"),guideUploadStatus=$("sizeGuideUploadStatus");if(productUploadStatus)productUploadStatus.textContent="";if(guideUploadStatus)guideUploadStatus.textContent="";resetAdminNewColorForm();renderSizeGuidePhotoPreview();
         $("formTitle").textContent="➕ Nuevo producto";$("pNombre").value="";$("pColores").value="";$("pTallas").value="";$("pCantidad").value=1;$("pCompra").value=0;$("pVenta").value=0;$("pCostoVariante").value="";$("pCostoImportacion").value=0;$("pCostoOtros").value=0;$("pCostoVigencia").value="";$("pCostoStatus").textContent="Disponible cuando la migración financiera esté activa. No modifica el precio de venta.";$("pUbicacion").value="";$("pDescripcion").value="";$("pGuiaTallas").value="";$("pFoto").value="";
 	if($("existingPhotoStatus"))$("existingPhotoStatus").textContent="Las fotos actuales aparecerán al editar un producto.";if($("existingPhotoPreview"))$("existingPhotoPreview").innerHTML="";
 	renderPhotoPreview();renderAdminColorPalette();renderVariantEditor([]);refreshCategorySelects();
