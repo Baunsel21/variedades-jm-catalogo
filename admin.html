@@ -1156,7 +1156,7 @@ async function prepareImageForUpload(file){
  if(!Number(file.size))throw new Error("El archivo seleccionado está vacío. Vuelve a elegir la imagen.");
  // Compress ordinary large photos when the browser can decode them, but never block a valid
  // supported mobile image solely because Android's image decoder fails.
- const directUploadLimit=10*1024*1024;
+ const directUploadLimit=15*1024*1024;
  const smallImageDirectLimit=1.5*1024*1024;
  if(contentType==="image/gif" && supported){
    // Do not silently turn an animated product GIF into a still image.
@@ -1181,7 +1181,7 @@ async function prepareImageForUpload(file){
       :new File([file],uploadBaseName(file)+"."+normalExtension,{type:contentType,lastModified:file.lastModified||Date.now()});
    }
    const ext=originalExt||"desconocido";
-   throw new Error(`No se pudo preparar la foto “${file.name||"seleccionada"}” (formato ${ext}). En el celular, selecciona una copia JPG, PNG o WEBP de hasta 10 MB y vuelve a intentarlo.`);
+   throw new Error(`No se pudo preparar la foto “${file.name||"seleccionada"}” (formato ${ext}). En el celular, selecciona una copia JPG, PNG o WEBP de hasta 15 MB y vuelve a intentarlo.`);
  }
  try{
    const width=Number(decoded.width)||0,height=Number(decoded.height)||0;
