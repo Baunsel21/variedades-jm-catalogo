@@ -874,7 +874,7 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
           <div class="box"><h3>🏪 Personalización</h3>
             <p class="muted">Cambia el nombre y el icono que aparecen en la aplicación.</p>
             <label>Nombre del negocio<input id="businessName" placeholder="Variedades JM" maxlength="40"></label>
-            <label style="display:block;margin-top:10px">Icono del negocio<input id="businessIcon" type="file" accept="image/png,image/jpeg,image/webp,image/x-icon"></label>
+            <label style="display:block;margin-top:10px">Icono del negocio<input id="businessIcon" type="file" accept="image/png,image/jpeg,image/webp,image/x-icon"><small id="businessIconUploadStatus" class="muted" role="status" aria-live="polite"></small></label>
             <div style="margin-top:10px;display:flex;align-items:center;gap:10px"><div id="iconPreview" class="logo" style="width:72px;height:72px">✦</div><button class="primary" onclick="saveBrand()">💾 Guardar personalización</button><button class="softbtn" onclick="resetBrand()">Restaurar</button></div>
           </div>
           <div class="box" style="grid-column:1/-1"><h3>🏷️ Categorías</h3>
@@ -2130,7 +2130,7 @@ async function resetBrand(){
   if(!isCurrent())return false;
   brandName="Variedades JM";brandIcon="";brandIconPath="";
   clearAdminBrandCache(userId);
-  $("businessIcon").value="";applyBrand();
+  $("businessIcon").value="";const brandIconStatus=$("businessIconUploadStatus");if(brandIconStatus)brandIconStatus.textContent="";applyBrand();
   toast(updateError?"Restaurado solo en este dispositivo":"Personalización restaurada en todos tus dispositivos");
   return !updateError;
 }
@@ -5355,6 +5355,7 @@ document.addEventListener("DOMContentLoaded",()=>{
   const couponsHost=$("storefrontCouponsAdminList");if(couponsHost)couponsHost.addEventListener('click',event=>{const edit=event.target.closest('[data-coupon-admin-edit]');if(edit)editStorefrontCoupon(edit.dataset.couponAdminEdit)});
   const couponCodeInput=$("storefrontCouponCode");if(couponCodeInput)couponCodeInput.addEventListener('input',()=>{const normalized=String(couponCodeInput.value||'').trim().toUpperCase();if(couponCodeInput.value!==normalized)couponCodeInput.value=normalized});
   const comboRuleType=$('storefrontComboRuleType');if(comboRuleType)comboRuleType.addEventListener('change',updateStorefrontComboRuleFields);const comboPlacement=$('storefrontComboDisplayLocation');if(comboPlacement)comboPlacement.addEventListener('change',updateStorefrontComboRuleFields);const comboDiscountType=$('storefrontComboDiscountType');if(comboDiscountType)comboDiscountType.addEventListener('change',updateStorefrontComboRuleFields);
+  const brandIconInput=$("businessIcon");if(brandIconInput)brandIconInput.addEventListener("change",()=>void warmAdminUploadFiles(brandIconInput,"businessIconUploadStatus"));
   const f=$("pFoto");if(f)f.addEventListener("change",()=>{productPhotoUploadStates=[];void warmAdminUploadFiles(f,"productPhotoUploadStatus");renderPhotoPreview()});
   const guideFile=$("pGuiaTallasFoto");if(guideFile)guideFile.addEventListener("change",()=>{if(guideFile.files?.length)sizeGuideImageRemoveRequested=false;void warmAdminUploadFiles(guideFile,"sizeGuideUploadStatus");renderSizeGuidePhotoPreview()});
   document.addEventListener("change",event=>{const variantInput=event.target?.closest?.("#productModal .variantColorPhoto");if(variantInput)void warmAdminUploadFiles(variantInput)},true);
