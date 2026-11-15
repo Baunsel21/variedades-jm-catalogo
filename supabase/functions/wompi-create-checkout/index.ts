@@ -193,6 +193,150 @@ function couponMetadataMatches(
     storedDiscount === couponDiscountTotal;
 }
 
+const TERMINAL_PAYMENT_STATUSES = new Set(["ERROR", "DECLINED", "VOIDED"]);
+const WOMPI_TERMINAL_GRACE_MS = 15 * 60 * 1000;
+const WOMPI_ORDER_SELECT = "reference,created_at,total,subtotal,shipping,city,items,payment_method,payment_status,transaction_id,customer_name,phone,address,neighborhood,coupon_id,coupon_code,coupon_discount_total,wompi_reconciliation_required,coupon_reconciliation_required";
+
+function snapshotCityKey(value: unknown): string {
+  const normalized = String(value ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .trim().toLowerCase().replace(/[.,]/g, " ").replace(/\s+/g, " ");
+  return ["cali", "santiago de cali", "cali valle del cauca"].includes(normalized) ? "cali" : normalized;
+}
+
+function snapshotTextKey(value: unknown): string {
+  return String(value ?? "").normalize("NFC").trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+function snapshotMismatchFields(existing: any, current: {
+  name: string; phone: string; city: string; address: string; neighborhood: string;
+  quote: Quote; subtotal: number; shipping: number; total: number; couponCode: string; couponDiscountTotal: number;
+}): string[] {
+  const digits = (value: unknown) => String(value ?? "").replace(/\D/g, "").slice(-10);
+  const mismatches: string[] = [];
+  if (snapshotTextKey(existing?.customer_name) !== snapshotTextKey(current.name)) mismatches.push("customer_name");
+  if (digits(existing?.phone) !== digits(current.phone)) mismatches.push("phone");
+  if (snapshotCityKey(existing?.city) !== snapshotCityKey(current.city)) mismatches.push("city");
+  if (snapshotTextKey(existing?.address) !== snapshotTextKey(current.address)) mismatches.push("address");
+  if (snapshotTextKey(existing?.neighborhood) !== snapshotTextKey(current.neighborhood)) mismatches.push("neighborhood");
+  if (canonicalCart(existing?.items) !== canonicalCart(current.quote?.items)) mismatches.push("cart");
+  const previousPricedItems = canonicalQuoteItems(existing?.items);
+  const currentPricedItems = canonicalQuoteItems(current.quote?.items);
+  if (!previousPricedItems || previousPricedItems !== currentPricedItems) mismatches.push("line_pricing");
+  if (copAmount(existing?.total) !== current.total) mismatches.push("total");
+  if (copAmount(existing?.subtotal) !== current.subtotal) mismatches.push("subtotal");
+  if (copAmount(existing?.shipping) !== current.shipping) mismatches.push("shipping");
+  if (normalizeStoredCouponCode(existing?.coupon_code) !== current.couponCode) mismatches.push("coupon_code");
+  if (copAmount(existing?.coupon_discount_total ?? 0) !== current.couponDiscountTotal) mismatches.push("coupon_discount");
+  if (normalizeCouponId(existing?.coupon_id) !== normalizeCouponId(current.quote?.coupon_id)) mismatches.push("coupon_id");
+  return mismatches;
+}
+
+async function fetchOrderByReference(supabaseUrl: string, serviceRoleKey: string, reference: string): Promise<{ ok: boolean; duplicate: boolean; order: any | null }> {
+  try {
+    const url = new URL(`${supabaseUrl}/rest/v1/orders`);
+    url.searchParams.set("reference", `eq.${reference}`);
+    url.searchParams.set("select", WOMPI_ORDER_SELECT);
+    url.searchParams.set("limit", "2");
+    const response = await fetch(url.toString(), { headers: supabaseHeaders(serviceRoleKey) });
+    if (!response.ok) return { ok: false, duplicate: false, order: null };
+    const rows = await readJson(response);
+    if (!Array.isArray(rows)) return { ok: false, duplicate: false, order: null };
+    return { ok: true, duplicate: rows.length > 1, order: rows[0] ?? null };
+  } catch {
+    return { ok: false, duplicate: false, order: null };
+  }
+}
+
+async function verifyTerminalOrderHistory(supabaseUrl: string, serviceRoleKey: string, order: any): Promise<boolean> {
+  try {
+    const reference = String(order?.reference ?? "").trim();
+    const transactionId = String(order?.transaction_id ?? "").trim();
+    const orderStatus = String(order?.payment_status ?? "").trim().toUpperCase();
+    const total = copAmount(order?.total);
+    const cart = canonicalCart(order?.items);
+    const phone = String(order?.phone ?? "").replace(/\D/g, "").slice(-10);
+    if (!reference || !transactionId || !TERMINAL_PAYMENT_STATUSES.has(orderStatus) ||
+        String(order?.payment_method ?? "").trim().toLowerCase() !== "wompi" ||
+        order?.wompi_reconciliation_required !== false || order?.coupon_reconciliation_required !== false ||
+        total === null || total <= 0 || !Number.isSafeInteger(total * 100) || !cart || phone.length !== 10) return false;
+
+    const expectedPhoneHash = await sha256Hex(phone);
+    const expectedCartHash = await sha256Hex(cart);
+    const lockUrl = new URL(`${supabaseUrl}/rest/v1/storefront_wompi_checkout_locks`);
+    lockUrl.searchParams.set("reference", `eq.${reference}`);
+    lockUrl.searchParams.set("select", "reference,status,transaction_id,terminal_at,reconciliation_required,customer_phone_hash,cart_hash");
+    lockUrl.searchParams.set("limit", "2");
+    const lockResponse = await fetch(lockUrl.toString(), { headers: supabaseHeaders(serviceRoleKey) });
+    if (!lockResponse.ok) return false;
+    const locks = await readJson(lockResponse);
+    if (!Array.isArray(locks) || locks.length !== 1) return false;
+    const lock = locks[0];
+    const lockTerminalAt = Date.parse(String(lock?.terminal_at ?? ""));
+    if (!new Set(["terminal_grace", "released"]).has(String(lock?.status ?? "").toLowerCase()) ||
+        String(lock?.transaction_id ?? "").trim() !== transactionId || lock?.reconciliation_required !== false ||
+        String(lock?.customer_phone_hash ?? "") !== expectedPhoneHash || String(lock?.cart_hash ?? "").toLowerCase() !== expectedCartHash ||
+        !Number.isFinite(lockTerminalAt) || lockTerminalAt + WOMPI_TERMINAL_GRACE_MS > Date.now()) return false;
+
+    const attemptsUrl = new URL(`${supabaseUrl}/rest/v1/storefront_wompi_payment_attempts`);
+    attemptsUrl.searchParams.set("order_reference", `eq.${reference}`);
+    attemptsUrl.searchParams.set("select", "order_reference,attempt_number,attempt_reference,environment,currency,amount_in_cents,status,transaction_id,terminal_at");
+    attemptsUrl.searchParams.set("order", "attempt_number.asc");
+    attemptsUrl.searchParams.set("limit", "101");
+    const attemptsResponse = await fetch(attemptsUrl.toString(), { headers: supabaseHeaders(serviceRoleKey) });
+    if (!attemptsResponse.ok) return false;
+    const attempts = await readJson(attemptsResponse);
+    if (!Array.isArray(attempts) || attempts.length < 1 || attempts.length > 100) return false;
+    const seenAttemptRefs = new Set<string>();
+    const seenTransactions = new Set<string>();
+    let expectedAttemptNumber = 1;
+    for (const attempt of attempts) {
+      const status = String(attempt?.status ?? "").trim().toUpperCase();
+      const attemptNumber = Number(attempt?.attempt_number);
+      const attemptRef = String(attempt?.attempt_reference ?? "").trim();
+      const attemptTransaction = String(attempt?.transaction_id ?? "").trim();
+      const terminalAt = Date.parse(String(attempt?.terminal_at ?? ""));
+      if (String(attempt?.order_reference ?? "") !== reference || !Number.isSafeInteger(attemptNumber) || attemptNumber !== expectedAttemptNumber ||
+          !TERMINAL_PAYMENT_STATUSES.has(status) ||
+          String(attempt?.environment ?? "").trim().toLowerCase() !== "prod" || String(attempt?.currency ?? "").trim().toUpperCase() !== "COP" ||
+          Number(attempt?.amount_in_cents) !== total * 100 || !attemptRef || !attemptTransaction ||
+          !Number.isFinite(terminalAt) || terminalAt + WOMPI_TERMINAL_GRACE_MS > Date.now() ||
+          seenAttemptRefs.has(attemptRef) || seenTransactions.has(attemptTransaction)) return false;
+      expectedAttemptNumber += 1;
+      seenAttemptRefs.add(attemptRef);
+      seenTransactions.add(attemptTransaction);
+    }
+    const latestAttempt = attempts[attempts.length - 1];
+    return String(latestAttempt?.transaction_id ?? "").trim() === transactionId &&
+      String(latestAttempt?.status ?? "").trim().toUpperCase() === orderStatus;
+  } catch {
+    return false;
+  }
+}
+
+async function verifyNoActiveInventoryReservation(supabaseUrl: string, serviceRoleKey: string, reference: string): Promise<boolean> {
+  try {
+    const url = new URL(`${supabaseUrl}/rest/v1/inventory_reservations`);
+    url.searchParams.set("reference", `eq.${reference}`);
+    url.searchParams.set("select", "reference,status,expires_at");
+    url.searchParams.set("limit", "101");
+    const response = await fetch(url.toString(), { headers: supabaseHeaders(serviceRoleKey) });
+    if (!response.ok) return false;
+    const rows = await readJson(response);
+    if (!Array.isArray(rows) || rows.length > 100) return false;
+    const releasedStatuses = new Set(["released", "expired", "cancelled"]);
+    const expirableStatuses = new Set(["active", "reserved", "pending"]);
+    return rows.every((row: any) => {
+      const status = String(row?.status ?? "").trim().toLowerCase();
+      if (releasedStatuses.has(status)) return true;
+      if (!expirableStatuses.has(status)) return false;
+      const expiresAt = Date.parse(String(row?.expires_at ?? ""));
+      return Number.isFinite(expiresAt) && expiresAt <= Date.now();
+    });
+  } catch {
+    return false;
+  }
+}
+
 async function releaseInventoryReservation(supabaseUrl: string, serviceRoleKey: string, reference: string): Promise<boolean> {
   try {
     // The installed RPC returns void; a 2xx response is its success signal.
@@ -531,17 +675,15 @@ Deno.serve(async (req: Request): Promise<Response> => {
     // A terminal order may resume only through the verified-attempt ledger below.
     // An unlinked or unknown payment state never gets a fresh order/reference.
     let existingTerminalTransaction = false;
-    const existingUrl = new URL(`${supabaseUrl}/rest/v1/orders`);
-    existingUrl.searchParams.set("reference", `eq.${reference}`);
-    existingUrl.searchParams.set("select", "reference,created_at,total,subtotal,shipping,city,items,payment_method,payment_status,transaction_id,customer_name,phone,address,neighborhood,coupon_id,coupon_code,coupon_discount_total");
-    existingUrl.searchParams.set("limit", "2");
-    const existingResponse = await fetch(existingUrl.toString(), { headers: supabaseHeaders(serviceRoleKey) });
-    if (!existingResponse.ok) return json({ error: "No se pudo verificar si la referencia ya existe." }, 502);
-    const existingRows = await readJson(existingResponse);
-    if (!Array.isArray(existingRows) || existingRows.length > 1) {
+    let forceNewOrderAuthorized = false;
+    const userConfirmedSeparateOrder = body?.confirm_new_order_after_terminal_mismatch === true;
+    const supersedesReference = String(body?.supersedes_reference ?? "").trim();
+    const initialOrderLookup = await fetchOrderByReference(supabaseUrl, serviceRoleKey, reference);
+    if (!initialOrderLookup.ok) return json({ error: "No se pudo verificar si la referencia ya existe." }, 502);
+    if (initialOrderLookup.duplicate) {
       return json({ error: "La referencia está duplicada o la respuesta de pedidos no es válida." }, 409);
     }
-    const existing = existingRows[0];
+    let existing = initialOrderLookup.order;
     if (!existing && !customerCedula) {
       return json({ code: "CUSTOMER_CEDULA_REQUIRED", error: "La cédula o documento de identidad es obligatorio para iniciar el pago." }, 400);
     }
@@ -580,27 +722,69 @@ Deno.serve(async (req: Request): Promise<Response> => {
       }
       existingTerminalTransaction = Boolean(existingTransactionId) && ["DECLINED", "VOIDED", "ERROR"].includes(existingStatus);
       if (existingTerminalTransaction) {
-        const digits = (value: unknown) => String(value ?? "").replace(/\D/g, "").slice(-10);
-        const sameOrderSnapshot =
-          digits(existing.phone) === digits(phone) &&
-          String(existing.customer_name ?? "").trim().toLowerCase() === name.toLowerCase() &&
-          String(existing.city ?? "").trim().toLowerCase() === city.toLowerCase() &&
-          String(existing.address ?? "").trim() === address &&
-          String(existing.neighborhood ?? "").trim() === neighborhood &&
-          canonicalCart(existing.items) === canonicalCart(quote.items) &&
-          copAmount(existing.total) === totalCop &&
-          copAmount(existing.subtotal) === subtotal &&
-          copAmount(existing.shipping) === shipping &&
-          normalizeStoredCouponCode(existing.coupon_code) === couponCode &&
-          copAmount(existing.coupon_discount_total ?? 0) === couponDiscountTotal &&
-          String(existing.coupon_id ?? "") === String(quote.coupon_id ?? "");
-        if (!sameOrderSnapshot) {
-          return json({ code: "WOMPI_ORDER_MISMATCH", canRetryWithNewReference: false,
-            error: "El pedido terminal no coincide con el comprador, carrito, ciudad, dirección o total actual. No se abrió otro pago." }, 409);
+        if (!await verifyTerminalOrderHistory(supabaseUrl, serviceRoleKey, existing)) {
+          return json({ code: "WOMPI_ATTEMPT_UNVERIFIED", canRetryWithNewReference: false,
+            error: "El pedido anterior no tiene todos sus intentos terminales verificados y vencidos. No se inició otro intento." }, 409);
+        }
+        const mismatches = snapshotMismatchFields(existing, {
+          name, phone, city, address, neighborhood, quote, subtotal, shipping, total: totalCop,
+          couponCode, couponDiscountTotal,
+        });
+        if (mismatches.length) {
+          console.warn("WOMPI_TERMINAL_ORDER_SNAPSHOT_MISMATCH", mismatches.join(","));
+          if (!await verifyNoActiveInventoryReservation(supabaseUrl, serviceRoleKey, String(existing.reference))) {
+            return json({ code: "WOMPI_UNRESOLVED_RESERVATION", canRetryWithNewReference: false,
+              error: "El pedido anterior aún tiene una retención de inventario activa o no verificable. No se creó otra orden ni reserva." }, 409);
+          }
+          if (!userConfirmedSeparateOrder) {
+            return json({
+              code: "WOMPI_NEW_ORDER_CONFIRMATION_REQUIRED",
+              canCreateNewOrder: true,
+              existingReference: String(existing.reference),
+              quote,
+              error: "Los datos actuales no coinciden con un pedido anterior cuyos intentos terminaron. El pedido anterior se conservará. Revisa los datos y pulsa Confirmar nuevamente para iniciar una compra separada; todavía no se creó otra orden ni reserva y no se abrió Wompi.",
+            }, 409);
+          }
+          return json({ code: "WOMPI_NEW_REFERENCE_REQUIRED", canRetryWithNewReference: false,
+            existingReference: String(existing.reference),
+            error: "La confirmación se recibió con la referencia del pedido anterior. No se modificó esa orden; vuelve a confirmar para generar una referencia nueva y segura." }, 409);
         }
       } else {
         return json({ error: "Esta referencia ya corresponde a otro intento, a una transacción vinculada o a datos distintos. No se reutilizó el pedido anterior." }, 409);
       }
+    }
+
+    const confirmationNowMatchesSameOrder = Boolean(existing && existingTerminalTransaction && supersedesReference === reference &&
+      snapshotMismatchFields(existing, {
+        name, phone, city, address, neighborhood, quote, subtotal, shipping, total: totalCop,
+        couponCode, couponDiscountTotal,
+      }).length === 0);
+    if (userConfirmedSeparateOrder && !confirmationNowMatchesSameOrder) {
+      if (!supersedesReference || !/^[A-Za-z0-9_-]{1,120}$/.test(supersedesReference) || supersedesReference === reference) {
+        return json({ code: "WOMPI_NEW_REFERENCE_REQUIRED", canRetryWithNewReference: false,
+          error: "No se pudo vincular la confirmación a la orden terminal revisada. No se creó otra orden ni reserva." }, 409);
+      }
+      const supersededLookup = await fetchOrderByReference(supabaseUrl, serviceRoleKey, supersedesReference);
+      if (!supersededLookup.ok || supersededLookup.duplicate || !supersededLookup.order ||
+          !await verifyTerminalOrderHistory(supabaseUrl, serviceRoleKey, supersededLookup.order)) {
+        return json({ code: "WOMPI_ATTEMPT_UNVERIFIED", canRetryWithNewReference: false,
+          error: "El pedido anterior cambió o ya no tiene todos sus intentos terminales verificados. No se inició otro pedido ni pago." }, 409);
+      }
+      const supersededMismatches = snapshotMismatchFields(supersededLookup.order, {
+        name, phone, city, address, neighborhood, quote, subtotal, shipping, total: totalCop,
+        couponCode, couponDiscountTotal,
+      });
+      if (!supersededMismatches.length) {
+        return json({ code: "WOMPI_REUSE_EXISTING_ORDER", existingReference: supersedesReference,
+          canRetryWithNewReference: false,
+          error: "Los datos coinciden con el pedido anterior; se debe reutilizar esa misma orden y reserva." }, 409);
+      }
+      console.warn("WOMPI_TERMINAL_ORDER_SNAPSHOT_MISMATCH", supersededMismatches.join(","));
+      if (!await verifyNoActiveInventoryReservation(supabaseUrl, serviceRoleKey, supersedesReference)) {
+        return json({ code: "WOMPI_UNRESOLVED_RESERVATION", canRetryWithNewReference: false,
+          error: "El pedido anterior aún tiene una retención de inventario activa o no verificable. No se creó otra orden ni reserva." }, 409);
+      }
+      forceNewOrderAuthorized = true;
     }
 
     // Prevent duplicate payments for the same canonical cart, not unrelated
@@ -661,11 +845,64 @@ Deno.serve(async (req: Request): Promise<Response> => {
       headers: supabaseHeaders(serviceRoleKey),
       body: JSON.stringify({ p_reference: reference, p_customer_phone: phone, p_cart_hash: cartHash, p_minutes: 10 }),
     });
-    const retryLock = rpcObject(await readJson(retryLockResponse));
+    let retryLock = rpcObject(await readJson(retryLockResponse));
     if (!retryLockResponse.ok || !retryLock || typeof retryLock.success !== "boolean") {
       return json({ error: "No se pudo comprobar si existe un intento terminal reanudable. No se abrió otro pago." }, 503);
     }
     let retryLockReady = retryLock.success === true;
+    if (!retryLockReady && retryLock.code === "WOMPI_REUSE_EXISTING_ORDER") {
+      const priorReference = String(retryLock.existing_reference ?? "").trim();
+      if (!priorReference) {
+        return json({ code: "WOMPI_ATTEMPT_UNVERIFIED", canRetryWithNewReference: false,
+          error: "No se pudo verificar la referencia del pedido terminal. No se creó otra orden ni se abrió Wompi." }, 409);
+      }
+      const priorLookup = await fetchOrderByReference(supabaseUrl, serviceRoleKey, priorReference);
+      if (!priorLookup.ok || priorLookup.duplicate || !priorLookup.order) {
+        return json({ code: "WOMPI_ATTEMPT_UNVERIFIED", canRetryWithNewReference: false,
+          error: "No se pudo verificar el pedido terminal asociado al carrito. No se creó otra orden ni se abrió Wompi." }, 409);
+      }
+      const priorOrder = priorLookup.order;
+      const priorMismatches = snapshotMismatchFields(priorOrder, {
+        name, phone, city, address, neighborhood, quote, subtotal, shipping, total: totalCop,
+        couponCode, couponDiscountTotal,
+      });
+      if (!await verifyTerminalOrderHistory(supabaseUrl, serviceRoleKey, priorOrder)) {
+        return json({ code: "WOMPI_ATTEMPT_UNVERIFIED", canRetryWithNewReference: false,
+          error: "El historial de pagos del pedido anterior no está completamente conciliado. No se inició otro pago." }, 409);
+      }
+      if (priorMismatches.length) {
+        console.warn("WOMPI_TERMINAL_ORDER_SNAPSHOT_MISMATCH", priorMismatches.join(","));
+        if (!await verifyNoActiveInventoryReservation(supabaseUrl, serviceRoleKey, priorReference)) {
+          return json({ code: "WOMPI_UNRESOLVED_RESERVATION", canRetryWithNewReference: false,
+            error: "El pedido anterior aún tiene una retención de inventario activa o no verificable. No se creó otra orden ni reserva." }, 409);
+        }
+        if (!userConfirmedSeparateOrder) {
+          return json({
+            code: "WOMPI_NEW_ORDER_CONFIRMATION_REQUIRED",
+            canCreateNewOrder: true,
+            existingReference: priorReference,
+            quote,
+            error: "Hay un pedido anterior del mismo carrito, pero no coincide con los datos actuales. Se conservará intacto. Revisa los datos y pulsa Confirmar nuevamente para crear una orden separada; todavía no se creó otra orden ni reserva y no se abrió Wompi.",
+          }, 409);
+        }
+        if (!forceNewOrderAuthorized || priorReference !== supersedesReference) {
+          return json({ code: "WOMPI_NEW_ORDER_CONFIRMATION_REQUIRED", canCreateNewOrder: true,
+            existingReference: priorReference, quote,
+            error: "Se encontró otra orden terminal relacionada. Revisa los datos y vuelve a confirmar esta compra separada; no se creó una orden ni reserva nueva." }, 409);
+        }
+        existingTerminalTransaction = false;
+        forceNewOrderAuthorized = true;
+        retryLockReady = false;
+        retryLock.code = "WOMPI_NO_RETRYABLE_ORDER";
+      } else {
+        return json({
+          code: "WOMPI_REUSE_EXISTING_ORDER",
+          existingReference: priorReference,
+          canRetryWithNewReference: false,
+          error: "El pedido terminal coincide con el carrito y los datos actuales; se reutilizará esa misma orden y reserva.",
+        }, 409);
+      }
+    }
     if (!retryLockReady && retryLock.code !== "WOMPI_NO_RETRYABLE_ORDER") {
       return json({
         code: retryLock.code,
@@ -844,7 +1081,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     // Wompi receives and signs a unique attempt reference; the stable order
     // reference remains the key for inventory, coupons, order, and checkout lock.
     const signature = await sha256Hex(`${attemptReference}${amountInCents}COP${expirationTime}${integritySecret}`);
-    return json({ environment: wompiEnvironment, reference, attemptReference, amountInCents, signature, expirationTime, subtotal, discountTotal, couponDiscountTotal, shipping, total: totalCop, currency: "COP" });
+    return json({ environment: wompiEnvironment, reference, attemptReference, amountInCents, signature, expirationTime, subtotal, discountTotal, couponDiscountTotal, shipping, total: totalCop, currency: "COP", newOrderAfterTerminalMismatch: forceNewOrderAuthorized });
   } catch {
     // Deliberately do not log request data: coupon codes and customer PII must not
     // appear in logs, URLs, or exception payloads.

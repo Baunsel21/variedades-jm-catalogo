@@ -25,6 +25,22 @@ assert.match(pay, /quoteHasValidTotals\(authoritativeServerQuote,!!couponCode\)/
 assert.match(pay, /setCheckoutServerQuote\(authoritativeServerQuote,checkoutItems\)/, 'a changed no-coupon quote must replace stale cached totals');
 assert.match(pay, /setCheckoutCouponQuote\(authoritativeServerQuote,true\)/, 'a changed coupon quote must be displayed and await another confirmation');
 assert.match(pay, /Desglose vigente: subtotal/,'a real quote change must show the complete current breakdown before retry');
+assert.match(html, /let wompiNewOrderConfirmationFingerprint='',wompiNewOrderConfirmationReference=''/,
+  'the separate-order consent must live only in page memory');
+assert.match(html, /getWompiOrderSnapshotFingerprint\(payload,authoritativeComboQuote,checkoutItems\)/,
+  'consent must be bound to the exact buyer, cart, delivery and price snapshot');
+assert.match(pay, /data\?\.code==='WOMPI_NEW_ORDER_CONFIRMATION_REQUIRED'/,
+  'a terminal-order mismatch must return to the customer without starting payment');
+assert.match(pay, /payload\.confirm_new_order_after_terminal_mismatch=true/);
+assert.match(pay, /payload\.supersedes_reference=supersededOrderReference/);
+assert.match(pay, /reservationReference=generateReservationReference\(\);\s*saveReservationDraft\(reservationReference,checkoutItems\)/,
+  'the second confirmation must persist one fresh client reference before the request for idempotent retries');
+assert.match(pay, /data\.newOrderAfterTerminalMismatch!==true/,
+  'the browser must not redirect unless the server confirms the separately verified order path');
+assert.match(edge, /snapshotMismatchFields\(existing/);
+assert.match(edge, /verifyTerminalOrderHistory\(/,
+  'the server must verify all historical attempts before reusing or superseding a terminal order');
+assert.match(edge, /WOMPI_NEW_ORDER_CONFIRMATION_REQUIRED/);
 
 const confirmStart = html.indexOf('async function confirmCheckout(){');
 const confirmEnd = html.indexOf("\ndocument.addEventListener('keydown'", confirmStart);
@@ -40,4 +56,4 @@ assert.match(edge, /expectedTotal !== totalCop \|\| expectedDiscountTotal !== di
 assert.match(edge, /code: "WOMPI_QUOTE_CHANGED"/, 'the server must continue rejecting stale expected totals');
 assert.match(edge, /prepare_storefront_wompi_checkout/, 'the atomic pricing/inventory guard must remain in the flow');
 
-console.log('PASS Wompi frontend quote snapshot regression: one confirmed quote, synchronous duplicate guard, updated breakdown via read-only 409 fallback, server and atomic revalidation preserved.');
+console.log('PASS Wompi frontend quote snapshot regression: one confirmed quote, synchronous duplicate guard, read-only terminal mismatch prompt, in-memory consent bound to the complete snapshot, persistent fresh reference and server confirmation before redirect.');

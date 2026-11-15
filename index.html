@@ -2076,6 +2076,8 @@ let checkoutCouponRequestToken=0;
 let checkoutCouponReservationReference='',checkoutCouponReservationFingerprint='';
 let checkoutServerQuote=null;
 let checkoutServerQuoteFingerprint='';
+// Confirmación transitoria en memoria; no persiste datos personales en localStorage.
+let wompiNewOrderConfirmationFingerprint='',wompiNewOrderConfirmationReference='';
 let storefrontCouponSettingsLoaded=false,storefrontCouponsEnabled=false,storefrontCouponToggleSupported=false,storefrontCouponSettingsPromise=null,storefrontCouponSettingsRequestToken=0,checkoutCouponPanelOpen=false;
 
 function syncStorefrontCouponControls(){
@@ -2125,6 +2127,28 @@ function getCheckoutQuoteFingerprint(items=getCheckoutItems(),code=checkoutCoupo
  const phone=String($('customerPhone')?.value||'').trim();
  const city=String(checkoutCityValue()||'').trim().toLocaleLowerCase('es-CO');
  return JSON.stringify({items:checkoutQuoteItems(items),city,email,phone,code:normalizeCheckoutCouponCode(code)});
+}
+function getWompiOrderSnapshotFingerprint(payload,quote,items){
+ const text=value=>String(value??'').normalize('NFC').trim().replace(/\s+/g,' ').toLocaleLowerCase('es-CO');
+ const city=canonicalLocalDeliveryCity(payload?.city)||String(payload?.city??'').trim();
+ const cart=checkoutQuoteItems(items).map(item=>({...item,color:text(item.color),size:text(item.size)}))
+  .sort((a,b)=>a.id.localeCompare(b.id)||a.color.localeCompare(b.color)||a.size.localeCompare(b.size)||a.qty-b.qty);
+ const lines=(Array.isArray(quote?.items)?quote.items:[]).map(item=>({
+  id:String(item?.id??item?.product_id??'').trim().toLowerCase(),qty:Number(item?.qty??item?.quantity)||0,
+  color:text(item?.color),size:text(item?.size),price:Number(item?.price),
+  original_subtotal:Number(item?.original_subtotal),discount_total:Number(item?.discount_total),
+  net_subtotal:Number(item?.net_subtotal),coupon_discount_total:Number(item?.coupon_discount_total)||0
+ })).sort((a,b)=>a.id.localeCompare(b.id)||a.color.localeCompare(b.color)||a.size.localeCompare(b.size)||a.qty-b.qty);
+ // Este JSON permanece solo en memoria para enlazar dos clics consecutivos; no se registra ni persiste.
+ return JSON.stringify({
+  name:text(payload?.name),cedulaType:text(payload?.cedula_type),cedula:text(payload?.cedula),
+  phone:String(payload?.phone??'').replace(/\D/g,'').slice(-10),email:text(payload?.email),
+  city:text(city),address:text(payload?.address),neighborhood:text(payload?.neighborhood),
+  items:cart,lines,subtotal:Number(quote?.original_subtotal),discount:Number(quote?.discount_total),
+  discountedSubtotal:Number(quote?.discounted_subtotal),shipping:Number(quote?.shipping),total:Number(quote?.total),
+  couponCode:normalizeCheckoutCouponCode(payload?.coupon_code),couponId:String(quote?.coupon_id??''),
+  couponDiscount:Number(quote?.coupon_discount_total)||0,currency:String(quote?.currency||'COP').toUpperCase()
+ });
 }
 function currentCheckoutCouponQuote(){
  if(!checkoutCouponQuote)return null;
@@ -5176,6 +5200,7 @@ async function payWithWompi(payload,confirmedQuote,confirmedQuoteFingerprint){
  const btn=$('checkoutConfirmBtn');
  if(btn){btn.disabled=true;btn.textContent='⏳ Verificando cotización...'}
  let reservationReference='';
+ let confirmedSeparateOrder=false,supersededOrderReference='';
  try{
   await refreshOnlinePaymentSetting({silent:true});
   syncPaymentOptions();
@@ -5227,22 +5252,36 @@ async function payWithWompi(payload,confirmedQuote,confirmedQuoteFingerprint){
   payload.expected_total=quotedTotal;
   payload.expected_discount_total=quotedDiscount;
   payload.expected_coupon_discount_total=quotedCouponDiscount;
+  const currentOrderSnapshotFingerprint=getWompiOrderSnapshotFingerprint(payload,authoritativeComboQuote,checkoutItems);
+  if(wompiNewOrderConfirmationFingerprint){
+   if(wompiNewOrderConfirmationFingerprint===currentOrderSnapshotFingerprint&&wompiNewOrderConfirmationReference){
+    confirmedSeparateOrder=true;supersededOrderReference=wompiNewOrderConfirmationReference;
+   }else{
+    wompiNewOrderConfirmationFingerprint='';wompiNewOrderConfirmationReference='';
+   }
+  }
   if(btn)btn.textContent='⏳ Reservando producto...';
 
-  const storedReference=getActiveReservationReference()||getPendingWompiReference()||'';
-  const storedItems=getActiveReservationItems();
+  const storedReference=confirmedSeparateOrder?'':(getActiveReservationReference()||getPendingWompiReference()||'');
+  const storedItems=confirmedSeparateOrder?[]:getActiveReservationItems();
   const couponReservationFingerprint=couponCode?getCheckoutQuoteFingerprint(checkoutItems,couponCode):'';
-	  const couponScopedRecord=couponCode&&checkoutCouponReservationReference&&checkoutCouponReservationFingerprint===couponReservationFingerprint
+	  const couponScopedRecord=!confirmedSeparateOrder&&couponCode&&checkoutCouponReservationReference&&checkoutCouponReservationFingerprint===couponReservationFingerprint
 	    ?findReservationRecordByReference(checkoutCouponReservationReference):null;
-	  const matchingRecord=couponCode
+	  const matchingRecord=confirmedSeparateOrder?null:(couponCode
 	    ?(couponScopedRecord||(storedReference&&reservationItemsMatch(storedItems,checkoutItems)
 	      ?findReservationRecordByReference(storedReference)
 	      :findReservationRecordForItems(checkoutItems)))
 	    :(storedReference&&reservationItemsMatch(storedItems,checkoutItems)
 	      ?findReservationRecordByReference(storedReference)
-	      :findReservationRecordForItems(checkoutItems));
+	      :findReservationRecordForItems(checkoutItems)));
 
-  if(matchingRecord){
+  if(confirmedSeparateOrder){
+    // La referencia anterior pertenece a otra identidad/dirección; conservarla
+    // en el servidor y crear una referencia local nueva solo tras el segundo clic.
+    reservationReference=generateReservationReference();
+    saveReservationDraft(reservationReference,checkoutItems);
+    if(couponCode){checkoutCouponReservationReference=reservationReference;checkoutCouponReservationFingerprint=couponReservationFingerprint;}
+  }else if(matchingRecord){
     // Reutilizar la reserva de ESTE conjunto de productos si sigue vigente.
     // Las reservas de otros carritos se conservan independientemente hasta que
     // cada una cumpla sus 10 minutos; iniciar otro pago no libera las anteriores.
@@ -5267,6 +5306,13 @@ async function payWithWompi(payload,confirmedQuote,confirmedQuoteFingerprint){
   saveActiveReservationReference(reservationReference);
   saveActiveReservationItems(checkoutItems);
   payload.reference=paymentReference;
+  if(confirmedSeparateOrder){
+   payload.confirm_new_order_after_terminal_mismatch=true;
+   payload.supersedes_reference=supersededOrderReference;
+  }else{
+   delete payload.confirm_new_order_after_terminal_mismatch;
+   delete payload.supersedes_reference;
+  }
 
   if(btn)btn.textContent='⏳ Preparando pago...';
 
@@ -5291,9 +5337,15 @@ async function payWithWompi(payload,confirmedQuote,confirmedQuoteFingerprint){
    });
    data=await response.json().catch(()=>({}));
    if(response.status===409&&['WOMPI_ACTIVE_RESERVATION','WOMPI_REFERENCE_STALE','WOMPI_REUSE_EXISTING_ORDER'].includes(data?.code)&&preparationAttempt===0){
+    const reusedReference=['WOMPI_ACTIVE_RESERVATION','WOMPI_REUSE_EXISTING_ORDER'].includes(data?.code)?String(data.existingReference||''):'';
+    if(confirmedSeparateOrder&&data?.code==='WOMPI_REUSE_EXISTING_ORDER'&&reusedReference){
+     // El servidor volvió a verificar que era exactamente el mismo pedido; cancelar la intención de crear uno nuevo.
+     confirmedSeparateOrder=false;supersededOrderReference='';
+     wompiNewOrderConfirmationFingerprint='';wompiNewOrderConfirmationReference='';
+     delete payload.confirm_new_order_after_terminal_mismatch;delete payload.supersedes_reference;
+    }
     const expiredReference=paymentReference;
     if(expiredReference)forgetReservationRecord(expiredReference);
-    const reusedReference=['WOMPI_ACTIVE_RESERVATION','WOMPI_REUSE_EXISTING_ORDER'].includes(data?.code)?String(data.existingReference||''):'';
     reservationReference=reusedReference||generateReservationReference();
     paymentReference=reservationReference;
     if(reusedReference){
@@ -5320,6 +5372,41 @@ async function payWithWompi(payload,confirmedQuote,confirmedQuoteFingerprint){
   }
 
   if(!response.ok){
+   if(data?.code==='WOMPI_NEW_ORDER_CONFIRMATION_REQUIRED'){
+    const currentCouponCode=normalizeCheckoutCouponCode($('couponCode')?.value||checkoutCouponCode);
+    if(confirmedQuoteFingerprint!==getCheckoutQuoteFingerprint(getCheckoutItems(),currentCouponCode)){
+     wompiNewOrderConfirmationFingerprint='';wompiNewOrderConfirmationReference='';
+     updateShipping();updateCheckoutSummary();
+     throw new Error('El carrito, la ciudad o el cupón cambiaron mientras se verificaba el pedido anterior. Revisa el nuevo desglose y confirma de nuevo; no se creó otra orden ni reserva.');
+    }
+    const currentQuote=normalizeCheckoutQuote(data.quote);
+    if(!quoteHasValidTotals(currentQuote,!!couponCode)){
+     wompiNewOrderConfirmationFingerprint='';wompiNewOrderConfirmationReference='';
+     throw new Error('El servidor confirmó que existe un pedido terminal distinto, pero no devolvió un desglose completo. No se creó otra orden ni reserva; actualiza y revisa el checkout antes de continuar.');
+    }
+    if(couponCode){setCheckoutCouponQuote(currentQuote,false);setCheckoutCouponStatus('Cotización vigente del servidor. Revisa el desglose antes de confirmar de nuevo.','success');}
+    else setCheckoutServerQuote(currentQuote,checkoutItems);
+    updateShipping();updateCheckoutSummary();
+    const subtotal=Math.round(Number(currentQuote.original_subtotal));
+    const totalDiscount=Math.round(Number(currentQuote.discount_total)||0);
+    const couponDiscount=Math.round(Number(currentQuote.coupon_discount_total)||0);
+    const shipping=Math.round(Number(currentQuote.shipping));
+    const total=Math.round(Number(currentQuote.total));
+    const visiblePayload=buildOrderPayload();
+    visiblePayload.shipping=shipping;visiblePayload.expected_total=total;visiblePayload.expected_discount_total=totalDiscount;
+    visiblePayload.expected_coupon_discount_total=couponDiscount;
+    const oldReference=String(data.existingReference||'').trim();
+    if(!oldReference){
+     wompiNewOrderConfirmationFingerprint='';wompiNewOrderConfirmationReference='';
+     throw new Error('No se pudo vincular la confirmación con el pedido terminal anterior. No se creó otra orden ni reserva.');
+    }
+    if(oldReference!==paymentReference)forgetReservationRecord(paymentReference);
+    wompiNewOrderConfirmationFingerprint=getWompiOrderSnapshotFingerprint(visiblePayload,currentQuote,checkoutItems);
+    wompiNewOrderConfirmationReference=oldReference;
+    const otherDiscount=Math.max(0,totalDiscount-couponDiscount);
+    const breakdown=`Desglose confirmado por el servidor: subtotal ${money(subtotal)}; descuentos de producto ${money(otherDiscount)}; cupón ${money(couponDiscount)}; envío ${money(shipping)}; total ${money(total)}.`;
+    throw new Error(`${data.error||'El pedido anterior no coincide con los datos actuales.'} ${breakdown}`);
+   }
    if(data?.code==='WOMPI_QUOTE_CHANGED'){
     const couponCode=normalizeCheckoutCouponCode(payload.coupon_code);
     const currentCouponCode=normalizeCheckoutCouponCode($('couponCode')?.value||checkoutCouponCode);
@@ -5345,8 +5432,15 @@ async function payWithWompi(payload,confirmedQuote,confirmedQuoteFingerprint){
     const shipping=Math.round(Number(authoritativeServerQuote.shipping));
     const total=Math.round(Number(authoritativeServerQuote.total));
     const breakdown=`Desglose vigente: subtotal ${money(subtotal)}; otros descuentos ${money(otherDiscount)}; cupón ${money(couponDiscount)}; envío ${money(shipping)}; total ${money(total)}. Revisa y confirma nuevamente.`;
+    if(confirmedSeparateOrder){
+     const visiblePayload=buildOrderPayload();visiblePayload.shipping=shipping;visiblePayload.expected_total=total;
+     visiblePayload.expected_discount_total=totalDiscount;visiblePayload.expected_coupon_discount_total=couponDiscount;
+     wompiNewOrderConfirmationFingerprint=getWompiOrderSnapshotFingerprint(visiblePayload,authoritativeServerQuote,checkoutItems);
+     wompiNewOrderConfirmationReference=supersededOrderReference;
+    }
     throw new Error((data.error||'El precio, descuento, cupón o envío cambió. No se creó el pedido ni se abrió Wompi.')+' '+breakdown);
    }
+   if(confirmedSeparateOrder){wompiNewOrderConfirmationFingerprint='';wompiNewOrderConfirmationReference='';}
    const localFile=location.protocol==='file:';
    throw new Error(
      data.error ||
@@ -5362,6 +5456,9 @@ async function payWithWompi(payload,confirmedQuote,confirmedQuoteFingerprint){
   }
   if(!data.reference||!/^SW-[A-F0-9]{32}$/.test(String(data.attemptReference||''))||!data.signature||!Number.isSafeInteger(amountInCents)||amountInCents<=0){
     throw new Error('Wompi devolvió datos incompletos para el pago. No se abrió la página de cobro; puedes reintentar desde el catálogo publicado.');
+  }
+  if(confirmedSeparateOrder&&data.newOrderAfterTerminalMismatch!==true){
+    throw new Error('El servidor no confirmó la creación segura de una orden separada. No se abrió Wompi; el pedido anterior sigue protegido.');
   }
   const expirationTime=String(data.expirationTime??'');
   let expirationTimeIsCanonical=false;
@@ -5382,6 +5479,7 @@ async function payWithWompi(payload,confirmedQuote,confirmedQuoteFingerprint){
 
   saveActiveReservationItems(checkoutItems);
   savePendingWompiReference(data.reference);
+  if(confirmedSeparateOrder){wompiNewOrderConfirmationFingerprint='';wompiNewOrderConfirmationReference='';}
 
   const form=document.createElement('form');
   form.method='GET';
