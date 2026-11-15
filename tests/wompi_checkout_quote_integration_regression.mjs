@@ -23,8 +23,10 @@ if (process.env.SIREVYA_WOMPI_QUOTE_CHILD !== '1') {
 const env = {
   SUPABASE_URL: 'https://supabase.invalid',
   SUPABASE_SERVICE_ROLE_KEY: 'synthetic-service-role-key',
+  // Decoy project-wide value: the production handler must ignore it.
   WOMPI_ENVIRONMENT: 'test',
-  WOMPI_INTEGRITY_SECRET_TEST: 'synthetic-integrity-secret',
+  WOMPI_INTEGRITY_SECRET: 'synthetic-production-integrity-secret',
+  WOMPI_INTEGRITY_SECRET_TEST: 'synthetic-test-integrity-secret',
 };
 const handlers = {};
 let activeHandler = '';
@@ -113,6 +115,7 @@ quoteFixture = {
 };
 const baseBody = {
   reference: 'SIREVYA-SYNTHETIC-CHECKOUT-001',
+  environment: 'prod',
   items: [{ id: productId, qty: 1, color: 'Negro', size: 'M' }],
   city: 'Ciudad de prueba',
   name: 'Comprador sintético',
@@ -135,6 +138,14 @@ function request(body) {
   });
 }
 
+// Cross-environment checkout must fail before Supabase, reservations, or orders.
+mockCalls = [];
+const environmentMismatch = await handlers.checkout(request({ ...baseBody, environment: 'test' }));
+assert.equal(environmentMismatch.status, 409);
+assert.equal((await environmentMismatch.json()).code, 'WOMPI_ENVIRONMENT_MISMATCH');
+assert.equal(mockCalls.length, 0, 'environment mismatch must stop before any Supabase RPC or order query');
+assert.equal(capturedOrderInserts.length, 0, 'environment mismatch must not create a pending order');
+
 // A stale client total must stop before lock, reservation, or order creation.
 mockCalls = [];
 const mismatch = await handlers.checkout(request({ ...baseBody, expected_total: 69001 }));
@@ -156,6 +167,7 @@ mockCalls = [];
 const accepted = await handlers.checkout(request(baseBody));
 assert.equal(accepted.status, 200);
 const paymentIntent = await accepted.json();
+assert.equal(paymentIntent.environment, 'prod');
 assert.equal(paymentIntent.reference, baseBody.reference);
 assert.equal(paymentIntent.currency, 'COP');
 assert.equal(paymentIntent.subtotal, 60000);
@@ -165,9 +177,12 @@ assert.equal(paymentIntent.shipping, 15000);
 assert.equal(paymentIntent.total, 69000);
 assert.equal(paymentIntent.amountInCents, 6900000);
 const expectedSignature = createHash('sha256')
-  .update(`${baseBody.reference}6900000COP${paymentIntent.expirationTime}${env.WOMPI_INTEGRITY_SECRET_TEST}`)
+  .update(`${baseBody.reference}6900000COP${paymentIntent.expirationTime}${env.WOMPI_INTEGRITY_SECRET}`)
   .digest('hex');
 assert.equal(paymentIntent.signature, expectedSignature);
+assert.notEqual(paymentIntent.signature, createHash('sha256')
+  .update(`${baseBody.reference}6900000COP${paymentIntent.expirationTime}${env.WOMPI_INTEGRITY_SECRET_TEST}`)
+  .digest('hex'), 'the TEST integrity key must not sign a production checkout');
 assert.equal(capturedOrderInserts.length, 1);
 const inserted = capturedOrderInserts[0];
 assert.equal(inserted.p_reference, baseBody.reference);
@@ -184,4 +199,4 @@ assert.ok(mockCalls.every(call => new URL(call.url).origin === env.SUPABASE_URL)
 assert.ok(!mockCalls.some(call => new URL(call.url).hostname.endsWith('wompi.co')), 'the harness must not call Wompi or create a charge');
 assert.ok(mockCalls.some(call => call.path === '/rest/v1/rpc/prepare_storefront_wompi_checkout' && call.body.p_coupon_code === couponCode));
 assert.ok(mockCalls.some(call => call.path === '/rest/v1/rpc/prepare_storefront_wompi_checkout' && call.body.p_expected_quote.total === 69000));
-console.log('PASS Wompi quote integration mock: stale totals fail before locks/orders; accepted synthetic coupon+shipping quote yields matching pending-order amount and signature; no external network or real payment.');
+console.log('PASS Wompi quote integration mock: cross-environment requests fail before RPC/order creation; production handler ignores the global TEST environment and signs with the production key; no external network or real payment.');

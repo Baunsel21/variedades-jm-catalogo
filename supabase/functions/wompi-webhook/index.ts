@@ -328,23 +328,17 @@ Deno.serve(async (req: Request): Promise<Response> => {
   try {
     let event: any;
     try { event = await req.json(); } catch { return json({ error: "El cuerpo del evento no es JSON válido." }, 400); }
-
-    // The environment is set on the server and must match the Wompi event. The event's
-    // environment field is not part of the documented checksum, so never use it alone
-    // to select production/test secrets.
-    const expectedEnvironment = (Deno.env.get("WOMPI_ENVIRONMENT") ?? "prod").trim().toLowerCase();
-    if (expectedEnvironment !== "prod" && expectedEnvironment !== "test") {
-      console.error("WOMPI_ENVIRONMENT must be prod or test.");
-      return json({ error: "El ambiente de Wompi no está configurado correctamente." }, 500);
-    }
+    // This deployed handler is production-only. The event's environment is checked
+    // against this fixed value and never selects credentials or endpoints.
+    const expectedEnvironment = "prod" as const;
     const eventEnvironment = String(event?.environment ?? "").trim().toLowerCase();
     if (eventEnvironment !== expectedEnvironment) {
       console.error("Evento Wompi recibido en un endpoint de otro ambiente.", { expectedEnvironment, eventEnvironment });
       return json({ error: "El evento pertenece a un ambiente distinto a este webhook." }, 400);
     }
 
-    const eventSecret = Deno.env.get(expectedEnvironment === "test" ? "WOMPI_EVENT_SECRET_TEST" : "WOMPI_EVENT_SECRET");
-    const privateKey = Deno.env.get(expectedEnvironment === "test" ? "WOMPI_PRIVATE_KEY_TEST" : "WOMPI_PRIVATE_KEY");
+    const eventSecret = Deno.env.get("WOMPI_EVENT_SECRET");
+    const privateKey = Deno.env.get("WOMPI_PRIVATE_KEY");
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const serviceRoleKey = getSupabaseServiceKey();
     if (!eventSecret || !privateKey || !supabaseUrl || !serviceRoleKey) {
@@ -397,7 +391,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     // The checksum properties supplied by Wompi can vary and may not include reference
     // or currency. Verify the transaction independently with Wompi's authenticated API
     // before trusting these fields or updating the order.
-    const wompiBaseUrl = expectedEnvironment === "test" ? "https://sandbox.wompi.co/v1" : "https://production.wompi.co/v1";
+    const wompiBaseUrl = "https://production.wompi.co/v1";
     const wompiResponse = await fetch(`${wompiBaseUrl}/transactions/${encodeURIComponent(transactionId)}`, {
       method: "GET",
       headers: { Authorization: `Bearer ${privateKey}`, Accept: "application/json" },
@@ -764,7 +758,6 @@ Deno.serve(async (req: Request): Promise<Response> => {
       } catch (error) {
         inventoryResult = { success: false, message: `No se pudo contactar la función de confirmación de inventario: ${error instanceof Error ? error.message : "error desconocido"}` };
       }
-
       if (!inventoryResponse?.ok || !inventoryResult || inventoryResult.success !== true) {
         const reason = String(inventoryResult?.message ?? `La RPC de inventario respondió HTTP ${inventoryResponse?.status ?? "sin respuesta"}.`);
         const reconciliationStored = await recordInventoryReconciliation({
@@ -866,11 +859,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
       console.error("No se pudo actualizar el estado final del lock Wompi.", { reference: confirmedReference, finalLockState });
       return json({ error: "El estado del pedido se guardó, pero su lock necesita reconciliación. El evento se reintentará." }, 502);
     }
-
     if (status === "APPROVED" && inventoryProcessed && !couponReconciliationRequired) {
       await markInventoryReconciliationResolved({ supabaseUrl, serviceRoleKey, transactionId: confirmedId });
     }
-
     console.log("Evento Wompi procesado.", { reference: confirmedReference, transactionId: confirmedId, status, inventoryProcessed, couponReconciliationRequired, environment: expectedEnvironment });
     return json({ received: true, reference: confirmedReference, transactionId: confirmedId, status, inventoryProcessed, reconciliationRequired: couponReconciliationRequired, couponReconciliationRequired });
   } catch (error) {

@@ -38,7 +38,14 @@ const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3
 const COUPON_PATTERN = /^[A-Z0-9][A-Z0-9_-]{0,63}$/;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const UNLINKED_ORDER_SAFE_REUSE_GRACE_MS = 15 * 60 * 1000;
-
+type WompiEnvironment = "prod" | "test";
+const WOMPI_PRODUCTION_ENVIRONMENT: WompiEnvironment = "prod";
+function normalizeWompiEnvironment(value: unknown): WompiEnvironment | null {
+  const environment = String(value ?? "").trim().toLowerCase();
+  if (environment === "prod" || environment === "production") return "prod";
+  if (environment === "test" || environment === "sandbox") return "test";
+  return null;
+}
 function unlinkedWompiOrderExpired(row: any, now = Date.now()): boolean {
   const createdAt = Date.parse(String(row?.created_at ?? ""));
   return Number.isFinite(createdAt) && createdAt + UNLINKED_ORDER_SAFE_REUSE_GRACE_MS <= now;
@@ -312,6 +319,15 @@ Deno.serve(async (req: Request): Promise<Response> => {
     let body: any;
     try { body = await req.json(); } catch { return json({ error: "El cuerpo de la solicitud no es JSON válido." }, 400); }
 
+    const requestedWompiEnvironment = normalizeWompiEnvironment(body?.environment);
+    const wompiEnvironment = WOMPI_PRODUCTION_ENVIRONMENT;
+    if (!requestedWompiEnvironment) {
+      return json({ code: "WOMPI_ENVIRONMENT_REQUIRED", error: "Actualiza la tienda para validar el ambiente de pago antes de iniciar el checkout." }, 400);
+    }
+    if (requestedWompiEnvironment !== wompiEnvironment) {
+      return json({ code: "WOMPI_ENVIRONMENT_MISMATCH", error: "La tienda y el servidor de pagos usan ambientes distintos. No se creó pedido ni reserva; no se abrió Wompi." }, 409);
+    }
+
     const cedulaValidation = parseCheckoutCedula(body?.cedula ?? body?.customer_cedula);
     const customerCedula = cedulaValidation.value;
     if (cedulaValidation.error === "invalid") {
@@ -369,13 +385,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const serviceRoleKey = getSupabaseServiceKey();
-    // This is server configuration, never a client-supplied field. Set to "prod"
-    // for the live store; use a separate test project/deployment for Sandbox.
-    const wompiEnvironment = (Deno.env.get("WOMPI_ENVIRONMENT") ?? "prod").trim().toLowerCase();
-    if (wompiEnvironment !== "prod" && wompiEnvironment !== "test") {
-      return json({ error: "El ambiente de Wompi no está configurado correctamente." }, 500);
-    }
-    const integritySecret = Deno.env.get(wompiEnvironment === "test" ? "WOMPI_INTEGRITY_SECRET_TEST" : "WOMPI_INTEGRITY_SECRET");
+    const integritySecret = Deno.env.get("WOMPI_INTEGRITY_SECRET");
     if (!supabaseUrl || !serviceRoleKey || !integritySecret) {
       return json({ error: "Falta configurar una variable necesaria en Supabase." }, 500);
     }
@@ -788,7 +798,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       orderInsertAttempted = false;
     }
 
-    return json({ reference, amountInCents, signature, expirationTime, subtotal, discountTotal, couponDiscountTotal, shipping, total: totalCop, currency: "COP" });
+    return json({ environment: wompiEnvironment, reference, amountInCents, signature, expirationTime, subtotal, discountTotal, couponDiscountTotal, shipping, total: totalCop, currency: "COP" });
   } catch {
     // Deliberately do not log request data: coupon codes and customer PII must not
     // appear in logs, URLs, or exception payloads.
