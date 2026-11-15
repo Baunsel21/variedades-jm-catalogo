@@ -340,11 +340,13 @@ Deno.serve(async (req: Request): Promise<Response> => {
   try {
     let event: any;
     try { event = await req.json(); } catch { return json({ error: "El cuerpo del evento no es JSON válido." }, 400); }
-    // This deployed handler is production-only. The event's environment is checked
-    // against this fixed value and never selects credentials or endpoints.
+    // Wompi uses a separate event URL per environment; its documented event body
+    // does not include an environment field. The production secret and authenticated
+    // production transaction lookup below establish the environment. If an optional
+    // environment label is present, reject any non-production value.
     const expectedEnvironment = "prod" as const;
     const eventEnvironment = String(event?.environment ?? "").trim().toLowerCase();
-    if (eventEnvironment !== expectedEnvironment) {
+    if (eventEnvironment && !["prod", "production"].includes(eventEnvironment)) {
       console.error("Evento Wompi recibido en un endpoint de otro ambiente.", { expectedEnvironment, eventEnvironment });
       return json({ error: "El evento pertenece a un ambiente distinto a este webhook." }, 400);
     }

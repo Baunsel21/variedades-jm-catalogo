@@ -220,6 +220,31 @@ for (const status of ['PENDING', 'ERROR', 'DECLINED', 'VOIDED', 'APPROVED']) {
   assert.ok(requests.some(call => call.url.pathname === '/rest/v1/orders' && call.method === 'GET'));
 }
 
+// Wompi's documented event schema has no environment field. A valid signed event
+// must pass the production-secret and authenticated production-API checks without it.
+scenario = makeScenario({ status: 'PENDING', transactionId: 'TX-NO-ENV-001' });
+requests.length = 0;
+Object.keys(sideEffects).forEach(key => { sideEffects[key] = 0; });
+const documentedRequest = signedRequest();
+const documentedPayload = await documentedRequest.json();
+delete documentedPayload.environment;
+const missingEnvironmentResponse = await handlers.webhook(new Request('https://edge.invalid/wompi-webhook', {
+  method: 'POST', headers: documentedRequest.headers, body: JSON.stringify(documentedPayload),
+}));
+assert.equal(missingEnvironmentResponse.status, 200, 'documented signed event without environment must be accepted');
+assert.equal((await missingEnvironmentResponse.json()).status, 'PENDING');
+assert.equal(sideEffects.inventoryConfirm, 0);
+assert.equal(sideEffects.inventoryRelease, 0);
+
+// An explicit Sandbox label is still rejected before any API or database request.
+requests.length = 0;
+const sandboxPayload = { ...documentedPayload, environment: 'test' };
+const sandboxResponse = await handlers.webhook(new Request('https://edge.invalid/wompi-webhook', {
+  method: 'POST', headers: documentedRequest.headers, body: JSON.stringify(sandboxPayload),
+}));
+assert.equal(sandboxResponse.status, 400, 'explicit Sandbox environment must remain rejected');
+assert.equal(requests.length, 0, 'wrong environment must be rejected before network side effects');
+
 // Duplicate APPROVED webhook must not confirm inventory a second time.
 scenario = makeScenario({ status: 'APPROVED', transactionId: 'TX-APPROVED-DUP', orderStatus: 'APPROVED', orderTx: 'TX-APPROVED-DUP',
   attemptReference: `SW-${'F'.repeat(32)}`,
