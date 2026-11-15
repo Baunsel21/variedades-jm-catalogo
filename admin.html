@@ -3694,7 +3694,24 @@ function uncoloredAdminVariants(list){return parseVariants(list).filter(v=>!Stri
 function uncoloredAdminVariantsHaveDuplicateSizes(list){const sizes=new Set();for(const v of uncoloredAdminVariants(list)){const key=normalizeVariantText(v.size);if(sizes.has(key))return true;sizes.add(key)}return false}
 function adminVariantHasProtectedData(v){return Number(v?.stock)>0||!!String(v?.image_path||'').trim()||!!normalizeVariantHex(v?.color_hex)}
 function adminVariantKeyCollisions(list){const seen=new Set(),duplicates=new Set();for(const v of parseVariants(list)){const key=variantKey(v.color,v.size);if(seen.has(key))duplicates.add(key);else seen.add(key)}return [...duplicates]}
-function adminVariantCollisionMessage(){return 'Se detectaron combinaciones de color/talla duplicadas en los datos guardados. El editor bloqueó la edición para evitar fusionar o perder stock, fotos o HEX. Cierra este producto y solicita resolver la duplicidad antes de guardar.'}
+function adminVariantCollisionMessage(){return 'Se detectaron combinaciones de color/talla duplicadas en los datos guardados. El editor bloqueó la edición para evitar fusionar o perder stock, fotos o HEX. Usa “Resolver duplicadas” para asignar cada fila a un color de forma explícita.'}
+ function repairAdminVariantConflicts(){
+  const source=parseVariants(variantMemory.length?variantMemory:variantDraft),colors=readAdminColors();
+  if(!source.length||!colors.length){alert('Selecciona al menos un color antes de resolver las variantes legacy.');return false}
+  const seen=new Set(),repaired=[];
+  for(const original of source){
+   const next={...original},initialKey=variantKey(next.color,next.size);
+   if(!seen.has(initialKey)){seen.add(initialKey);repaired.push(next);continue}
+   const options=colors.filter(color=>!seen.has(variantKey(color,next.size)));
+   if(!options.length){alert(`No hay un color libre para la talla “${next.size||'sin talla'}”. No se modificó ninguna variante.`);return false}
+   const choices=options.map((color,index)=>`${index+1}. ${color}`).join('\n'),answer=prompt(`La fila ${next.size||'sin talla'} está duplicada. Escribe el número del color que corresponde a esta fila:\n\n${choices}`,'1'),choice=Number(answer)-1;
+   if(!Number.isInteger(choice)||!options[choice]){alert('No se asignó la variante. No se modificó ninguna variante.');return false}
+   next.color=options[choice];seen.add(variantKey(next.color,next.size));repaired.push(next);
+  }
+  if(adminVariantKeyCollisions(repaired).length){alert('No se pudo resolver la duplicidad sin fusionar datos. No se modificó ninguna variante.');return false}
+  variantMemory=repaired;variantDraft=repaired;variantEditorCollisionError='';renderVariantEditor(repaired);variantDraft=collectVariantDraft();updateAdminVariantTotal();toast('Variantes legacy resueltas sin fusionar stock ni fotos.');return true;
+ }
+
 function assignUncoloredAdminVariants(list,colorName,sizes,value){const name=String(colorName||'').trim(),hex=normalizeVariantHex(value),mapped=parseVariants(list).map(v=>{if(String(v.color||'').trim()&&normalizeAdminColorName(v.color)!=='sin color')return v;const next={...v,color:name},storedHex=hex||normalizeVariantHex(v.color_hex);if(storedHex)next.color_hex=storedHex;else delete next.color_hex;return next}),assigned=addAdminColorVariants(mapped,name,sizes,hex);return adminVariantKeyCollisions(assigned).length?null:assigned}
 function discardAdminColorVariants(list,colorName){const key=normalizeAdminColorName(colorName);return parseVariants(list).filter(v=>normalizeAdminColorName(v.color)!==key)}
 function discardHiddenAdminVariants(list,hidden){const keys=new Set(parseVariants(hidden).map(v=>variantKey(v.color,v.size)));return parseVariants(list).filter(v=>!keys.has(variantKey(v.color,v.size)))}
@@ -3864,7 +3881,7 @@ function renderVariantEditor(existing=variantDraft){
  const colors=[...new Set(String($("pColores")?.value||'').split(',').map(x=>x.trim()).filter(Boolean))];
  const sizes=[...new Set(String($("pTallas")?.value||'').split(',').map(x=>x.trim()).filter(Boolean))];
  const prior=parseVariants(existing),collisions=adminVariantKeyCollisions(prior);
- if(collisions.length){variantEditorCollisionError=adminVariantCollisionMessage();box.style.display='block';rows.innerHTML=`<div class="variantCollisionWarning" role="alert">${esc(variantEditorCollisionError)}</div>`;return}
+ if(collisions.length){variantEditorCollisionError=adminVariantCollisionMessage();box.style.display='block';rows.innerHTML=`<div class="variantCollisionWarning" role="alert">${esc(variantEditorCollisionError)}<br><button type="button" class="action" onclick="repairAdminVariantConflicts()">Resolver duplicadas</button></div>`;return}
  variantEditorCollisionError='';
  if(!colors.length&&!sizes.length){box.style.display='none';rows.innerHTML='';return}
  box.style.display='block';
@@ -3872,7 +3889,7 @@ function renderVariantEditor(existing=variantDraft){
  const map=new Map(prior.map(x=>[variantKey(x.color,x.size),x]));
  const colorsWithPhoto=colors.length?colors:["Sin color"];
  const displayGrid=colorsWithPhoto.flatMap(displayColor=>ss.map(sz=>({color:colors.length?displayColor:'',size:sz})));
- if(adminVariantKeyCollisions(displayGrid).length){variantEditorCollisionError=adminVariantCollisionMessage();rows.innerHTML=`<div class="variantCollisionWarning" role="alert">${esc(variantEditorCollisionError)}</div>`;return}
+ if(adminVariantKeyCollisions(displayGrid).length){variantEditorCollisionError=adminVariantCollisionMessage();rows.innerHTML=`<div class="variantCollisionWarning" role="alert">${esc(variantEditorCollisionError)}<br><button type="button" class="action" onclick="repairAdminVariantConflicts()">Resolver duplicadas</button></div>`;return}
 	rows.innerHTML=`<div class="variantAdminTable">
 	<div class="variantAdminRow variantAdminHead"><div>Color / HEX</div><div>Talla</div><div>Stock</div><div>📸 Foto de esta referencia</div></div>`+
 	colorsWithPhoto.flatMap(displayColor=>ss.map(sz=>{
