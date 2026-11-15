@@ -5347,6 +5347,12 @@ async function payWithWompi(payload){
   if(!data.reference||!data.signature||!Number.isSafeInteger(amountInCents)||amountInCents<=0){
     throw new Error('Wompi devolvió datos incompletos para el pago. No se abrió la página de cobro; puedes reintentar desde el catálogo publicado.');
   }
+  const expirationTime=String(data.expirationTime??'');
+  let expirationTimeIsCanonical=false;
+  try{expirationTimeIsCanonical=new Date(expirationTime).toISOString()===expirationTime}catch{}
+  if(!expirationTimeIsCanonical){
+    throw new Error('Wompi devolvió una expiración inválida para la firma. No se abrió la página de cobro; puedes reintentar desde el catálogo publicado.');
+  }
   const expectedAmountInCents=Math.round(Number(authoritativeComboQuote?.total))*100;
   if(!Number.isSafeInteger(expectedAmountInCents)||expectedAmountInCents<=0||amountInCents!==expectedAmountInCents){
     throw new Error('No abrimos Wompi porque el servidor de pago devolvió un valor distinto al total cotizado. No se realizó ningún cobro.');
@@ -5375,6 +5381,7 @@ async function payWithWompi(payload){
    'amount-in-cents':String(amountInCents),
    'reference':data.reference,
    'signature:integrity':data.signature,
+   'expiration-time':expirationTime,
    // URL HTTPS limpia: sin query ni hash de la categoría actual.
    'redirect-url':new URL(window.location.pathname,window.location.origin).href,
   'customer-data:full-name':payload.name,
