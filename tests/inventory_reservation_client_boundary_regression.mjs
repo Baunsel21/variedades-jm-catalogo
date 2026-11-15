@@ -10,6 +10,14 @@ assert.doesNotMatch(index, /\.rpc\(\s*['"](?:attach|release)_inventory_reservati
   'the public storefront must not call privileged inventory reservation RPCs');
 assert.doesNotMatch(index, /function\s+(?:attach|release)InventoryReservation\s*\(/,
   'the storefront must not retain a helper that can invoke the privileged RPCs');
+assert.match(index, /WOMPI_REUSE_EXISTING_ORDER/,
+  'the browser must retry once with the existing stable order reference when the server finds a terminal retryable order');
+assert.match(index, /\['WOMPI_ACTIVE_RESERVATION','WOMPI_REUSE_EXISTING_ORDER'\]\.includes\(data\?\.code\)\?String\(data\.existingReference\|\|''\)/,
+  'the browser must use the server-returned order reference rather than creating another order');
+assert.match(index, /'reference':data\.attemptReference/,
+  'the Wompi form must use the unique attempt reference');
+assert.match(index, /savePendingWompiReference\(data\.reference\)/,
+  'the browser must continue saving the stable order/reservation reference');
 
 const mismatchStart = index.indexOf('if(data.reference!==paymentReference){');
 assert.notEqual(mismatchStart, -1, 'the Wompi reference contract must be checked');
@@ -53,6 +61,7 @@ async function runWompiAttempt(returnedReference) {
   let formSubmits = 0;
   let rpcMutationCalls = 0;
   let resetCalls = 0;
+  let savedPendingReference = '';
   const formFields = [];
   const messages = [];
   const button = { disabled: false, textContent: '' };
@@ -60,7 +69,8 @@ async function runWompiAttempt(returnedReference) {
     ok: true,
     status: 200,
     async json() {
-      return { reference: returnedReference, signature: 'synthetic-signature', amountInCents: 1000000,
+      return { environment: 'test', reference: returnedReference, signature: 'synthetic-signature', amountInCents: 1000000,
+        attemptReference: 'SW-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
         expirationTime: '2030-01-01T00:00:00.000Z' };
     },
   };
@@ -69,6 +79,7 @@ async function runWompiAttempt(returnedReference) {
     onlinePaymentsEnabled: true,
     SUPABASE_KEY: 'public-test-key',
     WOMPI_PUBLIC_KEY: 'pub_test_only',
+    WOMPI_PUBLIC_ENVIRONMENT: 'test',
     WOMPI_SIGNATURE_ENDPOINT: 'https://edge.invalid/wompi-create-checkout',
     location: { protocol: 'https:', hostname: 'sirevya.com.co' },
     window: {
@@ -94,7 +105,7 @@ async function runWompiAttempt(returnedReference) {
     saveReservationDraft() {},
     saveActiveReservationReference() {},
     saveActiveReservationItems() {},
-    savePendingWompiReference() {},
+    savePendingWompiReference(value) { savedPendingReference = String(value || ''); },
     setCurrentReservationRecord() {},
     refreshOnlinePaymentSetting: async () => {},
     syncPaymentOptions() {},
@@ -150,7 +161,7 @@ async function runWompiAttempt(returnedReference) {
     expected_discount_total: 0,
     expected_coupon_discount_total: 0,
   });
-  return { edgeCalls, quoteCalls, formCreates, formSubmits, rpcMutationCalls, resetCalls, formFields, messages, context };
+  return { edgeCalls, quoteCalls, formCreates, formSubmits, rpcMutationCalls, resetCalls, savedPendingReference, formFields, messages, context };
 }
 
 const matchingReference = await runWompiAttempt('JMRES-SYNTHETIC-REFERENCE');
@@ -161,6 +172,11 @@ assert.equal(matchingReference.formSubmits, 1, `the normal matching-reference ch
 assert.deepEqual(matchingReference.formFields.find(field => field.name === 'expiration-time'),
   { name: 'expiration-time', value: '2030-01-01T00:00:00.000Z' },
   'the exact server-signed expiration must be sent to Wompi');
+assert.deepEqual(matchingReference.formFields.find(field => field.name === 'reference'),
+  { name: 'reference', value: 'SW-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA' },
+  'Wompi receives the unique attempt reference, not the stable order/reservation reference');
+assert.equal(matchingReference.savedPendingReference, 'JMRES-SYNTHETIC-REFERENCE',
+  'the storefront persists only the stable order/reservation reference');
 assert.equal(matchingReference.rpcMutationCalls, 0, 'the browser performs no inventory mutation RPC');
 assert.equal(matchingReference.context.window.__sirevyaWompiInProgress, false);
 

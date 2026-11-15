@@ -528,9 +528,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
       return json({ error: "La referencia del pedido no tiene un formato válido." }, 400);
     }
 
-    // Check existing reference before touching reservations. A persisted pending
-    // order is never reused; linked payments, unlinked holds and terminal cooldowns
-    // each have an explicit fail-closed path below.
+    // A terminal order may resume only through the verified-attempt ledger below.
+    // An unlinked or unknown payment state never gets a fresh order/reference.
+    let existingTerminalTransaction = false;
     const existingUrl = new URL(`${supabaseUrl}/rest/v1/orders`);
     existingUrl.searchParams.set("reference", `eq.${reference}`);
     existingUrl.searchParams.set("select", "reference,created_at,total,subtotal,shipping,city,items,payment_method,payment_status,transaction_id,customer_name,phone,address,neighborhood,coupon_id,coupon_code,coupon_discount_total");
@@ -550,71 +550,57 @@ Deno.serve(async (req: Request): Promise<Response> => {
         String(existing.payment_status ?? "").toUpperCase() === "PENDING" &&
         !String(existing.transaction_id ?? "").trim();
       if (pendingAndUnlinked) {
-        if (!unlinkedWompiOrderExpired(existing)) {
-          return json({
-            code: "WOMPI_UNRESOLVED_RESERVATION",
-            canRetryWithNewReference: false,
-            existingReference: reference,
-            error: "Este pedido Wompi sigue pendiente y sin transacción vinculada. No se reutilizará su referencia durante la ventana de seguridad de 15 minutos; espera antes de intentar otro pago.",
-          }, 409);
-        }
-        const released = await releaseAttemptReservations(
-          supabaseUrl,
-          serviceRoleKey,
-          reference,
-          Boolean(normalizeStoredCouponCode(existing.coupon_code)),
-        );
-        if (!released) {
-          return json({ error: "La referencia Wompi anterior ya venció, pero no se pudo verificar la liberación de sus reservas. Espera o contacta soporte." }, 502);
-        }
         return json({
-          code: "WOMPI_REFERENCE_STALE",
-          canRetryWithNewReference: true,
-          error: "La referencia Wompi anterior superó la ventana de seguridad. Sus reservas se liberaron; inicia el pago con una referencia nueva.",
+          code: unlinkedWompiOrderExpired(existing) ? "WOMPI_ATTEMPT_UNVERIFIED" : "WOMPI_UNRESOLVED_RESERVATION",
+          canRetryWithNewReference: false,
+          existingReference: reference,
+          error: unlinkedWompiOrderExpired(existing)
+            ? "El pedido anterior sigue sin un estado terminal verificado por Wompi. No se creará otra orden automáticamente; contacta soporte para revisar el intento."
+            : "Este pedido Wompi sigue pendiente y sin transacción vinculada. Espera la confirmación; no se abrirá otro intento ni otra orden mientras su estado sea ambiguo.",
         }, 409);
       }
       const existingStatus = String(existing.payment_status ?? "").trim().toUpperCase();
-        const existingTransactionId = String(existing.transaction_id ?? "").trim();
-        if (existingTransactionId && existingStatus === "PENDING") {
-          return json({
-            code: "WOMPI_TRANSACTION_PENDING",
-            canRetryWithNewReference: false,
-            error: "Ya hay una transacción Wompi pendiente vinculada a este pedido. No inicies otro pago para evitar un posible cobro duplicado; espera la confirmación del estado o contacta soporte.",
-          }, 409);
+      const existingTransactionId = String(existing.transaction_id ?? "").trim();
+      if (existingTransactionId && existingStatus === "PENDING") {
+        return json({
+          code: "WOMPI_TRANSACTION_PENDING",
+          canRetryWithNewReference: false,
+          error: "Ya hay una transacción Wompi pendiente vinculada a este pedido. No inicies otro pago; espera la confirmación o contacta soporte.",
+        }, 409);
+      }
+      if (existingTransactionId && existingStatus === "APPROVED") {
+        return json({
+          code: "WOMPI_ALREADY_APPROVED",
+          canRetryWithNewReference: false,
+          error: "Este pedido ya tiene un pago aprobado. No intentes pagarlo otra vez.",
+        }, 409);
+      }
+      if (!customerCedula) {
+        return json({ code: "CUSTOMER_CEDULA_REQUIRED", error: "La cédula o documento de identidad es obligatorio para iniciar un nuevo intento de pago." }, 400);
+      }
+      existingTerminalTransaction = Boolean(existingTransactionId) && ["DECLINED", "VOIDED", "ERROR"].includes(existingStatus);
+      if (existingTerminalTransaction) {
+        const digits = (value: unknown) => String(value ?? "").replace(/\D/g, "").slice(-10);
+        const sameOrderSnapshot =
+          digits(existing.phone) === digits(phone) &&
+          String(existing.customer_name ?? "").trim().toLowerCase() === name.toLowerCase() &&
+          String(existing.city ?? "").trim().toLowerCase() === city.toLowerCase() &&
+          String(existing.address ?? "").trim() === address &&
+          String(existing.neighborhood ?? "").trim() === neighborhood &&
+          canonicalCart(existing.items) === canonicalCart(quote.items) &&
+          copAmount(existing.total) === totalCop &&
+          copAmount(existing.subtotal) === subtotal &&
+          copAmount(existing.shipping) === shipping &&
+          normalizeStoredCouponCode(existing.coupon_code) === couponCode &&
+          copAmount(existing.coupon_discount_total ?? 0) === couponDiscountTotal &&
+          String(existing.coupon_id ?? "") === String(quote.coupon_id ?? "");
+        if (!sameOrderSnapshot) {
+          return json({ code: "WOMPI_ORDER_MISMATCH", canRetryWithNewReference: false,
+            error: "El pedido terminal no coincide con el comprador, carrito, ciudad, dirección o total actual. No se abrió otro pago." }, 409);
         }
-        if (existingTransactionId && existingStatus === "APPROVED") {
-          return json({
-            code: "WOMPI_ALREADY_APPROVED",
-            canRetryWithNewReference: false,
-            error: "Este pedido ya tiene un pago aprobado. No intentes pagarlo otra vez.",
-          }, 409);
-        }
-        if (!customerCedula) {
-          return json({ code: "CUSTOMER_CEDULA_REQUIRED", error: "La cédula o documento de identidad es obligatorio para iniciar un nuevo intento de pago." }, 400);
-        }
-        const terminalTransaction = Boolean(existingTransactionId) && ["DECLINED", "VOIDED", "ERROR"].includes(existingStatus);
-        if (terminalTransaction) {
-          // A new payment attempt is permitted only after the previous transaction
-          // is verified terminal and both old holds are released.
-          const released = await releaseAttemptReservations(
-            supabaseUrl,
-            serviceRoleKey,
-            reference,
-            Boolean(normalizeStoredCouponCode(existing.coupon_code)),
-            existingTransactionId,
-            "terminal_grace",
-          );
-          if (!released) {
-            return json({ error: "El intento anterior terminó, pero no se pudo confirmar la liberación de sus reservas. Espera o contacta soporte antes de volver a pagar." }, 502);
-          }
-          return json({
-            code: "WOMPI_TERMINAL_GRACE",
-            canRetryWithNewReference: false,
-            existingReference: reference,
-            error: "El intento anterior terminó y sus reservas se liberaron. Por seguridad, espera 15 minutos antes de volver a iniciar el pago; así reducimos el riesgo de una aprobación tardía duplicada.",
-          }, 409);
-        }
-        return json({ error: "Esta referencia ya corresponde a otro intento, a una transacción vinculada, a otro comprador o a un total distinto. No se reutilizó el pedido anterior." }, 409);
+      } else {
+        return json({ error: "Esta referencia ya corresponde a otro intento, a una transacción vinculada o a datos distintos. No se reutilizó el pedido anterior." }, 409);
+      }
     }
 
     // Fail closed when this buyer already has a Wompi transaction linked to an
@@ -641,44 +627,67 @@ Deno.serve(async (req: Request): Promise<Response> => {
       }, 409);
     }
 
-    // Never re-use the reference of an existing PENDING/unlinked order, even for
-    // an identical cart. A stale unlinked order may be released after 15 minutes,
-    // but the next attempt always uses a distinct reference.
+    // Any other unlinked PENDING order remains blocked even after its inventory
+    // TTL. TTL expiry is not proof that Wompi has no chargeable transaction.
     const otherUnlinkedPendingOrders = pendingRows.filter((row: any) => {
       const rowReference = String(row?.reference ?? "").trim();
       return rowReference && rowReference !== reference &&
         String(row?.payment_status ?? "").toUpperCase() === "PENDING" &&
         !String(row?.transaction_id ?? "").trim();
     });
-    for (const staleOrder of otherUnlinkedPendingOrders) {
-      if (!unlinkedWompiOrderExpired(staleOrder)) {
-        return json({
-          code: "WOMPI_UNRESOLVED_RESERVATION",
-          canRetryWithNewReference: false,
-          existingReference: String(staleOrder.reference),
-          error: "Hay un checkout Wompi reciente sin transacción vinculada y sus reservas se mantienen hasta que venza la sesión. Espera antes de iniciar otro carrito.",
-        }, 409);
-      }
-      const staleReference = String(staleOrder.reference);
-      const released = await releaseAttemptReservations(
-        supabaseUrl,
-        serviceRoleKey,
-        staleReference,
-        Boolean(normalizeStoredCouponCode(staleOrder.coupon_code)),
-      );
-      if (!released) {
-        return json({ error: "Un checkout anterior ya venció, pero no se pudieron confirmar sus liberaciones. No se inició otro pago." }, 502);
-      }
+    if (otherUnlinkedPendingOrders.length) {
+      const staleOrder = otherUnlinkedPendingOrders[0];
+      return json({
+        code: unlinkedWompiOrderExpired(staleOrder) ? "WOMPI_ATTEMPT_UNVERIFIED" : "WOMPI_UNRESOLVED_RESERVATION",
+        canRetryWithNewReference: false,
+        existingReference: String(staleOrder.reference),
+        error: "Hay un pedido Wompi sin estado terminal verificado para este teléfono. No se creará otro pedido ni se abrirá otra sesión; contacta soporte para conciliación.",
+      }, 409);
     }
     const canonicalItems = canonicalCart(items);
     if (!canonicalItems) return json({ error: "No se pudo normalizar el carrito para reservarlo." }, 400);
-    const checkoutLock = await reserveWompiCheckoutLock({
-      supabaseUrl,
-      serviceRoleKey,
-      reference,
-      customerPhone: phone,
-      cartHash: await sha256Hex(canonicalItems),
+    const cartHash = await sha256Hex(canonicalItems);
+    const retryLockResponse = await fetch(`${supabaseUrl}/rest/v1/rpc/prepare_storefront_wompi_retry_lock`, {
+      method: "POST",
+      headers: supabaseHeaders(serviceRoleKey),
+      body: JSON.stringify({ p_reference: reference, p_customer_phone: phone, p_cart_hash: cartHash, p_minutes: 10 }),
     });
+    const retryLock = rpcObject(await readJson(retryLockResponse));
+    if (!retryLockResponse.ok || !retryLock || typeof retryLock.success !== "boolean") {
+      return json({ error: "No se pudo comprobar si existe un intento terminal reanudable. No se abrió otro pago." }, 503);
+    }
+    let retryLockReady = retryLock.success === true;
+    if (!retryLockReady && retryLock.code !== "WOMPI_NO_RETRYABLE_ORDER") {
+      return json({
+        code: retryLock.code,
+        existingReference: retryLock.existing_reference,
+        expiresAt: retryLock.expires_at,
+        canRetryWithNewReference: false,
+        error: retryLock.code === "WOMPI_REUSE_EXISTING_ORDER"
+          ? "Existe un pedido terminal reanudable para este carrito. Se usará la misma orden; no se creará otra."
+          : retryLock.code === "WOMPI_TERMINAL_GRACE"
+            ? "El estado terminal fue verificado, pero debe cumplirse la ventana de seguridad de 15 minutos antes de reintentar."
+            : "No se pudo reanudar este intento con seguridad. No se creó otro pedido ni se abrió una sesión de pago.",
+      }, 409);
+    }
+    if (existingTerminalTransaction && !retryLockReady) {
+      return json({ code: retryLock.code ?? "WOMPI_ATTEMPT_HISTORY_REQUIRED", canRetryWithNewReference: false,
+        error: "El pedido terminó, pero no existe un historial verificado y vencido que permita reabrirlo. No se creó un pedido nuevo." }, 409);
+    }
+    if (retryLockReady && String(retryLock.reference ?? "") !== reference) {
+      return json({ code: "WOMPI_RETRY_REFERENCE_MISMATCH", canRetryWithNewReference: false,
+        error: "La referencia de la reanudación no coincide con el pedido actual. No se inició el pago." }, 409);
+    }
+    let checkoutLock: any = { responseOk: true, success: true };
+    if (!retryLockReady) {
+      checkoutLock = await reserveWompiCheckoutLock({
+        supabaseUrl,
+        serviceRoleKey,
+        reference,
+        customerPhone: phone,
+        cartHash,
+      });
+    }
     if (!checkoutLock.responseOk) {
       // The RPC may have committed before its response was lost. Never perform a
       // separate read-then-release; an uncertain hold expires under its TTL.
@@ -762,8 +771,6 @@ Deno.serve(async (req: Request): Promise<Response> => {
       }, 409);
     }
 
-    // Wompi specifies expiration-time as part of the integrity signature when supplied.
-    const signature = await sha256Hex(`${reference}${amountInCents}COP${expirationTime}${integritySecret}`);
     if (!existing) {
       // Insert through a narrow SECURITY DEFINER RPC. This keeps direct table
       // INSERT closed to browser roles and avoids the PostgREST 403 path caused
@@ -798,7 +805,37 @@ Deno.serve(async (req: Request): Promise<Response> => {
       orderInsertAttempted = false;
     }
 
-    return json({ environment: wompiEnvironment, reference, amountInCents, signature, expirationTime, subtotal, discountTotal, couponDiscountTotal, shipping, total: totalCop, currency: "COP" });
+    const beginAttemptResponse = await fetch(`${supabaseUrl}/rest/v1/rpc/begin_storefront_wompi_payment_attempt`, {
+      method: "POST",
+      headers: supabaseHeaders(serviceRoleKey),
+      body: JSON.stringify({
+        p_order_reference: reference,
+        p_customer_name: name,
+        p_customer_phone: phone,
+        p_city: city,
+        p_address: address,
+        p_neighborhood: neighborhood,
+        p_expected_quote: quote,
+        p_cart_hash: cartHash,
+        p_is_new_order: !existing,
+      }),
+    });
+    const attemptResult = rpcObject(await readJson(beginAttemptResponse));
+    const attemptReference = String(attemptResult?.attempt_reference ?? "");
+    if (!beginAttemptResponse.ok || attemptResult?.success !== true || !/^SW-[A-F0-9]{32}$/.test(attemptReference) ||
+        Number(attemptResult?.amount_in_cents) !== amountInCents || String(attemptResult?.currency ?? "").toUpperCase() !== "COP" ||
+        String(attemptResult?.environment ?? "").toLowerCase() !== wompiEnvironment) {
+      return json({
+        code: String(attemptResult?.code ?? "WOMPI_ATTEMPT_CREATE_FAILED"),
+        canRetryWithNewReference: false,
+        error: "No se pudo registrar de forma segura el intento de pago. No se abrió Wompi ni se presentó un cobro.",
+      }, beginAttemptResponse.ok ? 409 : 503);
+    }
+
+    // Wompi receives and signs a unique attempt reference; the stable order
+    // reference remains the key for inventory, coupons, order, and checkout lock.
+    const signature = await sha256Hex(`${attemptReference}${amountInCents}COP${expirationTime}${integritySecret}`);
+    return json({ environment: wompiEnvironment, reference, attemptReference, amountInCents, signature, expirationTime, subtotal, discountTotal, couponDiscountTotal, shipping, total: totalCop, currency: "COP" });
   } catch {
     // Deliberately do not log request data: coupon codes and customer PII must not
     // appear in logs, URLs, or exception payloads.

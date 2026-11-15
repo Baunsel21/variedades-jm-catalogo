@@ -2028,6 +2028,7 @@ let codPaymentSettingsLoaded=false;
 // Wompi: llave pública de producción.
 // La firma de integridad se genera en Supabase, nunca aquí en el navegador.
 const WOMPI_PUBLIC_KEY="pub_prod_LRVzOkCVug2eCWqW8uP923ODRoYSlx0p";
+const WOMPI_PUBLIC_ENVIRONMENT=WOMPI_PUBLIC_KEY.startsWith('pub_test_')?'test':WOMPI_PUBLIC_KEY.startsWith('pub_prod_')?'prod':'';
 const WOMPI_SIGNATURE_ENDPOINT=SUPABASE_URL+"/functions/v1/wompi-create-checkout";
 const CHECKOUT_REQUEST_TIMEOUT_MS=20000;
 
@@ -5117,7 +5118,7 @@ function buildOrderPayload(){
        neighborhood=$('customerNeighborhood').value.trim(),couponCode=storefrontCouponSettingsLoaded&&storefrontCouponsEnabled?normalizeCheckoutCouponCode($('couponCode')?.value||checkoutCouponCode):'',
        couponQuote=currentCheckoutCouponQuote();
  const payload={name,cedula,cedula_type:cedulaType,phone,email,city,address,neighborhood,payment:selectedPayment(),
-         environment:'production',
+         environment:WOMPI_PUBLIC_ENVIRONMENT,
          shipping:checkoutShipping,
          coupon_code:couponCode,
          expected_coupon_discount_total:couponQuote?Math.max(0,Number(couponQuote.coupon_discount_total)||0):0,
@@ -5284,10 +5285,10 @@ async function payWithWompi(payload){
     body:JSON.stringify(payload)
    });
    data=await response.json().catch(()=>({}));
-   if(response.status===409&&['WOMPI_ACTIVE_RESERVATION','WOMPI_REFERENCE_STALE'].includes(data?.code)&&preparationAttempt===0){
+   if(response.status===409&&['WOMPI_ACTIVE_RESERVATION','WOMPI_REFERENCE_STALE','WOMPI_REUSE_EXISTING_ORDER'].includes(data?.code)&&preparationAttempt===0){
     const expiredReference=paymentReference;
     if(expiredReference)forgetReservationRecord(expiredReference);
-    const reusedReference=data?.code==='WOMPI_ACTIVE_RESERVATION'?String(data.existingReference||''):'';
+    const reusedReference=['WOMPI_ACTIVE_RESERVATION','WOMPI_REUSE_EXISTING_ORDER'].includes(data?.code)?String(data.existingReference||''):'';
     reservationReference=reusedReference||generateReservationReference();
     paymentReference=reservationReference;
     if(reusedReference){
@@ -5341,7 +5342,10 @@ async function payWithWompi(payload){
   }
 
   const amountInCents=Number(data.amountInCents);
-  if(!data.reference||!data.signature||!Number.isSafeInteger(amountInCents)||amountInCents<=0){
+  if(data.environment!==WOMPI_PUBLIC_ENVIRONMENT){
+    throw new Error('La tienda y el servidor de pagos no coinciden en el ambiente Wompi. No se abrió el checkout; contacta soporte.');
+  }
+  if(!data.reference||!/^SW-[A-F0-9]{32}$/.test(String(data.attemptReference||''))||!data.signature||!Number.isSafeInteger(amountInCents)||amountInCents<=0){
     throw new Error('Wompi devolvió datos incompletos para el pago. No se abrió la página de cobro; puedes reintentar desde el catálogo publicado.');
   }
   const expirationTime=String(data.expirationTime??'');
@@ -5376,7 +5380,7 @@ async function payWithWompi(payload){
    'public-key':WOMPI_PUBLIC_KEY,
    'currency':'COP',
    'amount-in-cents':String(amountInCents),
-   'reference':data.reference,
+   'reference':data.attemptReference,
    'signature:integrity':data.signature,
    'expiration-time':expirationTime,
    // URL HTTPS limpia: sin query ni hash de la categoría actual.

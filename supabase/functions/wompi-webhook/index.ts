@@ -93,12 +93,21 @@ async function releaseCouponRedemption(args: {
   supabaseUrl: string;
   serviceRoleKey: string;
   reference: string;
+  attemptReference?: string | null;
 }): Promise<{ success: boolean; code?: string; httpStatus: number | null }> {
   try {
-    const response = await fetch(`${args.supabaseUrl}/rest/v1/rpc/release_storefront_coupon_redemption`, {
+    const attemptReference = String(args.attemptReference ?? "");
+    const attemptAware = /^SW-[A-F0-9]{32}$/.test(attemptReference);
+    const rpcName = attemptAware
+      ? "release_storefront_wompi_coupon_redemption_for_attempt"
+      : "release_storefront_coupon_redemption";
+    const body = attemptAware
+      ? { p_order_reference: args.reference, p_attempt_reference: attemptReference }
+      : { p_reference: args.reference };
+    const response = await fetch(`${args.supabaseUrl}/rest/v1/rpc/${rpcName}`, {
       method: "POST",
       headers: supabaseHeaders(args.serviceRoleKey),
-      body: JSON.stringify({ p_reference: args.reference }),
+      body: JSON.stringify(body),
     });
     const result = rpcObject(await responseJson(response));
     return {
@@ -243,26 +252,29 @@ async function recordInventoryReconciliation(args: {
   amountInCents: number;
   reason: string;
   details?: Record<string, unknown>;
+  orderAlreadyMarked?: boolean;
 }): Promise<boolean> {
-  let orderAndLockMarked = false;
+  let orderAndLockMarked = args.orderAlreadyMarked === true;
   try {
-    try {
-      const markerResponse = await fetch(`${args.supabaseUrl}/rest/v1/rpc/mark_storefront_wompi_reconciliation`, {
-        method: "POST",
-        headers: supabaseHeaders(args.serviceRoleKey),
-        body: JSON.stringify({ p_reference: args.reference, p_transaction_id: args.transactionId }),
-      });
-      const marker = rpcObject(await responseJson(markerResponse));
-      orderAndLockMarked = markerResponse.ok && marker?.success === true && marker?.order_flag_updated === true;
-      if (!orderAndLockMarked) {
+    if (!orderAndLockMarked) {
+      try {
+        const markerResponse = await fetch(`${args.supabaseUrl}/rest/v1/rpc/mark_storefront_wompi_reconciliation`, {
+          method: "POST",
+          headers: supabaseHeaders(args.serviceRoleKey),
+          body: JSON.stringify({ p_reference: args.reference, p_transaction_id: args.transactionId }),
+        });
+        const marker = rpcObject(await responseJson(markerResponse));
+        orderAndLockMarked = markerResponse.ok && marker?.success === true && marker?.order_flag_updated === true;
+        if (!orderAndLockMarked) {
+          console.error("No se pudo persistir el flag de conciliación en el pedido/lock Wompi.", {
+            reference: args.reference, httpStatus: markerResponse.status,
+          });
+        }
+      } catch (error) {
         console.error("No se pudo persistir el flag de conciliación en el pedido/lock Wompi.", {
-          reference: args.reference, httpStatus: markerResponse.status,
+          reference: args.reference, error: error instanceof Error ? error.message : "unknown",
         });
       }
-    } catch (error) {
-      console.error("No se pudo persistir el flag de conciliación en el pedido/lock Wompi.", {
-        reference: args.reference, error: error instanceof Error ? error.message : "unknown",
-      });
     }
 
     const url = new URL(`${args.supabaseUrl}/rest/v1/sirevya_wompi_inventory_reconciliation`);
@@ -406,7 +418,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     const confirmedReference = String(confirmed?.reference ?? "").trim();
     const confirmedCurrency = String(confirmed?.currency ?? "").toUpperCase();
     const confirmedAmount = Number(confirmed?.amount_in_cents ?? confirmed?.amountInCents);
-    const status = String(confirmed?.status ?? "").toUpperCase();
+    let status = String(confirmed?.status ?? "").toUpperCase();
 
     if (confirmedId !== transactionId || confirmedReference !== eventReference || confirmedCurrency !== "COP" || confirmedCurrency !== eventCurrency || !Number.isSafeInteger(confirmedAmount) || confirmedAmount <= 0 || confirmedAmount !== eventAmount) {
       console.error("Los datos del evento no coinciden con la consulta autenticada de Wompi.", { transactionId });
@@ -417,15 +429,100 @@ Deno.serve(async (req: Request): Promise<Response> => {
       return json({ received: true, ignored: true, reason: "Estado actual de transacción no soportado." });
     }
 
+    // Resolve a current SW reference by its internal key. Legacy transactions
+    // reused the stable order reference, so resolve those by external reference
+    // AND the transaction ID independently confirmed with Wompi above.
+    let orderReference = confirmedReference;
+    let attemptReference: string | null = null;
+    const isNewAttemptReference = /^SW-[A-F0-9]{32}$/.test(confirmedReference);
+    const attemptUrl = new URL(`${supabaseUrl}/rest/v1/storefront_wompi_payment_attempts`);
+    if (isNewAttemptReference) {
+      attemptUrl.searchParams.set("attempt_reference", `eq.${confirmedReference}`);
+    } else {
+      attemptUrl.searchParams.set("wompi_reference", `eq.${confirmedReference}`);
+      attemptUrl.searchParams.set("transaction_id", `eq.${confirmedId}`);
+      attemptUrl.searchParams.set("is_legacy", "eq.true");
+    }
+    attemptUrl.searchParams.set("select", "attempt_reference,wompi_reference,is_legacy,order_reference,amount_in_cents,currency,environment,transaction_id");
+    attemptUrl.searchParams.set("limit", "2");
+    const attemptLookup = await fetch(attemptUrl.toString(), { headers: supabaseHeaders(serviceRoleKey) });
+    if (!attemptLookup.ok) return json({ error: "No se pudo verificar el historial del intento Wompi." }, 503);
+    const attemptRows = await responseJson(attemptLookup);
+    if (!Array.isArray(attemptRows) || attemptRows.length > 1) {
+      return json({ error: "El historial no identifica un intento Wompi único." }, 409);
+    }
+    let attemptRow = attemptRows[0] ?? null;
+    if (!attemptRow && isNewAttemptReference) {
+      return json({ error: "No existe un intento registrado para la referencia Wompi." }, 409);
+    }
+    if (!attemptRow && !isNewAttemptReference) {
+      // Once a stable order has ledger history, an unknown legacy transaction
+      // must never fall through to the old order-reference mutation path.
+      const knownUrl = new URL(`${supabaseUrl}/rest/v1/storefront_wompi_payment_attempts`);
+      knownUrl.searchParams.set("order_reference", `eq.${confirmedReference}`);
+      knownUrl.searchParams.set("select", "attempt_reference");
+      knownUrl.searchParams.set("limit", "1");
+      const knownResponse = await fetch(knownUrl.toString(), { headers: supabaseHeaders(serviceRoleKey) });
+      if (!knownResponse.ok) return json({ error: "No se pudo descartar un intento legacy ambiguo." }, 503);
+      const knownRows = await responseJson(knownResponse);
+      if (Array.isArray(knownRows) && knownRows.length > 0) {
+        return json({ error: "La referencia ya tiene historial y la transacción no coincide con un intento registrado." }, 409);
+      }
+    }
+    if (attemptRow) {
+      orderReference = String(attemptRow.order_reference ?? "");
+      attemptReference = String(attemptRow.attempt_reference ?? "");
+      const isLegacyAttempt = attemptRow.is_legacy === true;
+      if (!/^[A-Za-z0-9_-]{1,120}$/.test(orderReference) || !/^SW-[A-F0-9]{32}$/.test(attemptReference) ||
+          String(attemptRow.wompi_reference ?? "") !== confirmedReference || isLegacyAttempt === isNewAttemptReference ||
+          Number(attemptRow.amount_in_cents) !== confirmedAmount || String(attemptRow.currency ?? "").toUpperCase() !== "COP" ||
+          String(attemptRow.environment ?? "").toLowerCase() !== expectedEnvironment ||
+          (attemptRow.transaction_id && String(attemptRow.transaction_id) !== confirmedId)) {
+        return json({ error: "El intento Wompi no coincide con su orden, monto, moneda, ambiente o transacción." }, 409);
+      }
+
+      const transitionResponse = await fetch(`${supabaseUrl}/rest/v1/rpc/transition_storefront_wompi_payment_attempt`, {
+        method: "POST",
+        headers: supabaseHeaders(serviceRoleKey),
+        body: JSON.stringify({ p_attempt_reference: attemptReference, p_transaction_id: confirmedId,
+          p_status: status, p_amount_in_cents: confirmedAmount, p_currency: confirmedCurrency,
+          p_environment: expectedEnvironment }),
+      });
+      const transition = rpcObject(await responseJson(transitionResponse));
+      if (!transitionResponse.ok || transition?.success !== true || String(transition.order_reference ?? "") !== orderReference) {
+        console.error("No se pudo registrar de forma segura la transición del intento Wompi.", { httpStatus: transitionResponse.status, code: transition?.code });
+        return json({ error: "No se pudo registrar el estado verificado del intento Wompi; el evento se reintentará." }, 502);
+      }
+      if (transition.late_approval === true || String(transition.status ?? "") === "APPROVED_LATE") {
+        const reason = "Wompi aprobó un intento anterior después de iniciarse uno posterior; requiere conciliación y no debe consumir reservas actuales.";
+        const reconciliationStored = await recordInventoryReconciliation({
+          supabaseUrl, serviceRoleKey, transactionId: confirmedId, reference: orderReference,
+          amountInCents: confirmedAmount, reason,
+          details: { late_attempt_approval: true, attempt_reference: attemptReference, legacy_attempt: isLegacyAttempt },
+          orderAlreadyMarked: true,
+        });
+        return json({ received: reconciliationStored, reference: orderReference, attemptReference,
+          status: "APPROVED_LATE", reconciliationRequired: true, reconciliationStored,
+          reason: "La aprobación quedó aislada para conciliación; no se modificó inventario ni cupón." }, reconciliationStored ? 200 : 502);
+      }
+      if (transition.is_current !== true) {
+        return json({ received: true, reference: orderReference, attemptReference,
+          status: String(transition.status ?? status), ignored: true,
+          reason: "El intento ya no es el vigente; no se modificaron pedido, inventario ni cupón." }, 200);
+      }
+      status = String(transition.status ?? status);
+      if (!supportedStatuses.has(status)) return json({ error: "El ledger devolvió un estado de intento no procesable." }, 409);
+    }
+
     const orderUrl = new URL(`${supabaseUrl}/rest/v1/orders`);
-    orderUrl.searchParams.set("reference", `eq.${confirmedReference}`);
+    orderUrl.searchParams.set("reference", `eq.${orderReference}`);
     orderUrl.searchParams.set("select", "reference,total,items,payment_method,payment_status,transaction_id,phone,coupon_id,coupon_code,coupon_discount_total,coupon_reconciliation_required,wompi_reconciliation_required");
     orderUrl.searchParams.set("limit", "2");
     const orderResponse = await fetch(orderUrl.toString(), { headers: supabaseHeaders(serviceRoleKey) });
     if (!orderResponse.ok) {
       let reconciliationStored = false;
       if (status === "APPROVED") reconciliationStored = await recordInventoryReconciliation({
-        supabaseUrl, serviceRoleKey, transactionId: confirmedId, reference: confirmedReference,
+        supabaseUrl, serviceRoleKey, transactionId: confirmedId, reference: orderReference,
         amountInCents: confirmedAmount,
         reason: "Wompi confirmó el pago, pero no se pudo consultar el pedido para finalizar el inventario.",
         details: { order_lookup_http_status: orderResponse.status },
@@ -435,10 +532,10 @@ Deno.serve(async (req: Request): Promise<Response> => {
     const orders = await responseJson(orderResponse);
     if (!Array.isArray(orders) || orders.length !== 1) {
       const reason = "No existe un único pedido para la referencia recibida desde Wompi.";
-      console.error(reason, { reference: confirmedReference, matches: Array.isArray(orders) ? orders.length : -1 });
+      console.error(reason, { reference: orderReference, matches: Array.isArray(orders) ? orders.length : -1 });
       let reconciliationStored = false;
       if (status === "APPROVED") reconciliationStored = await recordInventoryReconciliation({
-        supabaseUrl, serviceRoleKey, transactionId: confirmedId, reference: confirmedReference,
+        supabaseUrl, serviceRoleKey, transactionId: confirmedId, reference: orderReference,
         amountInCents: confirmedAmount, reason,
         details: { order_match_count: Array.isArray(orders) ? orders.length : null },
       });
@@ -450,7 +547,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       const reason = "La referencia de la transacción aprobada no pertenece a un pedido Wompi.";
       let reconciliationStored = false;
       if (status === "APPROVED") reconciliationStored = await recordInventoryReconciliation({
-        supabaseUrl, serviceRoleKey, transactionId: confirmedId, reference: confirmedReference,
+        supabaseUrl, serviceRoleKey, transactionId: confirmedId, reference: orderReference,
         amountInCents: confirmedAmount, reason, details: { order_payment_method_mismatch: true },
       });
       return json({ error: reason, reconciliationRequired: status === "APPROVED", reconciliationStored }, status === "APPROVED" ? 500 : 409);
@@ -460,7 +557,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     const verifiedTerminalNoPayment = ["DECLINED", "VOIDED", "ERROR"].includes(status);
     if ((!Number.isSafeInteger(expectedCents) || expectedCents <= 0 || expectedCents !== confirmedAmount) && !verifiedTerminalNoPayment) {
       const reason = "El monto de Wompi no coincide con el total del pedido almacenado.";
-      console.error(reason, { reference: confirmedReference, expectedCents, receivedCents: confirmedAmount });
+      console.error(reason, { reference: orderReference, expectedCents, receivedCents: confirmedAmount });
       let reconciliationStored = false;
       let transactionLinked = Boolean(String(order.transaction_id ?? "").trim() === confirmedId);
       let linkConflict = false;
@@ -471,20 +568,20 @@ Deno.serve(async (req: Request): Promise<Response> => {
       // while the amount discrepancy is reviewed.
       if (!verifiedTerminalNoPayment && String(order.payment_method ?? "").toLowerCase() === "wompi" && !String(order.transaction_id ?? "").trim()) {
         const link = await ensureOrderTransactionLinked({
-          supabaseUrl, serviceRoleKey, reference: confirmedReference, transactionId: confirmedId,
+          supabaseUrl, serviceRoleKey, reference: orderReference, transactionId: confirmedId,
         });
         transactionLinked = link.linked;
         linkConflict = link.conflict;
       }
       if (!verifiedTerminalNoPayment && transactionLinked) {
         const pendingLock = await setCheckoutLockState({
-          supabaseUrl, serviceRoleKey, reference: confirmedReference, state: "pending", transactionId: confirmedId,
+          supabaseUrl, serviceRoleKey, reference: orderReference, state: "pending", transactionId: confirmedId,
         });
         checkoutLockMarkedPending = pendingLock.success;
         checkoutLockLateApprovalConflict = pendingLock.lateApprovalConflict;
       }
       if (!verifiedTerminalNoPayment) reconciliationStored = await recordInventoryReconciliation({
-        supabaseUrl, serviceRoleKey, transactionId: confirmedId, reference: confirmedReference,
+        supabaseUrl, serviceRoleKey, transactionId: confirmedId, reference: orderReference,
         amountInCents: confirmedAmount, reason,
         details: {
           expected_amount_in_cents: Number.isSafeInteger(expectedCents) ? expectedCents : null,
@@ -501,10 +598,10 @@ Deno.serve(async (req: Request): Promise<Response> => {
     const storedStatus = String(order.payment_status ?? "").toUpperCase();
     if (storedStatus === "APPROVED" && status !== "APPROVED") {
       // Never downgrade a payment already confirmed by a previous verified event.
-      return json({ received: true, reference: confirmedReference, status: storedStatus, ignored: true, reason: "No se reduce un pago ya aprobado." });
+      return json({ received: true, reference: orderReference, status: storedStatus, ignored: true, reason: "No se reduce un pago ya aprobado." });
     }
     if (["DECLINED", "VOIDED", "ERROR"].includes(storedStatus) && status !== "APPROVED") {
-      return json({ received: true, reference: confirmedReference, status: storedStatus, ignored: true, reason: "No se reabre ni cambia un estado terminal no aprobado." });
+      return json({ received: true, reference: orderReference, status: storedStatus, ignored: true, reason: "No se reabre ni cambia un estado terminal no aprobado." });
     }
 
     // Coupon metadata is read from the server-owned order, never from the
@@ -531,13 +628,13 @@ Deno.serve(async (req: Request): Promise<Response> => {
       if (status === "APPROVED") {
         const reconciliationStored = await recordInventoryReconciliation({
           supabaseUrl, serviceRoleKey, transactionId: confirmedId,
-          reference: confirmedReference, amountInCents: confirmedAmount, reason,
+          reference: orderReference, amountInCents: confirmedAmount, reason,
           details: { conflicting_transaction_id: true, linked_transaction_id_present: true },
         });
-        console.error("Wompi confirmó una transacción distinta para una referencia ya vinculada; se requiere conciliación.", { reference: confirmedReference, reconciliationStored });
-        return json({ error: reason, reference: confirmedReference, transactionId: confirmedId, reconciliationRequired: true, reconciliationStored }, 500);
+        console.error("Wompi confirmó una transacción distinta para una referencia ya vinculada; se requiere conciliación.", { reference: orderReference, reconciliationStored });
+        return json({ error: reason, reference: orderReference, transactionId: confirmedId, reconciliationRequired: true, reconciliationStored }, 500);
       }
-      console.error("La referencia ya tiene otro identificador de transacción.", { reference: confirmedReference });
+      console.error("La referencia ya tiene otro identificador de transacción.", { reference: orderReference });
       return json({ error: "La referencia ya está vinculada a otra transacción." }, 409);
     }
 
@@ -545,13 +642,13 @@ Deno.serve(async (req: Request): Promise<Response> => {
       order.coupon_reconciliation_required === true;
     if (reconciliationAlreadyRequired) {
       const pendingLock = await setCheckoutLockState({
-        supabaseUrl, serviceRoleKey, reference: confirmedReference,
+        supabaseUrl, serviceRoleKey, reference: orderReference,
         state: "pending", transactionId: confirmedId,
       });
       if (!pendingLock.success) {
         return json({ error: "El pago requiere conciliación manual y no se pudo conservar el lock preventivo." }, 502);
       }
-      return json({ received: true, reference: confirmedReference, transactionId: confirmedId,
+      return json({ received: true, reference: orderReference, transactionId: confirmedId,
         status: storedStatus, ignored: true, reconciliationRequired: true,
         couponReconciliationRequired: order.coupon_reconciliation_required === true,
         wompiReconciliationRequired: order.wompi_reconciliation_required === true,
@@ -563,7 +660,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         const couponReconciliationStored = order.coupon_reconciliation_required === true;
         const wompiReconciliationStored = order.wompi_reconciliation_required === true;
         const completedLock = await setCheckoutLockState({
-          supabaseUrl, serviceRoleKey, reference: confirmedReference,
+          supabaseUrl, serviceRoleKey, reference: orderReference,
           state: couponReconciliationStored || wompiReconciliationStored ? "pending" : "completed", transactionId: confirmedId,
         });
         if (!completedLock.success) {
@@ -573,13 +670,13 @@ Deno.serve(async (req: Request): Promise<Response> => {
           const reason = "La aprobación duplicada encontró una referencia de checkout concurrente y requiere conciliación.";
           const reconciliationStored = await recordInventoryReconciliation({
             supabaseUrl, serviceRoleKey, transactionId: confirmedId,
-            reference: confirmedReference, amountInCents: confirmedAmount, reason,
+            reference: orderReference, amountInCents: confirmedAmount, reason,
             details: { duplicate_approved_event: true, late_approval_lock_conflict: true },
           });
-          return json({ error: reason, reference: confirmedReference, transactionId: confirmedId,
+          return json({ error: reason, reference: orderReference, transactionId: confirmedId,
             reconciliationRequired: true, reconciliationStored }, 500);
         }
-        return json({ received: true, reference: confirmedReference, transactionId: confirmedId,
+        return json({ received: true, reference: orderReference, transactionId: confirmedId,
           status: "APPROVED", idempotent: true, lockFinalized: !couponReconciliationStored,
           reconciliationRequired: couponReconciliationStored || wompiReconciliationStored,
           couponReconciliationRequired: couponReconciliationStored,
@@ -591,10 +688,10 @@ Deno.serve(async (req: Request): Promise<Response> => {
       const reason = "El pedido ya aparece aprobado, pero no conserva el identificador verificado de esta transacción.";
       const reconciliationStored = await recordInventoryReconciliation({
         supabaseUrl, serviceRoleKey, transactionId: confirmedId,
-        reference: confirmedReference, amountInCents: confirmedAmount, reason,
+        reference: orderReference, amountInCents: confirmedAmount, reason,
         details: { approved_order_transaction_id_missing: true },
       });
-      return json({ error: reason, reference: confirmedReference, transactionId: confirmedId,
+      return json({ error: reason, reference: orderReference, transactionId: confirmedId,
         reconciliationRequired: true, reconciliationStored }, 409);
     }
 
@@ -603,7 +700,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     // a linked PENDING transaction, avoiding a second charge while stock is reviewed.
     if (!storedTransactionId) {
       const link = await ensureOrderTransactionLinked({
-        supabaseUrl, serviceRoleKey, reference: confirmedReference, transactionId: confirmedId,
+        supabaseUrl, serviceRoleKey, reference: orderReference, transactionId: confirmedId,
       });
       if (!link.linked) {
         const reason = link.conflict
@@ -613,11 +710,11 @@ Deno.serve(async (req: Request): Promise<Response> => {
         if (status === "APPROVED") {
           reconciliationStored = await recordInventoryReconciliation({
             supabaseUrl, serviceRoleKey, transactionId: confirmedId,
-            reference: confirmedReference, amountInCents: confirmedAmount, reason,
+            reference: orderReference, amountInCents: confirmedAmount, reason,
             details: { transaction_linked: false, link_conflict: link.conflict, link_http_status: link.httpStatus },
           });
         }
-        return json({ error: reason, reference: confirmedReference, transactionId: confirmedId,
+        return json({ error: reason, reference: orderReference, transactionId: confirmedId,
           reconciliationRequired: status === "APPROVED", reconciliationStored }, 500);
       }
     }
@@ -625,12 +722,12 @@ Deno.serve(async (req: Request): Promise<Response> => {
     const checkoutLockPending = await setCheckoutLockState({
       supabaseUrl,
       serviceRoleKey,
-      reference: confirmedReference,
+      reference: orderReference,
       state: ["DECLINED", "VOIDED", "ERROR"].includes(status) ? "terminal_grace" : "pending",
       transactionId: confirmedId,
     });
     if (!checkoutLockPending.success) {
-      console.error("No se pudo extender el lock de checkout para la transacción verificada.", { reference: confirmedReference });
+      console.error("No se pudo extender el lock de checkout para la transacción verificada.", { reference: orderReference });
       return json({ error: "La transacción quedó vinculada, pero no se pudo asegurar el lock del checkout. El evento se reintentará." }, 502);
     }
 
@@ -640,13 +737,13 @@ Deno.serve(async (req: Request): Promise<Response> => {
         supabaseUrl,
         serviceRoleKey,
         transactionId: confirmedId,
-        reference: confirmedReference,
+        reference: orderReference,
         amountInCents: confirmedAmount,
         reason,
         details: { coupon_metadata_valid: false },
       });
-      console.error("La metadata de cupón del pedido no pudo validarse; se requiere conciliación.", { reference: confirmedReference, reconciliationStored });
-      return json({ error: reason, reference: confirmedReference, transactionId: confirmedId, reconciliationRequired: true, reconciliationStored }, status === "APPROVED" ? 500 : 409);
+      console.error("La metadata de cupón del pedido no pudo validarse; se requiere conciliación.", { reference: orderReference, reconciliationStored });
+      return json({ error: reason, reference: orderReference, transactionId: confirmedId, reconciliationRequired: true, reconciliationStored }, status === "APPROVED" ? 500 : 409);
     }
 
     let otherPendingReference: string | null = null;
@@ -660,15 +757,15 @@ Deno.serve(async (req: Request): Promise<Response> => {
         const reason = "No se pudo comprobar si había otra sesión Wompi pendiente del comprador; el pago requiere conciliación antes de despacho.";
         const reconciliationStored = await recordInventoryReconciliation({
           supabaseUrl, serviceRoleKey, transactionId: confirmedId,
-          reference: confirmedReference, amountInCents: confirmedAmount, reason,
+          reference: orderReference, amountInCents: confirmedAmount, reason,
           details: { pending_phone_lookup_failed: true },
         });
-        return json({ error: reason, reference: confirmedReference, transactionId: confirmedId,
+        return json({ error: reason, reference: orderReference, transactionId: confirmedId,
           reconciliationRequired: true, reconciliationStored }, 502);
       }
       const unlinkedGraceCutoff = Date.now() - 15 * 60 * 1000;
       otherPendingReference = pendingOrders.orders.find((pending) =>
-        pending.reference !== confirmedReference &&
+        pending.reference !== orderReference &&
         (Boolean(pending.transactionId) || Date.parse(pending.createdAt) >= unlinkedGraceCutoff)
       )?.reference ?? null;
     }
@@ -681,12 +778,12 @@ Deno.serve(async (req: Request): Promise<Response> => {
         const couponConfirmation = await confirmCouponRedemption({
           supabaseUrl,
           serviceRoleKey,
-          reference: confirmedReference,
+          reference: orderReference,
         });
         if (!couponConfirmation.success) {
           const reconciliationStored = await recordInventoryReconciliation({
             supabaseUrl, serviceRoleKey, transactionId: confirmedId,
-            reference: confirmedReference, amountInCents: confirmedAmount,
+            reference: orderReference, amountInCents: confirmedAmount,
             reason: `${reason} El ledger de cupón también requiere revisión.`,
             details: {
               late_approval_lock_conflict: checkoutLockPending.lateApprovalConflict,
@@ -694,28 +791,28 @@ Deno.serve(async (req: Request): Promise<Response> => {
               coupon_confirmation_failed: true,
             },
           });
-          return json({ error: reason, reference: confirmedReference, transactionId: confirmedId,
+          return json({ error: reason, reference: orderReference, transactionId: confirmedId,
             reconciliationRequired: true, reconciliationStored }, 500);
         }
       }
       const reconciliationStored = await recordInventoryReconciliation({
         supabaseUrl, serviceRoleKey, transactionId: confirmedId,
-        reference: confirmedReference, amountInCents: confirmedAmount, reason,
+        reference: orderReference, amountInCents: confirmedAmount, reason,
         details: {
           late_approval_lock_conflict: checkoutLockPending.lateApprovalConflict,
           other_pending_reference: otherPendingReference ?? checkoutLockPending.otherReference,
         },
       });
       if (!reconciliationStored) {
-        return json({ error: reason, reference: confirmedReference, transactionId: confirmedId,
+        return json({ error: reason, reference: orderReference, transactionId: confirmedId,
           reconciliationRequired: true, reconciliationStored: false }, 502);
       }
       console.error("Aprobación Wompi tardía guardada para conciliación por otro checkout activo.", {
-        reference: confirmedReference,
+        reference: orderReference,
         otherReference: otherPendingReference ?? checkoutLockPending.otherReference,
         reconciliationStored,
       });
-      return json({ received: true, reference: confirmedReference, transactionId: confirmedId,
+      return json({ received: true, reference: orderReference, transactionId: confirmedId,
         status, reconciliationRequired: true, reconciliationStored, lateApprovalConflict: true }, 200);
     }
 
@@ -726,18 +823,18 @@ Deno.serve(async (req: Request): Promise<Response> => {
       const couponConfirmation = await confirmCouponRedemption({
         supabaseUrl,
         serviceRoleKey,
-        reference: confirmedReference,
+        reference: orderReference,
       });
       if (!couponConfirmation.success) {
         const reason = "Wompi confirmó el pago, pero no se pudo confirmar el ledger del cupón.";
         const reconciliationStored = await recordInventoryReconciliation({
-          supabaseUrl, serviceRoleKey, transactionId: confirmedId, reference: confirmedReference,
+          supabaseUrl, serviceRoleKey, transactionId: confirmedId, reference: orderReference,
           amountInCents: confirmedAmount, reason,
           details: { coupon_redemption_confirmed: false },
         });
-        console.error(reason, { reference: confirmedReference, reconciliationStored });
+        console.error(reason, { reference: orderReference, reconciliationStored });
         return json({ error: "Wompi confirmó el pago, pero la redención del cupón necesita conciliación. El pedido no se marca aprobado hasta reintentar.",
-          reference: confirmedReference, transactionId: confirmedId, reconciliationRequired: true, reconciliationStored }, 500);
+          reference: orderReference, transactionId: confirmedId, reconciliationRequired: true, reconciliationStored }, 500);
       }
       couponReconciliationRequired = couponConfirmation.reconciliationRequired;
     }
@@ -752,7 +849,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         inventoryResponse = await fetch(`${supabaseUrl}/rest/v1/rpc/confirm_inventory_reservation`, {
           method: "POST",
           headers: supabaseHeaders(serviceRoleKey),
-          body: JSON.stringify({ p_reference: confirmedReference }),
+          body: JSON.stringify({ p_reference: orderReference }),
         });
         inventoryResult = await responseJson(inventoryResponse);
       } catch (error) {
@@ -764,7 +861,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
           supabaseUrl,
           serviceRoleKey,
           transactionId: confirmedId,
-          reference: confirmedReference,
+          reference: orderReference,
           amountInCents: confirmedAmount,
           reason,
           details: {
@@ -773,10 +870,10 @@ Deno.serve(async (req: Request): Promise<Response> => {
             coupon_reconciliation_required: couponReconciliationRequired,
           },
         });
-        console.error("Wompi confirmó el cobro, pero el inventario no pudo finalizarse; el pedido no se marca aprobado y queda registrado para conciliación.", { reference: confirmedReference, httpStatus: inventoryResponse?.status ?? null, reconciliationStored });
+        console.error("Wompi confirmó el cobro, pero el inventario no pudo finalizarse; el pedido no se marca aprobado y queda registrado para conciliación.", { reference: orderReference, httpStatus: inventoryResponse?.status ?? null, reconciliationStored });
         return json({
           error: "Wompi confirmó el pago, pero el inventario necesita revisión. El pedido permanece sin aprobar para despacho y su transacción queda vinculada para evitar otro cobro.",
-          reference: confirmedReference,
+          reference: orderReference,
           transactionId: confirmedId,
           reconciliationRequired: true,
           reconciliationStored,
@@ -787,18 +884,20 @@ Deno.serve(async (req: Request): Promise<Response> => {
       const releaseResponse = await fetch(`${supabaseUrl}/rest/v1/rpc/release_inventory_reservation`, {
         method: "POST",
         headers: supabaseHeaders(serviceRoleKey),
-        body: JSON.stringify({ p_reference: confirmedReference }),
+        body: JSON.stringify({ p_reference: orderReference }),
       });
       if (!releaseResponse.ok) {
-        console.error("No se pudo liberar la reserva de un pago no aprobado; el pedido conservará su estado previo.", { reference: confirmedReference, status, httpStatus: releaseResponse.status });
+        console.error("No se pudo liberar la reserva de un pago no aprobado; el pedido conservará su estado previo.", { reference: orderReference, status, httpStatus: releaseResponse.status });
         return json({ error: "No se pudo liberar la reserva de inventario; el pedido conservará su estado previo para permitir el reintento del evento." }, 500);
       }
       if (hasCoupon) {
-        const couponRelease = await releaseCouponRedemption({ supabaseUrl, serviceRoleKey, reference: confirmedReference });
+        const couponRelease = await releaseCouponRedemption({
+          supabaseUrl, serviceRoleKey, reference: orderReference, attemptReference,
+        });
         if (!couponRelease.success && couponRelease.code === "COUPON_REDEMPTION_NOT_FOUND") {
-          console.warn("Evento terminal legacy sin ledger de cupón; no hay una reserva de uso que liberar.", { reference: confirmedReference });
+          console.warn("Evento terminal legacy sin ledger de cupón; no hay una reserva de uso que liberar.", { reference: orderReference });
         } else if (!couponRelease.success) {
-          console.error("No se pudo liberar el cupón de un pago no aprobado; el pedido conservará su estado previo.", { reference: confirmedReference, status, httpStatus: couponRelease.httpStatus });
+          console.error("No se pudo liberar el cupón de un pago no aprobado; el pedido conservará su estado previo.", { reference: orderReference, status, httpStatus: couponRelease.httpStatus });
           return json({ error: "No se pudo liberar la reserva del cupón; el pedido conservará su estado previo para permitir el reintento del evento." }, 500);
         }
       }
@@ -807,7 +906,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
     // Solo se escribe el estado después de completar la acción de inventario que le corresponde.
     const updateUrl = new URL(`${supabaseUrl}/rest/v1/orders`);
-    updateUrl.searchParams.set("reference", `eq.${confirmedReference}`);
+    updateUrl.searchParams.set("reference", `eq.${orderReference}`);
     updateUrl.searchParams.set("payment_method", "ilike.wompi");
     updateUrl.searchParams.set("transaction_id", `eq.${confirmedId}`);
     if (status !== "APPROVED") updateUrl.searchParams.set("payment_status", "ilike.PENDING");
@@ -828,22 +927,22 @@ Deno.serve(async (req: Request): Promise<Response> => {
       });
       updatedRows = await responseJson(updateResponse);
     } catch (error) {
-      console.error("No se pudo completar la escritura del estado del pedido.", { reference: confirmedReference, error: error instanceof Error ? error.message : "unknown" });
+      console.error("No se pudo completar la escritura del estado del pedido.", { reference: orderReference, error: error instanceof Error ? error.message : "unknown" });
     }
     if (!updateResponse?.ok || !Array.isArray(updatedRows) || updatedRows.length !== 1) {
       const reason = "Se procesó la acción de inventario, pero no se pudo guardar el estado final del pedido.";
-      console.error(reason, { reference: confirmedReference, status, httpStatus: updateResponse?.status ?? null, inventoryProcessed });
+      console.error(reason, { reference: orderReference, status, httpStatus: updateResponse?.status ?? null, inventoryProcessed });
       let reconciliationStored = false;
       if (status === "APPROVED") {
         reconciliationStored = await recordInventoryReconciliation({
           supabaseUrl, serviceRoleKey, transactionId: confirmedId,
-          reference: confirmedReference, amountInCents: confirmedAmount,
+          reference: orderReference, amountInCents: confirmedAmount,
           reason,
           details: { inventory_processed: inventoryProcessed, order_status_write_failed: true, order_patch_http_status: updateResponse?.status ?? null, coupon_reconciliation_required: couponReconciliationRequired },
         });
       }
       return json({ error: `${reason} El identificador de transacción ya está vinculado; el evento debe reintentarse/conciliarse.`,
-        reference: confirmedReference, transactionId: confirmedId,
+        reference: orderReference, transactionId: confirmedId,
         reconciliationRequired: status === "APPROVED" || couponReconciliationRequired, couponReconciliationRequired, reconciliationStored }, 502);
     }
 
@@ -852,18 +951,18 @@ Deno.serve(async (req: Request): Promise<Response> => {
         ? (inventoryProcessed && !couponReconciliationRequired ? "completed" : "pending")
         : status === "PENDING" ? "pending" : "terminal_grace";
     const checkoutLockFinalized = await setCheckoutLockState({
-      supabaseUrl, serviceRoleKey, reference: confirmedReference,
+      supabaseUrl, serviceRoleKey, reference: orderReference,
       state: finalLockState, transactionId: confirmedId,
     });
     if (!checkoutLockFinalized.success) {
-      console.error("No se pudo actualizar el estado final del lock Wompi.", { reference: confirmedReference, finalLockState });
+      console.error("No se pudo actualizar el estado final del lock Wompi.", { reference: orderReference, finalLockState });
       return json({ error: "El estado del pedido se guardó, pero su lock necesita reconciliación. El evento se reintentará." }, 502);
     }
     if (status === "APPROVED" && inventoryProcessed && !couponReconciliationRequired) {
       await markInventoryReconciliationResolved({ supabaseUrl, serviceRoleKey, transactionId: confirmedId });
     }
-    console.log("Evento Wompi procesado.", { reference: confirmedReference, transactionId: confirmedId, status, inventoryProcessed, couponReconciliationRequired, environment: expectedEnvironment });
-    return json({ received: true, reference: confirmedReference, transactionId: confirmedId, status, inventoryProcessed, reconciliationRequired: couponReconciliationRequired, couponReconciliationRequired });
+    console.log("Evento Wompi procesado.", { reference: orderReference, transactionId: confirmedId, status, inventoryProcessed, couponReconciliationRequired, environment: expectedEnvironment });
+    return json({ received: true, reference: orderReference, transactionId: confirmedId, status, inventoryProcessed, reconciliationRequired: couponReconciliationRequired, couponReconciliationRequired });
   } catch (error) {
     console.error("Error procesando evento Wompi:", error instanceof Error ? error.message : "error desconocido");
     return json({ error: "No se pudo procesar el evento." }, 500);
