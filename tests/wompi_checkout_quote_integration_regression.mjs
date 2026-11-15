@@ -41,6 +41,7 @@ const attemptReferences = [
 let attemptNumber = 0;
 let orderState = null;
 let terminalOrderAvailableForRetry = false;
+let pendingRowsFixture = [];
 const beginAttemptCalls = [];
 
 globalThis.Deno = {
@@ -67,7 +68,7 @@ globalThis.fetch = async (input, init = {}) => {
     return jsonResponse(orderState && orderState.reference === requestedReference ? [structuredClone(orderState)] : []);
   }
   if (url.pathname === '/rest/v1/rpc/list_pending_wompi_orders_for_phone') {
-    return jsonResponse({ success: true, orders: [] });
+    return jsonResponse({ success: true, orders: structuredClone(pendingRowsFixture) });
   }
   if (url.pathname === '/rest/v1/rpc/prepare_storefront_wompi_retry_lock') {
     if (terminalOrderAvailableForRetry && orderState && ['ERROR', 'DECLINED', 'VOIDED'].includes(orderState.payment_status)) {
@@ -258,6 +259,13 @@ assert.ok(mockCalls.some(call => call.path === '/rest/v1/rpc/begin_storefront_wo
 orderState.payment_status = 'ERROR';
 orderState.transaction_id = 'TX-SYNTHETIC-OLD';
 terminalOrderAvailableForRetry = true;
+pendingRowsFixture = Array.from({ length: 6 }, (_, i) => ({
+  reference: `JMRES-SYNTHETIC-LEGACY-${i + 1}`,
+  payment_status: 'PENDING',
+  transaction_id: i === 0 ? 'TX-SYNTHETIC-OTHER-CART-PENDING' : null,
+  created_at: '2026-10-19T02:13:04.634455Z',
+  items: [{ id: `aaaaaaaa-aaaa-4aaa-8aaa-${String(i + 1).padStart(12, '0')}`, qty: 1, color: 'Azul', size: 'S' }],
+}));
 mockCalls = [];
 const discovery = await handlers.checkout(request({ ...baseBody, reference: 'JMRES-SYNTHETIC-NEW-BROWSER-REF' }));
 assert.equal(discovery.status, 409);
@@ -266,7 +274,33 @@ assert.equal(discoveryBody.code, 'WOMPI_REUSE_EXISTING_ORDER');
 assert.equal(discoveryBody.existingReference, baseBody.reference);
 assert.equal(beginAttemptCalls.length, 1, 'discovery must not create an attempt until the stable order reference is reused');
 assert.equal(capturedOrderInserts.length, 1, 'discovery must not create a duplicate order');
+assert.ok(mockCalls.some(call => call.path === '/rest/v1/rpc/prepare_storefront_wompi_retry_lock'),
+  'unrelated legacy PENDING carts must not stop lookup of the same verified recoverable order');
 
+// Unknown pending attempts for the exact same cart remain blocked, including after the old TTL.
+pendingRowsFixture = [{
+  reference: 'JMRES-SYNTHETIC-UNKNOWN-SAME-CART',
+  payment_status: 'PENDING',
+  transaction_id: null,
+  created_at: '2026-10-19T02:13:04.634455Z',
+  items: [{ id: productId, qty: 1, color: 'Negro', size: 'M' }],
+}];
+mockCalls = [];
+const sameCartUnlinked = await handlers.checkout(request({ ...baseBody, reference: 'JMRES-SYNTHETIC-NEW-BROWSER-REF' }));
+assert.equal(sameCartUnlinked.status, 409);
+assert.equal((await sameCartUnlinked.json()).code, 'WOMPI_ATTEMPT_UNVERIFIED');
+assert.ok(!mockCalls.some(call => call.path === '/rest/v1/rpc/prepare_storefront_wompi_retry_lock'),
+  'same-cart unlinked legacy attempts must fail closed until reconciled');
+
+pendingRowsFixture[0].transaction_id = 'TX-SYNTHETIC-SAME-CART-PENDING';
+mockCalls = [];
+const sameCartLinked = await handlers.checkout(request({ ...baseBody, reference: 'JMRES-SYNTHETIC-NEW-BROWSER-REF' }));
+assert.equal(sameCartLinked.status, 409);
+assert.equal((await sameCartLinked.json()).code, 'WOMPI_TRANSACTION_PENDING');
+assert.ok(!mockCalls.some(call => call.path === '/rest/v1/rpc/prepare_storefront_wompi_retry_lock'),
+  'same-cart linked PENDING transactions must not start another payment');
+
+pendingRowsFixture = [];
 mockCalls = [];
 const retry = await handlers.checkout(request({ ...baseBody, reference: baseBody.reference }));
 assert.equal(retry.status, 200);

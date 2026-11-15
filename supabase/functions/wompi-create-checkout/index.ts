@@ -603,11 +603,11 @@ Deno.serve(async (req: Request): Promise<Response> => {
       }
     }
 
-    // Fail closed when this buyer already has a Wompi transaction linked to an
-    // unresolved PENDING order. This is especially important when Wompi already
-    // approved a payment but inventory/order reconciliation still needs retry.
-    // The private RPC normalizes historic phone formats (+57/0057) inside SQL,
-    // so legacy pending orders cannot bypass the one-checkout-per-phone guard.
+    // Prevent duplicate payments for the same canonical cart, not unrelated
+    // historical purchases that happen to share a phone number. Unknown or
+    // malformed cart snapshots remain fail-closed because they cannot be ruled out.
+    const cartForPendingGuard = canonicalCart(quote.items);
+    if (!cartForPendingGuard) return json({ error: "No se pudo normalizar el carrito para verificar pagos pendientes." }, 400);
     const pendingResponse = await fetch(`${supabaseUrl}/rest/v1/rpc/list_pending_wompi_orders_for_phone`, {
       method: "POST",
       headers: supabaseHeaders(serviceRoleKey),
@@ -618,21 +618,30 @@ Deno.serve(async (req: Request): Promise<Response> => {
       return json({ error: "No se pudo comprobar si ya tienes un pago Wompi pendiente. No se inició otro pago." }, 503);
     }
     const pendingRows = pendingResult.orders;
-    const hasLinkedPendingTransaction = pendingRows.some((row: any) => Boolean(String(row?.transaction_id ?? "").trim()));
+    const sameCartPendingRows = pendingRows.filter((row: any) => {
+      const rowReference = String(row?.reference ?? "").trim();
+      if (!rowReference || rowReference === reference) return true;
+      const rowCart = canonicalCart(row?.items);
+      return !rowCart || rowCart === cartForPendingGuard;
+    }).filter((row: any) => String(row?.payment_status ?? "").toUpperCase() === "PENDING");
+    if (sameCartPendingRows.some((row: any) => !String(row?.reference ?? "").trim())) {
+      return json({ code: "WOMPI_ATTEMPT_UNVERIFIED", canRetryWithNewReference: false,
+        error: "Hay un intento pendiente del mismo carrito cuya referencia no se pudo verificar. No se abrió otro pago." }, 409);
+    }
+    const hasLinkedPendingTransaction = sameCartPendingRows.some((row: any) => Boolean(String(row?.transaction_id ?? "").trim()));
     if (hasLinkedPendingTransaction) {
       return json({
         code: "WOMPI_TRANSACTION_PENDING",
         canRetryWithNewReference: false,
-        error: "Ya existe una transacción Wompi vinculada a un pedido pendiente con este teléfono. No inicies otro pago para evitar un posible cobro duplicado; espera la confirmación o contacta soporte.",
+        error: "Ya existe una transacción Wompi pendiente para este carrito. No inicies otro pago para evitar un cobro duplicado; espera la confirmación o contacta soporte.",
       }, 409);
     }
 
-    // Any other unlinked PENDING order remains blocked even after its inventory
-    // TTL. TTL expiry is not proof that Wompi has no chargeable transaction.
-    const otherUnlinkedPendingOrders = pendingRows.filter((row: any) => {
+    // An unlinked PENDING order for this same cart remains blocked even after
+    // its inventory TTL; expiry alone is not proof that Wompi has no transaction.
+    const otherUnlinkedPendingOrders = sameCartPendingRows.filter((row: any) => {
       const rowReference = String(row?.reference ?? "").trim();
       return rowReference && rowReference !== reference &&
-        String(row?.payment_status ?? "").toUpperCase() === "PENDING" &&
         !String(row?.transaction_id ?? "").trim();
     });
     if (otherUnlinkedPendingOrders.length) {
@@ -641,7 +650,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         code: unlinkedWompiOrderExpired(staleOrder) ? "WOMPI_ATTEMPT_UNVERIFIED" : "WOMPI_UNRESOLVED_RESERVATION",
         canRetryWithNewReference: false,
         existingReference: String(staleOrder.reference),
-        error: "Hay un pedido Wompi sin estado terminal verificado para este teléfono. No se creará otro pedido ni se abrirá otra sesión; contacta soporte para conciliación.",
+        error: "Hay un pedido Wompi del mismo carrito sin estado terminal verificado. No se abrirá otra sesión para evitar duplicar el pago; contacta soporte para conciliación.",
       }, 409);
     }
     const canonicalItems = canonicalCart(items);
