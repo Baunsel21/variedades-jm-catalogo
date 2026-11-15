@@ -31,12 +31,14 @@ const env = {
 const handlers = {};
 let activeHandler = '';
 let quoteFixture;
+let preparationFixture = null;
 let mockCalls = [];
 const capturedOrderInserts = [];
 const expirationTime = new Date(Date.now() + 30 * 60 * 1000).toISOString();
 const attemptReferences = [
   'SW-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
   'SW-BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB',
+  'SW-CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC',
 ];
 let attemptNumber = 0;
 let orderState = null;
@@ -83,6 +85,7 @@ globalThis.fetch = async (input, init = {}) => {
     return jsonResponse({ success: true, code: 'WOMPI_LOCK_CREATED', expires_at: expirationTime });
   }
   if (url.pathname === '/rest/v1/rpc/prepare_storefront_wompi_checkout') {
+    if (preparationFixture) return jsonResponse(preparationFixture);
     return jsonResponse({ success: true, expires_at: expirationTime, quote: quoteFixture });
   }
   if (url.pathname === '/rest/v1/rpc/claim_storefront_wompi_checkout') {
@@ -116,7 +119,7 @@ globalThis.fetch = async (input, init = {}) => {
     const currentAttemptReference = attemptReferences[attemptNumber++];
     if (orderState) { orderState.payment_status = 'PENDING'; orderState.transaction_id = null; }
     return jsonResponse({ success: true, order_reference: body.p_order_reference,
-      attempt_reference: currentAttemptReference, amount_in_cents: 6900000,
+      attempt_reference: currentAttemptReference, amount_in_cents: Math.round(Number(quoteFixture.total) * 100),
       currency: 'COP', environment: 'prod', status: 'INITIATED' });
   }
   if (url.pathname === '/rest/v1/orders' && method === 'POST') {
@@ -203,12 +206,39 @@ const mismatchBody = await mismatch.json();
 assert.equal(mismatchBody.code, 'WOMPI_QUOTE_CHANGED');
 assert.equal(mismatchBody.total, 69000);
 assert.equal(mismatchBody.shipping, 15000);
+assert.equal(mismatchBody.quote, undefined, 'the currently deployed v41 returns only the 409 summary; the storefront must safely refresh the quote');
 assert.equal(mockCalls.length, 2, 'only payment status and authoritative server quote may be read before rejecting a changed quote');
 assert.deepEqual(mockCalls.map(call => call.path), [
   '/rest/v1/rpc/get_online_payment_status',
   '/rest/v1/rpc/get_storefront_cart_quote_with_coupon',
 ]);
 assert.equal(capturedOrderInserts.length, 0);
+
+// A change between the Edge quote and its atomic preparation must return the
+// prepared authoritative quote and stop before order/attempt insertion.
+preparationFixture = {
+  success: false,
+  code: 'WOMPI_QUOTE_CHANGED',
+  message: 'Cotización sintética cambió durante la preparación.',
+  quote: { ...structuredClone(quoteFixture), shipping: 16000, total: 70000 },
+  shipping: 16000,
+  total: 70000,
+  discount_total: 6000,
+  coupon_discount_total: 6000,
+};
+mockCalls = [];
+const atomicMismatch = await handlers.checkout(request({ ...baseBody, reference: 'SIREVYA-SYNTHETIC-ATOMIC-QUOTE-CHANGE' }));
+assert.equal(atomicMismatch.status, 409);
+const atomicMismatchBody = await atomicMismatch.json();
+assert.equal(atomicMismatchBody.code, 'WOMPI_QUOTE_CHANGED');
+assert.equal(atomicMismatchBody.total, 70000);
+assert.equal(atomicMismatchBody.shipping, 16000);
+assert.equal(atomicMismatchBody.quote, undefined, 'atomic 409s from v41 likewise require a read-only client quote refresh');
+assert.equal(capturedOrderInserts.length, 0, 'atomic quote changes must not create an order');
+assert.equal(beginAttemptCalls.length, 0, 'atomic quote changes must not start a payment attempt');
+assert.ok(!mockCalls.some(call => call.path === '/rest/v1/rpc/create_storefront_wompi_pending_order'));
+assert.ok(!mockCalls.some(call => call.path === '/rest/v1/rpc/begin_storefront_wompi_payment_attempt'));
+preparationFixture = null;
 
 // A synthetic accepted quote may prepare a pending order entirely inside the fetch mock.
 // It verifies coupon + shipping + amount/signature consistency, never contacts Wompi or production.
@@ -329,4 +359,53 @@ assert.equal(capturedOrderInserts.length, 1, 'an unlinked retry remains blocked 
 assert.equal(beginAttemptCalls.length, 2, 'an unresolved attempt cannot start another Wompi session');
 assert.ok(!mockCalls.some(call => call.path === '/rest/v1/rpc/reserve_storefront_wompi_checkout_lock'),
   'unresolved attempts never acquire a second lock');
-console.log('PASS Wompi quote integration mock: cross-environment requests fail before RPC/order creation; production handler ignores the global TEST environment and signs with the production key; no external network or real payment.');
+
+// COR-038/Cali: production read-only quote was COP 2,000 with free shipping;
+// this fully synthetic in-memory RPC fixture verifies the same contract without a real order/hold/payment.
+const cor038Id = 'a4ab0f59-493b-4937-a34d-9242fbc6f8c4';
+quoteFixture = {
+  success: true,
+  currency: 'COP',
+  original_subtotal: 2000,
+  discount_total: 0,
+  discounted_subtotal: 2000,
+  shipping: 0,
+  total: 2000,
+  coupon_id: null,
+  coupon_code: null,
+  coupon_discount_total: 0,
+  destination_status: 'cali_free',
+  items: [{ id: cor038Id, code: 'COR-038', name: 'Producto sintético COR-038', qty: 1,
+    color: '', size: '', price: 2000, original_subtotal: 2000, discount_total: 0,
+    net_subtotal: 2000, coupon_discount_total: 0 }],
+};
+orderState = null;
+pendingRowsFixture = [];
+terminalOrderAvailableForRetry = false;
+mockCalls = [];
+const cor038Body = {
+  ...baseBody,
+  reference: 'SIREVYA-SYNTHETIC-COR-038-CALI',
+  items: [{ id: cor038Id, qty: 1, color: '', size: '' }],
+  city: 'Cali',
+  coupon_code: '',
+  expected_total: 2000,
+  expected_discount_total: 0,
+  expected_coupon_discount_total: 0,
+};
+const cor038Response = await handlers.checkout(request(cor038Body));
+assert.equal(cor038Response.status, 200);
+const cor038Intent = await cor038Response.json();
+assert.equal(cor038Intent.subtotal, 2000);
+assert.equal(cor038Intent.discountTotal, 0);
+assert.equal(cor038Intent.couponDiscountTotal, 0);
+assert.equal(cor038Intent.shipping, 0);
+assert.equal(cor038Intent.total, 2000);
+assert.equal(cor038Intent.amountInCents, 200000);
+assert.equal(cor038Intent.currency, 'COP');
+assert.equal(cor038Intent.attemptReference, attemptReferences[2]);
+assert.ok(mockCalls.some(call => call.path === '/rest/v1/rpc/prepare_storefront_wompi_checkout' &&
+  call.body.p_city === 'Cali' && call.body.p_expected_quote.total === 2000 && call.body.p_expected_quote.shipping === 0));
+assert.ok(!mockCalls.some(call => new URL(call.url).hostname.endsWith('wompi.co')),
+  'the COR-038 regression must not open Wompi or create a charge');
+console.log('PASS Wompi quote integration mock: COR-038/Cali COP 2,000 quote is consistent; preflight and atomic drift return 409 before order/attempt; environment/retry protections remain; no external network or real payment.');

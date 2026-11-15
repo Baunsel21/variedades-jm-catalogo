@@ -5165,30 +5165,26 @@ window.addEventListener('pageshow',event=>{
  }
 });
 
-async function payWithWompi(payload){
- await refreshOnlinePaymentSetting({silent:true});
- syncPaymentOptions();
- if(!onlinePaymentsEnabled){showToast('Los pagos en línea están desactivados. Selecciona pago contraentrega en una ciudad habilitada.');resetWompiButton();return;}
- if(!Number.isSafeInteger(Math.round(Number(payload.expected_total)))||Math.round(Number(payload.expected_total))<=0){showToast('Wompi no permite un total de $0. Elige contraentrega si está habilitada para esta ciudad.');resetWompiButton();return;}
- // Web Checkout debe iniciarse desde la página segura publicada, no desde una
- // copia abierta como content:// o file:// en el administrador de descargas.
- if(location.protocol!=='https:' || !location.hostname){
-   showToast('Para continuar con Wompi, abre el catálogo publicado en https://sirevya.com.co; el archivo descargado no puede completar el pago de forma fiable.');
-   return;
- }
- // Evitar dos solicitudes simultáneas por doble toque en celular o doble clic.
+async function payWithWompi(payload,confirmedQuote,confirmedQuoteFingerprint){
+ // Tomar el guard sincrónicamente: las validaciones asíncronas no deben dejar
+ // una ventana para doble toque o dos solicitudes de checkout simultáneas.
  if(window.__sirevyaWompiInProgress){
    showToast('Estamos preparando tu pago. Espera un momento sin volver a pulsar.');
    return;
  }
  window.__sirevyaWompiInProgress=true;
  const btn=$('checkoutConfirmBtn');
- if(btn){btn.disabled=true;btn.textContent='⏳ Reservando producto...'}
-
+ if(btn){btn.disabled=true;btn.textContent='⏳ Verificando cotización...'}
  let reservationReference='';
- let authoritativeComboQuote=null;
-
  try{
+  await refreshOnlinePaymentSetting({silent:true});
+  syncPaymentOptions();
+  if(!onlinePaymentsEnabled)throw new Error('Los pagos en línea están desactivados. Selecciona pago contraentrega en una ciudad habilitada.');
+  if(!Number.isSafeInteger(Math.round(Number(payload.expected_total)))||Math.round(Number(payload.expected_total))<=0)throw new Error('Wompi no permite un total de $0. Elige contraentrega si está habilitada para esta ciudad.');
+  // Web Checkout debe iniciarse desde la página segura publicada, no desde una
+  // copia abierta como content:// o file:// en el administrador de descargas.
+  if(location.protocol!=='https:' || !location.hostname)throw new Error('Para continuar con Wompi, abre el catálogo publicado en https://sirevya.com.co; el archivo descargado no puede completar el pago de forma fiable.');
+
   const checkoutItems=getCheckoutItems().map(x=>({
     ...x,
     id:String(x.id),
@@ -5198,10 +5194,17 @@ async function payWithWompi(payload){
   }));
   if(!checkoutItems.length)throw new Error('No hay productos para reservar.');
 
-  // Fuente autoritativa de precios/descuentos. Si falta la migración, no abrimos Wompi
-  // ni dejamos al cliente expuesto a un importe distinto del mostrado en el carrito.
   const couponCode=normalizeCheckoutCouponCode(payload.coupon_code);
-  const authoritativeComboQuote=await requestCheckoutQuote(couponCode,checkoutItems);
+  const currentCouponCode=normalizeCheckoutCouponCode($('couponCode')?.value||checkoutCouponCode);
+  if(confirmedQuoteFingerprint!==getCheckoutQuoteFingerprint(checkoutItems,currentCouponCode)){
+   updateShipping();updateCheckoutSummary();
+   throw new Error('El carrito, la ciudad o el cupón cambiaron después de cotizar. Revisa el desglose actualizado y confirma de nuevo; no se abrió Wompi.');
+  }
+  // Reutilizar el snapshot que confirmCheckout ya validó contra Supabase. La
+  // Edge Function vuelve a cotizar y valida los importes antes de crear una
+  // reserva o pedido; no hacemos una segunda lectura cliente con estado mutable.
+  const authoritativeComboQuote=normalizeCheckoutQuote(confirmedQuote);
+  if(!quoteHasValidTotals(authoritativeComboQuote,!!couponCode))throw new Error('No se pudo conservar la cotización que acabas de confirmar. Revisa el carrito y vuelve a confirmar; no se abrió Wompi.');
   const quotedShipping=Number(authoritativeComboQuote.shipping);
   const quotedTotal=Math.round(Number(authoritativeComboQuote.total));
   const quotedDiscount=Math.round(Number(authoritativeComboQuote.discount_total));
@@ -5211,18 +5214,20 @@ async function payWithWompi(payload){
   const visibleCouponDiscount=Math.round(Number(payload.expected_coupon_discount_total)||0);
   if(!Number.isSafeInteger(quotedShipping)||quotedShipping<0||!Number.isSafeInteger(quotedTotal)||quotedTotal<0||
      quotedTotal!==visibleTotal||quotedShipping!==Math.round(Number(payload.shipping)||0)||quotedDiscount!==visibleDiscount||quotedCouponDiscount!==visibleCouponDiscount){
-   if(couponCode){setCheckoutCouponQuote(authoritativeComboQuote,true);setCheckoutCouponStatus('El cupón, el envío o el total cambiaron. Revisa la cotización y confirma nuevamente.','error');}
-   else if(Number.isSafeInteger(quotedShipping)&&quotedShipping>=0)checkoutShipping=quotedShipping;
-   updateShipping();
-   throw new Error('Cambió la tarifa de envío o el descuento después de confirmar. Revisa el total actualizado y vuelve a pulsar Confirmar; no se abrió Wompi.');
+   if(couponCode)setCheckoutCouponQuote(authoritativeComboQuote,true);
+   else setCheckoutServerQuote(authoritativeComboQuote,checkoutItems);
+   updateShipping();updateCheckoutSummary();
+   throw new Error('La cotización confirmada no coincide con los importes del checkout. Revisa el desglose y confirma nuevamente; no se abrió Wompi.');
   }
   if(quotedTotal<=0)throw new Error('Wompi no permite un total de $0. Elige contraentrega si está habilitada para esta ciudad.');
   if(couponCode){setCheckoutCouponQuote(authoritativeComboQuote,false);setCheckoutCouponStatus(quotedCouponDiscount>0?`Cupón aplicado. Descuento: ${money(quotedCouponDiscount)}.`:'Cupón validado por el servidor.','success');}
+  else setCheckoutServerQuote(authoritativeComboQuote,checkoutItems);
   payload.shipping=quotedShipping;
   payload.storefront_pricing_version=couponCode?'coupon-discounts-v1':'combo-discounts-v1';
   payload.expected_total=quotedTotal;
   payload.expected_discount_total=quotedDiscount;
   payload.expected_coupon_discount_total=quotedCouponDiscount;
+  if(btn)btn.textContent='⏳ Reservando producto...';
 
   const storedReference=getActiveReservationReference()||getPendingWompiReference()||'';
   const storedItems=getActiveReservationItems();
@@ -5316,21 +5321,31 @@ async function payWithWompi(payload){
 
   if(!response.ok){
    if(data?.code==='WOMPI_QUOTE_CHANGED'){
-    const serverShipping=Number(data.shipping);
     const couponCode=normalizeCheckoutCouponCode(payload.coupon_code);
-    if(couponCode){
-      const priorQuote=currentCheckoutCouponQuote();
-      const updatedQuote={...(priorQuote||{}),success:true,total:Number(data.total),shipping:serverShipping,discount_total:Number(data.discount_total??priorQuote?.discount_total??0),coupon_discount_total:Number(data.coupon_discount_total??priorQuote?.coupon_discount_total??0)};
-      setCheckoutCouponQuote(updatedQuote,true);setCheckoutCouponStatus('El cupón o el envío cambiaron. Revisa la cotización y confirma nuevamente.','error');
+    const currentCouponCode=normalizeCheckoutCouponCode($('couponCode')?.value||checkoutCouponCode);
+    if(confirmedQuoteFingerprint!==getCheckoutQuoteFingerprint(getCheckoutItems(),currentCouponCode)){
+      updateShipping();updateCheckoutSummary();
+      throw new Error('El carrito, la ciudad o el cupón cambiaron mientras se verificaba el precio. Revisa el checkout y confirma otra vez; no se abrió Wompi.');
     }
-    const shippingSettingsRefreshed=await loadStorefrontShippingSettings(true);
-    try{if(!couponCode)await loadStorefrontProductCombos({force:true})}catch(refreshError){console.warn('No se pudieron refrescar los combos después del cambio de cotización.',refreshError)}
-    if(shippingSettingsRefreshed)updateShipping();
-    else if(Number.isSafeInteger(serverShipping)&&serverShipping>=0)checkoutShipping=serverShipping;
+    let authoritativeServerQuote=normalizeCheckoutQuote(data.quote);
+    if(!quoteHasValidTotals(authoritativeServerQuote,!!couponCode)){
+      try{authoritativeServerQuote=await requestCheckoutQuote(couponCode,checkoutItems)}catch{}
+    }
+    if(!quoteHasValidTotals(authoritativeServerQuote,!!couponCode))throw new Error('Supabase detectó una cotización distinta, pero no se pudo cargar un desglose completo. No se abrió Wompi; actualiza el checkout e inténtalo de nuevo.');
+    if(couponCode){
+      setCheckoutCouponQuote(authoritativeServerQuote,true);setCheckoutCouponStatus('La cotización vigente cambió. Revisa el desglose actualizado y confirma nuevamente.','error');
+    }
+    else setCheckoutServerQuote(authoritativeServerQuote,checkoutItems);
+    updateShipping();
     updateCheckoutSummary();
-    const serverTotal=Number(data.total);
-    const totalNote=Number.isSafeInteger(serverTotal)&&serverTotal>=0?` Total vigente calculado por Supabase: ${money(serverTotal)}.`:'';
-    throw new Error((data.error||'El envío o una promoción cambió. Revisa el total y confirma nuevamente; no se creó pedido ni reserva.')+totalNote);
+    const subtotal=Math.round(Number(authoritativeServerQuote.original_subtotal));
+    const totalDiscount=Math.round(Number(authoritativeServerQuote.discount_total)||0);
+    const couponDiscount=Math.round(Number(authoritativeServerQuote.coupon_discount_total)||0);
+    const otherDiscount=Math.max(0,totalDiscount-couponDiscount);
+    const shipping=Math.round(Number(authoritativeServerQuote.shipping));
+    const total=Math.round(Number(authoritativeServerQuote.total));
+    const breakdown=`Desglose vigente: subtotal ${money(subtotal)}; otros descuentos ${money(otherDiscount)}; cupón ${money(couponDiscount)}; envío ${money(shipping)}; total ${money(total)}. Revisa y confirma nuevamente.`;
+    throw new Error((data.error||'El precio, descuento, cupón o envío cambió. No se creó el pedido ni se abrió Wompi.')+' '+breakdown);
    }
    const localFile=location.protocol==='file:';
    throw new Error(
@@ -5661,6 +5676,7 @@ async function confirmCheckout(){
  clearCheckoutValidation();
  const couponCode=normalizeCheckoutCouponCode($('couponCode')?.value||checkoutCouponCode);
  checkoutCouponCode=couponCode;
+ const confirmationFingerprint=getCheckoutQuoteFingerprint(checkoutItems,couponCode);
  if(couponCode&&!await refreshStorefrontCouponSettings(true)){showToast('Los cupones están desactivados o no se pudo confirmar su configuración. No se aplicará el descuento ni se iniciará el pago.');resetWompiButton();return;}
  if(couponCode&&!currentCheckoutCouponQuote()){
   setCheckoutCouponStatus('El cupón necesita validarse con estos datos. Pulsa Aplicar antes de confirmar.','error');
@@ -5695,6 +5711,12 @@ async function confirmCheckout(){
   const beforeQuote=checkoutDisplayPricing();
   const beforeCouponQuote=currentCheckoutCouponQuote();
   const cartQuote=await requestCheckoutQuote(couponCode,checkoutItems);
+  const currentCouponCode=normalizeCheckoutCouponCode($('couponCode')?.value||checkoutCouponCode);
+  if(confirmationFingerprint!==getCheckoutQuoteFingerprint(getCheckoutItems(),currentCouponCode)){
+   updateShipping();updateCheckoutSummary();
+   showToast('El carrito, la ciudad o los datos del cupón cambiaron mientras verificábamos el total. Revisa el desglose y confirma otra vez; no se creó ningún pedido ni reserva.');
+   return;
+  }
   if(couponCode)clearCheckoutServerQuote();else setCheckoutServerQuote(cartQuote,checkoutItems);
   const serverShipping=Number(cartQuote.shipping),serverTotal=Math.round(Number(cartQuote.total));
   const serverDiscount=Math.round(Number(cartQuote.discount_total));
@@ -5717,7 +5739,7 @@ async function confirmCheckout(){
   payload.shipping=serverShipping;payload.expected_total=serverTotal;payload.expected_discount_total=serverDiscount;payload.expected_coupon_discount_total=serverCouponDiscount;payload.storefront_pricing_version=couponCode?'coupon-discounts-v1':'combo-discounts-v1';
   if(payment!=='Contra entrega'){
    if(serverTotal<=0){showToast('Wompi no permite un total de $0. Elige contraentrega si está habilitada para esta ciudad.');resetWompiButton();return;}
-   payWithWompi(payload);return;
+   payWithWompi(payload,cartQuote,confirmationFingerprint);return;
   }
   await saveContraEntregaOrder(payload);
  }catch(quoteError){
