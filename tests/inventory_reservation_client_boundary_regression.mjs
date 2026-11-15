@@ -53,13 +53,15 @@ async function runWompiAttempt(returnedReference) {
   let formSubmits = 0;
   let rpcMutationCalls = 0;
   let resetCalls = 0;
+  const formFields = [];
   const messages = [];
   const button = { disabled: false, textContent: '' };
   const response = {
     ok: true,
     status: 200,
     async json() {
-      return { reference: returnedReference, signature: 'synthetic-signature', amountInCents: 1000000 };
+      return { reference: returnedReference, signature: 'synthetic-signature', amountInCents: 1000000,
+        expirationTime: '2030-01-01T00:00:00.000Z' };
     },
   };
   const context = vm.createContext({
@@ -112,13 +114,14 @@ async function runWompiAttempt(returnedReference) {
       },
     },
     fetch: async () => { edgeCalls += 1; return response; },
+    checkoutFetchWithTimeout: async () => { edgeCalls += 1; return response; },
     document: {
       createElement(tag) {
         if (tag === 'form') {
           formCreates += 1;
           return {
             style: {},
-            appendChild() {},
+            appendChild(input) { formFields.push({ name: input.name, value: input.value }); },
             submit() { formSubmits += 1; },
           };
         }
@@ -147,7 +150,7 @@ async function runWompiAttempt(returnedReference) {
     expected_discount_total: 0,
     expected_coupon_discount_total: 0,
   });
-  return { edgeCalls, quoteCalls, formCreates, formSubmits, rpcMutationCalls, resetCalls, messages, context };
+  return { edgeCalls, quoteCalls, formCreates, formSubmits, rpcMutationCalls, resetCalls, formFields, messages, context };
 }
 
 const matchingReference = await runWompiAttempt('JMRES-SYNTHETIC-REFERENCE');
@@ -155,6 +158,9 @@ assert.equal(matchingReference.quoteCalls, 1, `quote request reaches its stub; m
 assert.equal(matchingReference.edgeCalls, 1);
 assert.equal(matchingReference.formCreates, 1, 'the normal matching-reference checkout still constructs its form');
 assert.equal(matchingReference.formSubmits, 1, `the normal matching-reference checkout still submits to Wompi; messages=${matchingReference.messages.join(' | ')}`);
+assert.deepEqual(matchingReference.formFields.find(field => field.name === 'expiration-time'),
+  { name: 'expiration-time', value: '2030-01-01T00:00:00.000Z' },
+  'the exact server-signed expiration must be sent to Wompi');
 assert.equal(matchingReference.rpcMutationCalls, 0, 'the browser performs no inventory mutation RPC');
 assert.equal(matchingReference.context.window.__sirevyaWompiInProgress, false);
 
@@ -187,6 +193,14 @@ assert.doesNotMatch(index, /getCODOrderFingerprint|customer:\[payload\.name/,
   'the browser must not persist a fingerprint derived from customer PII');
 assert.doesNotMatch(index, /release_inventory_reservation|releaseInventoryReservation/,
   'the browser must not release the server-owned COD inventory reference');
+const pageshowStart = index.indexOf("window.addEventListener('pageshow',event=>{");
+const pageshowEnd = index.indexOf('\n});', pageshowStart);
+assert.ok(pageshowStart >= 0 && pageshowEnd > pageshowStart, 'the storefront pageshow recovery handler must exist');
+const pageshowBlock = index.slice(pageshowStart, pageshowEnd);
+assert.ok(pageshowBlock.indexOf('restoreCheckoutFromReservation();') >= 0 &&
+  pageshowBlock.indexOf('window.__sirevyaWompiInProgress=false;') > pageshowBlock.indexOf('restoreCheckoutFromReservation();') &&
+  pageshowBlock.indexOf('resetWompiButton();') > pageshowBlock.indexOf('restoreCheckoutFromReservation();'),
+  'the checkout button and in-progress flag must reset whenever the storefront is shown again');
 
 const safeServerRelease = (source, label) => {
   const call = source.indexOf('/rpc/release_inventory_reservation');

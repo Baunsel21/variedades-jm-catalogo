@@ -5144,13 +5144,10 @@ function resetWompiButton(){
 }
 window.addEventListener('pageshow',event=>{
  restoreCheckoutFromReservation();
- // Al volver desde Wompi, algunos navegadores móviles restauran la página desde
- // BFCache. Restablecer también el bloqueo evita que un intento anterior deje
- // inutilizado el botón en la siguiente compra.
- if(event.persisted){
-   window.__sirevyaWompiInProgress=false;
-   resetWompiButton();
- }
+ // Al volver desde Wompi o recargar en móviles, restablecer siempre el estado
+ // visual del botón. El servidor sigue resolviendo cualquier pago ambiguo.
+ window.__sirevyaWompiInProgress=false;
+ resetWompiButton();
  if(event.persisted && getActiveReservationReference() && checkoutCart?.length){
    setTimeout(()=>{
      clearCheckoutValidation();
