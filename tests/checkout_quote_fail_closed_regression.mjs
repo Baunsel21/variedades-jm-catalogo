@@ -85,11 +85,14 @@ for (const mode of ['PSE', 'Contra entrega']) {
       isLocalCODCity: () => true,
       checkoutCityValue: () => 'Cali',
       loadStorefrontProductCombos: async () => {},
+      storefrontRpcWithTimeout: async (name) => {
+        assert.equal(name, 'get_storefront_cart_quote');
+        quoteRpcCalls += 1;
+        return quoteResponse;
+      },
       sb: {
         async rpc(name) {
-          assert.equal(name, 'get_storefront_cart_quote');
-          quoteRpcCalls += 1;
-          return quoteResponse;
+          assert.fail(`La prueba no debe saltarse storefrontRpcWithTimeout: ${name}`);
         },
       },
       updateCheckoutSummary() { assert.fail('Una quote fallida no actualiza un total con datos incompletos'); },
@@ -134,13 +137,16 @@ for (const quoteResponse of failedQuotes) {
     setCheckoutServerQuote() {},
     clearCheckoutServerQuote() {},
     updateShipping() {},
+    storefrontRpcWithTimeout: async (name) => {
+      assert.equal(name, 'get_storefront_cart_quote');
+      return quoteResponse;
+    },
     refreshOnlinePaymentSetting: async () => {},
     syncPaymentOptions() {},
     $: id => id === 'checkoutConfirmBtn' ? button : null,
     sb: {
       async rpc(name) {
-        assert.equal(name, 'get_storefront_cart_quote');
-        return quoteResponse;
+        assert.fail(`La prueba no debe saltarse storefrontRpcWithTimeout: ${name}`);
       },
     },
     fetch: async () => { fetchCalls += 1; throw new Error('No debe llegar a la Edge function'); },

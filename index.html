@@ -2029,6 +2029,33 @@ let codPaymentSettingsLoaded=false;
 // La firma de integridad se genera en Supabase, nunca aquí en el navegador.
 const WOMPI_PUBLIC_KEY="pub_prod_LRVzOkCVug2eCWqW8uP923ODRoYSlx0p";
 const WOMPI_SIGNATURE_ENDPOINT=SUPABASE_URL+"/functions/v1/wompi-create-checkout";
+const CHECKOUT_REQUEST_TIMEOUT_MS=20000;
+
+function checkoutTimeoutError(message='La conexión con el servidor tardó demasiado. No se inició el pago; revisa tu conexión e inténtalo nuevamente.'){
+ const error=new Error(message);error.code='CHECKOUT_REQUEST_TIMEOUT';return error;
+}
+async function storefrontRpcWithTimeout(functionName,args,timeoutMs=CHECKOUT_REQUEST_TIMEOUT_MS){
+ const controller=new AbortController();
+ const timer=setTimeout(()=>controller.abort(),timeoutMs);
+ try{
+  let request=args==null?sb.rpc(functionName):sb.rpc(functionName,args);
+  if(typeof request.abortSignal==='function')request=request.abortSignal(controller.signal);
+  return await Promise.race([
+   request,
+   new Promise((_,reject)=>setTimeout(()=>reject(checkoutTimeoutError()),timeoutMs))
+  ]);
+ }catch(error){
+  if(error?.name==='AbortError')throw checkoutTimeoutError();
+  throw error;
+ }finally{clearTimeout(timer)}
+}
+async function checkoutFetchWithTimeout(url,options={},timeoutMs=CHECKOUT_REQUEST_TIMEOUT_MS){
+ const controller=new AbortController();
+ const timer=setTimeout(()=>controller.abort(),timeoutMs);
+ try{return await fetch(url,{...options,signal:controller.signal,cache:'no-store'})}
+ catch(error){if(error?.name==='AbortError')throw checkoutTimeoutError();throw error}
+ finally{clearTimeout(timer)}
+}
 
 // Respaldo visual compatible con la política actual; Supabase es la fuente autoritativa.
 const DEFAULT_STOREFRONT_SHIPPING_SETTINGS={national_shipping_cost:15000,free_shipping_threshold:130000,free_shipping_in_cali:true,destination_rules:[]};
@@ -2180,8 +2207,8 @@ async function requestCheckoutQuote(code,items=getCheckoutItems()){
  if(normalized&&(!storefrontCouponSettingsLoaded||!storefrontCouponsEnabled)){const failure=new Error('COUPONS_DISABLED');failure.code='COUPONS_DISABLED';failure.couponError=true;throw failure;}
  const common={p_items:checkoutQuoteItems(items),p_city:checkoutCityValue()};
  const rpcName=normalized?'get_storefront_cart_quote_with_coupon':'get_storefront_cart_quote';
-	 const args=normalized?{...common,p_coupon_code:normalized,p_customer_email:'',p_customer_phone:''}:common;
- const {data,error}=await sb.rpc(rpcName,args);
+		 const args=normalized?{...common,p_coupon_code:normalized,p_customer_email:'',p_customer_phone:''}:common;
+ const {data,error}=await storefrontRpcWithTimeout(rpcName,args);
  const row=normalizeCheckoutQuote(data);
  if(error||!quoteHasValidTotals(row,!!normalized)){
   const failure=new Error(quoteErrorMessage(row,error,!!normalized));failure.quote=row;failure.couponError=!!normalized;throw failure;
@@ -2351,7 +2378,7 @@ async function loadStorefrontShippingSettings(force=false){
  if(storefrontShippingSettingsLoaded&&!storefrontShippingSettingsLoadError&&!force)return true;
  const task=(async()=>{
   if(!storefrontShippingSettingsLoaded){storefrontShippingSettingsLoadError=false;updateStorefrontShippingCopy();renderCart();if($('checkoutModal')?.classList.contains('open'))updateShipping();}
-  const {data,error}=await sb.rpc('get_public_storefront_shipping_settings');
+  const {data,error}=await storefrontRpcWithTimeout('get_public_storefront_shipping_settings');
   if(error)throw error;
   const row=Array.isArray(data)?data[0]:data;
   const fee=Number(row?.national_shipping_cost);
@@ -4837,7 +4864,7 @@ async function refreshOnlinePaymentSetting(options={}){
  if(onlinePaymentSettingsPromise)return onlinePaymentSettingsPromise;
  const task=(async()=>{
   try{
-   const {data,error}=await sb.rpc(ONLINE_PAYMENT_SETTINGS_RPC);
+   const {data,error}=await storefrontRpcWithTimeout(ONLINE_PAYMENT_SETTINGS_RPC);
    if(error)throw error;
    const row=Array.isArray(data)?data[0]:data;
    if(row&&typeof row.online_payments_enabled==='boolean'){
@@ -4888,7 +4915,7 @@ async function refreshCODPaymentSettings({silent=true}={}){
  if(codPaymentSettingsPromise)return codPaymentSettingsPromise;
  const task=(async()=>{
   try{
-   const {data,error}=await sb.rpc('get_public_storefront_cod_settings');if(error)throw error;
+   const {data,error}=await storefrontRpcWithTimeout('get_public_storefront_cod_settings');if(error)throw error;
    const row=Array.isArray(data)?data[0]:data;
    if(!row||typeof row.enabled!=='boolean'||!Array.isArray(row.allowed_cities))throw new Error('Respuesta de configuración de contraentrega no válida.');
    codPaymentEnabled=row.enabled;codAllowedCities=row.allowed_cities.map(x=>String(x||'').trim().toLowerCase()).filter(Boolean);codPaymentSettingsLoaded=true;
@@ -5254,7 +5281,7 @@ async function payWithWompi(payload){
   // se limpia solo el draft de pago, se conserva el carrito y se espera al servidor.
   let response,data;
   for(let preparationAttempt=0;preparationAttempt<2;preparationAttempt++){
-   response=await fetch(WOMPI_SIGNATURE_ENDPOINT,{
+   response=await checkoutFetchWithTimeout(WOMPI_SIGNATURE_ENDPOINT,{
     method:'POST',
     headers:functionHeaders,
     body:JSON.stringify(payload)
