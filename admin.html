@@ -3596,8 +3596,10 @@ async function eliminarFotoProducto(index){
 async function uploadSizeGuidePhoto(productId,file,isCurrent=()=>true){
  ensureAdminOperationCurrent(isCurrent);
  if(!productId||!file)return "";
+ const fingerprint=await uploadFileFingerprint(file);
+ ensureAdminOperationCurrent(isCurrent);
  const ext=(file.name.split('.').pop()||'jpg').toLowerCase();
- const path=`products/${productId}/size-guide/${crypto.randomUUID()}.${ext}`;
+ const path=`products/${productId}/size-guide/${fingerprint}.${ext}`;
  const uploaded=await uploadImageToR2(path,file,isCurrent);ensureAdminOperationCurrent(isCurrent);
  const key=uploaded.key||path;
  const {data,error}=await sb.from("products").update({size_guide_image:key}).eq("id",productId).select("id").maybeSingle();
