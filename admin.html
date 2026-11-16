@@ -135,6 +135,14 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
 .orderPaginationControls{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .orderPaginationControls button{min-width:38px}
 .orderPaginationControls select{width:auto;min-width:88px}
+.ordersCategoryTabs{display:flex;gap:9px;margin:14px 0 0;overflow-x:auto;padding-bottom:2px}
+.ordersCategoryTab{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:9px 14px;border:1px solid var(--border);border-radius:13px;background:var(--surface);color:#292633;font-weight:850;cursor:pointer;white-space:nowrap}
+.ordersCategoryTab[aria-selected="true"]{background:var(--primary);border-color:var(--primary);color:#fff;box-shadow:0 6px 16px #7b17301f}
+.ordersCategoryCount{display:inline-grid;place-items:center;min-width:24px;height:24px;padding:0 6px;border-radius:99px;background:#00000012;font-size:12px}
+.ordersCategoryTab[aria-selected="true"] .ordersCategoryCount{background:#ffffff2b}
+.ordersCategoryPanel[hidden]{display:none!important}
+.ordersWompiSearchFilters{display:grid;grid-template-columns:minmax(200px,1fr) minmax(170px,240px) auto;gap:10px;align-items:end;margin:14px 0 8px}
+.ordersWompiSearchFilters .orderFilterSearch{grid-column:auto}
 .orderCard{padding:16px;border:1px solid var(--border);border-radius:16px;background:var(--surface);margin-bottom:12px}
 .orderHead{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
 .orderCustomer{font-size:16px;font-weight:900}.orderMeta{font-size:12px;color:var(--muted);margin-top:4px}
@@ -153,6 +161,7 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
 #ordersTrackingStatus[hidden]{display:none}
 @media(max-width:780px){.ordersSummary{grid-template-columns:repeat(2,1fr)}.orderFilters{grid-template-columns:repeat(2,minmax(0,1fr))}.orderFilterSearch{grid-column:1/-1}.orderHead{flex-direction:column}}
 @media(max-width:460px){.orderFilters{grid-template-columns:1fr}.orderFilterSearch{grid-column:auto}.orderPagination{align-items:flex-start;flex-direction:column}}
+@media(max-width:600px){.ordersCategoryTabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.ordersCategoryTab{width:100%;padding:8px 7px;font-size:13px}.ordersWompiSearchFilters{grid-template-columns:1fr}.ordersWompiSearchFilters .orderFilterSearch{grid-column:auto}}
 
 .photoPreview{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}.photoPreview img{width:78px;height:78px;object-fit:cover;border-radius:12px;border:1px solid var(--border);background:#f3f4f6}.photoPreview .photoItem{position:relative}.photoPreview .photoItem span{position:absolute;left:4px;bottom:4px;background:#111827cc;color:#fff;border-radius:7px;padding:2px 5px;font-size:10px}.multiGallery{display:flex;gap:7px;overflow-x:auto;margin-top:8px}.multiGallery img{width:54px;height:54px;object-fit:cover;border-radius:9px;border:1px solid var(--border)}
 .photoPreview .photoItem{width:104px;display:flex;flex-direction:column;gap:5px;align-items:stretch}.photoUploadState{font-size:10px;font-weight:800}.photoUploadState[data-state="uploading"]{color:#8a5a00}.photoUploadState[data-state="success"]{color:var(--success)}.photoUploadState[data-state="error"]{color:#a51d3b}.photoRetryBtn{padding:4px 7px;border:1px solid #cfaeba;border-radius:7px;background:#fff;color:#7b1730;font-size:10px;font-weight:800;cursor:pointer}
@@ -505,34 +514,46 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
         </div>
       </section>
 <section id="pedidos" class="view">
-  <div class="rowBetween ordersHeading"><div><h2 style="margin:0">📋 Pedidos</h2><p class="muted">Consulta y administra los pedidos realizados desde el catálogo web.</p></div><div class="ordersTools"><span id="ordersLastUpdated" class="ordersLastUpdated" aria-live="polite">Última actualización: pendiente</span><button id="refreshOrdersBtn" class="softbtn" type="button" onclick="cargarPedidos()">↻ Actualizar pedidos</button></div></div>
-  <div class="ordersSummary">
-    <div class="orderStat"><small>Todos</small><b id="ordersTotal">0</b></div>
-    <div class="orderStat"><small>Pendientes</small><b id="ordersPending">0</b></div>
-    <div class="orderStat"><small>Confirmados</small><b id="ordersConfirmed">0</b></div>
-    <div class="orderStat"><small>Entregados</small><b id="ordersDelivered">0</b></div>
+  <div class="rowBetween ordersHeading"><div><h2 style="margin:0">📋 Pedidos</h2><p class="muted">Pedidos separados por método de pago; cada categoría conserva sus estados y acciones.</p></div><div class="ordersTools"><span id="ordersLastUpdated" class="ordersLastUpdated" aria-live="polite">Última actualización: pendiente</span><button id="refreshOrdersBtn" class="softbtn" type="button" onclick="cargarPedidos()">↻ Actualizar pedidos</button></div></div>
+  <div class="ordersCategoryTabs" id="ordersCategoryTabs" role="tablist" aria-label="Categoría de pedidos">
+    <button class="ordersCategoryTab" id="ordersCategoryCodTab" type="button" role="tab" aria-selected="true" aria-controls="codOrdersPanel" tabindex="0" onclick="setOrdersCategory('cod')" onkeydown="handleOrdersCategoryTabKeydown(event)">Pedidos contraentrega <span class="ordersCategoryCount" id="ordersCODCount">—</span></button>
+    <button class="ordersCategoryTab" id="ordersCategoryWompiTab" type="button" role="tab" aria-selected="false" aria-controls="wompiOrdersPanel" tabindex="-1" onclick="setOrdersCategory('wompi')" onkeydown="handleOrdersCategoryTabKeydown(event)">Pedidos online (Wompi) <span class="ordersCategoryCount" id="ordersWompiCount">—</span></button>
   </div>
-  <div class="box" style="margin-top:15px" id="wompiAdminOrdersBox">
-    <div class="rowBetween" style="gap:12px;flex-wrap:wrap"><div><h3 style="margin:0">💳 Pedidos pagados en línea (Wompi)</h3><p class="muted" style="margin:6px 0 0">Vista administrativa de solo lectura. Los estados financieros no se cambian desde aquí.</p></div><button class="softbtn" type="button" onclick="cargarPedidos()">↻ Actualizar</button></div>
-    <div id="wompiOrdersStatus" class="status" role="status" aria-live="polite">Se consultará al abrir Pedidos.</div>
-    <div id="wompiOrdersList" style="margin-top:10px"><div class="empty">Cargando pedidos Wompi…</div></div>
-  </div>
-  <div class="box" style="margin-top:15px">
-    <div class="orderFilters">
-      <label class="orderFilterField orderFilterSearch">Buscar pedido<input id="buscarPedido" aria-label="Buscar pedidos por cliente, teléfono, ciudad, correo o identificador" placeholder="🔎 Cliente, teléfono, ciudad, correo o pedido" oninput="cambiarFiltroPedidos()"></label>
-      <label class="orderFilterField">Estado<select id="filtroPedidoEstado" onchange="cambiarFiltroPedidos()">
-        <option value="">Todos los estados</option><option value="pendiente">Pendientes</option><option value="confirmado">Confirmados</option><option value="enviado">Enviados</option><option value="entregado">Entregados</option><option value="rechazado">Rechazados</option><option value="devuelto">Devueltos</option>
-      </select></label>
-      <label class="orderFilterField">Desde (Colombia)<input id="ordersFromDate" type="date" onchange="cambiarFiltroPedidos()"></label>
-      <label class="orderFilterField">Hasta (Colombia)<input id="ordersToDate" type="date" onchange="cambiarFiltroPedidos()"></label>
-      <label class="orderFilterField">Ciudad<select id="ordersCityFilter" onchange="cambiarFiltroPedidos()"><option value="">Todas las ciudades</option></select></label>
-      <label class="orderFilterField">Método de pago<select id="ordersPaymentFilter" onchange="cambiarFiltroPedidos()"><option value="">Todos los métodos</option></select></label>
-      <button class="softbtn" type="button" onclick="limpiarFiltrosPedidos()">Limpiar filtros</button>
+  <div class="ordersCategoryPanel" id="codOrdersPanel" role="tabpanel" aria-labelledby="ordersCategoryCodTab">
+    <div class="ordersSummary">
+      <div class="orderStat"><small>Contraentrega</small><b id="ordersTotal">0</b></div>
+      <div class="orderStat"><small>Pendientes</small><b id="ordersPending">0</b></div>
+      <div class="orderStat"><small>Confirmados</small><b id="ordersConfirmed">0</b></div>
+      <div class="orderStat"><small>Entregados</small><b id="ordersDelivered">0</b></div>
     </div>
-    <div id="ordersLoadStatus" class="status err" role="alert" hidden></div>
-    <div id="ordersResultsSummary" class="orderResultsSummary" role="status" aria-live="polite"></div>
-    <div id="ordersTrackingStatus" class="status err" role="status" aria-live="polite" hidden></div>
-    <div id="listaPedidos"><div class="empty">Cargando pedidos...</div></div>
+    <div class="box" style="margin-top:15px">
+      <div class="orderFilters">
+        <label class="orderFilterField orderFilterSearch">Buscar pedido<input id="buscarPedido" aria-label="Buscar pedidos contraentrega por cliente, teléfono, ciudad, correo o identificador" placeholder="🔎 Cliente, teléfono, ciudad, correo o pedido" oninput="cambiarFiltroPedidos()"></label>
+        <label class="orderFilterField">Estado comercial<select id="filtroPedidoEstado" onchange="cambiarFiltroPedidos()"><option value="">Todos los estados</option></select></label>
+        <label class="orderFilterField">Desde (Colombia)<input id="ordersFromDate" type="date" onchange="cambiarFiltroPedidos()"></label>
+        <label class="orderFilterField">Hasta (Colombia)<input id="ordersToDate" type="date" onchange="cambiarFiltroPedidos()"></label>
+        <label class="orderFilterField">Ciudad<select id="ordersCityFilter" onchange="cambiarFiltroPedidos()"><option value="">Todas las ciudades</option></select></label>
+        <label class="orderFilterField">Método de pago<select id="ordersPaymentFilter" onchange="cambiarFiltroPedidos()"><option value="">Todos los métodos</option></select></label>
+        <button class="softbtn" type="button" onclick="limpiarFiltrosPedidos()">Limpiar filtros</button>
+      </div>
+      <div id="ordersLoadStatus" class="status err" role="alert" hidden></div>
+      <div id="ordersResultsSummary" class="orderResultsSummary" role="status" aria-live="polite"></div>
+      <div id="ordersTrackingStatus" class="status err" role="status" aria-live="polite" hidden></div>
+      <div id="listaPedidos"><div class="empty">Cargando pedidos contraentrega...</div></div>
+    </div>
+  </div>
+  <div class="ordersCategoryPanel" id="wompiOrdersPanel" role="tabpanel" aria-labelledby="ordersCategoryWompiTab" hidden>
+    <div class="box" style="margin-top:15px" id="wompiAdminOrdersBox">
+      <div class="rowBetween" style="gap:12px;flex-wrap:wrap"><div><h3 style="margin:0">💳 Pedidos online (Wompi)</h3><p class="muted" style="margin:6px 0 0">Se filtra por el estado financiero real del pago. Vista de solo lectura.</p></div><button class="softbtn" type="button" onclick="cargarPedidos()">↻ Actualizar</button></div>
+      <div id="wompiOrdersStatus" class="status" role="status" aria-live="polite">Se consultará al abrir Pedidos.</div>
+      <div class="ordersWompiSearchFilters">
+        <label class="orderFilterField orderFilterSearch">Buscar pedido Wompi<input id="wompiOrdersSearch" aria-label="Buscar pedidos Wompi por cliente, teléfono, referencia, producto o transacción" placeholder="🔎 Cliente, referencia, producto o transacción" oninput="changeWompiOrdersFilter()"></label>
+        <label class="orderFilterField">Estado financiero<select id="wompiOrdersStatusFilter" onchange="changeWompiOrdersFilter()"><option value="all">Todos</option></select></label>
+        <button class="softbtn" type="button" onclick="clearWompiOrdersFilters()">Limpiar filtros</button>
+      </div>
+      <div id="wompiOrdersResultsSummary" class="orderResultsSummary" role="status" aria-live="polite"></div>
+      <div id="wompiOrdersList" style="margin-top:10px"><div class="empty">Cargando pedidos Wompi…</div></div>
+    </div>
   </div>
   <div id="orderTrackingModal" class="modalBack orderTrackingModal" aria-hidden="true">
     <section class="modal" role="dialog" aria-modal="true" aria-labelledby="orderTrackingTitle" tabindex="-1">
@@ -971,6 +992,8 @@ let adminDeferredModuleLoaded={clients:false,suppliers:false,expenses:false,move
 let adminDeferredModuleInFlight={};
 let pedidos=[];
 let wompiAdminOrders=[],wompiAdminOrdersLoadError='',wompiAdminOrdersLoaded=false;
+let ordersActiveCategory='cod',codOrderStatusOptionsSignature='',wompiOrdersStatusOptionsSignature='';
+let wompiOrdersPage=1,wompiOrdersPageSize=20;
 let webOrderTrackingById=Object.create(null),webOrderTrackingRpcState='unknown',webOrderTrackingRequestToken=0,webOrderHistoryRequestToken=0,webOrderTrackingSaveToken=0,orderTrackingReturnFocus=null;
 let pedidosPage=1,pedidosPageSize=20,pedidosLoadError='',ordersFacetOptionsSignature='';
 let brandName="Variedades JM";
@@ -2245,13 +2268,14 @@ function lockAdminPanel(message='Tu sesión terminó. Vuelve a entrar.'){
  $("app").classList.add("hidden");$("loginScreen").classList.remove("hidden");
  if(adminCatalogRealtimeChannel&&sb){const channel=adminCatalogRealtimeChannel;adminCatalogRealtimeChannel=null;void sb.removeChannel(channel).catch(error=>console.debug('No se pudo cerrar el canal administrativo.',error));}
  adminCatalogRealtimeReady=false;adminCatalogRealtimePending=[];
- productos=[];ventas=[];clientes=[];proveedores=[];gastos=[];movimientos=[];pedidos=[];wompiAdminOrders=[];wompiAdminOrdersLoadError='';wompiAdminOrdersLoaded=false;pedidosLoadError='';ordersFacetOptionsSignature='';categorias=[];categoryRecords=[];
- resetAdminHistoryPagination();
- moduleLoadErrors={};
- Object.keys(adminDeferredModuleLoaded).forEach(key=>adminDeferredModuleLoaded[key]=false);
- onlinePaymentSettingLoaded=false;onlinePaymentSettingOriginal=null;
- codCitiesSettingsLoaded=false;codCitiesSettingsOriginal={enabled:false,allowed_cities:[]};
- if(typeof categoryOrderSaving!=='undefined')categoryOrderSaving=false;
+	productos=[];ventas=[];clientes=[];proveedores=[];gastos=[];movimientos=[];pedidos=[];wompiAdminOrders=[];wompiAdminOrdersLoadError='';wompiAdminOrdersLoaded=false;pedidosLoadError='';ordersFacetOptionsSignature='';categorias=[];categoryRecords=[];
+	resetAdminHistoryPagination();
+	moduleLoadErrors={};
+	Object.keys(adminDeferredModuleLoaded).forEach(key=>adminDeferredModuleLoaded[key]=false);
+	const wompiOrdersSearch=$('wompiOrdersSearch'),wompiOrdersStatusFilter=$('wompiOrdersStatusFilter');if(wompiOrdersSearch)wompiOrdersSearch.value='';if(wompiOrdersStatusFilter)wompiOrdersStatusFilter.value='all';wompiOrdersPage=1;wompiOrdersStatusOptionsSignature='';
+	onlinePaymentSettingLoaded=false;onlinePaymentSettingOriginal=null;
+	codCitiesSettingsLoaded=false;codCitiesSettingsOriginal={enabled:false,allowed_cities:[]};
+	if(typeof categoryOrderSaving!=='undefined')categoryOrderSaving=false;
 	 storefrontShippingAdminLoaded=false;storefrontShippingAdminOriginal=null;storefrontShippingAdminSaving=false;
 	 resetStorefrontShippingRulesAdminState();
 	 storefrontCombosAdminLoaded=false;storefrontProductCombosAdmin=[];storefrontComboSaving=false;storefrontComboEditingId='';storefrontComboCalendarRpcAvailable=false;
@@ -2862,12 +2886,17 @@ async function cargarPedidos(){
 }
 
 function renderAdminWompiOrders(){
-  const box=$('wompiOrdersList'),status=$('wompiOrdersStatus');if(!box)return;
-  if(wompiAdminOrdersLoadError){if(status){status.className='status err';status.textContent=wompiAdminOrdersLoadError}box.innerHTML='<div class="empty">No se pudo consultar la lista Wompi. No se modificó ningún pedido ni pago.</div>';return}
-  if(!wompiAdminOrdersLoaded){if(status){status.className='status';status.textContent='Se consultará al abrir Pedidos.'}box.innerHTML='<div class="empty">Cargando pedidos Wompi…</div>';return}
+  const box=$('wompiOrdersList'),status=$('wompiOrdersStatus'),summary=$('wompiOrdersResultsSummary');if(!box)return;
+  updateOrdersCategoryCounts();
+  if(wompiAdminOrdersLoadError){if(status){status.className='status err';status.textContent=wompiAdminOrdersLoadError}if(summary)summary.textContent='No se pueden mostrar conteos hasta completar una consulta válida.';box.innerHTML='<div class="empty">No se pudo consultar la lista Wompi. No se modificó ningún pedido ni pago.</div>';return}
+  if(!wompiAdminOrdersLoaded){if(status){status.className='status';status.textContent='Se consultará al abrir Pedidos.'}if(summary)summary.textContent='';box.innerHTML='<div class="empty">Cargando pedidos Wompi…</div>';return}
   if(status){status.className='status ok';status.textContent=`${wompiAdminOrders.length} pedido(s) Wompi consultado(s); vista de solo lectura.`}
-  if(!wompiAdminOrders.length){box.innerHTML='<div class="empty">No hay pedidos Wompi para mostrar.</div>';return}
-  box.innerHTML=wompiAdminOrders.map(order=>{
+  const filterSelect=$('wompiOrdersStatusFilter'),options=buildWompiStatusFilterOptions(wompiAdminOrders);
+  if(filterSelect){const selected=filterSelect.value||'all',signature=JSON.stringify(options);if(signature!==wompiOrdersStatusOptionsSignature){filterSelect.innerHTML=options.map(option=>`<option value="${esc(option.value)}">${esc(option.label)} (${option.count})</option>`).join('');wompiOrdersStatusOptionsSignature=signature}filterSelect.value=options.some(option=>option.value===selected)?selected:'all'}
+  const matching=filterWompiOrders(wompiAdminOrders,{status:filterSelect?.value||'all',search:$('wompiOrdersSearch')?.value||''});
+  const pageData=paginateAdminOrders(matching,wompiOrdersPage,wompiOrdersPageSize);wompiOrdersPage=pageData.page;
+  if(summary)summary.textContent=pageData.total?`Mostrando ${pageData.start}–${pageData.end} de ${pageData.total} coincidencia(s) · ${wompiAdminOrders.length} pedidos online cargados.`:`0 coincidencias · ${wompiAdminOrders.length} pedidos online cargados.`;
+  const cards=pageData.items.map(order=>{
     const paymentStatus=String(order.payment_status||'DESCONOCIDO').toUpperCase();
     const statusClass=paymentStatus==='APPROVED'?'ok':paymentStatus==='PENDING'?'warn':'low';
     const items=Array.isArray(order.items)?order.items:[];
@@ -2882,7 +2911,34 @@ function renderAdminWompiOrders(){
     const reconciliation=order.wompi_reconciliation_required||order.coupon_reconciliation_required;
     return `<article class="orderCard" style="margin-top:10px"><div class="orderHead"><div><div class="orderCustomer">${esc(order.customer_name||'Sin nombre')}</div><div class="orderMeta">Referencia: ${esc(order.reference||'—')} · ${updated?esc(new Date(updated).toLocaleString('es-CO')):''}</div><div class="orderMeta">Teléfono: ${esc(order.phone||'Sin teléfono')} · ${esc(order.city||'')} — ${esc(order.address||'')}</div></div><span class="badge ${statusClass}">Pago ${esc(paymentStatus)}</span></div><div class="orderItems">${itemHtml}</div><div class="rowBetween" style="margin-top:10px;gap:10px;flex-wrap:wrap"><span class="muted">Subtotal ${money(order.subtotal)} · Envío ${Number(order.shipping)===0?'GRATIS':money(order.shipping)}${order.coupon_code?` · Cupón ${esc(order.coupon_code)}`:''}</span><strong style="font-size:18px">${money(order.total)}</strong></div><div class="orderMeta" style="margin-top:6px">Transacción Wompi: ${esc(order.transaction_id||'Sin transaction_id')}</div>${reconciliation?'<div class="status err" style="margin-top:8px">Requiere revisión de conciliación; esta vista no modifica su estado.</div>':''}</article>`;
   }).join('');
+  const pagination=pageData.total?`<nav class="orderPagination" aria-label="Paginación de pedidos Wompi"><span class="muted">${pageData.start}–${pageData.end} de ${pageData.total}</span><div class="orderPaginationControls"><label class="orderFilterField" style="flex-direction:row;align-items:center;gap:6px">Por página<select aria-label="Pedidos Wompi por página" onchange="changeWompiOrdersPageSize(this.value)"><option value="20" ${pageData.pageSize===20?'selected':''}>20</option><option value="50" ${pageData.pageSize===50?'selected':''}>50</option><option value="100" ${pageData.pageSize===100?'selected':''}>100</option></select></label><button type="button" class="softbtn" onclick="changeWompiOrdersPage(${pageData.page-1})" aria-label="Página anterior de pedidos Wompi" ${pageData.page<=1?'disabled':''}>Anterior</button><span aria-current="page">${pageData.page} / ${pageData.totalPages}</span><button type="button" class="softbtn" onclick="changeWompiOrdersPage(${pageData.page+1})" aria-label="Página siguiente de pedidos Wompi" ${pageData.page>=pageData.totalPages?'disabled':''}>Siguiente</button></div></nav>`:'';
+  box.innerHTML=cards||`<div class="empty">${wompiAdminOrders.length?'No hay pedidos Wompi que coincidan con estos filtros.':'No hay pedidos Wompi para mostrar.'}</div>`;
+  if(pagination)box.insertAdjacentHTML('beforeend',pagination);
 }
+function updateOrdersCategoryCounts(){
+  const codCount=contraDeliveryOrders().length,codCountEl=$('ordersCODCount'),wompiCountEl=$('ordersWompiCount');
+  if(codCountEl)codCountEl.textContent=adminDeferredModuleLoaded.orders||pedidos.length?String(codCount):'—';
+  if(wompiCountEl)wompiCountEl.textContent=wompiAdminOrdersLoaded&&!wompiAdminOrdersLoadError?String(wompiAdminOrders.length):'—';
+}
+function setOrdersCategory(category){
+  ordersActiveCategory=category==='wompi'?'wompi':'cod';
+  const codSelected=ordersActiveCategory==='cod',codTab=$('ordersCategoryCodTab'),wompiTab=$('ordersCategoryWompiTab');
+  if(codTab){codTab.setAttribute('aria-selected',String(codSelected));codTab.tabIndex=codSelected?0:-1}
+  if(wompiTab){wompiTab.setAttribute('aria-selected',String(!codSelected));wompiTab.tabIndex=codSelected?-1:0}
+  const codPanel=$('codOrdersPanel'),wompiPanel=$('wompiOrdersPanel');if(codPanel)codPanel.hidden=!codSelected;if(wompiPanel)wompiPanel.hidden=codSelected;
+  if((ordersActiveCategory==='wompi'&&!wompiAdminOrdersLoaded)||(ordersActiveCategory==='cod'&&!adminDeferredModuleLoaded.orders))void cargarPedidos();
+}
+function handleOrdersCategoryTabKeydown(event){
+  if(!['ArrowLeft','ArrowRight'].includes(event.key))return;
+  event.preventDefault();
+  const category=event.currentTarget?.id==='ordersCategoryCodTab'?'wompi':'cod';
+  setOrdersCategory(category);
+  $(category==='cod'?'ordersCategoryCodTab':'ordersCategoryWompiTab')?.focus();
+}
+function changeWompiOrdersFilter(){wompiOrdersPage=1;renderAdminWompiOrders()}
+function clearWompiOrdersFilters(){const search=$('wompiOrdersSearch'),status=$('wompiOrdersStatusFilter');if(search)search.value='';if(status)status.value='all';wompiOrdersPage=1;renderAdminWompiOrders()}
+function changeWompiOrdersPage(page){wompiOrdersPage=Number(page)||1;renderAdminWompiOrders()}
+function changeWompiOrdersPageSize(size){const value=Number(size);if([20,50,100].includes(value)){wompiOrdersPageSize=value;wompiOrdersPage=1;renderAdminWompiOrders()}}
 
 function updateOrderTrackingStatus(){
  const status=$('ordersTrackingStatus');if(!status)return;
@@ -3121,6 +3177,57 @@ async function rechazarPedido(id){
 function normalizeOrderFilterValue(value){
   return String(value??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().replace(/\s+/g,' ').toLowerCase();
 }
+function isContraDeliveryOrder(order){
+  const method=normalizeOrderFilterValue(order?.payment_method).replace(/[^a-z0-9]/g,'');
+  return method.includes('contra')||['cod','cashondelivery','pagoalrecibir'].includes(method);
+}
+function contraDeliveryOrders(){return (Array.isArray(pedidos)?pedidos:[]).filter(isContraDeliveryOrder)}
+function codOrderStatusBucket(order){
+  const value=normalizeOrderFilterValue(order?.status||'pendiente');
+  if(['confirmado','despachado','enviado','entregado'].includes(value))return 'approved';
+  if(value==='pendiente')return 'pending';
+  if(value==='rechazado')return 'rejected';
+  if(['cancelado','cancelada','cancelled','canceled','anulado','anulada'].includes(value))return 'cancelled';
+  if(['devuelto','devuelta','returned'].includes(value))return 'returned';
+  return 'other';
+}
+function buildCODStatusFilterOptions(rows){
+  const list=Array.isArray(rows)?rows:[],count=bucket=>list.filter(row=>codOrderStatusBucket(row)===bucket).length;
+  const options=[{value:'',label:'Todos',count:list.length},{value:'comercial_aprobado',label:'Confirmados',count:count('approved')},{value:'pendiente',label:'Pendientes',count:count('pending')},{value:'rechazado',label:'Rechazados',count:count('rejected')}];
+  if(count('cancelled'))options.push({value:'cancelado',label:'Cancelados',count:count('cancelled')});
+  if(count('returned'))options.push({value:'devuelto',label:'Devueltos',count:count('returned')});
+  if(count('other'))options.push({value:'otros',label:'Otros estados',count:count('other')});
+  return options;
+}
+function wompiFinancialStatusBucket(order){
+  const status=String(order?.payment_status??'').trim().toUpperCase();
+  if(status==='APPROVED')return 'approved';
+  if(status==='PENDING')return 'pending';
+  if(['DECLINED','REJECTED'].includes(status))return 'rejected';
+  if(['VOIDED','CANCELED','CANCELLED'].includes(status))return 'cancelled';
+  if(status==='ERROR')return 'error';
+  return 'other';
+}
+function buildWompiStatusFilterOptions(rows){
+  const list=Array.isArray(rows)?rows:[],count=bucket=>list.filter(row=>wompiFinancialStatusBucket(row)===bucket).length;
+  const options=[{value:'all',label:'Todos',count:list.length},{value:'approved',label:'Aprobados',count:count('approved')},{value:'pending',label:'Pendientes',count:count('pending')},{value:'rejected',label:'Rechazados',count:count('rejected')}];
+  if(count('cancelled'))options.push({value:'cancelled',label:'Cancelados',count:count('cancelled')});
+  if(count('error'))options.push({value:'error',label:'Errores',count:count('error')});
+  if(count('other'))options.push({value:'other',label:'Otros estados',count:count('other')});
+  return options;
+}
+function filterWompiOrders(rows,filters={}){
+  const list=Array.isArray(rows)?rows:[],status=String(filters.status||'all'),search=normalizeOrderFilterValue(filters.search);
+  return list.filter(order=>{
+    if(status!=='all'&&wompiFinancialStatusBucket(order)!==status)return false;
+    if(search){
+      const itemText=(Array.isArray(order.items)?order.items:[]).map(item=>[item?.name,item?.code,item?.color,item?.size,item?.qty].join(' ')).join(' ');
+      const text=normalizeOrderFilterValue([order.customer_name,order.phone,order.city,order.address,order.reference,order.payment_status,order.transaction_id,itemText].map(value=>String(value??'')).join(' '));
+      if(!text.includes(search))return false;
+    }
+    return true;
+  });
+}
 function orderDateKeyColombia(value){
   const date=new Date(value);
   if(!Number.isFinite(date.getTime()))return '';
@@ -3134,10 +3241,14 @@ function filterAdminOrders(rows,filters={}){
   const fromDate=/^\d{4}-\d{2}-\d{2}$/.test(String(filters.fromDate||''))?String(filters.fromDate):'';
   const toDate=/^\d{4}-\d{2}-\d{2}$/.test(String(filters.toDate||''))?String(filters.toDate):'';
   return list.filter(p=>{
-    const rowStatus=normalizeOrderFilterValue(pedidoEstado(p));
+    const rowStatus=normalizeOrderFilterValue(p?.status||'pendiente');
     const rowCity=normalizeOrderFilterValue(p.customer_city),rowPayment=normalizeOrderFilterValue(p.payment_method);
-    const date=orderDateKeyColombia(p.created_at);
-    if(status&&rowStatus!==status)return false;
+    const date=orderDateKeyColombia(p.created_at),bucket=codOrderStatusBucket(p);
+    if(status==='comercial_aprobado'&&bucket!=='approved')return false;
+    if(status==='cancelado'&&bucket!=='cancelled')return false;
+    if(status==='devuelto'&&bucket!=='returned')return false;
+    if(status==='otros'&&bucket!=='other')return false;
+    if(status&&!['comercial_aprobado','cancelado','devuelto','otros'].includes(status)&&rowStatus!==status)return false;
     if(city&&rowCity!==city)return false;
     if(payment&&rowPayment!==payment)return false;
     if(fromDate&&(!date||date<fromDate))return false;
@@ -3157,11 +3268,22 @@ function paginateAdminOrders(rows,page,pageSize){
   const start=(safePage-1)*safeSize;
   return {items:list.slice(start,start+safeSize),page:safePage,pageSize:safeSize,total:list.length,totalPages,start:start+1,end:Math.min(list.length,start+safeSize)};
 }
-function syncOrdersFilterOptions(){
+/* ORDER_FILTER_HELPERS_END */
+function syncCODStatusFilterOptions(rows){
+  const select=$('filtroPedidoEstado');if(!select)return;
+  const options=buildCODStatusFilterOptions(rows),signature=JSON.stringify(options);
+  if(signature===codOrderStatusOptionsSignature)return;
+  const selected=select.value||'';
+  select.innerHTML=options.map(option=>`<option value="${esc(option.value)}">${esc(option.label)} (${option.count})</option>`).join('');
+  select.value=options.some(option=>option.value===selected)?selected:'';
+  codOrderStatusOptionsSignature=signature;
+}
+
+function syncOrdersFilterOptions(rows=contraDeliveryOrders()){
   const citySelect=$('ordersCityFilter'),paymentSelect=$('ordersPaymentFilter');
   const makeOptions=key=>{
     const values=new Map();
-    pedidos.forEach(row=>{
+    rows.forEach(row=>{
       const label=String(row?.[key]??'').trim(),value=normalizeOrderFilterValue(label);
       if(value&&!values.has(value))values.set(value,label);
     });
@@ -3181,20 +3303,21 @@ function cambiarPaginaPedidos(page){pedidosPage=Number(page)||1;renderPedidos();
 function cambiarTamanoPaginaPedidos(value){const size=Number(value);if([20,50,100].includes(size)){pedidosPageSize=size;pedidosPage=1;renderPedidos();}}
 
 function renderPedidos(){
-  syncOrdersFilterOptions();
-  const arr=filterAdminOrders(pedidos,{
+  const codRows=contraDeliveryOrders();
+  syncCODStatusFilterOptions(codRows);syncOrdersFilterOptions(codRows);updateOrdersCategoryCounts();
+  const arr=filterAdminOrders(codRows,{
     search:$('buscarPedido')?.value||'',status:$('filtroPedidoEstado')?.value||'',
     fromDate:$('ordersFromDate')?.value||'',toDate:$('ordersToDate')?.value||'',
     city:$('ordersCityFilter')?.value||'',payment:$('ordersPaymentFilter')?.value||''
   });
   const pageData=paginateAdminOrders(arr,pedidosPage,pedidosPageSize);pedidosPage=pageData.page;
 
-  const pending=pedidos.filter(p=>pedidoEstado(p)==="pendiente").length;
-  const confirmed=pedidos.filter(p=>pedidoEstado(p)==="confirmado").length;
-  const delivered=pedidos.filter(p=>pedidoEstado(p)==="entregado").length;
+  const pending=codRows.filter(p=>pedidoEstado(p)==="pendiente").length;
+  const confirmed=codRows.filter(p=>pedidoEstado(p)==="confirmado").length;
+  const delivered=codRows.filter(p=>pedidoEstado(p)==="entregado").length;
   const loadError=String(pedidosLoadError||moduleLoadErrors.orders||'');
   const countsAvailable=adminDeferredModuleLoaded.orders||pedidos.length>0;
-  if($("ordersTotal"))$("ordersTotal").textContent=loadError&&!countsAvailable?'—':pedidos.length;
+  if($("ordersTotal"))$("ordersTotal").textContent=loadError&&!countsAvailable?'—':codRows.length;
   if($("ordersPending"))$("ordersPending").textContent=loadError&&!countsAvailable?'—':pending;
   if($("ordersConfirmed"))$("ordersConfirmed").textContent=loadError&&!countsAvailable?'—':confirmed;
   if($("ordersDelivered"))$("ordersDelivered").textContent=loadError&&!countsAvailable?'—':delivered;
@@ -3203,7 +3326,7 @@ function renderPedidos(){
   const loadStatus=$('ordersLoadStatus');
   if(loadStatus){loadStatus.hidden=!loadError;loadStatus.textContent=loadError?(countsAvailable?'No se pudo actualizar la lista. Se conserva la última carga disponible. ':'No se pudieron cargar los pedidos. ')+loadError:'';}
   const summary=$('ordersResultsSummary');
-  if(summary)summary.textContent=loadError&&!countsAvailable?'Sin datos disponibles por un error de consulta.':!countsAvailable?'Los pedidos aún no se han cargado.':pageData.total?`Mostrando ${pageData.start}–${pageData.end} de ${pageData.total} coincidencia(s) (${pedidos.length} pedidos cargados) · Página ${pageData.page} de ${pageData.totalPages}.`:`0 coincidencias (${pedidos.length} pedidos cargados).`;
+  if(summary)summary.textContent=loadError&&!countsAvailable?'Sin datos disponibles por un error de consulta.':!countsAvailable?'Los pedidos aún no se han cargado.':pageData.total?`Mostrando ${pageData.start}–${pageData.end} de ${pageData.total} coincidencia(s) (${codRows.length} pedidos contraentrega cargados) · Página ${pageData.page} de ${pageData.totalPages}.`:`0 coincidencias (${codRows.length} pedidos contraentrega cargados).`;
   const cards=pageData.items.map(p=>{
     const status=pedidoEstado(p);
     const created=p.created_at?new Date(p.created_at).toLocaleString("es-CO"):"";
@@ -3241,7 +3364,7 @@ function renderPedidos(){
       </div>
     </div>`;
   }).join('');
-  const emptyMessage=loadError&&!countsAvailable?'No se muestran pedidos porque falló la consulta.':!countsAvailable?'Cargando pedidos…':!pedidos.length?'No hay pedidos registrados.':'No hay pedidos que coincidan con estos filtros.';
+  const emptyMessage=loadError&&!countsAvailable?'No se muestran pedidos porque falló la consulta.':!countsAvailable?'Cargando pedidos…':!codRows.length?'No hay pedidos contraentrega registrados.':'No hay pedidos contraentrega que coincidan con estos filtros.';
   const pagination=pageData.total?`<nav class="orderPagination" aria-label="Paginación de pedidos"><span class="muted">${pageData.start}–${pageData.end} de ${pageData.total}</span><div class="orderPaginationControls"><label class="orderFilterField" style="flex-direction:row;align-items:center;gap:6px">Por página<select aria-label="Pedidos por página" onchange="cambiarTamanoPaginaPedidos(this.value)"><option value="20" ${pageData.pageSize===20?'selected':''}>20</option><option value="50" ${pageData.pageSize===50?'selected':''}>50</option><option value="100" ${pageData.pageSize===100?'selected':''}>100</option></select></label><button type="button" class="softbtn" data-orders-page="${pageData.page-1}" aria-label="Página anterior" ${pageData.page<=1?'disabled':''}>Anterior</button><span aria-current="page">${pageData.page} / ${pageData.totalPages}</span><button type="button" class="softbtn" data-orders-page="${pageData.page+1}" aria-label="Página siguiente" ${pageData.page>=pageData.totalPages?'disabled':''}>Siguiente</button></div></nav>`:'';
   box.innerHTML=(cards||`<div class="empty">${esc(emptyMessage)}</div>`)+pagination;
 }
