@@ -121,6 +121,7 @@ function createHarness({ refreshMutation = null, edgeResponse = null, settingsGa
   let edgeRequestBody = null;
   let cancelCalls = 0;
   let submittedFields = {};
+  const forgottenReferences = [];
   const messages = [];
   const storedValues = new Map();
   const responseQuote = edgeResponse?.data?.quote ?? baseQuote;
@@ -176,7 +177,7 @@ function createHarness({ refreshMutation = null, edgeResponse = null, settingsGa
     setCurrentReservationRecord() { localReservationWrites += 1; },
     saveReservationDraft() { localReservationWrites += 1; reservationDraftWrites += 1; },
     saveReservationRecord() { localReservationWrites += 1; },
-    forgetReservationRecord() { localReservationWrites += 1; },
+    forgetReservationRecord(reference) { localReservationWrites += 1; forgottenReferences.push(String(reference)); },
     updateReservationReference() { localReservationWrites += 1; },
     generateReservationReference: () => 'JMRES-GENERATED-SYNTHETIC-002',
     setCheckoutServerQuote() {}, setCheckoutCouponQuote() {}, setCheckoutCouponStatus() {},
@@ -227,7 +228,7 @@ function createHarness({ refreshMutation = null, edgeResponse = null, settingsGa
   });
   return {
     context, elements, snapshot, messages,
-    get metrics() { return { edgeCalls, formSubmits, localReservationWrites, reservationDraftWrites, sessionLookups, edgeRequestBody, submittedFields, cancelCalls, storedRequestRecords: storedValues.get('jm_wompi_checkout_requests_v1') || '' }; },
+    get metrics() { return { edgeCalls, formSubmits, localReservationWrites, reservationDraftWrites, sessionLookups, edgeRequestBody, submittedFields, cancelCalls, forgottenReferences: [...forgottenReferences], storedRequestRecords: storedValues.get('jm_wompi_checkout_requests_v1') || '' }; },
   };
 }
 
@@ -333,4 +334,16 @@ assert.equal(rejectedQuote.metrics.formSubmits, 0, 'una cotización no coinciden
 assert.equal(rejectedQuote.metrics.cancelCalls, 1, 'una respuesta comercialmente rechazada cancela su request sin duplicar la llamada');
 assert.ok(rejectedQuote.messages.some(message => /Desglose vigente: subtotal/.test(message)), 'el comprador recibe el desglose vigente para reconfirmar');
 
-console.log('PASS wompi_checkout_async_snapshot_regression: payWithWompi real con DOM/Edge simulados; request ID y referencia persistidos sin PII; reingreso recupera el mismo ID; cancelación single-flight; cambios reales bloqueados; respuesta tardía no redirige y preserva recuperación manual; doble toque deduplicado; quote 409 sin pago. Sin llamadas externas ni datos comerciales.');
+// Un pedido que el servidor confirma como APPROVED no se vuelve a cobrar: se conserva
+// la orden, se retira solo el puntero local ya pagado y el siguiente intento exige otro clic.
+const alreadyApproved = createHarness({ edgeResponse: {
+  ok: false, status: 409,
+  data: { code: 'WOMPI_ALREADY_APPROVED', error: 'Pago aprobado' },
+}, cancelState: 'published' });
+await alreadyApproved.context.payWithWompi(alreadyApproved.snapshot);
+assert.equal(alreadyApproved.metrics.edgeCalls, 1, 'la orden aprobada se consulta una sola vez');
+assert.equal(alreadyApproved.metrics.formSubmits, 0, 'una orden aprobada nunca genera otra redirección/pago');
+assert.deepEqual(alreadyApproved.metrics.forgottenReferences, [reservationReference], 'solo se limpia del navegador la referencia ya pagada');
+assert.ok(alreadyApproved.messages.some(message => /pago APPROVED y se conserva intacto/i.test(message)));
+
+console.log('PASS wompi_checkout_async_snapshot_regression: snapshot real con DOM/Edge simulados; request ID y referencia persistidos sin PII; reingreso recupera el mismo ID; cancelación single-flight; cambios reales bloqueados; respuesta tardía preserva recuperación manual; doble toque deduplicado; quote 409 requiere reconfirmación; APPROVED no reutiliza referencia ni redirige. Sin pagos externos ni datos comerciales.');

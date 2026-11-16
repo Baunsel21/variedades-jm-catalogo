@@ -512,6 +512,11 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
     <div class="orderStat"><small>Confirmados</small><b id="ordersConfirmed">0</b></div>
     <div class="orderStat"><small>Entregados</small><b id="ordersDelivered">0</b></div>
   </div>
+  <div class="box" style="margin-top:15px" id="wompiAdminOrdersBox">
+    <div class="rowBetween" style="gap:12px;flex-wrap:wrap"><div><h3 style="margin:0">💳 Pedidos pagados en línea (Wompi)</h3><p class="muted" style="margin:6px 0 0">Vista administrativa de solo lectura. Los estados financieros no se cambian desde aquí.</p></div><button class="softbtn" type="button" onclick="cargarPedidos()">↻ Actualizar</button></div>
+    <div id="wompiOrdersStatus" class="status" role="status" aria-live="polite">Se consultará al abrir Pedidos.</div>
+    <div id="wompiOrdersList" style="margin-top:10px"><div class="empty">Cargando pedidos Wompi…</div></div>
+  </div>
   <div class="box" style="margin-top:15px">
     <div class="orderFilters">
       <label class="orderFilterField orderFilterSearch">Buscar pedido<input id="buscarPedido" aria-label="Buscar pedidos por cliente, teléfono, ciudad, correo o identificador" placeholder="🔎 Cliente, teléfono, ciudad, correo o pedido" oninput="cambiarFiltroPedidos()"></label>
@@ -965,6 +970,7 @@ let moduleLoadErrors={};
 let adminDeferredModuleLoaded={clients:false,suppliers:false,expenses:false,movements:false,orders:false};
 let adminDeferredModuleInFlight={};
 let pedidos=[];
+let wompiAdminOrders=[],wompiAdminOrdersLoadError='',wompiAdminOrdersLoaded=false;
 let webOrderTrackingById=Object.create(null),webOrderTrackingRpcState='unknown',webOrderTrackingRequestToken=0,webOrderHistoryRequestToken=0,webOrderTrackingSaveToken=0,orderTrackingReturnFocus=null;
 let pedidosPage=1,pedidosPageSize=20,pedidosLoadError='',ordersFacetOptionsSignature='';
 let brandName="Variedades JM";
@@ -2239,7 +2245,7 @@ function lockAdminPanel(message='Tu sesión terminó. Vuelve a entrar.'){
  $("app").classList.add("hidden");$("loginScreen").classList.remove("hidden");
  if(adminCatalogRealtimeChannel&&sb){const channel=adminCatalogRealtimeChannel;adminCatalogRealtimeChannel=null;void sb.removeChannel(channel).catch(error=>console.debug('No se pudo cerrar el canal administrativo.',error));}
  adminCatalogRealtimeReady=false;adminCatalogRealtimePending=[];
- productos=[];ventas=[];clientes=[];proveedores=[];gastos=[];movimientos=[];pedidos=[];pedidosLoadError='';ordersFacetOptionsSignature='';categorias=[];categoryRecords=[];
+ productos=[];ventas=[];clientes=[];proveedores=[];gastos=[];movimientos=[];pedidos=[];wompiAdminOrders=[];wompiAdminOrdersLoadError='';wompiAdminOrdersLoaded=false;pedidosLoadError='';ordersFacetOptionsSignature='';categorias=[];categoryRecords=[];
  resetAdminHistoryPagination();
  moduleLoadErrors={};
  Object.keys(adminDeferredModuleLoaded).forEach(key=>adminDeferredModuleLoaded[key]=false);
@@ -2255,7 +2261,7 @@ function lockAdminPanel(message='Tu sesión terminó. Vuelve a entrar.'){
 	 floatingPromotionsSettingsLoaded=false;floatingPromotionsSaving=false;
 	 resetTelegramAutomaticState();
 	 if(seasonalPromoAutoCloseTimer){clearTimeout(seasonalPromoAutoCloseTimer);seasonalPromoAutoCloseTimer=null;}
- ['listaPedidos','listaProductos','listaVentas','listaClientes','listaProveedores','listaGastos','listaMovimientos','ventasPagination','gastosPagination','movimientosPagination','wompiReconciliationList'].forEach(id=>{const el=$(id);if(el)el.textContent='';});
+ ['listaPedidos','wompiOrdersList','wompiOrdersStatus','listaProductos','listaVentas','listaClientes','listaProveedores','listaGastos','listaMovimientos','ventasPagination','gastosPagination','movimientosPagination','wompiReconciliationList'].forEach(id=>{const el=$(id);if(el)el.textContent='';});
  const orderRefreshButton=$('refreshOrdersBtn');if(orderRefreshButton){orderRefreshButton.disabled=false;orderRefreshButton.textContent='↻ Actualizar pedidos';}
  const businessIconInput=$('businessIcon');if(businessIconInput)businessIconInput.value='';
  const wompiRefreshButton=$('refreshWompiReconciliationBtn');if(wompiRefreshButton)wompiRefreshButton.disabled=false;
@@ -2795,7 +2801,11 @@ async function cargarPedidos(){
   const loadPromise=Promise.resolve().then(async()=>{
     if(button){button.disabled=true;button.textContent='⏳ Actualizando…'}
     try{
-      const {data,error}=await fetchAllTableRows("web_orders","created_at",false);
+      const [webOrdersResult,wompiOrdersResult]=await Promise.all([
+        fetchAllTableRows("web_orders","created_at",false),
+        sb.rpc('admin_list_wompi_orders',{p_limit:200,p_offset:0}).catch(error=>({data:null,error})),
+      ]);
+      const {data,error}=webOrdersResult;
       if(!isCurrent())return false;
       try{await assertCurrentAdminAuthorization(userId,authEpoch)}catch(authError){
         if(!isCurrent())return false;
@@ -2804,6 +2814,14 @@ async function cargarPedidos(){
         return false;
       }
       if(!isCurrent())return false;
+      if(wompiOrdersResult?.error){
+        console.warn('No se pudieron cargar pedidos Wompi en el panel administrativo.');
+        wompiAdminOrders=[];wompiAdminOrdersLoadError='La vista Wompi no está disponible todavía; los pedidos web siguen cargándose por separado.';
+      }else{
+        wompiAdminOrders=Array.isArray(wompiOrdersResult?.data)?wompiOrdersResult.data:[];
+        wompiAdminOrdersLoadError='';
+      }
+      wompiAdminOrdersLoaded=true;renderAdminWompiOrders();
       if(error){
         console.error("Error cargando pedidos:",error);
         pedidosLoadError=describeAdminTableError('web_orders',error);moduleLoadErrors.orders=pedidosLoadError;
@@ -2841,6 +2859,29 @@ async function cargarPedidos(){
   });
   cargarPedidosInFlight.set(requestKey,loadPromise);
   try{return await loadPromise}finally{if(cargarPedidosInFlight.get(requestKey)===loadPromise)cargarPedidosInFlight.delete(requestKey)}
+}
+
+function renderAdminWompiOrders(){
+  const box=$('wompiOrdersList'),status=$('wompiOrdersStatus');if(!box)return;
+  if(wompiAdminOrdersLoadError){if(status){status.className='status err';status.textContent=wompiAdminOrdersLoadError}box.innerHTML='<div class="empty">No se pudo consultar la lista Wompi. No se modificó ningún pedido ni pago.</div>';return}
+  if(!wompiAdminOrdersLoaded){if(status){status.className='status';status.textContent='Se consultará al abrir Pedidos.'}box.innerHTML='<div class="empty">Cargando pedidos Wompi…</div>';return}
+  if(status){status.className='status ok';status.textContent=`${wompiAdminOrders.length} pedido(s) Wompi consultado(s); vista de solo lectura.`}
+  if(!wompiAdminOrders.length){box.innerHTML='<div class="empty">No hay pedidos Wompi para mostrar.</div>';return}
+  box.innerHTML=wompiAdminOrders.map(order=>{
+    const paymentStatus=String(order.payment_status||'DESCONOCIDO').toUpperCase();
+    const statusClass=paymentStatus==='APPROVED'?'ok':paymentStatus==='PENDING'?'warn':'low';
+    const items=Array.isArray(order.items)?order.items:[];
+    const itemHtml=items.map(item=>{
+      const product=productos.find(row=>String(row.id||'')===String(item.id||'')||String(row.code||'').toLowerCase()===String(item.code||'').toLowerCase());
+      const image=getImageUrl(item.image_url||product?.image_url||'');
+      const qty=Math.max(0,Number(item.qty)||0),price=Math.max(0,Number(item.price)||0);
+      const details=[item.code,item.color,item.size].map(value=>String(value||'').trim()).filter(Boolean).join(' · ');
+      return `<div style="display:grid;grid-template-columns:58px minmax(0,1fr);gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid #ececf0">${image?`<img src="${esc(image)}" alt="Foto de ${esc(item.name||product?.name||'producto')}" loading="lazy" style="width:58px;height:64px;object-fit:cover;border-radius:8px" onerror="this.hidden=true">`:'<span class="muted" style="font-size:11px">Sin foto</span>'}<div><strong>${esc(item.name||product?.name||item.code||'Producto')}</strong><div class="muted">${esc(details||'Sin variante')} · Cantidad ${qty} · ${money(price)} c/u</div></div></div>`;
+    }).join('')||'<div class="muted">Sin líneas de producto disponibles.</div>';
+    const updated=order.updated_at||order.created_at;
+    const reconciliation=order.wompi_reconciliation_required||order.coupon_reconciliation_required;
+    return `<article class="orderCard" style="margin-top:10px"><div class="orderHead"><div><div class="orderCustomer">${esc(order.customer_name||'Sin nombre')}</div><div class="orderMeta">Referencia: ${esc(order.reference||'—')} · ${updated?esc(new Date(updated).toLocaleString('es-CO')):''}</div><div class="orderMeta">Teléfono: ${esc(order.phone||'Sin teléfono')} · ${esc(order.city||'')} — ${esc(order.address||'')}</div></div><span class="badge ${statusClass}">Pago ${esc(paymentStatus)}</span></div><div class="orderItems">${itemHtml}</div><div class="rowBetween" style="margin-top:10px;gap:10px;flex-wrap:wrap"><span class="muted">Subtotal ${money(order.subtotal)} · Envío ${Number(order.shipping)===0?'GRATIS':money(order.shipping)}${order.coupon_code?` · Cupón ${esc(order.coupon_code)}`:''}</span><strong style="font-size:18px">${money(order.total)}</strong></div><div class="orderMeta" style="margin-top:6px">Transacción Wompi: ${esc(order.transaction_id||'Sin transaction_id')}</div>${reconciliation?'<div class="status err" style="margin-top:8px">Requiere revisión de conciliación; esta vista no modifica su estado.</div>':''}</article>`;
+  }).join('');
 }
 
 function updateOrderTrackingStatus(){

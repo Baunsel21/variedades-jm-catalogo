@@ -5517,6 +5517,14 @@ async function payWithWompi(confirmedSnapshot){
   }
 
   if(!response.ok){
+   if(data?.code==='WOMPI_REQUEST_ID_REQUIRED'){
+    throw new Error('Esta página de checkout está desactualizada o no pudo conservar su identificador seguro. No se inició otro pago ni se creó una reserva adicional. Cierra esta pestaña, vuelve a abrir la tienda actualizada y confirma de nuevo.');
+   }
+   if(data?.code==='WOMPI_ALREADY_APPROVED'){
+    const approvedReference=String(data.existingReference||paymentReference).trim();
+    if(approvedReference===paymentReference)forgetReservationRecord(approvedReference);
+    throw new Error('El pedido anterior ya tiene un pago APPROVED y se conserva intacto. No se iniciará otro cobro con esa referencia. Si deseas hacer una compra nueva, revisa el carrito y confirma de nuevo; se usará una referencia independiente.');
+   }
    if(data?.code==='WOMPI_NEW_ORDER_CONFIRMATION_REQUIRED'){
     if(hasActiveWompiSnapshotChanges(snapshot)){
      wompiNewOrderConfirmationFingerprint='';wompiNewOrderConfirmationReference='';
