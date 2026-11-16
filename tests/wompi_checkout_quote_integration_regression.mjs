@@ -43,6 +43,10 @@ const attemptReferences = [
   'SW-DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD',
   'SW-EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE',
   'SW-FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF',
+  'SW-11111111111111111111111111111111',
+  'SW-22222222222222222222222222222222',
+  'SW-33333333333333333333333333333333',
+  'SW-44444444444444444444444444444444',
 ];
 let attemptNumber = 0;
 let failNextBeginAttemptResponse = false;
@@ -768,4 +772,65 @@ assert.equal(beginAttemptCalls.length, attemptCountBeforeLostResponse + 1, 'reop
 assert.equal(beginAttemptCalls.at(-1).p_is_new_order, true, 'first attempt on the same recovered order is not misclassified as a terminal retry');
 assert.equal(checkoutRequests.get(lostResponseRequestId).state, 'published');
 assert.ok(!mockCalls.some(call => new URL(call.url).hostname.endsWith('wompi.co')), 'response-loss recovery never calls Wompi');
-console.log('PASS Wompi checkout integration: request-fenced start/steps/publish; lost response resumes same request/order before any attempt; cancellation/replay stays protected; COR-038/Cali COP 2,000; verified terminal retries and PENDING/APPROVED/grace guards; no external calls or real payments.');
+
+// A different cart from the same customer may proceed even when older published
+// orders are pending, approved, or flagged for reconciliation. Those records are
+// not altered; same-cart ambiguity remains protected below.
+quoteFixture = structuredClone(originalQuoteFixture);
+orderState = null;
+terminalOrderAvailableForRetry = false;
+pendingRowsFixture = [
+  { reference: 'JMRES-SYNTHETIC-OTHER-CART-PENDING', payment_status: 'PENDING',
+    transaction_id: 'TX-SYNTHETIC-OTHER-CART-PENDING', wompi_reconciliation_required: true,
+    coupon_reconciliation_required: false,
+    items: [{ id: 'aaaaaaaa-aaaa-4aaa-8aaa-000000000001', qty: 1, color: 'Azul', size: 'S' }] },
+  { reference: 'JMRES-SYNTHETIC-OTHER-CART-APPROVED', payment_status: 'APPROVED',
+    transaction_id: 'TX-SYNTHETIC-OTHER-CART-APPROVED', wompi_reconciliation_required: false,
+    coupon_reconciliation_required: false,
+    items: [{ id: 'bbbbbbbb-bbbb-4bbb-8bbb-000000000002', qty: 1, color: 'Rojo', size: 'M' }] },
+  { reference: 'JMRES-SYNTHETIC-OTHER-CART-ERROR', payment_status: 'ERROR',
+    transaction_id: null, wompi_reconciliation_required: false, coupon_reconciliation_required: false,
+    items: [{ id: 'cccccccc-cccc-4ccc-8ccc-000000000003', qty: 1, color: 'Negro', size: 'M' }] },
+];
+const orderCountBeforeDifferentCart = capturedOrderInserts.length;
+const attemptCountBeforeDifferentCart = beginAttemptCalls.length;
+mockCalls = [];
+const differentCartPurchase = await handlers.checkout(request({
+  ...baseBody,
+  reference: 'SIREVYA-SYNTHETIC-SAME-PHONE-DIFFERENT-CART',
+}));
+const differentCartPayload = await differentCartPurchase.json();
+assert.equal(differentCartPurchase.status, 200, `same-phone pending/approved records for distinct carts must not block this legitimate purchase; got ${differentCartPayload.code ?? differentCartPayload.error}`);
+const differentCartIntent = differentCartPayload;
+assert.equal(differentCartIntent.reference, 'SIREVYA-SYNTHETIC-SAME-PHONE-DIFFERENT-CART');
+assert.equal(capturedOrderInserts.length, orderCountBeforeDifferentCart + 1);
+assert.equal(beginAttemptCalls.length, attemptCountBeforeDifferentCart + 1);
+assert.equal(beginAttemptCalls.at(-1).p_order_reference, differentCartIntent.reference);
+assert.ok(!mockCalls.some(call => new URL(call.url).hostname.endsWith('wompi.co')), 'different-cart test never contacts Wompi or creates a charge');
+
+// Same-cart PENDING/APPROVED and unverified terminal history must still fail closed.
+for (const row of [
+  { reference: 'JMRES-SYNTHETIC-SAME-CART-PENDING', payment_status: 'PENDING',
+    transaction_id: 'TX-SYNTHETIC-SAME-CART-PENDING', items: structuredClone(originalQuoteFixture.items) },
+  { reference: 'JMRES-SYNTHETIC-SAME-CART-APPROVED', payment_status: 'APPROVED',
+    transaction_id: 'TX-SYNTHETIC-SAME-CART-APPROVED', items: structuredClone(originalQuoteFixture.items) },
+]) {
+  pendingRowsFixture = [row];
+  const beforeOrders = capturedOrderInserts.length;
+  const beforeAttempts = beginAttemptCalls.length;
+  mockCalls = [];
+  const blockedSameCart = await handlers.checkout(request({ ...baseBody, reference: `SIREVYA-${row.payment_status}-SAME-CART-BLOCK` }));
+  assert.equal(blockedSameCart.status, 409);
+  assert.equal(capturedOrderInserts.length, beforeOrders, 'same-cart pending/approved history cannot create a second order');
+  assert.equal(beginAttemptCalls.length, beforeAttempts, 'same-cart pending/approved history cannot start another attempt');
+}
+pendingRowsFixture = [{ reference: 'JMRES-SYNTHETIC-SAME-CART-ERROR-UNVERIFIED', payment_status: 'ERROR',
+  transaction_id: null, items: structuredClone(originalQuoteFixture.items) }];
+mockCalls = [];
+const unverifiedSameCart = await handlers.checkout(request({ ...baseBody, reference: 'SIREVYA-ERROR-UNVERIFIED-SAME-CART-BLOCK' }));
+assert.equal(unverifiedSameCart.status, 409, 'terminal label without complete verified history is not sufficient for another same-cart payment');
+assert.equal((await unverifiedSameCart.json()).code, 'WOMPI_ATTEMPT_UNVERIFIED');
+assert.ok(!mockCalls.some(call => call.path === '/rest/v1/rpc/advance_storefront_wompi_checkout_request' && ['create_order','begin_attempt'].includes(call.body.p_step)));
+assert.ok(!mockCalls.some(call => new URL(call.url).hostname.endsWith('wompi.co')));
+
+console.log('PASS Wompi checkout integration: request fencing/replay; same-order recovery; published ambiguity protected; same-phone different-cart PENDING/APPROVED/reconciliation isolation; same-cart PENDING/APPROVED/unverified-terminal blocks; no external calls or real payments.');

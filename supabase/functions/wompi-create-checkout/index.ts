@@ -945,16 +945,16 @@ Deno.serve(async (req: Request): Promise<Response> => {
       return json({ error: "No se pudo comprobar si ya tienes un pago Wompi pendiente. No se inició otro pago." }, 503);
     }
     const pendingRows = pendingResult.orders;
-    if (pendingRows.some((row: any) => row?.wompi_reconciliation_required === true || row?.coupon_reconciliation_required === true)) {
-      return json({ code: "WOMPI_RECONCILIATION_REQUIRED", canRetryWithNewReference: false,
-        error: "Hay un pago de este teléfono que requiere conciliación. No se inició otro cobro." }, 409);
-    }
     const sameCartRows = pendingRows.filter((row: any) => {
       const rowReference = String(row?.reference ?? "").trim();
       if (!rowReference || rowReference === reference) return true;
       const rowCart = canonicalCart(row?.items);
       return !rowCart || rowCart === cartForPendingGuard;
     });
+    if (sameCartRows.some((row: any) => row?.wompi_reconciliation_required === true || row?.coupon_reconciliation_required === true)) {
+      return json({ code: "WOMPI_RECONCILIATION_REQUIRED", canRetryWithNewReference: false,
+        error: "Hay un pago de este teléfono que requiere conciliación. No se inició otro cobro." }, 409);
+    }
     const sameCartApproved = sameCartRows.find((row: any) => String(row?.payment_status ?? "").toUpperCase() === "APPROVED");
     if (sameCartApproved) {
       return json({ code: "WOMPI_ALREADY_APPROVED", canRetryWithNewReference: false,
@@ -967,6 +967,16 @@ Deno.serve(async (req: Request): Promise<Response> => {
       return json({ code: "WOMPI_ATTEMPT_UNVERIFIED", canRetryWithNewReference: false,
         existingReference: String(sameCartUnknown.reference ?? ""),
         error: "El estado del pedido anterior no es verificable. Se conserva protegido y no se inició otro cobro." }, 409);
+    }
+    for (const terminalOrder of sameCartRows) {
+      const terminalReference = String(terminalOrder?.reference ?? "").trim();
+      const terminalStatus = String(terminalOrder?.payment_status ?? "").trim().toUpperCase();
+      if (!TERMINAL_PAYMENT_STATUSES.has(terminalStatus) || terminalReference === reference) continue;
+      if (!terminalReference || !await verifyTerminalOrderHistory(supabaseUrl, serviceRoleKey, terminalOrder)) {
+        return json({ code: "WOMPI_ATTEMPT_UNVERIFIED", canRetryWithNewReference: false,
+          existingReference: terminalReference,
+          error: "El intento anterior de este carrito no tiene un estado terminal verificable. Se conserva protegido y no se inició otro cobro." }, 409);
+      }
     }
     const sameCartPendingRows = sameCartRows.filter((row: any) => String(row?.payment_status ?? "").toUpperCase() === "PENDING");
     if (sameCartPendingRows.some((row: any) => !String(row?.reference ?? "").trim())) {
@@ -1105,18 +1115,6 @@ Deno.serve(async (req: Request): Promise<Response> => {
     if (retryLockReady && retryLock.reference != null && String(retryLock.reference) !== reference) {
       return json({ code: "WOMPI_RETRY_REFERENCE_MISMATCH", canRetryWithNewReference: false,
         error: "La referencia de la reanudación no coincide con el pedido actual. No se inició el pago." }, 409);
-    }
-    const otherPhonePendingOrders = pendingRows.filter((row: any) =>
-      String(row?.reference ?? "").trim() !== reference &&
-      String(row?.payment_status ?? "").trim().toUpperCase() === "PENDING");
-    if (otherPhonePendingOrders.length) {
-      const pendingOrder = otherPhonePendingOrders[0];
-      const linked = Boolean(String(pendingOrder?.transaction_id ?? "").trim());
-      return json({ code: linked ? "WOMPI_TRANSACTION_PENDING" : "WOMPI_ATTEMPT_UNVERIFIED",
-        canRetryWithNewReference: false, existingReference: String(pendingOrder?.reference ?? ""),
-        error: linked
-          ? "Hay otra transacción Wompi pendiente para este teléfono. Espera su resultado antes de iniciar un nuevo cobro."
-          : "Hay otro pedido Wompi del teléfono sin estado terminal verificado. Se conserva protegido; no se inició un nuevo cobro." }, 409);
     }
     let checkoutLock: any = { responseOk: true, success: true };
     if (!retryLockReady) {
