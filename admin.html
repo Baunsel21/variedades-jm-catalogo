@@ -126,6 +126,8 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
 .ordersSummary{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:15px}
 .orderStat{padding:15px;background:var(--surface2);border-radius:14px}
 .orderStat small{color:var(--muted);font-weight:800}.orderStat b{display:block;font-size:23px;margin-top:5px}
+.orderArchiveToolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:12px 0}.orderArchiveStatus{font-size:12px;color:var(--muted)}
+#ordersArchiveSection[hidden]{display:none!important}.orderArchiveBatch{padding:14px;border:1px solid var(--border);border-radius:13px;background:#fff;margin:10px 0}.orderArchiveBatch h4{margin:0 0 6px}.orderArchiveOrder{padding:7px 0;border-top:1px solid var(--border);font-size:12px}
 .orderFilters{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:10px;margin:15px 0;align-items:end}
 .orderFilterField{display:flex;flex-direction:column;gap:5px;min-width:0;color:var(--muted);font-size:12px;font-weight:800}
 .orderFilterSearch{grid-column:span 2}
@@ -514,7 +516,7 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
         </div>
       </section>
 <section id="pedidos" class="view">
-  <div class="rowBetween ordersHeading"><div><h2 style="margin:0">📋 Pedidos</h2><p class="muted">Pedidos separados por método de pago; cada categoría conserva sus estados y acciones.</p></div><div class="ordersTools"><span id="ordersLastUpdated" class="ordersLastUpdated" aria-live="polite">Última actualización: pendiente</span><button id="refreshOrdersBtn" class="softbtn" type="button" onclick="cargarPedidos()">↻ Actualizar pedidos</button></div></div>
+  <div class="rowBetween ordersHeading"><div><h2 style="margin:0">📋 Pedidos</h2><p class="muted">Pedidos separados por método de pago; cada categoría conserva sus estados y acciones.</p></div><div class="ordersTools"><span id="ordersLastUpdated" class="ordersLastUpdated" aria-live="polite">Última actualización: pendiente</span><button id="toggleOrderArchivesBtn" class="softbtn" type="button" onclick="toggleOrderArchiveList()">Ver archivados</button><button id="refreshOrdersBtn" class="softbtn" type="button" onclick="cargarPedidos()">↻ Actualizar pedidos</button></div></div>
   <div class="ordersCategoryTabs" id="ordersCategoryTabs" role="tablist" aria-label="Categoría de pedidos">
     <button class="ordersCategoryTab" id="ordersCategoryCodTab" type="button" role="tab" aria-selected="true" aria-controls="codOrdersPanel" tabindex="0" onclick="setOrdersCategory('cod')" onkeydown="handleOrdersCategoryTabKeydown(event)">Pedidos contraentrega <span class="ordersCategoryCount" id="ordersCODCount">—</span></button>
     <button class="ordersCategoryTab" id="ordersCategoryWompiTab" type="button" role="tab" aria-selected="false" aria-controls="wompiOrdersPanel" tabindex="-1" onclick="setOrdersCategory('wompi')" onkeydown="handleOrdersCategoryTabKeydown(event)">Pedidos online (Wompi) <span class="ordersCategoryCount" id="ordersWompiCount">—</span></button>
@@ -538,6 +540,7 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
       </div>
       <div id="ordersLoadStatus" class="status err" role="alert" hidden></div>
       <div id="ordersResultsSummary" class="orderResultsSummary" role="status" aria-live="polite"></div>
+      <div class="orderArchiveToolbar"><span id="codOrderArchiveStatus" class="orderArchiveStatus" role="status" aria-live="polite">Acción reversible: no se borran pedidos ni se modifican pagos o inventario.</span><span id="codOrderArchiveSelectionSummary" class="orderArchiveStatus" role="status" aria-live="polite">Selecciona pedidos o aplica un filtro.</span><button id="clearCODOrderArchiveSelectionBtn" class="softbtn" type="button" disabled onclick="clearOrderArchiveSelection('cod')">Limpiar selección</button><button id="archiveCODOrdersBtn" class="softbtn" type="button" disabled onclick="previewOrderArchive('cod')">Limpiar historial del filtro (reversible)</button></div>
       <div id="ordersTrackingStatus" class="status err" role="status" aria-live="polite" hidden></div>
       <div id="listaPedidos"><div class="empty">Cargando pedidos contraentrega...</div></div>
     </div>
@@ -552,9 +555,11 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
         <button class="softbtn" type="button" onclick="clearWompiOrdersFilters()">Limpiar filtros</button>
       </div>
       <div id="wompiOrdersResultsSummary" class="orderResultsSummary" role="status" aria-live="polite"></div>
+      <div class="orderArchiveToolbar"><span id="wompiOrderArchiveStatus" class="orderArchiveStatus" role="status" aria-live="polite">Wompi pendiente, aprobado, Sandbox o sin conciliar permanece protegido.</span><span id="wompiOrderArchiveSelectionSummary" class="orderArchiveStatus" role="status" aria-live="polite">Selecciona pedidos o aplica un filtro.</span><button id="clearWompiOrderArchiveSelectionBtn" class="softbtn" type="button" disabled onclick="clearOrderArchiveSelection('wompi')">Limpiar selección</button><button id="archiveWompiOrdersBtn" class="softbtn" type="button" disabled onclick="previewOrderArchive('wompi')">Limpiar historial del filtro (reversible)</button></div>
       <div id="wompiOrdersList" style="margin-top:10px"><div class="empty">Cargando pedidos Wompi…</div></div>
     </div>
   </div>
+  <section id="ordersArchiveSection" class="box" style="margin-top:15px" hidden aria-labelledby="ordersArchiveTitle"><div class="rowBetween"><div><h3 id="ordersArchiveTitle">Pedidos archivados</h3><p class="muted">Se ocultan del listado activo; restaurar solo cambia el registro de archivo.</p></div><button type="button" class="softbtn" onclick="loadOrderArchiveList()">Actualizar archivados</button></div><div id="ordersArchiveStatus" class="orderArchiveStatus" role="status" aria-live="polite"></div><div id="ordersArchiveList"></div></section>
   <div id="orderTrackingModal" class="modalBack orderTrackingModal" aria-hidden="true">
     <section class="modal" role="dialog" aria-modal="true" aria-labelledby="orderTrackingTitle" tabindex="-1">
       <div class="modalHead"><h2 id="orderTrackingTitle">Seguimiento del pedido</h2><button type="button" class="softbtn" data-order-tracking-close aria-label="Cerrar seguimiento">Cerrar</button></div>
@@ -992,6 +997,8 @@ let adminDeferredModuleLoaded={clients:false,suppliers:false,expenses:false,move
 let adminDeferredModuleInFlight={};
 let pedidos=[];
 let wompiAdminOrders=[],wompiAdminOrdersLoadError='',wompiAdminOrdersLoaded=false;
+let orderArchiveList=[],orderArchiveLoadError='',orderArchiveListLoaded=false,orderArchiveBusy=false;
+let orderArchiveSelections={owner:'',cod:new Set(),wompi:new Set()};
 let ordersActiveCategory='cod',codOrderStatusOptionsSignature='',wompiOrdersStatusOptionsSignature='';
 let wompiOrdersPage=1,wompiOrdersPageSize=20;
 let webOrderTrackingById=Object.create(null),webOrderTrackingRpcState='unknown',webOrderTrackingRequestToken=0,webOrderHistoryRequestToken=0,webOrderTrackingSaveToken=0,orderTrackingReturnFocus=null;
@@ -2267,11 +2274,12 @@ function lockAdminPanel(message='Tu sesión terminó. Vuelve a entrar.'){
  if(typeof applyBrand==='function')applyBrand();
  $("app").classList.add("hidden");$("loginScreen").classList.remove("hidden");
  if(adminCatalogRealtimeChannel&&sb){const channel=adminCatalogRealtimeChannel;adminCatalogRealtimeChannel=null;void sb.removeChannel(channel).catch(error=>console.debug('No se pudo cerrar el canal administrativo.',error));}
- adminCatalogRealtimeReady=false;adminCatalogRealtimePending=[];
-	productos=[];ventas=[];clientes=[];proveedores=[];gastos=[];movimientos=[];pedidos=[];wompiAdminOrders=[];wompiAdminOrdersLoadError='';wompiAdminOrdersLoaded=false;pedidosLoadError='';ordersFacetOptionsSignature='';categorias=[];categoryRecords=[];
-	resetAdminHistoryPagination();
-	moduleLoadErrors={};
-	Object.keys(adminDeferredModuleLoaded).forEach(key=>adminDeferredModuleLoaded[key]=false);
+	 adminCatalogRealtimeReady=false;adminCatalogRealtimePending=[];
+			productos=[];ventas=[];clientes=[];proveedores=[];gastos=[];movimientos=[];pedidos=[];wompiAdminOrders=[];wompiAdminOrdersLoadError='';wompiAdminOrdersLoaded=false;orderArchiveList=[];orderArchiveLoadError='';orderArchiveListLoaded=false;orderArchiveBusy=false;pedidosLoadError='';ordersFacetOptionsSignature='';categorias=[];categoryRecords=[];
+			orderArchiveSelections={owner:'',cod:new Set(),wompi:new Set()};
+	 resetAdminHistoryPagination();
+	 moduleLoadErrors={};
+	 Object.keys(adminDeferredModuleLoaded).forEach(key=>adminDeferredModuleLoaded[key]=false);
 	const wompiOrdersSearch=$('wompiOrdersSearch'),wompiOrdersStatusFilter=$('wompiOrdersStatusFilter');if(wompiOrdersSearch)wompiOrdersSearch.value='';if(wompiOrdersStatusFilter)wompiOrdersStatusFilter.value='all';wompiOrdersPage=1;wompiOrdersStatusOptionsSignature='';
 	onlinePaymentSettingLoaded=false;onlinePaymentSettingOriginal=null;
 	codCitiesSettingsLoaded=false;codCitiesSettingsOriginal={enabled:false,allowed_cities:[]};
@@ -2677,6 +2685,32 @@ async function fetchAllTableRows(table,orderColumn,ascending=true){
  }
  return {data:null,error:{code:'ROW_LIMIT',message:'La tabla '+table+' supera el límite de seguridad de 100.000 filas.'},orderMode};
 }
+async function fetchAllAdminOrderRows(source){
+ const rpcName=source==='wompi'?'admin_list_wompi_orders_with_environment':source==='cod'?'admin_list_active_cod_orders':'';
+ if(!rpcName)return {data:null,error:{code:'INVALID_ORDER_SOURCE',message:'Categoría de pedidos inválida.'}};
+ const rows=[],pageSize=500,maxRows=100000;
+ for(let offset=0;offset<maxRows;offset+=pageSize){
+  let result;
+  try{result=await Promise.resolve(sb.rpc(rpcName,{p_limit:pageSize,p_offset:offset}))}
+  catch(error){result={data:null,error}}
+  if(result?.error)return {data:null,error:result.error,orderMode:'rpc'};
+  const batch=Array.isArray(result?.data)?result.data:[];rows.push(...batch);
+  if(batch.length<pageSize)return {data:rows,error:null,orderMode:'stable'};
+ }
+ return {data:null,error:{code:'ROW_LIMIT',message:'La lista supera el límite seguro de 100.000 pedidos; el archivado queda deshabilitado.'},orderMode:'rpc'};
+}
+async function fetchAllOrderArchiveEntries(){
+ const rows=[],pageSize=5000,maxRows=100000;
+ for(let offset=0;offset<maxRows;offset+=pageSize){
+  let result;
+  try{result=await Promise.resolve(sb.rpc('admin_list_order_archives',{p_limit:pageSize,p_offset:offset}))}
+  catch(error){result={data:null,error}}
+  if(result?.error)return {data:null,error:result.error};
+  const batch=Array.isArray(result?.data)?result.data:[];rows.push(...batch);
+  if(batch.length<pageSize)return {data:rows,error:null};
+ }
+ return {data:null,error:{code:'ROW_LIMIT',message:'El historial supera el límite seguro de 100.000 archivados.'}};
+}
 function describeAdminTableError(table,error){
  const code=String(error?.code||'');
  const raw=String(error?.message||error||'Error desconocido');
@@ -2715,7 +2749,7 @@ async function cargarTodo(userId=adminSessionUserId,authEpoch=adminAuthEpoch){
     deferredSnapshot.suppliers?fetchAllTableRows("suppliers","name",true):Promise.resolve(skipped),
     deferredSnapshot.expenses?fetchAllTableRows("expenses","expense_date",false):Promise.resolve(skipped),
     deferredSnapshot.movements?fetchAllTableRows("inventory_movements","created_at",false):Promise.resolve(skipped),
-    deferredSnapshot.orders?fetchAllTableRows("web_orders","created_at",false):Promise.resolve(skipped),
+    deferredSnapshot.orders?fetchAllAdminOrderRows('cod'):Promise.resolve(skipped),
     sb.rpc("get_public_catalog")
    ]);
    if(!isCurrent())return false;
@@ -2826,8 +2860,8 @@ async function cargarPedidos(){
     if(button){button.disabled=true;button.textContent='⏳ Actualizando…'}
       try{
       const [webOrdersResult,wompiOrdersResult]=await Promise.all([
-        fetchAllTableRows("web_orders","created_at",false),
-        Promise.resolve(sb.rpc('admin_list_wompi_orders',{p_limit:200,p_offset:0})).catch(error=>({data:null,error})),
+        fetchAllAdminOrderRows('cod'),
+        fetchAllAdminOrderRows('wompi'),
       ]);
       const {data,error}=webOrdersResult;
       if(!isCurrent())return false;
@@ -2888,6 +2922,7 @@ async function cargarPedidos(){
 function renderAdminWompiOrders(){
   const box=$('wompiOrdersList'),status=$('wompiOrdersStatus'),summary=$('wompiOrdersResultsSummary');if(!box)return;
   updateOrdersCategoryCounts();
+  setOrderArchiveControlState('wompi');
   if(wompiAdminOrdersLoadError){if(status){status.className='status err';status.textContent=wompiAdminOrdersLoadError}if(summary)summary.textContent='No se pueden mostrar conteos hasta completar una consulta válida.';box.innerHTML='<div class="empty">No se pudo consultar la lista Wompi. No se modificó ningún pedido ni pago.</div>';return}
   if(!wompiAdminOrdersLoaded){if(status){status.className='status';status.textContent='Se consultará al abrir Pedidos.'}if(summary)summary.textContent='';box.innerHTML='<div class="empty">Cargando pedidos Wompi…</div>';return}
   if(status){status.className='status ok';status.textContent=`${wompiAdminOrders.length} pedido(s) Wompi consultado(s); vista de solo lectura.`}
@@ -2909,7 +2944,9 @@ function renderAdminWompiOrders(){
     }).join('')||'<div class="muted">Sin líneas de producto disponibles.</div>';
     const updated=order.updated_at||order.created_at;
     const reconciliation=order.wompi_reconciliation_required||order.coupon_reconciliation_required;
-    return `<article class="orderCard" style="margin-top:10px"><div class="orderHead"><div><div class="orderCustomer">${esc(order.customer_name||'Sin nombre')}</div><div class="orderMeta">Referencia: ${esc(order.reference||'—')} · ${updated?esc(new Date(updated).toLocaleString('es-CO')):''}</div><div class="orderMeta">Teléfono: ${esc(order.phone||'Sin teléfono')} · ${esc(order.city||'')} — ${esc(order.address||'')}</div></div><span class="badge ${statusClass}">Pago ${esc(paymentStatus)}</span></div><div class="orderItems">${itemHtml}</div><div class="rowBetween" style="margin-top:10px;gap:10px;flex-wrap:wrap"><span class="muted">Subtotal ${money(order.subtotal)} · Envío ${Number(order.shipping)===0?'GRATIS':money(order.shipping)}${order.coupon_code?` · Cupón ${esc(order.coupon_code)}`:''}</span><strong style="font-size:18px">${money(order.total)}</strong></div><div class="orderMeta" style="margin-top:6px">Transacción Wompi: ${esc(order.transaction_id||'Sin transaction_id')}</div>${reconciliation?'<div class="status err" style="margin-top:8px">Requiere revisión de conciliación; esta vista no modifica su estado.</div>':''}</article>`;
+    const environment=String(order.wompi_environment||'unknown').trim().toLowerCase(),environmentLabel=environment==='prod'?'PRODUCCIÓN':environment==='test'?'PRUEBA · SANDBOX':'AMBIENTE NO VERIFICADO';
+    const selectedForArchive=orderArchiveSelectionFor('wompi').has(String(order.id||''));
+    return `<article class="orderCard" style="margin-top:10px"><div class="orderHead"><div><label style="display:flex;align-items:center;gap:6px;margin:0 0 8px;font-size:12px"><input type="checkbox" data-order-archive-source="wompi" data-order-archive-id="${esc(order.id||'')}" onchange="toggleOrderArchiveSelection(this)" ${selectedForArchive?'checked':''}>Seleccionar para archivo reversible</label><div class="orderCustomer">${esc(order.customer_name||'Sin nombre')}</div><div class="orderMeta">Referencia: ${esc(order.reference||'—')} · ${updated?esc(new Date(updated).toLocaleString('es-CO')):''}</div><div class="orderMeta">Teléfono: ${esc(order.phone||'Sin teléfono')} · ${esc(order.city||'')} — ${esc(order.address||'')}</div><div class="orderMeta">Ambiente del último intento: ${esc(environmentLabel)}</div></div><span class="badge ${statusClass}">Pago ${esc(paymentStatus)}</span></div><div class="orderItems">${itemHtml}</div><div class="rowBetween" style="margin-top:10px;gap:10px;flex-wrap:wrap"><span class="muted">Subtotal ${money(order.subtotal)} · Envío ${Number(order.shipping)===0?'GRATIS':money(order.shipping)}${order.coupon_code?` · Cupón ${esc(order.coupon_code)}`:''}</span><strong style="font-size:18px">${money(order.total)}</strong></div><div class="orderMeta" style="margin-top:6px">Transacción Wompi: ${esc(order.transaction_id||'Sin transaction_id')}</div>${reconciliation?'<div class="status err" style="margin-top:8px">Requiere revisión de conciliación; esta vista no modifica su estado.</div>':''}</article>`;
   }).join('');
   const pagination=pageData.total?`<nav class="orderPagination" aria-label="Paginación de pedidos Wompi"><span class="muted">${pageData.start}–${pageData.end} de ${pageData.total}</span><div class="orderPaginationControls"><label class="orderFilterField" style="flex-direction:row;align-items:center;gap:6px">Por página<select aria-label="Pedidos Wompi por página" onchange="changeWompiOrdersPageSize(this.value)"><option value="20" ${pageData.pageSize===20?'selected':''}>20</option><option value="50" ${pageData.pageSize===50?'selected':''}>50</option><option value="100" ${pageData.pageSize===100?'selected':''}>100</option></select></label><button type="button" class="softbtn" onclick="changeWompiOrdersPage(${pageData.page-1})" aria-label="Página anterior de pedidos Wompi" ${pageData.page<=1?'disabled':''}>Anterior</button><span aria-current="page">${pageData.page} / ${pageData.totalPages}</span><button type="button" class="softbtn" onclick="changeWompiOrdersPage(${pageData.page+1})" aria-label="Página siguiente de pedidos Wompi" ${pageData.page>=pageData.totalPages?'disabled':''}>Siguiente</button></div></nav>`:'';
   box.innerHTML=cards||`<div class="empty">${wompiAdminOrders.length?'No hay pedidos Wompi que coincidan con estos filtros.':'No hay pedidos Wompi para mostrar.'}</div>`;
@@ -2939,6 +2976,125 @@ function changeWompiOrdersFilter(){wompiOrdersPage=1;renderAdminWompiOrders()}
 function clearWompiOrdersFilters(){const search=$('wompiOrdersSearch'),status=$('wompiOrdersStatusFilter');if(search)search.value='';if(status)status.value='all';wompiOrdersPage=1;renderAdminWompiOrders()}
 function changeWompiOrdersPage(page){wompiOrdersPage=Number(page)||1;renderAdminWompiOrders()}
 function changeWompiOrdersPageSize(size){const value=Number(size);if([20,50,100].includes(value)){wompiOrdersPageSize=value;wompiOrdersPage=1;renderAdminWompiOrders()}}
+
+function orderArchiveCurrentFilters(source){
+	 if(source==='cod')return {search:$('buscarPedido')?.value||'',status:$('filtroPedidoEstado')?.value||'',fromDate:$('ordersFromDate')?.value||'',toDate:$('ordersToDate')?.value||'',city:$('ordersCityFilter')?.value||'',payment:$('ordersPaymentFilter')?.value||''};
+	 return {status:$('wompiOrdersStatusFilter')?.value||'all',search:$('wompiOrdersSearch')?.value||''};
+}
+function orderArchiveSelectionFor(source){
+ if(!['cod','wompi'].includes(source))return new Set();
+ const owner=String(adminSessionUserId||'');
+ if(orderArchiveSelections.owner!==owner)orderArchiveSelections={owner,cod:new Set(),wompi:new Set()};
+ return orderArchiveSelections[source];
+}
+function orderArchiveFilteredIds(source){
+	 const filters=orderArchiveCurrentFilters(source);
+	 const rows=source==='cod'?filterAdminOrders(contraDeliveryOrders(),filters):filterWompiOrders(wompiAdminOrders,filters);
+	 return rows.map(row=>String(row?.id||'')).filter(Boolean);
+}
+function orderArchiveHasRestrictiveFilters(source){const filters=orderArchiveCurrentFilters(source);return source==='cod'?Object.values(filters).some(value=>String(value||'').trim()!==''):(String(filters.search||'').trim()!==''||!!(filters.status&&filters.status!=='all'))}
+function orderArchiveEffectiveIds(source){const selected=[...orderArchiveSelectionFor(source)];return selected.length?selected:orderArchiveHasRestrictiveFilters(source)?orderArchiveFilteredIds(source):[]}
+function orderArchiveFilterSignature(source,ids,mode='filtered'){return JSON.stringify({source,mode,filters:orderArchiveCurrentFilters(source),ids});}
+function toggleOrderArchiveSelection(input){const source=String(input?.dataset?.orderArchiveSource||''),id=String(input?.dataset?.orderArchiveId||'').trim();if(!['cod','wompi'].includes(source)||!id)return;const selected=orderArchiveSelectionFor(source);if(input.checked)selected.add(id);else selected.delete(id);setOrderArchiveControlState(source)}
+function clearOrderArchiveSelection(source){if(!['cod','wompi'].includes(source))return;orderArchiveSelectionFor(source).clear();if(typeof document!=='undefined')document.querySelectorAll(`[data-order-archive-source="${source}"]`).forEach(input=>{input.checked=false});setOrderArchiveControlState(source)}
+function setOrderArchiveControlState(source){
+	 const isCOD=source==='cod',button=$(isCOD?'archiveCODOrdersBtn':'archiveWompiOrdersBtn');if(!button)return;
+	 const selectedCount=orderArchiveSelectionFor(source).size,clearButton=$(isCOD?'clearCODOrderArchiveSelectionBtn':'clearWompiOrderArchiveSelectionBtn'),selectionSummary=$(isCOD?'codOrderArchiveSelectionSummary':'wompiOrderArchiveSelectionSummary');
+	 const loaded=isCOD?(adminDeferredModuleLoaded.orders&&!pedidosLoadError&&!moduleLoadErrors.orders):(wompiAdminOrdersLoaded&&!wompiAdminOrdersLoadError);
+	 const ids=loaded?orderArchiveEffectiveIds(source):[];
+	 button.disabled=orderArchiveBusy||!loaded||ids.length===0;
+		 button.textContent=selectedCount?`Previsualizar archivado seleccionado (${selectedCount})`:`Limpiar historial del filtro (${ids.length})`;
+	 if(clearButton)clearButton.disabled=orderArchiveBusy||!selectedCount;
+	 if(selectionSummary)selectionSummary.textContent=selectedCount?`${selectedCount} pedido(s) seleccionado(s) individualmente; se usarán solo esos.`:orderArchiveHasRestrictiveFilters(source)?`${ids.length} pedido(s) coinciden con los filtros; la vista previa excluirá estados protegidos.`:'Sin selección ni filtros restrictivos: no se archivará todo el historial por accidente.';
+}
+function orderArchiveRpcObject(data){return Array.isArray(data)?data[0]||{}:data||{}}
+async function previewOrderArchive(source){
+ if(!['cod','wompi'].includes(source)||source!==ordersActiveCategory){alert('Abre la pestaña de pedidos correspondiente antes de archivar.');return}
+ const loaded=source==='cod'?(adminDeferredModuleLoaded.orders&&!pedidosLoadError&&!moduleLoadErrors.orders):(wompiAdminOrdersLoaded&&!wompiAdminOrdersLoadError);
+ if(!loaded){alert('No se archivó nada: primero actualiza correctamente el listado completo de esta pestaña.');return}
+ if(orderArchiveBusy)return;
+ orderArchiveBusy=true;setOrderArchiveControlState('cod');setOrderArchiveControlState('wompi');
+	 try{
+	  if(!orderArchiveListLoaded){const archivesReady=await loadOrderArchiveList();if(!archivesReady)throw new Error('No se pudo verificar la lista de archivados. No se habilitó ninguna operación.');}
+	  const selectedIds=[...orderArchiveSelectionFor(source)],selectionMode=selectedIds.length>0,mode=selectionMode?'selected':'filtered',ids=orderArchiveEffectiveIds(source);
+	  if(!ids.length){alert('Selecciona uno o varios pedidos, o aplica un filtro antes de previsualizar.');return}
+	  const filterKey=orderArchiveFilterSignature(source,ids,mode);
+	  const response=await Promise.resolve(sb.rpc('admin_preview_order_archive',{p_source:source,p_order_ids:ids}));
+	  if(response?.error)throw response.error;
+  const preview=orderArchiveRpcObject(response?.data),count=Number(preview.affected_count)||0,excluded=Number(preview.excluded_count)||0;
+  if(preview.success!==true||!preview.preview_id)throw new Error(preview.message||'El servidor no confirmó la previsualización.');
+  const status=$(source==='cod'?'codOrderArchiveStatus':'wompiOrderArchiveStatus');
+  if(status)status.textContent=`Previsualización del servidor: ${count} pedido(s) elegible(s); ${excluded} excluido(s) o ya archivado(s). No se borrará ningún pedido.`;
+  if(count===0){alert(`Previsualización exacta: 0 pedidos se archivarán; ${excluded} fueron excluidos o ya estaban archivados.`);return}
+	  if(orderArchiveFilterSignature(source,orderArchiveEffectiveIds(source),mode)!==filterKey){alert('La selección, filtros o resultados cambiaron después de la previsualización. Vuelve a previsualizar; no se archivó nada.');return}
+	  const targetDescription=selectionMode?`${ids.length} pedido(s) seleccionado(s) individualmente`:`${ids.length} pedido(s) filtrado(s)`;
+	  const policy=source==='cod'?'Solo pedidos cerrados (entregados, rechazados o cancelados); pendientes, confirmados, en tránsito y devueltos permanecen visibles.':'Solo intentos terminales verificados en Producción y fuera de la ventana de seguridad; Sandbox, PENDING, APPROVED, desconocidos y no conciliados permanecen visibles.';
+	  if(!confirm(`Previsualización exacta del servidor\n\nObjetivo: ${targetDescription}. Elegibles: ${count}; excluidos o ya archivados: ${excluded}.\n\n${policy}\n\nEl archivo es reversible: no se borrarán filas ni se modificarán pagos, inventario, reservas o registros contables. ¿Confirmas archivar?`))return;
+	  if(orderArchiveFilterSignature(source,orderArchiveEffectiveIds(source),mode)!==filterKey){alert('La selección o los filtros cambiaron antes de confirmar. Vuelve a previsualizar; no se archivó nada.');return}
+	  const archivedResponse=await Promise.resolve(sb.rpc('admin_archive_order_candidates',{p_preview_id:preview.preview_id,p_expected_count:count,p_confirmation:'ARCHIVAR PEDIDOS'}));
+	  if(archivedResponse?.error)throw archivedResponse.error;
+	  const archived=orderArchiveRpcObject(archivedResponse?.data);
+	  if(archived.success!==true)throw new Error(archived.message||'El servidor no confirmó el archivado.');
+	  ids.forEach(id=>orderArchiveSelectionFor(source).delete(id));
+	  if(status)status.textContent=`Archivado reversible: ${Number(archived.archived_count)||0} pedido(s).`;
+  toast(`Se archivaron ${Number(archived.archived_count)||0} pedido(s). Puedes restaurarlos desde “Ver archivados”.`);
+  orderArchiveListLoaded=false;
+  await reloadOrderListsAfterArchive();
+  if(!$('ordersArchiveSection')?.hidden)await loadOrderArchiveList();
+ }catch(error){
+  alert('No se archivó ningún pedido: '+String(error?.message||error));
+ }finally{
+  orderArchiveBusy=false;setOrderArchiveControlState('cod');setOrderArchiveControlState('wompi');
+ }
+}
+async function loadOrderArchiveList(){
+ const status=$('ordersArchiveStatus'),list=$('ordersArchiveList');
+ if(!sb||!adminAuthOperationStillCurrent(adminSessionUserId,adminAuthEpoch)){orderArchiveLoadError='No hay una sesión administrativa válida.';orderArchiveListLoaded=false;if(status)status.textContent=orderArchiveLoadError;return false}
+ if(status)status.textContent='Cargando archivados…';if(list)list.innerHTML='';
+ const result=await fetchAllOrderArchiveEntries();
+ if(result.error){orderArchiveLoadError=String(result.error.message||result.error);orderArchiveListLoaded=false;orderArchiveList=[];if(status)status.textContent='No se verificó el historial de archivo: '+orderArchiveLoadError;return false}
+ orderArchiveList=result.data||[];orderArchiveLoadError='';orderArchiveListLoaded=true;renderOrderArchiveList();return true;
+}
+function renderOrderArchiveList(){
+ const list=$('ordersArchiveList'),status=$('ordersArchiveStatus');if(!list)return;
+ if(status)status.textContent=orderArchiveListLoaded?`${orderArchiveList.length} pedido(s) archivado(s), disponibles para restaurar.`:orderArchiveLoadError;
+ if(!orderArchiveList.length){list.innerHTML='<div class="empty">No hay pedidos archivados pendientes de restaurar.</div>';return}
+ const batches=new Map();
+ for(const row of orderArchiveList){const key=String(row.batch_id||'');if(!batches.has(key))batches.set(key,[]);batches.get(key).push(row)}
+ list.innerHTML=[...batches.entries()].map(([batchId,rows])=>{
+  const first=rows[0]||{},source=first.source==='wompi'?'Wompi':'Contraentrega',items=rows.map(row=>{
+   const data=row.order_data||{},label=data.customer_name||'Cliente sin nombre',reference=data.reference||data.client_reference||String(row.order_id||'').slice(0,8),state=data.payment_status||data.status||'';
+   return `<div class="orderArchiveOrder"><strong>${esc(label)}</strong> · ${esc(reference)}${state?` · ${esc(state)}`:''} · ID ${esc(row.order_id||'')}</div>`;
+  }).join('');
+  return `<article class="orderArchiveBatch"><div class="rowBetween"><div><h4>${source} · ${rows.length} pedido(s)</h4><div class="muted" style="font-size:11px">Archivado ${esc(first.archived_at?new Date(first.archived_at).toLocaleString('es-CO'):'')} · Actor ${esc(first.archived_by||'—')}</div></div><button type="button" class="softbtn" onclick="restoreOrderArchive('${esc(batchId)}')">Restaurar lote</button></div>${items}</article>`;
+ }).join('');
+}
+async function toggleOrderArchiveList(){
+ const section=$('ordersArchiveSection'),button=$('toggleOrderArchivesBtn');if(!section)return;
+ section.hidden=!section.hidden;if(button)button.textContent=section.hidden?'Ver archivados':'Ocultar archivados';
+ if(!section.hidden)await loadOrderArchiveList();
+}
+async function restoreOrderArchive(batchId){
+ const rows=orderArchiveList.filter(row=>String(row.batch_id)===String(batchId));
+ if(!rows.length||orderArchiveBusy)return;
+ if(!confirm(`Se restaurarán ${rows.length} pedido(s) del archivo reversible. ¿Confirmas?`))return;
+ orderArchiveBusy=true;
+ try{
+  const response=await Promise.resolve(sb.rpc('admin_restore_order_archive',{p_batch_id:batchId}));
+  if(response?.error)throw response.error;
+  const restored=orderArchiveRpcObject(response?.data);
+  if(restored.success!==true)throw new Error(restored.message||'El servidor no confirmó la restauración.');
+  toast(`Se restauraron ${Number(restored.restored_count)||0} pedido(s).`);
+  orderArchiveListLoaded=false;await loadOrderArchiveList();await reloadOrderListsAfterArchive();
+ }catch(error){alert('No se restauró ningún pedido: '+String(error?.message||error))}
+ finally{orderArchiveBusy=false;setOrderArchiveControlState('cod');setOrderArchiveControlState('wompi')}
+}
+async function reloadOrderListsAfterArchive(){
+ const key=JSON.stringify([String(adminSessionUserId||''),adminAuthEpoch]);
+ const inFlight=cargarPedidosInFlight.get(key);
+ if(inFlight)try{await inFlight}catch{}
+ return await cargarPedidos();
+}
 
 function updateOrderTrackingStatus(){
  const status=$('ordersTrackingStatus');if(!status)return;
@@ -3305,6 +3461,7 @@ function cambiarTamanoPaginaPedidos(value){const size=Number(value);if([20,50,10
 function renderPedidos(){
   const codRows=contraDeliveryOrders();
   syncCODStatusFilterOptions(codRows);syncOrdersFilterOptions(codRows);updateOrdersCategoryCounts();
+  setOrderArchiveControlState('cod');
   const arr=filterAdminOrders(codRows,{
     search:$('buscarPedido')?.value||'',status:$('filtroPedidoEstado')?.value||'',
     fromDate:$('ordersFromDate')?.value||'',toDate:$('ordersToDate')?.value||'',
@@ -3337,9 +3494,11 @@ function renderPedidos(){
     const allowedStatuses=estadosPedidoPermitidos(status);
     const tracking=webOrderTrackingById[String(p.id)]||null;
     const trackingUrl=tracking?safeOrderTrackingUrl(tracking.tracking_url):'';
+    const selectedForArchive=orderArchiveSelectionFor('cod').has(String(p.id||''));
     return `<div class="orderCard">
       <div class="orderHead">
         <div>
+          <label style="display:flex;align-items:center;gap:6px;margin:0 0 8px;font-size:12px"><input type="checkbox" data-order-archive-source="cod" data-order-archive-id="${esc(p.id||'')}" onchange="toggleOrderArchiveSelection(this)" ${selectedForArchive?'checked':''}>Seleccionar para archivo reversible</label>
           <div class="orderCustomer">👤 ${esc(p.customer_name||"Sin nombre")}</div>
           <div class="orderMeta">🆔 Pedido: ${esc(String(p.id||"").slice(0,8))} • ${esc(created)}</div>
           <div class="orderMeta">📱 ${esc(p.customer_phone||"Sin teléfono")} • 📧 ${esc(p.customer_email||"Sin correo")}</div>
