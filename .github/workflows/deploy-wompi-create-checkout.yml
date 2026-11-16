@@ -1,0 +1,131 @@
+name: Deploy Wompi checkout to Supabase production
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_production:
+        description: Confirmo desplegar wompi-create-checkout a producción
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: supabase-production-wompi-create-checkout
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/main' && inputs.confirm_production == true
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: sirevya-supabase-production
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_PROJECT_REF: hnlbbtnfmbnbkcgegufa
+    steps:
+      - name: Check out the exact selected main commit
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # actions/checkout v6.0.2
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Verify branch, source commit, and function bundle scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = "refs/heads/main" || { echo "Refusing deploy outside main."; exit 1; }
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA" || { echo "Checkout does not match the selected commit."; exit 1; }
+          test -n "${SUPABASE_ACCESS_TOKEN:-}" || { echo "Environment secret SUPABASE_ACCESS_TOKEN is missing."; exit 1; }
+          function_dir="supabase/functions/wompi-create-checkout"
+          test -s "$function_dir/index.ts"
+          test -s "$function_dir/cedula.mjs"
+          actual_files="$(find "$function_dir" -type f -printf '%P\n' | LC_ALL=C sort)"
+          expected_files="$(printf 'cedula.mjs\nindex.ts')"
+          test "$actual_files" = "$expected_files" || { echo "Refusing unexpected function bundle contents."; exit 1; }
+          echo "Commit: $GITHUB_SHA"
+          sha256sum "$function_dir/index.ts" "$function_dir/cedula.mjs"
+
+      - name: Install pinned official Supabase CLI
+        uses: supabase/setup-cli@689adcfb80d947100a1eab127289b97d1fb07b13 # supabase/setup-cli v3
+        with:
+          version: 3.1.0
+
+      - name: Deploy only checkout and verify metadata plus remote source
+        shell: bash
+        run: |
+          set -euo pipefail
+          function_slug="wompi-create-checkout"
+          metadata_url="https://api.supabase.com/v1/projects/${SUPABASE_PROJECT_REF}/functions/${function_slug}"
+          before_json="$(curl --fail --silent --show-error \
+            -H "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" \
+            -H "Accept: application/json" "$metadata_url")"
+          jq -e '.status == "ACTIVE" and .verify_jwt == false and (.version | type == "number")' <<<"$before_json" >/dev/null || {
+            echo "Preflight refused: remote function is not ACTIVE with verify_jwt=false."; exit 1;
+          }
+          before_version="$(jq -er '.version' <<<"$before_json")"
+          echo "Predeploy state: status=ACTIVE verify_jwt=false version=${before_version}"
+
+          config_created=false
+          if [[ ! -f supabase/config.toml ]]; then
+            cat > supabase/config.toml <<EOF
+          project_id = "${SUPABASE_PROJECT_REF}"
+
+          [functions.wompi-create-checkout]
+          verify_jwt = false
+          EOF
+            config_created=true
+          fi
+          remote_dir="$(mktemp -d "${RUNNER_TEMP}/wompi-checkout-remote.XXXXXX")"
+          cleanup() {
+            rm -rf "$remote_dir"
+            if [[ "$config_created" == "true" ]]; then rm -f supabase/config.toml; fi
+          }
+          trap cleanup EXIT
+
+          # Despliega un solo slug. No se ejecutan db push, migraciones, --prune ni otras funciones.
+          supabase functions deploy "$function_slug" \
+            --remote="${SUPABASE_PROJECT_REF}" \
+            --no-verify-jwt \
+            --use-api \
+            --yes
+
+          after_json="$(curl --fail --silent --show-error \
+            -H "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" \
+            -H "Accept: application/json" "$metadata_url")"
+          jq -e --argjson before "$before_version" \
+            '.status == "ACTIVE" and .verify_jwt == false and (.version | type == "number") and .version > $before' \
+            <<<"$after_json" >/dev/null || {
+              echo "Postdeploy refused: version did not advance or ACTIVE/verify_jwt=false is not confirmed."; exit 1;
+            }
+          after_version="$(jq -er '.version' <<<"$after_json")"
+          echo "Postdeploy state: status=ACTIVE verify_jwt=false version=${after_version}"
+
+          # Descarga la fuente remota en un workspace aislado para cotejarla byte a byte.
+          mkdir -p "$remote_dir/supabase/functions"
+          cat > "$remote_dir/supabase/config.toml" <<EOF
+          project_id = "${SUPABASE_PROJECT_REF}"
+          EOF
+          (
+            cd "$remote_dir"
+            supabase functions download "$function_slug" \
+              --remote="${SUPABASE_PROJECT_REF}" \
+              --use-api
+          )
+          expected_dir="${GITHUB_WORKSPACE}/supabase/functions/${function_slug}"
+          downloaded_dir="${remote_dir}/supabase/functions/${function_slug}"
+          test -d "$downloaded_dir" || { echo "Remote source download did not produce the expected function directory."; exit 1; }
+          expected_files="$(find "$expected_dir" -type f -printf '%P\n' | LC_ALL=C sort)"
+          downloaded_files="$(find "$downloaded_dir" -type f -printf '%P\n' | LC_ALL=C sort)"
+          test "$expected_files" = "$downloaded_files" || { echo "Remote source file list differs from the checked-out commit."; exit 1; }
+          for relative_path in $expected_files; do
+            cmp --silent "$expected_dir/$relative_path" "$downloaded_dir/$relative_path" || {
+              echo "Remote source mismatch: ${relative_path}"; exit 1;
+            }
+          done
+          echo "Remote source matches the checked-out commit byte for byte."
+          sha256sum "$expected_dir/index.ts" "$downloaded_dir/index.ts" \
+            "$expected_dir/cedula.mjs" "$downloaded_dir/cedula.mjs"
