@@ -90,8 +90,13 @@ assert.match(codRenderer, /const codRows=contraDeliveryOrders\(\)/);
 assert.match(codRenderer, /filterAdminOrders\(codRows/);
 assert.match(admin, /payment_status/);
 
-console.log('admin_orders_categories_regression: PASS — separación por método; filtros comerciales y financieros; contadores; cancelados condicionales; búsqueda y paginación; Wompi sin acciones de escritura.');
 
 assert.match(admin, /onkeydown="handleOrdersCategoryTabKeydown\(event\)"/,
   'las pestañas deben poder recorrerse con el teclado');
 assert.match(admin, /function handleOrdersCategoryTabKeydown\(event\)/);
+assert.match(admin, /@media\(max-width:600px\)\{\.ordersCategoryTabs\{display:grid;grid-template-columns:1fr\}/,
+  'las pestañas deben apilarse en móviles estrechos');
+assert.match(admin, /if\(wompiOrdersSearch\)wompiOrdersSearch\.value=''/,
+  'el término de búsqueda Wompi debe limpiarse al cerrar la sesión admin');
+
+console.log('admin_orders_categories_regression: PASS — separación por método; filtros comerciales y financieros; contadores; cancelados condicionales; búsqueda y paginación; Wompi sin acciones de escritura.');
