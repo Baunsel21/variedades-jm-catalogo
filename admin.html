@@ -540,7 +540,7 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
       </div>
       <div id="ordersLoadStatus" class="status err" role="alert" hidden></div>
       <div id="ordersResultsSummary" class="orderResultsSummary" role="status" aria-live="polite"></div>
-      <div class="orderArchiveToolbar"><span id="codOrderArchiveStatus" class="orderArchiveStatus" role="status" aria-live="polite">Acción reversible: no se borran pedidos ni se modifican pagos o inventario.</span><span id="codOrderArchiveSelectionSummary" class="orderArchiveStatus" role="status" aria-live="polite">Selecciona pedidos o aplica un filtro.</span><button id="clearCODOrderArchiveSelectionBtn" class="softbtn" type="button" disabled onclick="clearOrderArchiveSelection('cod')">Limpiar selección</button><button id="archiveCODOrdersBtn" class="softbtn" type="button" disabled onclick="previewOrderArchive('cod')">Limpiar historial del filtro (reversible)</button></div>
+      <div class="orderArchiveToolbar"><span id="codOrderArchiveStatus" class="orderArchiveStatus" role="status" aria-live="polite">Acción reversible: no se borran pedidos ni se modifican pagos o inventario.</span><span id="codOrderArchiveSelectionSummary" class="orderArchiveStatus" role="status" aria-live="polite">Selecciona pedidos o aplica un filtro.</span><label class="orderArchiveSelectAll"><input id="selectAllCODArchiveCheckbox" type="checkbox" aria-label="Seleccionar todos los pedidos del resultado contraentrega" onchange="toggleAllOrderArchiveSelection('cod',this.checked)">Seleccionar todo el resultado</label><button id="selectAllCODOrderArchiveBtn" class="softbtn" type="button" disabled onclick="selectAllCurrentOrderArchiveRows('cod')">Seleccionar todo</button><button id="clearCODOrderArchiveSelectionBtn" class="softbtn" type="button" disabled onclick="clearOrderArchiveSelection('cod')">Limpiar selección</button><button id="archiveCODOrdersBtn" class="softbtn" type="button" disabled onclick="previewOrderArchive('cod')">Limpiar historial del filtro (reversible)</button></div>
       <div id="ordersTrackingStatus" class="status err" role="status" aria-live="polite" hidden></div>
       <div id="listaPedidos"><div class="empty">Cargando pedidos contraentrega...</div></div>
     </div>
@@ -555,11 +555,26 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
         <button class="softbtn" type="button" onclick="clearWompiOrdersFilters()">Limpiar filtros</button>
       </div>
       <div id="wompiOrdersResultsSummary" class="orderResultsSummary" role="status" aria-live="polite"></div>
-      <div class="orderArchiveToolbar"><span id="wompiOrderArchiveStatus" class="orderArchiveStatus" role="status" aria-live="polite">Wompi pendiente, aprobado, Sandbox o sin conciliar permanece protegido.</span><span id="wompiOrderArchiveSelectionSummary" class="orderArchiveStatus" role="status" aria-live="polite">Selecciona pedidos o aplica un filtro.</span><button id="clearWompiOrderArchiveSelectionBtn" class="softbtn" type="button" disabled onclick="clearOrderArchiveSelection('wompi')">Limpiar selección</button><button id="archiveWompiOrdersBtn" class="softbtn" type="button" disabled onclick="previewOrderArchive('wompi')">Limpiar historial del filtro (reversible)</button></div>
+      <div class="orderArchiveToolbar"><span id="wompiOrderArchiveStatus" class="orderArchiveStatus" role="status" aria-live="polite">Wompi pendiente, aprobado, Sandbox o sin conciliar permanece protegido.</span><span id="wompiOrderArchiveSelectionSummary" class="orderArchiveStatus" role="status" aria-live="polite">Selecciona pedidos o aplica un filtro.</span><label class="orderArchiveSelectAll"><input id="selectAllWompiArchiveCheckbox" type="checkbox" aria-label="Seleccionar todos los pedidos Wompi del resultado" onchange="toggleAllOrderArchiveSelection('wompi',this.checked)">Seleccionar todo el resultado</label><button id="selectAllWompiOrderArchiveBtn" class="softbtn" type="button" disabled onclick="selectAllCurrentOrderArchiveRows('wompi')">Seleccionar todo</button><button id="clearWompiOrderArchiveSelectionBtn" class="softbtn" type="button" disabled onclick="clearOrderArchiveSelection('wompi')">Limpiar selección</button><button id="archiveWompiOrdersBtn" class="softbtn" type="button" disabled onclick="previewOrderArchive('wompi')">Limpiar historial del filtro (reversible)</button></div>
       <div id="wompiOrdersList" style="margin-top:10px"><div class="empty">Cargando pedidos Wompi…</div></div>
     </div>
   </div>
-  <section id="ordersArchiveSection" class="box" style="margin-top:15px" hidden aria-labelledby="ordersArchiveTitle"><div class="rowBetween"><div><h3 id="ordersArchiveTitle">Pedidos archivados</h3><p class="muted">Se ocultan del listado activo; restaurar solo cambia el registro de archivo.</p></div><button type="button" class="softbtn" onclick="loadOrderArchiveList()">Actualizar archivados</button></div><div id="ordersArchiveStatus" class="orderArchiveStatus" role="status" aria-live="polite"></div><div id="ordersArchiveList"></div></section>
+  <section id="ordersArchiveSection" class="box" style="margin-top:15px" hidden aria-labelledby="ordersArchiveTitle">
+    <div class="rowBetween"><div><h3 id="ordersArchiveTitle">Pedidos archivados</h3><p class="muted">Se ocultan del listado activo; restaurar solo cambia el registro de archivo.</p></div><button type="button" class="softbtn" onclick="loadOrderArchiveList()">Actualizar archivados</button></div>
+    <div id="ordersArchiveStatus" class="orderArchiveStatus" role="status" aria-live="polite"></div>
+    <div class="orderArchiveToolbar" aria-label="Restauración de pedidos archivados de contraentrega"><span class="orderArchiveStatus">Contraentrega</span><span id="codArchivedRestoreSummary" class="orderArchiveStatus" role="status" aria-live="polite">0 seleccionados</span><label class="orderArchiveSelectAll"><input id="selectAllCODArchivedCheckbox" type="checkbox" aria-label="Seleccionar todos los archivados de contraentrega" onchange="toggleAllOrderArchiveRestoreSelection('cod',this.checked)">Seleccionar todos</label><button id="selectAllCODArchivedBtn" type="button" class="softbtn" disabled onclick="selectAllArchivedOrderRestoreEntries('cod')">Seleccionar todos</button><button id="clearCODArchivedRestoreSelectionBtn" type="button" class="softbtn" disabled onclick="clearOrderArchiveRestoreSelection('cod')">Limpiar selección</button><button id="restoreCODArchivedSelectionBtn" type="button" class="primary" disabled onclick="restoreSelectedOrderArchiveEntries('cod')">Restaurar selección</button><span id="codArchivedRestoreStatus" class="orderArchiveStatus" role="status" aria-live="polite"></span></div>
+    <div class="orderArchiveToolbar" aria-label="Restauración de pedidos archivados de Wompi"><span class="orderArchiveStatus">Wompi</span><span id="wompiArchivedRestoreSummary" class="orderArchiveStatus" role="status" aria-live="polite">0 seleccionados</span><label class="orderArchiveSelectAll"><input id="selectAllWompiArchivedCheckbox" type="checkbox" aria-label="Seleccionar todos los archivados de Wompi" onchange="toggleAllOrderArchiveRestoreSelection('wompi',this.checked)">Seleccionar todos</label><button id="selectAllWompiArchivedBtn" type="button" class="softbtn" disabled onclick="selectAllArchivedOrderRestoreEntries('wompi')">Seleccionar todos</button><button id="clearWompiArchivedRestoreSelectionBtn" type="button" class="softbtn" disabled onclick="clearOrderArchiveRestoreSelection('wompi')">Limpiar selección</button><button id="restoreWompiArchivedSelectionBtn" type="button" class="primary" disabled onclick="restoreSelectedOrderArchiveEntries('wompi')">Restaurar selección</button><span id="wompiArchivedRestoreStatus" class="orderArchiveStatus" role="status" aria-live="polite"></span></div>
+    <div id="ordersArchiveList"></div>
+  </section>
+  <div id="orderArchiveConfirmModal" class="modalBack orderArchiveConfirmModal" style="z-index:1200" aria-hidden="true" onkeydown="handleOrderArchiveConfirmKeydown(event)">
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="orderArchiveConfirmTitle" aria-describedby="orderArchiveConfirmSummary orderArchiveConfirmPolicy" tabindex="-1">
+      <div class="modalHead"><h2 id="orderArchiveConfirmTitle">Confirmar archivado reversible</h2><button type="button" class="softbtn" aria-label="Cerrar confirmación" onclick="cancelPendingOrderArchive()">Cerrar</button></div>
+      <p id="orderArchiveConfirmSummary" style="white-space:pre-line"></p>
+      <p id="orderArchiveConfirmPolicy" class="muted" style="white-space:pre-line"></p>
+      <div id="orderArchiveConfirmStatus" class="status err" role="alert" aria-live="assertive" hidden></div>
+      <div class="rowBetween" style="margin-top:16px;gap:10px;flex-wrap:wrap"><button id="cancelOrderArchiveConfirmBtn" type="button" class="softbtn" onclick="cancelPendingOrderArchive()">Cancelar</button><button id="confirmOrderArchiveActionBtn" type="button" class="primary" onclick="confirmPendingOrderArchiveAction()">Confirmar archivado</button></div>
+    </section>
+  </div>
   <div id="orderTrackingModal" class="modalBack orderTrackingModal" aria-hidden="true">
     <section class="modal" role="dialog" aria-modal="true" aria-labelledby="orderTrackingTitle" tabindex="-1">
       <div class="modalHead"><h2 id="orderTrackingTitle">Seguimiento del pedido</h2><button type="button" class="softbtn" data-order-tracking-close aria-label="Cerrar seguimiento">Cerrar</button></div>
@@ -999,6 +1014,8 @@ let pedidos=[];
 let wompiAdminOrders=[],wompiAdminOrdersLoadError='',wompiAdminOrdersLoaded=false;
 let orderArchiveList=[],orderArchiveLoadError='',orderArchiveListLoaded=false,orderArchiveBusy=false;
 let orderArchiveSelections={owner:'',cod:new Set(),wompi:new Set()};
+let orderArchiveRestoreSelections={owner:'',cod:new Set(),wompi:new Set()};
+let orderArchivePending=null;
 let ordersActiveCategory='cod',codOrderStatusOptionsSignature='',wompiOrdersStatusOptionsSignature='';
 let wompiOrdersPage=1,wompiOrdersPageSize=20;
 let webOrderTrackingById=Object.create(null),webOrderTrackingRpcState='unknown',webOrderTrackingRequestToken=0,webOrderHistoryRequestToken=0,webOrderTrackingSaveToken=0,orderTrackingReturnFocus=null;
@@ -2274,11 +2291,14 @@ function lockAdminPanel(message='Tu sesión terminó. Vuelve a entrar.'){
  if(typeof applyBrand==='function')applyBrand();
  $("app").classList.add("hidden");$("loginScreen").classList.remove("hidden");
  if(adminCatalogRealtimeChannel&&sb){const channel=adminCatalogRealtimeChannel;adminCatalogRealtimeChannel=null;void sb.removeChannel(channel).catch(error=>console.debug('No se pudo cerrar el canal administrativo.',error));}
-	 adminCatalogRealtimeReady=false;adminCatalogRealtimePending=[];
-			productos=[];ventas=[];clientes=[];proveedores=[];gastos=[];movimientos=[];pedidos=[];wompiAdminOrders=[];wompiAdminOrdersLoadError='';wompiAdminOrdersLoaded=false;orderArchiveList=[];orderArchiveLoadError='';orderArchiveListLoaded=false;orderArchiveBusy=false;pedidosLoadError='';ordersFacetOptionsSignature='';categorias=[];categoryRecords=[];
-			orderArchiveSelections={owner:'',cod:new Set(),wompi:new Set()};
-	 resetAdminHistoryPagination();
-	 moduleLoadErrors={};
+		 adminCatalogRealtimeReady=false;adminCatalogRealtimePending=[];
+				productos=[];ventas=[];clientes=[];proveedores=[];gastos=[];movimientos=[];pedidos=[];wompiAdminOrders=[];wompiAdminOrdersLoadError='';wompiAdminOrdersLoaded=false;orderArchiveList=[];orderArchiveLoadError='';orderArchiveListLoaded=false;orderArchiveBusy=false;pedidosLoadError='';ordersFacetOptionsSignature='';categorias=[];categoryRecords=[];
+					orderArchiveSelections={owner:'',cod:new Set(),wompi:new Set()};
+					orderArchiveRestoreSelections={owner:'',cod:new Set(),wompi:new Set()};
+					orderArchivePending=null;
+					const orderArchiveModal=$('orderArchiveConfirmModal');if(orderArchiveModal){orderArchiveModal.classList.remove('show');orderArchiveModal.setAttribute('aria-hidden','true')}
+			 resetAdminHistoryPagination();
+		 moduleLoadErrors={};
 	 Object.keys(adminDeferredModuleLoaded).forEach(key=>adminDeferredModuleLoaded[key]=false);
 	const wompiOrdersSearch=$('wompiOrdersSearch'),wompiOrdersStatusFilter=$('wompiOrdersStatusFilter');if(wompiOrdersSearch)wompiOrdersSearch.value='';if(wompiOrdersStatusFilter)wompiOrdersStatusFilter.value='all';wompiOrdersPage=1;wompiOrdersStatusOptionsSignature='';
 	onlinePaymentSettingLoaded=false;onlinePaymentSettingOriginal=null;
@@ -2987,6 +3007,58 @@ function orderArchiveSelectionFor(source){
  if(orderArchiveSelections.owner!==owner)orderArchiveSelections={owner,cod:new Set(),wompi:new Set()};
  return orderArchiveSelections[source];
 }
+function orderArchiveRestoreSelectionFor(source){
+ if(!['cod','wompi'].includes(source))return new Set();
+ const owner=String(adminSessionUserId||'');
+ if(orderArchiveRestoreSelections.owner!==owner)orderArchiveRestoreSelections={owner,cod:new Set(),wompi:new Set()};
+ return orderArchiveRestoreSelections[source];
+}
+function isValidArchivedOrderId(value){return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(value||''))}
+function orderArchiveArchivedIdsFor(source){
+ return [...new Set((Array.isArray(orderArchiveList)?orderArchiveList:[]).filter(row=>row?.source===source&&isValidArchivedOrderId(row.order_id)).map(row=>String(row.order_id)))];
+}
+function setOrderArchiveRestoreStatus(source,message){const status=$(source==='cod'?'codArchivedRestoreStatus':'wompiArchivedRestoreStatus');if(status)status.textContent=String(message||'')}
+function syncOrderArchiveRestoreSelectionInputs(source){
+ const selected=orderArchiveRestoreSelectionFor(source),loaded=orderArchiveListLoaded&&!orderArchiveLoadError,ids=loaded?orderArchiveArchivedIdsFor(source):[],selectedInList=ids.filter(id=>selected.has(id));
+ if(typeof document!=='undefined')document.querySelectorAll(`[data-order-archive-restore-source="${source}"][data-order-archive-restore-id]`).forEach(input=>{input.checked=selected.has(String(input.dataset.orderArchiveRestoreId||''));input.disabled=orderArchiveBusy||!!orderArchivePending});
+ const allCheckbox=$(source==='cod'?'selectAllCODArchivedCheckbox':'selectAllWompiArchivedCheckbox'),allButton=$(source==='cod'?'selectAllCODArchivedBtn':'selectAllWompiArchivedBtn'),clearButton=$(source==='cod'?'clearCODArchivedRestoreSelectionBtn':'clearWompiArchivedRestoreSelectionBtn'),restoreButton=$(source==='cod'?'restoreCODArchivedSelectionBtn':'restoreWompiArchivedSelectionBtn');
+ if(allCheckbox){allCheckbox.checked=ids.length>0&&selectedInList.length===ids.length;allCheckbox.indeterminate=selectedInList.length>0&&selectedInList.length<ids.length;allCheckbox.disabled=orderArchiveBusy||!!orderArchivePending||!loaded||ids.length===0||ids.length>5000}
+ if(allButton)allButton.disabled=orderArchiveBusy||!!orderArchivePending||!loaded||ids.length===0||ids.length>5000;
+ if(clearButton)clearButton.disabled=orderArchiveBusy||!!orderArchivePending||selected.size===0;
+ if(restoreButton)restoreButton.disabled=orderArchiveBusy||!!orderArchivePending||!loaded||selected.size===0||selected.size>5000||selectedInList.length!==selected.size;
+ const summary=$(source==='cod'?'codArchivedRestoreSummary':'wompiArchivedRestoreSummary');if(summary)summary.textContent=`${selected.size} seleccionado(s) de ${ids.length} archivado(s)`;
+}
+function setOrderArchiveRestoreControlState(source){syncOrderArchiveRestoreSelectionInputs(source)}
+function toggleAllOrderArchiveRestoreSelection(source,checked){
+ if(!['cod','wompi'].includes(source)||orderArchiveBusy||orderArchivePending)return 0;
+ if(!orderArchiveListLoaded||orderArchiveLoadError){setOrderArchiveRestoreStatus(source,'Actualiza y verifica primero la lista de archivados.');return 0}
+ const ids=orderArchiveArchivedIdsFor(source),selected=orderArchiveRestoreSelectionFor(source);
+ if(ids.length>5000){setOrderArchiveRestoreStatus(source,'La selección supera 5.000 pedidos; selecciona un grupo menor.');return 0}
+ if(checked)ids.forEach(id=>selected.add(id));else ids.forEach(id=>selected.delete(id));
+ syncOrderArchiveRestoreSelectionInputs(source);setOrderArchiveRestoreStatus(source,checked?`${ids.length} archivado(s) añadidos a la selección.`:`Se quitó de la selección el resultado archivado (${ids.length}).`);return ids.length;
+}
+function selectAllArchivedOrderRestoreEntries(source){return toggleAllOrderArchiveRestoreSelection(source,true)}
+function toggleOrderArchiveRestoreSelection(input){
+ const source=String(input?.dataset?.orderArchiveRestoreSource||''),id=String(input?.dataset?.orderArchiveRestoreId||'').trim();
+ if(!['cod','wompi'].includes(source)||!isValidArchivedOrderId(id)||orderArchiveBusy||orderArchivePending)return;
+ const selected=orderArchiveRestoreSelectionFor(source);if(input.checked)selected.add(id);else selected.delete(id);setOrderArchiveRestoreControlState(source);
+}
+function clearOrderArchiveRestoreSelection(source){
+ if(!['cod','wompi'].includes(source)||orderArchiveBusy||orderArchivePending)return;
+ orderArchiveRestoreSelectionFor(source).clear();syncOrderArchiveRestoreSelectionInputs(source);setOrderArchiveRestoreStatus(source,'Selección de restauración vaciada.');
+}
+function pruneOrderArchiveRestoreSelections(){
+ for(const source of ['cod','wompi']){const available=new Set(orderArchiveArchivedIdsFor(source)),selected=orderArchiveRestoreSelectionFor(source);for(const id of selected)if(!available.has(id))selected.delete(id);}
+}
+function restoreSelectedOrderArchiveEntries(source){
+ if(!['cod','wompi'].includes(source)||orderArchiveBusy||orderArchivePending)return;
+ if(!orderArchiveListLoaded||orderArchiveLoadError){setOrderArchiveRestoreStatus(source,'Actualiza y verifica primero la lista de archivados.');return}
+ const ids=[...orderArchiveRestoreSelectionFor(source)],available=new Set(orderArchiveArchivedIdsFor(source));
+ if(!ids.length){setOrderArchiveRestoreStatus(source,'Selecciona uno o más pedidos archivados.');return}
+ if(ids.length>5000){setOrderArchiveRestoreStatus(source,'La selección supera 5.000 pedidos; selecciona un grupo menor.');return}
+ if(ids.some(id=>!available.has(id))){setOrderArchiveRestoreStatus(source,'La lista cambió. Actualiza archivados y vuelve a seleccionar; no se envió ninguna restauración.');return}
+ openOrderArchiveConfirmDialog({kind:'restore_selection',source,ids,expectedCount:ids.length});
+}
 function orderArchiveFilteredIds(source){
 	 const filters=orderArchiveCurrentFilters(source);
 	 const rows=source==='cod'?filterAdminOrders(contraDeliveryOrders(),filters):filterWompiOrders(wompiAdminOrders,filters);
@@ -2995,99 +3067,206 @@ function orderArchiveFilteredIds(source){
 function orderArchiveHasRestrictiveFilters(source){const filters=orderArchiveCurrentFilters(source);return source==='cod'?Object.values(filters).some(value=>String(value||'').trim()!==''):(String(filters.search||'').trim()!==''||!!(filters.status&&filters.status!=='all'))}
 function orderArchiveEffectiveIds(source){const selected=[...orderArchiveSelectionFor(source)];return selected.length?selected:orderArchiveHasRestrictiveFilters(source)?orderArchiveFilteredIds(source):[]}
 function orderArchiveFilterSignature(source,ids,mode='filtered'){return JSON.stringify({source,mode,filters:orderArchiveCurrentFilters(source),ids});}
-function toggleOrderArchiveSelection(input){const source=String(input?.dataset?.orderArchiveSource||''),id=String(input?.dataset?.orderArchiveId||'').trim();if(!['cod','wompi'].includes(source)||!id)return;const selected=orderArchiveSelectionFor(source);if(input.checked)selected.add(id);else selected.delete(id);setOrderArchiveControlState(source)}
-function clearOrderArchiveSelection(source){if(!['cod','wompi'].includes(source))return;orderArchiveSelectionFor(source).clear();if(typeof document!=='undefined')document.querySelectorAll(`[data-order-archive-source="${source}"]`).forEach(input=>{input.checked=false});setOrderArchiveControlState(source)}
+function orderArchiveSourceLoaded(source){return source==='cod'?(adminDeferredModuleLoaded.orders&&!pedidosLoadError&&!moduleLoadErrors.orders):source==='wompi'?(wompiAdminOrdersLoaded&&!wompiAdminOrdersLoadError):false}
+function syncOrderArchiveSelectionInputs(source){
+ const selected=orderArchiveSelectionFor(source),loaded=orderArchiveSourceLoaded(source),ids=loaded?orderArchiveFilteredIds(source):[];
+ if(typeof document!=='undefined')document.querySelectorAll(`[data-order-archive-source="${source}"][data-order-archive-id]`).forEach(input=>{input.checked=selected.has(String(input.dataset.orderArchiveId||''));input.disabled=orderArchiveBusy||!!orderArchivePending});
+ const selectedInResult=ids.filter(id=>selected.has(id)),allCheckbox=$(source==='cod'?'selectAllCODArchiveCheckbox':'selectAllWompiArchiveCheckbox'),allButton=$(source==='cod'?'selectAllCODOrderArchiveBtn':'selectAllWompiOrderArchiveBtn');
+ if(allCheckbox){allCheckbox.checked=ids.length>0&&selectedInResult.length===ids.length;allCheckbox.indeterminate=selectedInResult.length>0&&selectedInResult.length<ids.length;allCheckbox.disabled=orderArchiveBusy||!!orderArchivePending||!loaded||ids.length===0}
+ if(allButton)allButton.disabled=orderArchiveBusy||!!orderArchivePending||!loaded||ids.length===0;
+}
+function toggleAllOrderArchiveSelection(source,checked){
+ if(!['cod','wompi'].includes(source)||orderArchiveBusy||orderArchivePending)return 0;
+ if(!orderArchiveSourceLoaded(source)){setOrderArchiveControlState(source);return 0}
+ const ids=orderArchiveFilteredIds(source),selected=orderArchiveSelectionFor(source);
+ if(checked)ids.forEach(id=>selected.add(id));else ids.forEach(id=>selected.delete(id));
+ syncOrderArchiveSelectionInputs(source);setOrderArchiveControlState(source);
+ const status=$(source==='cod'?'codOrderArchiveStatus':'wompiOrderArchiveStatus');
+ if(status&&ids.length)status.textContent=checked?`${ids.length} pedido(s) del resultado actual añadidos a la selección. La previsualización excluirá estados protegidos.`:`Se quitó de la selección el resultado actual (${ids.length} pedido(s)); no se archivó nada.`;
+ return ids.length;
+}
+function selectAllCurrentOrderArchiveRows(source){return toggleAllOrderArchiveSelection(source,true)}
+function toggleOrderArchiveSelection(input){
+ const source=String(input?.dataset?.orderArchiveSource||''),id=String(input?.dataset?.orderArchiveId||'').trim();
+ if(!['cod','wompi'].includes(source)||!id||orderArchiveBusy||orderArchivePending)return;
+ const selected=orderArchiveSelectionFor(source);if(input.checked)selected.add(id);else selected.delete(id);
+ setOrderArchiveControlState(source);
+}
+function clearOrderArchiveSelection(source){if(!['cod','wompi'].includes(source)||orderArchiveBusy||orderArchivePending)return;orderArchiveSelectionFor(source).clear();syncOrderArchiveSelectionInputs(source);setOrderArchiveControlState(source)}
 function setOrderArchiveControlState(source){
 	 const isCOD=source==='cod',button=$(isCOD?'archiveCODOrdersBtn':'archiveWompiOrdersBtn');if(!button)return;
 	 const selectedCount=orderArchiveSelectionFor(source).size,clearButton=$(isCOD?'clearCODOrderArchiveSelectionBtn':'clearWompiOrderArchiveSelectionBtn'),selectionSummary=$(isCOD?'codOrderArchiveSelectionSummary':'wompiOrderArchiveSelectionSummary');
-	 const loaded=isCOD?(adminDeferredModuleLoaded.orders&&!pedidosLoadError&&!moduleLoadErrors.orders):(wompiAdminOrdersLoaded&&!wompiAdminOrdersLoadError);
+	 const loaded=orderArchiveSourceLoaded(source);
 	 const ids=loaded?orderArchiveEffectiveIds(source):[];
-	 button.disabled=orderArchiveBusy||!loaded||ids.length===0;
+	 button.disabled=orderArchiveBusy||!!orderArchivePending||!loaded||ids.length===0;
 		 button.textContent=selectedCount?`Previsualizar archivado seleccionado (${selectedCount})`:`Limpiar historial del filtro (${ids.length})`;
-	 if(clearButton)clearButton.disabled=orderArchiveBusy||!selectedCount;
-	 if(selectionSummary)selectionSummary.textContent=selectedCount?`${selectedCount} pedido(s) seleccionado(s) individualmente; se usarán solo esos.`:orderArchiveHasRestrictiveFilters(source)?`${ids.length} pedido(s) coinciden con los filtros; la vista previa excluirá estados protegidos.`:'Sin selección ni filtros restrictivos: no se archivará todo el historial por accidente.';
+	 if(clearButton)clearButton.disabled=orderArchiveBusy||!!orderArchivePending||!selectedCount;
+	 if(selectionSummary)selectionSummary.textContent=selectedCount?`${selectedCount} pedido(s) seleccionados; se usará esa selección exacta.`:orderArchiveHasRestrictiveFilters(source)?`${ids.length} pedido(s) coinciden con los filtros; la vista previa excluirá estados protegidos.`:'Sin selección ni filtros restrictivos: usa «Seleccionar todo» para revisar el resultado completo.';
+	 syncOrderArchiveSelectionInputs(source);
 }
 function orderArchiveRpcObject(data){return Array.isArray(data)?data[0]||{}:data||{}}
+function setOrderArchiveSourceStatus(source,message){const status=$(source==='cod'?'codOrderArchiveStatus':'wompiOrderArchiveStatus');if(status)status.textContent=String(message||'')}
+function setOrderArchiveConfirmStatus(message=''){
+ const status=$('orderArchiveConfirmStatus');if(!status)return;
+ status.textContent=String(message||'');status.hidden=!message;
+}
+function openOrderArchiveConfirmDialog(pending){
+ const modal=$('orderArchiveConfirmModal');if(!modal)throw new Error('No está disponible el diálogo seguro de confirmación. No se archivó nada.');
+ const action={...pending};
+ if(typeof document!=='undefined'&&!action.returnFocus)action.returnFocus=document.activeElement||null;
+ orderArchivePending=action;setOrderArchiveConfirmStatus('');
+ const title=$('orderArchiveConfirmTitle'),summary=$('orderArchiveConfirmSummary'),policy=$('orderArchiveConfirmPolicy'),confirmButton=$('confirmOrderArchiveActionBtn');
+	 if(action.kind==='restore_batch'){
+	  if(title)title.textContent='Confirmar restauración reversible';
+	  if(summary)summary.textContent=`Se restaurarán ${action.expectedCount} pedido(s) del lote seleccionado.`;
+	  if(policy)policy.textContent='La restauración solo cambia el registro de archivo. No modifica pedidos, pagos, reservas, inventario ni conciliaciones.';
+	  if(confirmButton)confirmButton.textContent='Restaurar lote';
+	 }else if(action.kind==='restore_selection'){
+	  if(title)title.textContent='Confirmar restauración seleccionada';
+	  if(summary)summary.textContent=`Categoría: ${action.source==='cod'?'Contraentrega':'Wompi'}\nSeleccionados: ${action.expectedCount}`;
+	  if(policy)policy.textContent='Solo se retirará del archivo la selección exacta mostrada. La restauración no modifica pedidos, pagos, inventario, reservas ni conciliaciones.';
+	  if(confirmButton)confirmButton.textContent='Restaurar selección';
+	 }else{
+  if(title)title.textContent='Confirmar archivado reversible';
+  const category=action.source==='cod'?'Contraentrega':'Wompi';
+  if(summary)summary.textContent=`Categoría: ${category}\nSolicitados: ${action.requestCount}\nElegibles según el servidor: ${action.expectedCount}\nExcluidos o ya archivados: ${action.excludedCount}`;
+  if(policy)policy.textContent=action.source==='cod'?'Solo se archivarán pedidos COD terminales (entregados, rechazados o cancelados). Pendientes, confirmados, en tránsito y devueltos permanecen visibles.':'Solo intentos terminales verificados en Producción y fuera de la ventana de seguridad. Sandbox, PENDING, APPROVED, desconocidos y no conciliados permanecen visibles.';
+  if(confirmButton)confirmButton.textContent='Confirmar archivado';
+ }
+ if(confirmButton)confirmButton.disabled=false;
+ const cancelButton=$('cancelOrderArchiveConfirmBtn');if(cancelButton)cancelButton.disabled=false;
+	 modal.classList.add('show');modal.setAttribute('aria-hidden','false');
+	 setOrderArchiveControlState('cod');setOrderArchiveControlState('wompi');
+	 setOrderArchiveRestoreControlState('cod');setOrderArchiveRestoreControlState('wompi');
+	 confirmButton?.focus();
+}
+function closeOrderArchiveConfirmDialog(returnFocus=null){
+ const modal=$('orderArchiveConfirmModal');if(modal){modal.classList.remove('show');modal.setAttribute('aria-hidden','true')}
+ setOrderArchiveConfirmStatus('');
+ if(returnFocus&&typeof returnFocus.focus==='function')returnFocus.focus();
+}
+function cancelPendingOrderArchive(){
+ if(orderArchiveBusy||!orderArchivePending)return;
+	 const pending=orderArchivePending,returnFocus=pending.returnFocus;orderArchivePending=null;closeOrderArchiveConfirmDialog(returnFocus);
+	 if(pending.kind==='restore_batch')setOrderArchiveSourceStatus(pending.source,'Restauración cancelada. No se modificó el archivo ni el pedido.');
+	 else if(pending.kind==='restore_selection')setOrderArchiveRestoreStatus(pending.source,'Restauración cancelada. No se modificó el archivo ni el pedido.');
+	 else setOrderArchiveSourceStatus(pending.source,'Archivado cancelado. No se archivó ningún pedido.');
+	 setOrderArchiveControlState('cod');setOrderArchiveControlState('wompi');setOrderArchiveRestoreControlState('cod');setOrderArchiveRestoreControlState('wompi');
+}
+function handleOrderArchiveConfirmKeydown(event){if(event?.key==='Escape'){event.preventDefault();cancelPendingOrderArchive()}}
 async function previewOrderArchive(source){
- if(!['cod','wompi'].includes(source)||source!==ordersActiveCategory){alert('Abre la pestaña de pedidos correspondiente antes de archivar.');return}
- const loaded=source==='cod'?(adminDeferredModuleLoaded.orders&&!pedidosLoadError&&!moduleLoadErrors.orders):(wompiAdminOrdersLoaded&&!wompiAdminOrdersLoadError);
- if(!loaded){alert('No se archivó nada: primero actualiza correctamente el listado completo de esta pestaña.');return}
- if(orderArchiveBusy)return;
- orderArchiveBusy=true;setOrderArchiveControlState('cod');setOrderArchiveControlState('wompi');
+	 if(!['cod','wompi'].includes(source))return;
+	 if(source!==ordersActiveCategory){setOrderArchiveSourceStatus(source,'Abre primero la pestaña de pedidos correspondiente. No se archivó nada.');return}
+	 if(!orderArchiveSourceLoaded(source)){setOrderArchiveSourceStatus(source,'Actualiza correctamente el listado completo antes de archivar. No se archivó nada.');return}
+	 if(orderArchiveBusy||orderArchivePending)return;
+	 orderArchiveBusy=true;setOrderArchiveControlState('cod');setOrderArchiveControlState('wompi');
 	 try{
-	  if(!orderArchiveListLoaded){const archivesReady=await loadOrderArchiveList();if(!archivesReady)throw new Error('No se pudo verificar la lista de archivados. No se habilitó ninguna operación.');}
-	  const selectedIds=[...orderArchiveSelectionFor(source)],selectionMode=selectedIds.length>0,mode=selectionMode?'selected':'filtered',ids=orderArchiveEffectiveIds(source);
-	  if(!ids.length){alert('Selecciona uno o varios pedidos, o aplica un filtro antes de previsualizar.');return}
+	  if(!orderArchiveListLoaded){const archivesReady=await loadOrderArchiveList();if(!archivesReady)throw new Error('No se pudo verificar la lista de archivados.')}
+	  const ids=orderArchiveEffectiveIds(source),selectedIds=[...orderArchiveSelectionFor(source)],mode=selectedIds.length?'selected':'filtered';
+	  if(!ids.length){setOrderArchiveSourceStatus(source,'Selecciona pedidos o usa «Seleccionar todo»; no se archivó nada.');return}
 	  const filterKey=orderArchiveFilterSignature(source,ids,mode);
 	  const response=await Promise.resolve(sb.rpc('admin_preview_order_archive',{p_source:source,p_order_ids:ids}));
 	  if(response?.error)throw response.error;
-  const preview=orderArchiveRpcObject(response?.data),count=Number(preview.affected_count)||0,excluded=Number(preview.excluded_count)||0;
-  if(preview.success!==true||!preview.preview_id)throw new Error(preview.message||'El servidor no confirmó la previsualización.');
-  const status=$(source==='cod'?'codOrderArchiveStatus':'wompiOrderArchiveStatus');
-  if(status)status.textContent=`Previsualización del servidor: ${count} pedido(s) elegible(s); ${excluded} excluido(s) o ya archivado(s). No se borrará ningún pedido.`;
-  if(count===0){alert(`Previsualización exacta: 0 pedidos se archivarán; ${excluded} fueron excluidos o ya estaban archivados.`);return}
-	  if(orderArchiveFilterSignature(source,orderArchiveEffectiveIds(source),mode)!==filterKey){alert('La selección, filtros o resultados cambiaron después de la previsualización. Vuelve a previsualizar; no se archivó nada.');return}
-	  const targetDescription=selectionMode?`${ids.length} pedido(s) seleccionado(s) individualmente`:`${ids.length} pedido(s) filtrado(s)`;
-	  const policy=source==='cod'?'Solo pedidos cerrados (entregados, rechazados o cancelados); pendientes, confirmados, en tránsito y devueltos permanecen visibles.':'Solo intentos terminales verificados en Producción y fuera de la ventana de seguridad; Sandbox, PENDING, APPROVED, desconocidos y no conciliados permanecen visibles.';
-	  if(!confirm(`Previsualización exacta del servidor\n\nObjetivo: ${targetDescription}. Elegibles: ${count}; excluidos o ya archivados: ${excluded}.\n\n${policy}\n\nEl archivo es reversible: no se borrarán filas ni se modificarán pagos, inventario, reservas o registros contables. ¿Confirmas archivar?`))return;
-	  if(orderArchiveFilterSignature(source,orderArchiveEffectiveIds(source),mode)!==filterKey){alert('La selección o los filtros cambiaron antes de confirmar. Vuelve a previsualizar; no se archivó nada.');return}
-	  const archivedResponse=await Promise.resolve(sb.rpc('admin_archive_order_candidates',{p_preview_id:preview.preview_id,p_expected_count:count,p_confirmation:'ARCHIVAR PEDIDOS'}));
-	  if(archivedResponse?.error)throw archivedResponse.error;
-	  const archived=orderArchiveRpcObject(archivedResponse?.data);
-	  if(archived.success!==true)throw new Error(archived.message||'El servidor no confirmó el archivado.');
-	  ids.forEach(id=>orderArchiveSelectionFor(source).delete(id));
-	  if(status)status.textContent=`Archivado reversible: ${Number(archived.archived_count)||0} pedido(s).`;
-  toast(`Se archivaron ${Number(archived.archived_count)||0} pedido(s). Puedes restaurarlos desde “Ver archivados”.`);
-  orderArchiveListLoaded=false;
-  await reloadOrderListsAfterArchive();
-  if(!$('ordersArchiveSection')?.hidden)await loadOrderArchiveList();
- }catch(error){
-  alert('No se archivó ningún pedido: '+String(error?.message||error));
- }finally{
-  orderArchiveBusy=false;setOrderArchiveControlState('cod');setOrderArchiveControlState('wompi');
- }
+	  const preview=orderArchiveRpcObject(response?.data),count=Number(preview.affected_count)||0,excluded=Number(preview.excluded_count)||0;
+	  if(preview.success!==true||!preview.preview_id)throw new Error(preview.message||'Supabase no confirmó la previsualización.');
+	  setOrderArchiveSourceStatus(source,`Previsualización del servidor: ${count} elegible(s), ${excluded} excluido(s) o ya archivado(s). No se ha archivado nada.`);
+	  if(count===0){toast(`No hay pedidos elegibles. ${excluded} están protegidos o ya archivados.`);return}
+	  if(orderArchiveFilterSignature(source,orderArchiveEffectiveIds(source),mode)!==filterKey){setOrderArchiveSourceStatus(source,'La selección o los filtros cambiaron durante la previsualización. Vuelve a revisar; no se archivó nada.');return}
+	  openOrderArchiveConfirmDialog({kind:'archive',source,previewId:preview.preview_id,expectedCount:count,requestCount:ids.length,excludedCount:excluded,filterKey,mode,ids:[...ids]});
+	 }catch(error){
+	  const message='No se pudo preparar el archivado; no se envió una confirmación: '+String(error?.message||error);
+	  setOrderArchiveSourceStatus(source,message);toast(message);
+	 }finally{
+	  orderArchiveBusy=false;setOrderArchiveControlState('cod');setOrderArchiveControlState('wompi');
+	 }
+}
+async function confirmPendingOrderArchiveAction(){
+	 const pending=orderArchivePending;if(!pending||orderArchiveBusy)return;
+	 if(!sb||!adminAuthOperationStillCurrent(adminSessionUserId,adminAuthEpoch)){setOrderArchiveConfirmStatus('La sesión administrativa cambió. Cancela y vuelve a iniciar sesión; no se envió la operación.');return}
+	 if(pending.kind==='archive'&&(pending.source!==ordersActiveCategory||orderArchiveFilterSignature(pending.source,orderArchiveEffectiveIds(pending.source),pending.mode)!==pending.filterKey)){
+	  const message='La pestaña, filtros o selección cambiaron desde la previsualización. Vuelve a previsualizar; no se archivó nada.';
+	  const source=pending.source,returnFocus=pending.returnFocus;orderArchivePending=null;closeOrderArchiveConfirmDialog(returnFocus);setOrderArchiveSourceStatus(source,message);toast(message);setOrderArchiveControlState('cod');setOrderArchiveControlState('wompi');return;
+	 }
+	 if(pending.kind==='restore_selection'){
+	  const selectedNow=[...orderArchiveRestoreSelectionFor(pending.source)].sort(),expected=[...pending.ids].sort(),available=new Set(orderArchiveArchivedIdsFor(pending.source));
+	  if(!orderArchiveListLoaded||selectedNow.length!==expected.length||selectedNow.some((id,index)=>id!==expected[index]||!available.has(id))){
+	   const source=pending.source,returnFocus=pending.returnFocus,message='La lista o selección cambió desde que abriste la confirmación. Actualiza archivados y vuelve a seleccionar; no se restauró nada.';
+	   orderArchivePending=null;closeOrderArchiveConfirmDialog(returnFocus);setOrderArchiveRestoreStatus(source,message);setOrderArchiveRestoreControlState(source);return;
+	  }
+	 }
+	 orderArchiveBusy=true;setOrderArchiveControlState('cod');setOrderArchiveControlState('wompi');setOrderArchiveRestoreControlState('cod');setOrderArchiveRestoreControlState('wompi');
+	 const confirmButton=$('confirmOrderArchiveActionBtn'),cancelButton=$('cancelOrderArchiveConfirmBtn');if(confirmButton){confirmButton.disabled=true;confirmButton.textContent='Procesando…'}if(cancelButton)cancelButton.disabled=true;
+	 try{
+	  if(pending.kind==='restore_selection'){
+	   const response=await Promise.resolve(sb.rpc('admin_restore_order_archive_selection',{p_source:pending.source,p_order_ids:pending.ids}));
+	   if(response?.error)throw response.error;
+	   const restored=orderArchiveRpcObject(response?.data);if(restored.success!==true)throw new Error(restored.message||'Supabase no confirmó la restauración seleccionada.');
+	   const restoredCount=Number(restored.restored_count)||0,ignoredCount=Number(restored.ignored_count)||0,source=pending.source,returnFocus=pending.returnFocus;
+	   pending.ids.forEach(id=>orderArchiveRestoreSelectionFor(source).delete(id));orderArchivePending=null;closeOrderArchiveConfirmDialog(returnFocus);
+	   const message=restoredCount===pending.expectedCount?`Restauración confirmada: ${restoredCount} pedido(s).`:`Supabase restauró ${restoredCount} de ${pending.expectedCount}; ${ignoredCount} ya no estaban activos en el archivo.`;
+	   setOrderArchiveRestoreStatus(source,message);toast(message);orderArchiveListLoaded=false;await loadOrderArchiveList();await reloadOrderListsAfterArchive();return;
+	  }
+	  if(pending.kind==='restore_batch'){
+	   const response=await Promise.resolve(sb.rpc('admin_restore_order_archive',{p_batch_id:pending.batchId}));
+	   if(response?.error)throw response.error;
+	   const restored=orderArchiveRpcObject(response?.data);if(restored.success!==true)throw new Error(restored.message||'Supabase no confirmó la restauración.');
+	   const restoredCount=Number(restored.restored_count)||0,source=pending.source,returnFocus=pending.returnFocus;orderArchivePending=null;closeOrderArchiveConfirmDialog(returnFocus);
+	   setOrderArchiveSourceStatus(source,`Restauración confirmada: ${restoredCount} pedido(s).`);toast(`Se restauraron ${restoredCount} pedido(s).`);
+	   orderArchiveListLoaded=false;await loadOrderArchiveList();await reloadOrderListsAfterArchive();return;
+	  }
+	  const response=await Promise.resolve(sb.rpc('admin_archive_order_candidates',{p_preview_id:pending.previewId,p_expected_count:pending.expectedCount,p_confirmation:'ARCHIVAR PEDIDOS'}));
+	  if(response?.error)throw response.error;
+	  const archived=orderArchiveRpcObject(response?.data);if(archived.success!==true)throw new Error(archived.message||'Supabase no confirmó el archivado.');
+	  const archivedCount=Number(archived.archived_count)||0,source=pending.source,returnFocus=pending.returnFocus;
+	  pending.ids.forEach(id=>orderArchiveSelectionFor(source).delete(id));orderArchivePending=null;closeOrderArchiveConfirmDialog(returnFocus);
+	  setOrderArchiveSourceStatus(source,`Archivado confirmado por Supabase: ${archivedCount} pedido(s). Actualizando los listados…`);
+	  toast(archived.idempotent?'La operación ya se había completado; se verificará el estado actual.':`Se archivaron ${archivedCount} pedido(s).`);
+	  orderArchiveListLoaded=false;await reloadOrderListsAfterArchive();
+	  if(!$('ordersArchiveSection')?.hidden)await loadOrderArchiveList();
+	  if(archivedCount!==pending.expectedCount&&!archived.idempotent)setOrderArchiveSourceStatus(source,`Supabase confirmó ${archivedCount} de ${pending.expectedCount} elegible(s); revisa «Ver archivados» antes de repetir.`);
+	 }catch(error){
+	  const pendingNow=orderArchivePending,source=pendingNow?.source||pending.source,returnFocus=pendingNow?.returnFocus||pending.returnFocus,isRestore=pending.kind==='restore_selection'||pending.kind==='restore_batch';
+	  orderArchivePending=null;closeOrderArchiveConfirmDialog(returnFocus);
+	  const raw=String(error?.message||error),network=/failed to fetch|networkerror|load failed|timeout|timed out/i.test(raw);
+	  const message=network?'No se pudo confirmar la respuesta de Supabase. Actualizaré los listados para comprobar el resultado; no confirmes otra vez hasta revisar “Ver archivados”.':`Supabase rechazó la operación. No se mostrará como exitosa: ${raw}`;
+	  if(isRestore&&pending.kind==='restore_selection')setOrderArchiveRestoreStatus(source,message);else setOrderArchiveSourceStatus(source,message);toast(message);
+	  if(network){orderArchiveListLoaded=false;await loadOrderArchiveList();await reloadOrderListsAfterArchive()}
+	 }finally{
+	  orderArchiveBusy=false;if(confirmButton){confirmButton.disabled=false;confirmButton.textContent=orderArchivePending?.kind==='restore_batch'?'Restaurar lote':orderArchivePending?.kind==='restore_selection'?'Restaurar selección':'Confirmar archivado'}if(cancelButton)cancelButton.disabled=false;setOrderArchiveControlState('cod');setOrderArchiveControlState('wompi');setOrderArchiveRestoreControlState('cod');setOrderArchiveRestoreControlState('wompi');
+	 }
 }
 async function loadOrderArchiveList(){
  const status=$('ordersArchiveStatus'),list=$('ordersArchiveList');
- if(!sb||!adminAuthOperationStillCurrent(adminSessionUserId,adminAuthEpoch)){orderArchiveLoadError='No hay una sesión administrativa válida.';orderArchiveListLoaded=false;if(status)status.textContent=orderArchiveLoadError;return false}
+ if(!sb||!adminAuthOperationStillCurrent(adminSessionUserId,adminAuthEpoch)){orderArchiveLoadError='No hay una sesión administrativa válida.';orderArchiveListLoaded=false;orderArchiveList=[];pruneOrderArchiveRestoreSelections();setOrderArchiveRestoreControlState('cod');setOrderArchiveRestoreControlState('wompi');if(status)status.textContent=orderArchiveLoadError;return false}
  if(status)status.textContent='Cargando archivados…';if(list)list.innerHTML='';
  const result=await fetchAllOrderArchiveEntries();
- if(result.error){orderArchiveLoadError=String(result.error.message||result.error);orderArchiveListLoaded=false;orderArchiveList=[];if(status)status.textContent='No se verificó el historial de archivo: '+orderArchiveLoadError;return false}
- orderArchiveList=result.data||[];orderArchiveLoadError='';orderArchiveListLoaded=true;renderOrderArchiveList();return true;
+ if(result.error){orderArchiveLoadError=String(result.error.message||result.error);orderArchiveListLoaded=false;orderArchiveList=[];pruneOrderArchiveRestoreSelections();setOrderArchiveRestoreControlState('cod');setOrderArchiveRestoreControlState('wompi');if(status)status.textContent='No se verificó el historial de archivo: '+orderArchiveLoadError;return false}
+ orderArchiveList=result.data||[];orderArchiveLoadError='';orderArchiveListLoaded=true;pruneOrderArchiveRestoreSelections();renderOrderArchiveList();return true;
 }
 function renderOrderArchiveList(){
  const list=$('ordersArchiveList'),status=$('ordersArchiveStatus');if(!list)return;
  if(status)status.textContent=orderArchiveListLoaded?`${orderArchiveList.length} pedido(s) archivado(s), disponibles para restaurar.`:orderArchiveLoadError;
- if(!orderArchiveList.length){list.innerHTML='<div class="empty">No hay pedidos archivados pendientes de restaurar.</div>';return}
+ if(!orderArchiveList.length){list.innerHTML='<div class="empty">No hay pedidos archivados pendientes de restaurar.</div>';setOrderArchiveRestoreControlState('cod');setOrderArchiveRestoreControlState('wompi');return}
  const batches=new Map();
  for(const row of orderArchiveList){const key=String(row.batch_id||'');if(!batches.has(key))batches.set(key,[]);batches.get(key).push(row)}
  list.innerHTML=[...batches.entries()].map(([batchId,rows])=>{
   const first=rows[0]||{},source=first.source==='wompi'?'Wompi':'Contraentrega',items=rows.map(row=>{
-   const data=row.order_data||{},label=data.customer_name||'Cliente sin nombre',reference=data.reference||data.client_reference||String(row.order_id||'').slice(0,8),state=data.payment_status||data.status||'';
-   return `<div class="orderArchiveOrder"><strong>${esc(label)}</strong> · ${esc(reference)}${state?` · ${esc(state)}`:''} · ID ${esc(row.order_id||'')}</div>`;
+   const data=row.order_data||{},label=data.customer_name||'Cliente sin nombre',reference=data.reference||data.client_reference||String(row.order_id||'').slice(0,8),state=data.payment_status||data.status||'',sourceKey=row.source==='wompi'?'wompi':'cod',orderId=String(row.order_id||''),selected=orderArchiveRestoreSelectionFor(sourceKey).has(orderId),valid=isValidArchivedOrderId(orderId);
+   return `<div class="orderArchiveOrder"><label class="orderArchiveEntrySelect"><input type="checkbox" data-order-archive-restore-source="${esc(sourceKey)}" data-order-archive-restore-id="${esc(orderId)}" ${selected?'checked':''} ${valid?'':'disabled'} onchange="toggleOrderArchiveRestoreSelection(this)">Seleccionar para restaurar</label><span><strong>${esc(label)}</strong> · ${esc(reference)}${state?` · ${esc(state)}`:''} · ID ${esc(orderId)}</span></div>`;
   }).join('');
   return `<article class="orderArchiveBatch"><div class="rowBetween"><div><h4>${source} · ${rows.length} pedido(s)</h4><div class="muted" style="font-size:11px">Archivado ${esc(first.archived_at?new Date(first.archived_at).toLocaleString('es-CO'):'')} · Actor ${esc(first.archived_by||'—')}</div></div><button type="button" class="softbtn" onclick="restoreOrderArchive('${esc(batchId)}')">Restaurar lote</button></div>${items}</article>`;
  }).join('');
+ setOrderArchiveRestoreControlState('cod');setOrderArchiveRestoreControlState('wompi');
 }
 async function toggleOrderArchiveList(){
  const section=$('ordersArchiveSection'),button=$('toggleOrderArchivesBtn');if(!section)return;
  section.hidden=!section.hidden;if(button)button.textContent=section.hidden?'Ver archivados':'Ocultar archivados';
  if(!section.hidden)await loadOrderArchiveList();
 }
-async function restoreOrderArchive(batchId){
+function restoreOrderArchive(batchId){
  const rows=orderArchiveList.filter(row=>String(row.batch_id)===String(batchId));
- if(!rows.length||orderArchiveBusy)return;
- if(!confirm(`Se restaurarán ${rows.length} pedido(s) del archivo reversible. ¿Confirmas?`))return;
- orderArchiveBusy=true;
- try{
-  const response=await Promise.resolve(sb.rpc('admin_restore_order_archive',{p_batch_id:batchId}));
-  if(response?.error)throw response.error;
-  const restored=orderArchiveRpcObject(response?.data);
-  if(restored.success!==true)throw new Error(restored.message||'El servidor no confirmó la restauración.');
-  toast(`Se restauraron ${Number(restored.restored_count)||0} pedido(s).`);
-  orderArchiveListLoaded=false;await loadOrderArchiveList();await reloadOrderListsAfterArchive();
- }catch(error){alert('No se restauró ningún pedido: '+String(error?.message||error))}
- finally{orderArchiveBusy=false;setOrderArchiveControlState('cod');setOrderArchiveControlState('wompi')}
+ if(!rows.length||orderArchiveBusy||orderArchivePending)return;
+ openOrderArchiveConfirmDialog({kind:'restore_batch',batchId:String(batchId),source:rows[0].source,expectedCount:rows.length});
 }
 async function reloadOrderListsAfterArchive(){
  const key=JSON.stringify([String(adminSessionUserId||''),adminAuthEpoch]);
