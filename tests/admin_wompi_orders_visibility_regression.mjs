@@ -18,6 +18,7 @@ assert.match(migration, /GRANT EXECUTE ON FUNCTION public\.admin_list_wompi_orde
 assert.doesNotMatch(migration, /^\s*(INSERT|UPDATE|DELETE|TRUNCATE)\b/im, 'la migración no altera filas comerciales');
 
 assert.match(admin, /sb\.rpc\('admin_list_wompi_orders'/);
+assert.match(admin, /Promise\.resolve\(sb\.rpc\('admin_list_wompi_orders'/, 'el builder RPC Supabase thenable debe normalizarse antes de usar catch');
 assert.match(admin, /id="wompiOrdersList"/);
 assert.match(admin, /function renderAdminWompiOrders\(\)/);
 assert.match(admin, /order\.payment_status/);

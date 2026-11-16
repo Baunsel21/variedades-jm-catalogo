@@ -2800,10 +2800,10 @@ async function cargarPedidos(){
   const isCurrent=()=>adminAuthOperationStillCurrent(userId,authEpoch);
   const loadPromise=Promise.resolve().then(async()=>{
     if(button){button.disabled=true;button.textContent='⏳ Actualizando…'}
-    try{
+      try{
       const [webOrdersResult,wompiOrdersResult]=await Promise.all([
         fetchAllTableRows("web_orders","created_at",false),
-        sb.rpc('admin_list_wompi_orders',{p_limit:200,p_offset:0}).catch(error=>({data:null,error})),
+        Promise.resolve(sb.rpc('admin_list_wompi_orders',{p_limit:200,p_offset:0})).catch(error=>({data:null,error})),
       ]);
       const {data,error}=webOrdersResult;
       if(!isCurrent())return false;
