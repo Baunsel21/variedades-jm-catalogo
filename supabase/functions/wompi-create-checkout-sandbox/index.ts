@@ -321,11 +321,13 @@ async function verifyTerminalOrderHistory(supabaseUrl: string, serviceRoleKey: s
       const attemptNumber = Number(attempt?.attempt_number);
       const attemptRef = String(attempt?.attempt_reference ?? "").trim();
       const attemptTransaction = String(attempt?.transaction_id ?? "").trim();
-      const terminalAt = Date.parse(String(attempt?.terminal_at ?? ""));
+      const manualVerifiedAt = Date.parse(String(attempt?.manual_verified_at ?? ""));
+      const storedTerminalAt = Date.parse(String(attempt?.terminal_at ?? ""));
       const manualNoTransaction = status === "INITIATED" &&
         String(attempt?.manual_disposition ?? "").trim() === "NO_TRANSACTION_VERIFIED" &&
-        !attemptTransaction && Number.isFinite(Date.parse(String(attempt?.manual_verified_at ?? ""))) &&
-        Date.parse(String(attempt?.manual_verified_at ?? "")) + WOMPI_TERMINAL_GRACE_MS <= Date.now();
+        !attemptTransaction && Number.isFinite(manualVerifiedAt) &&
+        manualVerifiedAt + WOMPI_TERMINAL_GRACE_MS <= Date.now();
+      const terminalAt = Number.isFinite(storedTerminalAt) ? storedTerminalAt : manualVerifiedAt;
       const expiredBeforeSubmission = status === "EXPIRED_BEFORE_SUBMISSION" && !attemptTransaction &&
         Number.isFinite(terminalAt) && terminalAt + WOMPI_TERMINAL_GRACE_MS <= Date.now();
       const terminalProviderAttempt = TERMINAL_PAYMENT_STATUSES.has(status) && Boolean(attemptTransaction);
