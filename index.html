@@ -5296,25 +5296,45 @@ function resetWompiButton(){
  btn.disabled=false;
  btn.textContent='✅ Confirmar pedido';
 }
+const WOMPI_RETURN_NOTICE_KEY='sirevya_wompi_return_notice_v1';
+const WOMPI_RETURN_NOTICE_MAX_AGE=30*60*1000;
+let wompiReturnRecoveryPending=false;
+function markWompiReturnNotice(){try{sessionStorage.setItem(WOMPI_RETURN_NOTICE_KEY,String(Date.now()))}catch{}}
+function clearWompiReturnNotice(){try{sessionStorage.removeItem(WOMPI_RETURN_NOTICE_KEY)}catch{}}
+function consumeWompiReturnNotice(){
+ try{
+  const startedAt=Number(sessionStorage.getItem(WOMPI_RETURN_NOTICE_KEY)||0);
+  sessionStorage.removeItem(WOMPI_RETURN_NOTICE_KEY);
+  return Number.isFinite(startedAt)&&startedAt>0&&Date.now()>=startedAt&&Date.now()-startedAt<=WOMPI_RETURN_NOTICE_MAX_AGE;
+ }catch{return false}
+}
+function openRecoveredWompiCheckoutIfReady(){
+ if(!wompiReturnRecoveryPending||!catalogInitialLoadComplete||!checkoutCart?.length)return false;
+ wompiReturnRecoveryPending=false;
+ clearCheckoutValidation();
+ updateShipping();
+ $('checkoutModal')?.classList.add('open');
+ void refreshStorefrontCouponSettings(true);
+ document.body.style.overflow='hidden';
+ void Promise.all([
+  refreshOnlinePaymentSetting({silent:true}),
+  refreshCODPaymentSettings({silent:true})
+ ]).then(()=>{if($('checkoutModal')?.classList.contains('open'))updateShipping();});
+ return true;
+}
 window.addEventListener('pageshow',event=>{
  restoreCheckoutFromReservation();
+ if(consumeWompiReturnNotice()){
+  wompiReturnRecoveryPending=true;
+  showToast('Regresaste desde el proceso de Wompi. Se conservó la reserva vigente y se recuperó el checkout original; verifica el estado antes de intentar pagar de nuevo.',{type:'info',duration:12000});
+  openRecoveredWompiCheckoutIfReady();
+ }
  // Al volver desde Wompi o recargar en móviles, restablecer siempre el estado
  // visual del botón. El servidor sigue resolviendo cualquier pago ambiguo.
  window.__sirevyaWompiInProgress=false;
  resetWompiButton();
  if(event.persisted && getActiveReservationReference() && checkoutCart?.length){
-   setTimeout(()=>{
-     clearCheckoutValidation();
-     updateShipping();
-     $('checkoutModal')?.classList.add('open');
-     void refreshStorefrontCouponSettings(true);
-     document.body.style.overflow='hidden';
-     // Al restaurar desde BFCache, vuelve a consultar las ciudades permitidas.
-     void Promise.all([
-       refreshOnlinePaymentSetting({silent:true}),
-       refreshCODPaymentSettings({silent:true})
-     ]).then(()=>{if($('checkoutModal')?.classList.contains('open'))updateShipping();});
-   },80);
+   setTimeout(()=>{wompiReturnRecoveryPending=true;openRecoveredWompiCheckoutIfReady()},80);
  }
 });
 
@@ -5681,9 +5701,11 @@ async function payWithWompi(confirmedSnapshot){
 	  closeCheckout();
 	  if(btn){btn.disabled=true;btn.textContent='↗ Redirigiendo a Wompi...'}
 	  activeWompiCheckoutRedirectStarted=true;
+	  markWompiReturnNotice();
 	  form.submit();
 
 	 }catch(err){
+	  clearWompiReturnNotice();
 	  if(activeWompiCheckoutRequestSent&&!activeWompiCheckoutRedirectStarted){
 	   const cancellation=await cancelActiveWompiCheckoutRequest();
 	   if(cancellation.state==='manual_recovery_required')updateWompiCheckoutRequestStatus(activeWompiCheckoutRequestId,'manual');
@@ -6091,7 +6113,7 @@ async function load(){
   const initialCats=[...new Set(productos.map(p=>String(p.category||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'es'));
   applyCatalogCategories(initialCats,true);
   $('error').style.display='none';
-  render();restoreCheckoutFromReservation();
+  render();restoreCheckoutFromReservation();openRecoveredWompiCheckoutIfReady();
   // Links shared from the admin may open a particular product without requiring a second page.
   requestAnimationFrame(()=>openDirectProductFromLocation());
 
