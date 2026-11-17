@@ -1,0 +1,82 @@
+name: Deploy Wompi checkout Sandbox
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: supabase-sandbox-wompi-create-checkout
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # Reuses the existing token secret without changing or creating secrets.
+    # The fixed project ref below is Sandbox; production is never targeted.
+    environment:
+      name: sirevya-supabase-production
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_PROJECT_REF: xfrxvpzmderenmudegqt
+      FUNCTION_SLUG: wompi-create-checkout-sandbox
+    steps:
+      - name: Check out the exact selected main commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Verify Sandbox-only scope and exact bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = "refs/heads/main"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test -n "${SUPABASE_ACCESS_TOKEN:-}"
+          test "$SUPABASE_PROJECT_REF" = "xfrxvpzmderenmudegqt"
+          test "$FUNCTION_SLUG" = "wompi-create-checkout-sandbox"
+          function_dir="supabase/functions/${FUNCTION_SLUG}"
+          test -s "$function_dir/index.ts"
+          test -s "$function_dir/cedula.mjs"
+          test "$(find "$function_dir" -type f -printf '%P\n' | LC_ALL=C sort)" = $'cedula.mjs\nindex.ts'
+          rg -q 'expired_session_recovery|renew_storefront_wompi_expired_session' "$function_dir/index.ts"
+          rg -q 'WOMPI_INTEGRITY_SECRET_TEST' "$function_dir/index.ts"
+          sha256sum "$function_dir/index.ts" "$function_dir/cedula.mjs"
+      - name: Install pinned Supabase CLI
+        uses: supabase/setup-cli@v3
+        with:
+          version: 2.67.1
+      - name: Deploy only the Sandbox checkout function
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p supabase
+          cat > supabase/config.toml <<EOF
+          project_id = "${SUPABASE_PROJECT_REF}"
+          [functions.${FUNCTION_SLUG}]
+          verify_jwt = false
+          EOF
+          supabase functions deploy "$FUNCTION_SLUG" \
+            --project-ref "$SUPABASE_PROJECT_REF" \
+            --no-verify-jwt \
+            --use-api
+      - name: Download and compare the deployed source
+        shell: bash
+        run: |
+          set -euo pipefail
+          remote_dir="$(mktemp -d)"
+          trap 'rm -rf "$remote_dir"' EXIT
+          mkdir -p "$remote_dir/supabase/functions"
+          cat > "$remote_dir/supabase/config.toml" <<EOF
+          project_id = "${SUPABASE_PROJECT_REF}"
+          EOF
+          (cd "$remote_dir" && supabase functions download "$FUNCTION_SLUG" --project-ref "$SUPABASE_PROJECT_REF" --use-api)
+          expected="supabase/functions/${FUNCTION_SLUG}"
+          actual="$remote_dir/supabase/functions/${FUNCTION_SLUG}"
+          test "$(find "$expected" -type f -printf '%P\n' | LC_ALL=C sort)" = "$(find "$actual" -type f -printf '%P\n' | LC_ALL=C sort)"
+          for f in index.ts cedula.mjs; do cmp --silent "$expected/$f" "$actual/$f"; done
+          sha256sum "$expected/index.ts" "$actual/index.ts" "$expected/cedula.mjs" "$actual/cedula.mjs"
+          echo 'Sandbox source matches the selected commit byte-for-byte.'
