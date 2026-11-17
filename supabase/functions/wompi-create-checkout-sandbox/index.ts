@@ -333,12 +333,12 @@ async function verifyTerminalOrderHistory(supabaseUrl: string, serviceRoleKey: s
           (!manualNoTransaction && !expiredBeforeSubmission && !terminalProviderAttempt) ||
           !(await verifyWompiSandboxAttempt(wompiPrivateKey, attemptRef, attemptTransaction, Number(attempt?.amount_in_cents), status === "INITIATED" ? "ERROR" : status)) ||
           String(attempt?.environment ?? "").trim().toLowerCase() !== "test" || String(attempt?.currency ?? "").trim().toUpperCase() !== "COP" ||
-          Number(attempt?.amount_in_cents) !== total * 100 || !attemptRef || !attemptTransaction ||
+          Number(attempt?.amount_in_cents) !== total * 100 || !attemptRef ||
           !Number.isFinite(terminalAt) || terminalAt + WOMPI_TERMINAL_GRACE_MS > Date.now() ||
-          seenAttemptRefs.has(attemptRef) || seenTransactions.has(attemptTransaction)) return false;
+          seenAttemptRefs.has(attemptRef) || (attemptTransaction && seenTransactions.has(attemptTransaction))) return false;
       expectedAttemptNumber += 1;
       seenAttemptRefs.add(attemptRef);
-      seenTransactions.add(attemptTransaction);
+      if (attemptTransaction) seenTransactions.add(attemptTransaction);
     }
     const latestAttempt = attempts[attempts.length - 1];
     return String(latestAttempt?.transaction_id ?? "").trim() === transactionId &&
