@@ -483,13 +483,13 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
           <label class="full">Guía de tallas en texto (opcional)<textarea id="pGuiaTallas" rows="3" maxlength="3000" placeholder="Escribe medidas, equivalencias o consejos para elegir talla..."></textarea><small class="muted">Puedes escribir la guía aquí, subir una foto abajo o usar ambas opciones. El apartado público aparecerá si hay texto o una imagen.</small></label>
           <div class="full sizeGuideUploadBox">
             <label for="pGuiaTallasFoto" class="sizeGuideUploadLabel">Foto de la guía de tallas (opcional)</label>
-            <input id="pGuiaTallasFoto" type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/avif">
+            <input id="pGuiaTallasFoto" type="file" accept="image/jpeg,image/png,image/webp,image/avif,image/heic,image/heif,.jpg,.jpeg,.png,.webp,.avif,.heic,.heif">
             <small class="muted">La foto se mostrará completa y adaptada al ancho del apartado “Guía de tallas” del catálogo.</small>
             <small id="sizeGuideUploadStatus" class="muted" role="status" aria-live="polite"></small>
             <div id="sizeGuidePhotoPreview" class="photoPreview" hidden></div>
             <button id="clearSizeGuidePhoto" type="button" class="softbtn" style="display:none;margin-top:8px" onclick="removeSizeGuidePhoto()">Quitar foto de guía</button>
           </div>
-          <label class="full">Fotos del producto<input id="pFoto" type="file" accept="image/*" multiple><small id="productPhotoUploadStatus" class="muted" role="status" aria-live="polite"></small><small class="muted">Al editar verás primero las fotos que ya están guardadas. Las imágenes que selecciones aquí se añadirán al producto.</small><div id="existingPhotoStatus" class="muted" role="status" style="font-size:12px;margin-top:8px">Las fotos actuales aparecerán al editar un producto.</div><div id="existingPhotoPreview" class="photoPreview"></div><small class="muted" style="display:block;margin-top:10px">Fotos nuevas seleccionadas:</small><div id="photoPreview" class="photoPreview"></div></label>
+          <label class="full">Fotos del producto<input id="pFoto" type="file" accept="image/jpeg,image/png,image/webp,image/avif,image/heic,image/heif,.jpg,.jpeg,.png,.webp,.avif,.heic,.heif" multiple><small id="productPhotoUploadStatus" class="muted" role="status" aria-live="polite"></small><small class="muted">JPG, JPEG, PNG y WEBP; AVIF/HEIC dependen del navegador. Las nuevas fotos se validan y convierten automáticamente a WebP antes de subirlas. Al editar, las fotos que selecciones se añaden; las existentes se conservan.</small><div id="existingPhotoStatus" class="muted" role="status" style="font-size:12px;margin-top:8px">Las fotos actuales aparecerán al editar un producto.</div><div id="existingPhotoPreview" class="photoPreview"></div><small class="muted" style="display:block;margin-top:10px">Fotos nuevas seleccionadas:</small><div id="photoPreview" class="photoPreview"></div></label>
         </div><div style="margin-top:17px;display:flex;gap:9px"><button class="primary" onclick="guardarProducto()">💾 Guardar producto</button><button class="primary" onclick="guardarProducto(true)">💾 Guardar y agregar otro</button><button class="softbtn" onclick="limpiarProducto()">Limpiar</button></div></div>
       </section>
 
@@ -933,7 +933,7 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
           <div class="box"><h3>🏪 Personalización</h3>
             <p class="muted">Cambia el nombre y el icono que aparecen en la aplicación.</p>
             <label>Nombre del negocio<input id="businessName" placeholder="Variedades JM" maxlength="40"></label>
-            <label style="display:block;margin-top:10px">Icono del negocio<input id="businessIcon" type="file" accept="image/png,image/jpeg,image/webp,image/x-icon"><small id="businessIconUploadStatus" class="muted" role="status" aria-live="polite"></small></label>
+            <label style="display:block;margin-top:10px">Icono del negocio<input id="businessIcon" type="file" accept="image/png,image/jpeg,image/webp,image/avif,image/x-icon,.png,.jpg,.jpeg,.webp,.avif,.ico"><small id="businessIconUploadStatus" class="muted" role="status" aria-live="polite"></small></label>
             <div style="margin-top:10px;display:flex;align-items:center;gap:10px"><div id="iconPreview" class="logo" style="width:72px;height:72px">✦</div><button class="primary" onclick="saveBrand()">💾 Guardar personalización</button><button class="softbtn" onclick="resetBrand()">Restaurar</button></div>
           </div>
           <div class="box" style="grid-column:1/-1"><h3>🏷️ Categorías</h3>
@@ -1157,6 +1157,7 @@ function uploadBaseName(file){return String(file?.name||"foto").replace(/\.[^.]*
 // Copy selected mobile files into an in-memory File immediately after selection.
 // Android document providers can revoke the temporary file reference before a later upload.
 const adminUploadFileSnapshots=new WeakMap();
+const adminProductWebpConversions=new WeakMap();
 async function readAdminUploadFileBytes(file){
  try{return await file.arrayBuffer()}catch(arrayBufferError){
   if(typeof FileReader!=='function')throw arrayBufferError;
@@ -1184,16 +1185,17 @@ async function snapshotAdminUploadFile(file){
  }
  try{return await pending}catch(error){adminUploadFileSnapshots.delete(file);throw new Error('Android o el navegador perdió el acceso temporal a esa imagen. Vuelve a seleccionarla desde Imágenes o Descargas y espera a que termine de prepararse. Detalle: '+String(error?.message||error));}
 }
-async function warmAdminUploadFiles(input,statusId=''){
- const files=Array.from(input?.files||[]);if(!files.length)return true;
+async function warmAdminUploadFiles(input,statusId='',options={}){
  const status=statusId?$(statusId):null;
- if(status)status.textContent='Preparando una copia segura de la imagen…';
+ const files=Array.from(input?.files||[]);if(!files.length){if(status)status.textContent='';return true;}
+ const convertToWebp=options?.toWebp===true;
+ if(status)status.textContent=convertToWebp?'Validando y convirtiendo las imágenes a WebP…':'Preparando una copia segura de la imagen…';
  try{
-  await Promise.all(files.map(snapshotAdminUploadFile));
-  if(status)status.textContent='Imagen lista para subir.';
+  for(const file of files){if(convertToWebp)await prepareProductImageForUpload(file);else await snapshotAdminUploadFile(file);}
+  if(status)status.textContent=convertToWebp?`${files.length} imagen${files.length===1?'':'es'} validada${files.length===1?'':'s'} y lista${files.length===1?'':'s'} en WebP.`:'Imagen lista para subir.';
   return true;
  }catch(error){
-  if(status)status.textContent='No se pudo leer la imagen. Vuelve a seleccionarla desde Imágenes o Descargas.';
+  if(status)status.textContent=String(error?.message||'No se pudo leer o preparar la imagen. Vuelve a seleccionarla.');
   console.warn('No se pudo preparar el archivo seleccionado:',error);
   return false;
  }
@@ -1209,6 +1211,144 @@ function decodeWithImageElement(file){
    img.onerror=()=>{URL.revokeObjectURL(url);reject(new Error("El navegador no pudo leer este formato de imagen."))};
    img.src=url;
  });
+}
+function sniffAdminImageMime(input){
+ const bytes=input instanceof Uint8Array?input:new Uint8Array(input||0),ascii=(start,end)=>String.fromCharCode(...bytes.slice(start,end));
+ if(bytes.length>=3&&bytes[0]===0xff&&bytes[1]===0xd8&&bytes[2]===0xff)return 'image/jpeg';
+ if(bytes.length>=8&&bytes[0]===0x89&&ascii(1,4)==='PNG'&&bytes[4]===0x0d&&bytes[5]===0x0a&&bytes[6]===0x1a&&bytes[7]===0x0a)return 'image/png';
+ if(bytes.length>=12&&ascii(0,4)==='RIFF'&&ascii(8,12)==='WEBP')return 'image/webp';
+ if(bytes.length>=6&&['GIF87a','GIF89a'].includes(ascii(0,6)))return 'image/gif';
+ if(bytes.length>=12&&ascii(4,8)==='ftyp'){
+  const brands=[ascii(8,12)];for(let i=16;i+4<=Math.min(bytes.length,64);i+=4)brands.push(ascii(i,i+4));
+  if(brands.includes('avis'))return 'image/avif-sequence';
+  if(brands.includes('avif'))return 'image/avif';
+  if(brands.some(x=>['heic','heix','hevc','hevx'].includes(x)))return 'image/heic';
+  if(brands.some(x=>['mif1','msf1'].includes(x)))return 'image/heif';
+ }
+ return '';
+}
+function adminImageMimeMatches(declared,actual){
+ const type=String(declared||'').split(';')[0].trim().toLowerCase();
+ if(!type||type==='application/octet-stream')return true;
+ const normalized=type==='image/jpg'?'image/jpeg':type;
+ if(['image/heic','image/heif'].includes(normalized)&&['image/heic','image/heif'].includes(actual))return true;
+ if(normalized==='image/avif'&&actual==='image/avif-sequence')return true;
+ return normalized===actual;
+}
+function adminImageDimensionsFromBytes(input,mime){
+ const bytes=input instanceof Uint8Array?input:new Uint8Array(input||0);
+ if(bytes.length<12)return null;
+ const view=new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength);
+ const ascii=(start,end)=>String.fromCharCode(...bytes.slice(start,end));
+ const u16be=offset=>offset>=0&&offset+2<=bytes.length?view.getUint16(offset,false):0;
+ const u16le=offset=>offset>=0&&offset+2<=bytes.length?view.getUint16(offset,true):0;
+ const u24le=offset=>offset>=0&&offset+3<=bytes.length?bytes[offset]|(bytes[offset+1]<<8)|(bytes[offset+2]<<16):0;
+ const u32be=offset=>offset>=0&&offset+4<=bytes.length?view.getUint32(offset,false):0;
+ const u32le=offset=>offset>=0&&offset+4<=bytes.length?view.getUint32(offset,true):0;
+ const result=(width,height)=>width>0&&height>0?{width,height}:null;
+ if(mime==='image/png')return result(u32be(16),u32be(20));
+ if(mime==='image/jpeg'){
+  let offset=2;
+  while(offset+4<=bytes.length){
+   if(bytes[offset]!==0xff){offset++;continue;}
+   while(offset<bytes.length&&bytes[offset]===0xff)offset++;
+   if(offset>=bytes.length)break;
+   const marker=bytes[offset++];
+   if(marker===0xd9||marker===0xda)break;
+   if(marker===0xd8||marker===0x01||(marker>=0xd0&&marker<=0xd7))continue;
+   const segmentLength=u16be(offset);
+   if(segmentLength<2||offset+segmentLength>bytes.length)break;
+   const isFrameHeader=[0xc0,0xc1,0xc2,0xc3,0xc5,0xc6,0xc7,0xc9,0xca,0xcb,0xcd,0xce,0xcf].includes(marker);
+   if(isFrameHeader&&segmentLength>=7)return result(u16be(offset+5),u16be(offset+3));
+   offset+=segmentLength;
+  }
+  return null;
+ }
+ if(mime==='image/webp'&&bytes.length>=12&&ascii(0,4)==='RIFF'&&ascii(8,12)==='WEBP'){
+  let offset=12;
+  while(offset+8<=bytes.length){
+   const kind=ascii(offset,offset+4),chunkSize=u32le(offset+4),payload=offset+8;
+   if(chunkSize>bytes.length-payload)break;
+   if(kind==='VP8X'&&chunkSize>=10)return result(1+u24le(payload+4),1+u24le(payload+7));
+   if(kind==='VP8 '&&chunkSize>=10&&bytes[payload+3]===0x9d&&bytes[payload+4]===0x01&&bytes[payload+5]===0x2a)return result(u16le(payload+6)&0x3fff,u16le(payload+8)&0x3fff);
+   if(kind==='VP8L'&&chunkSize>=5&&bytes[payload]===0x2f){
+    const b1=bytes[payload+1],b2=bytes[payload+2],b3=bytes[payload+3],b4=bytes[payload+4];
+    return result(1+b1+((b2&0x3f)<<8),1+(b2>>6)+(b3<<2)+((b4&0x0f)<<10));
+   }
+   offset=payload+chunkSize+(chunkSize%2);
+  }
+  return null;
+ }
+ if(mime==='image/avif'||mime==='image/heic'||mime==='image/heif'){
+  let largest=null;
+  for(let i=4;i+16<=bytes.length;i++){
+   if(bytes[i]!==0x69||bytes[i+1]!==0x73||bytes[i+2]!==0x70||bytes[i+3]!==0x65)continue;
+   const boxSize=u32be(i-4);
+   if(boxSize<20||boxSize>bytes.length-(i-4))continue;
+   const candidate=result(u32be(i+8),u32be(i+12));
+   if(candidate&&(!largest||candidate.width*candidate.height>largest.width*largest.height))largest=candidate;
+  }
+  return largest;
+ }
+ return null;
+}
+async function decodeProductImageForWebp(file){
+ if(typeof createImageBitmap==='function'){
+  try{return await createImageBitmap(file,{imageOrientation:'from-image'})}catch(firstError){
+   try{return await createImageBitmap(file)}catch(secondError){return await decodeWithImageElement(file)}
+  }
+ }
+ return await decodeWithImageElement(file);
+}
+async function convertProductImageToWebp(inputFile){
+ const maxBytes=15*1024*1024;
+ if(!inputFile||!Number(inputFile.size))throw new Error('El archivo de imagen está vacío. Vuelve a elegirlo.');
+ if(Number(inputFile.size)>maxBytes)throw new Error('La imagen supera 15 MB. Reduce su tamaño y vuelve a seleccionarla.');
+ const file=await snapshotAdminUploadFile(inputFile);
+ if(!Number(file.size))throw new Error('El archivo de imagen está vacío. Vuelve a elegirlo.');
+ if(file.size>maxBytes)throw new Error('La imagen supera 15 MB. Reduce su tamaño y vuelve a seleccionarla.');
+ const sourceBytes=await readAdminUploadFileBytes(file),sourceMime=sniffAdminImageMime(sourceBytes),declaredMime=String(file.type||'').toLowerCase();
+ if(!sourceMime)throw new Error('El contenido no parece una imagen JPG, PNG, WEBP, AVIF o HEIC válida. No se guardó ningún cambio.');
+ if(!adminImageMimeMatches(declaredMime,sourceMime))throw new Error(`El tipo indicado (${declaredMime}) no coincide con el contenido real (${sourceMime}). Vuelve a seleccionar una imagen válida.`);
+ if(sourceMime==='image/gif')throw new Error('Los GIF animados no se convierten porque perderían la animación. Selecciona una imagen fija JPG, PNG o WEBP.');
+ if(sourceMime==='image/avif-sequence')throw new Error('Los AVIF animados no están admitidos. Selecciona una imagen fija JPG, PNG, WEBP o AVIF.');
+ if(!['image/jpeg','image/png','image/webp','image/avif','image/heic','image/heif'].includes(sourceMime))throw new Error('Este formato no es compatible. Usa JPG, JPEG, PNG o WEBP; AVIF/HEIC solo si el navegador puede decodificarlo.');
+ const sourceDimensions=adminImageDimensionsFromBytes(sourceBytes,sourceMime);
+ if(!sourceDimensions)throw new Error('No se pudieron validar las dimensiones del archivo sin decodificarlo. Usa un JPG, PNG o WEBP válido; AVIF/HEIC solo si incluye dimensiones legibles.');
+ if(sourceDimensions.width*sourceDimensions.height>24000000)throw new Error('La imagen supera 24 megapíxeles. Reduce su resolución antes de seleccionarla para evitar agotar la memoria del teléfono.');
+ if(sourceMime==='image/webp'){
+  let checked;try{checked=await decodeProductImageForWebp(file)}catch(error){throw new Error('El archivo WEBP no se pudo decodificar por completo. Selecciona otra imagen válida.')}
+  try{if(!(Number(checked.width)>0&&Number(checked.height)>0&&Number(checked.width)*Number(checked.height)<=24000000))throw new Error('La resolución del WEBP no es válida o supera 24 megapíxeles. Reduce la imagen y vuelve a intentarlo.')}
+  finally{try{checked.close?.()}catch{}}
+  return new File([file],uploadBaseName(file)+'.webp',{type:'image/webp',lastModified:Number(file.lastModified)||Date.now()});
+ }
+ let decoded;
+ try{decoded=await decodeProductImageForWebp(file)}catch(error){
+  const label=sourceMime==='image/heic'||sourceMime==='image/heif'?'HEIC/HEIF':sourceMime==='image/avif'?'AVIF':sourceMime==='image/webp'?'WEBP':sourceMime==='image/png'?'PNG':'JPG';
+  throw new Error(`Este navegador no pudo decodificar la imagen ${label}. No se guardó el producto; vuelve a elegirla como JPG, PNG o WEBP.`);
+ }
+ try{
+  const width=Number(decoded.width)||0,height=Number(decoded.height)||0;
+  if(!width||!height||width*height>24000000)throw new Error('La resolución de la imagen no es válida o supera 24 megapíxeles. Reduce la imagen y vuelve a intentarlo.');
+  const maxSide=1600,scale=Math.min(1,maxSide/Math.max(width,height));
+  const canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(width*scale));canvas.height=Math.max(1,Math.round(height*scale));
+  const ctx=canvas.getContext('2d',{alpha:true});if(!ctx)throw new Error('Este navegador no pudo preparar el lienzo para la conversión WebP.');
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.drawImage(decoded.source||decoded,0,0,canvas.width,canvas.height);
+  const blob=await new Promise((resolve,reject)=>{try{canvas.toBlob(resolve,'image/webp',0.88)}catch(error){reject(error)}});
+  if(!blob||!blob.size)throw new Error('El navegador no pudo codificar la imagen en WebP. No se guardó el producto ni se subió el archivo.');
+  if(blob.type&&String(blob.type).toLowerCase()!=='image/webp')throw new Error(`El navegador devolvió ${blob.type} en vez de WebP. No se subió ningún archivo.`);
+  const outputBytes=await readAdminUploadFileBytes(blob);
+  if(sniffAdminImageMime(outputBytes)!=='image/webp')throw new Error('La conversión no produjo bytes WebP válidos. No se subió ningún archivo.');
+  if(outputBytes.byteLength>maxBytes)throw new Error('La imagen WebP final supera 15 MB. Reduce su tamaño antes de guardar.');
+  return new File([blob],uploadBaseName(file)+'.webp',{type:'image/webp',lastModified:Number(file.lastModified)||Date.now()});
+ }finally{try{decoded.close?.()}catch{}}
+}
+async function prepareProductImageForUpload(file){
+ if(!file)return file;
+ let pending=adminProductWebpConversions.get(file);
+ if(!pending){pending=convertProductImageToWebp(file);adminProductWebpConversions.set(file,pending)}
+ try{return await pending}catch(error){adminProductWebpConversions.delete(file);throw error}
 }
 async function prepareImageForUpload(file){
  file=await snapshotAdminUploadFile(file);
@@ -1311,12 +1451,12 @@ function assertAdminSessionUserMatches(session,operation){
   error.name='StaleAdminOperationError';throw error;
  }
 }
-async function uploadImageToR2(path,file,isCurrent=()=>true){
+async function uploadImageToR2(path,file,isCurrent=()=>true,options={}){
  const operation=captureAdminOperationContext(isCurrent);isCurrent=operation.isCurrent;
  ensureAdminOperationCurrent(isCurrent);
  const {data:{session}}=await sb.auth.getSession();
  assertAdminSessionUserMatches(session,operation);
- const uploadFile=await prepareImageForUpload(file);
+ const uploadFile=options?.forceWebp?await prepareProductImageForUpload(file):await prepareImageForUpload(file);
  ensureAdminOperationCurrent(isCurrent);
  const ext=uploadExtension(uploadFile)||R2_MIME_EXTENSION[uploadFile.type]||"jpg";
  const uploadPath=String(path).replace(/\.[^/.]+$/, "."+ext);
@@ -1398,7 +1538,7 @@ async function deleteProductImagesFromR2(productId,isCurrent=()=>true){
  if(!res.ok)throw new Error(body||`No se pudieron limpiar las fotos de R2 (${res.status}).`);
  try{return JSON.parse(body)}catch{return {ok:true,deleted:0}}
 }
-window.uploadCsvStagedImage=(path,file,isCurrent=()=>true)=>uploadImageToR2(path,file,isCurrent);
+window.uploadCsvStagedImage=(path,file,isCurrent=()=>true)=>uploadImageToR2(path,file,isCurrent,{forceWebp:true});
 window.deleteCsvStagedImages=(stagingId,isCurrent=()=>true)=>deleteProductImagesFromR2(stagingId,isCurrent);
 window.csvStagedImageUrl=key=>publicWorkerImage(key);
 
@@ -2222,6 +2362,9 @@ function loadAdminBrandForUser(user){
  applyBrand();
  return {name:brandName,icon:brandIcon,iconPath:brandIconPath};
 }
+function isLegacyIcoBrandFile(file){
+ return /\.ico$/i.test(String(file?.name||''))&&String(file?.type||'').split(';')[0].trim().toLowerCase()==='image/x-icon';
+}
 async function saveBrand(){
   const userId=adminSessionUserId,authEpoch=adminAuthEpoch,isCurrent=()=>adminAuthOperationStillCurrent(userId,authEpoch);
   if(!sb||!isCurrent())return false;
@@ -2252,7 +2395,7 @@ async function saveBrand(){
     if(authResult?.error||!user||String(user.id)!==userId)return alert("No se pudo confirmar la cuenta iniciadora. Vuelve a validar la sesión.");
     const path=`branding/${user.id}.${ext}`;
     try{
-      const uploaded=await uploadImageToR2(path,file,isCurrent);
+      const uploaded=await uploadImageToR2(path,file,isCurrent,{forceWebp:!isLegacyIcoBrandFile(file)});
       if(!isCurrent())return false;
       nextBrandIconPath=uploaded.key||path;
       nextBrandIcon=publicWorkerImage(nextBrandIconPath);
@@ -3962,7 +4105,7 @@ async function uploadProductImages(productId, files, userId,isCurrent=()=>true){
    const fingerprint=await uploadFileFingerprint(file);
    const ext=(file.name.split(".").pop()||"jpg").toLowerCase();
    const path=`products/${productId}/gallery/${fingerprint}.${ext}`;
-   let uploaded;try{uploaded=await uploadImageToR2(path,file,isCurrent)}catch(error){setProductPhotoState(0,'error');throw error}ensureAdminOperationCurrent(isCurrent);
+   let uploaded;try{uploaded=await uploadImageToR2(path,file,isCurrent,{forceWebp:true})}catch(error){setProductPhotoState(0,'error');throw error}ensureAdminOperationCurrent(isCurrent);
    const key=uploaded.key||path;
    const {data,error}=await sb.from("products").update({image_url:key}).eq("id",productId).select("id").maybeSingle();
    ensureAdminOperationCurrent(isCurrent);
@@ -4190,7 +4333,7 @@ async function uploadSizeGuidePhoto(productId,file,isCurrent=()=>true){
  ensureAdminOperationCurrent(isCurrent);
  const ext=(file.name.split('.').pop()||'jpg').toLowerCase();
  const path=`products/${productId}/size-guide/${fingerprint}.${ext}`;
- const uploaded=await uploadImageToR2(path,file,isCurrent);ensureAdminOperationCurrent(isCurrent);
+ const uploaded=await uploadImageToR2(path,file,isCurrent,{forceWebp:true});ensureAdminOperationCurrent(isCurrent);
  const key=uploaded.key||path;
  const {data,error}=await sb.from("products").update({size_guide_image:key}).eq("id",productId).select("id").maybeSingle();
  ensureAdminOperationCurrent(isCurrent);
@@ -4490,14 +4633,16 @@ function renderVariantEditor(existing=variantDraft){
 	  const existingPhoto=v.image_path||'';
 	  const existingPhotoUrl=existingPhoto?getImageUrl(existingPhoto):'';
 	  const preview=existingPhoto?`<div class="variantPhotoPreview">${existingPhotoUrl?`<img src="${esc(existingPhotoUrl)}" alt="Foto guardada ${esc(displayColor)} / ${esc(sz)}" loading="lazy" decoding="async" onerror="this.style.opacity='.35';this.title='No se pudo cargar la vista previa'">`:''}<span class="variantCurrentPhoto">✓ Foto guardada</span></div>`:'';
+	  const photoStatusId='variantPhotoStatus_'+variantKey(colorValue,sz).replace(/[^a-zA-Z0-9_-]/g,'_');
 	  return `<div class="variantAdminRow">
 	    <div class="variantAdminCell variantAdminColorCell"><span class="variantMobileLabel">Color / HEX</span><span class="variantColorPreview" data-color-name="${esc(displayColor)}" aria-label="Vista previa ${esc(displayColor)}" style="background:${esc(colorCss)}"></span><span>${esc(displayColor)}</span>${savedHex?`<small>${esc(savedHex)}</small>`:''}</div>
      <div class="variantAdminCell"><span class="variantMobileLabel">Talla</span>${esc(sz)}</div>
      <label class="variantAdminStockCell"><span class="variantMobileLabel">Stock</span><input class="variantAdminStock" type="number" min="0" value="${Number(v.stock)||0}" data-var-color="${esc(colorValue)}" data-var-size="${esc(sz)}"></label>
      <div class="variantPhotoCell">
-       <span class="variantMobileLabel">Foto de esta referencia</span><input class="variantColorPhoto" type="file" accept="image/*" data-var-photo-color="${esc(colorValue)}" data-var-photo-size="${esc(sz)}">
-       <div class="variantPhotoHint">Selecciona la foto correspondiente a ${esc(displayColor)} / ${esc(sz)}</div>
-       ${preview}
+	       <span class="variantMobileLabel">Foto de esta referencia</span><input class="variantColorPhoto" type="file" accept="image/jpeg,image/png,image/webp,image/avif,image/heic,image/heif,.jpg,.jpeg,.png,.webp,.avif,.heic,.heif" data-var-photo-color="${esc(colorValue)}" data-var-photo-size="${esc(sz)}" data-var-photo-status="${esc(photoStatusId)}">
+	       <div class="variantPhotoHint">Selecciona la foto correspondiente a ${esc(displayColor)} / ${esc(sz)}</div>
+	       <small id="${esc(photoStatusId)}" class="variantPhotoStatus muted" role="status" aria-live="polite"></small>
+	       ${preview}
      </div>
    </div>`;
  })).join('')+'</div>';
@@ -4543,7 +4688,7 @@ async function uploadVariantPhotos(productId, variants, files,isCurrent=()=>true
    const fingerprint=await uploadFileFingerprint(file);
    const ext=(file.name.split('.').pop()||'jpg').toLowerCase();
    const path=`products/${productId}/variants/${key.replace(/[^a-zA-Z0-9_-]/g,'_')}-${fingerprint}.${ext}`;
-   const uploaded=await uploadImageToR2(path,file,isCurrent);ensureAdminOperationCurrent(isCurrent);
+   const uploaded=await uploadImageToR2(path,file,isCurrent,{forceWebp:true});ensureAdminOperationCurrent(isCurrent);
    updates[key]=uploaded.key||path;
  }
  return variants.map(v=>{
@@ -4655,13 +4800,14 @@ function notifyPublicCatalogChanged(type='catalog',details={}){
 	if(confirmedHidden.length)variantMemory=discardHiddenAdminVariants(variantMemory,confirmedHidden);
 	const variantFiles=selectedVariantFiles();
  try{
-  // Read every selected image before touching the product row. This avoids partial saves
-  // when Android revokes a picker reference while other Supabase work is in progress.
-  await Promise.all([...files,sizeGuideFile,...Object.values(variantFiles)].filter(Boolean).map(snapshotAdminUploadFile));
+  // Snapshot, validate and convert sequentially before touching the product row to limit mobile memory use.
+  // Any unsupported/corrupt source aborts the save before Supabase or R2 is written.
+  const selectedUploadFiles=[...files,sizeGuideFile,...Object.values(variantFiles)].filter(Boolean);
+  for(const file of selectedUploadFiles)await prepareProductImageForUpload(file);
   if(!isCurrent())return false;
  }catch(error){
   if(!isCurrent())return false;
-  alert('No se guardó ni modificó el producto porque el teléfono no permitió leer una de las imágenes. Vuelve a seleccionarla desde Imágenes o Descargas y espera a que aparezca "Imagen lista para subir".\\n\\n'+(error?.message||error));
+  alert('No se guardó ni modificó el producto porque una imagen no se pudo leer, validar o convertir a WebP. Corrige el archivo y vuelve a intentarlo.\\n\\n'+(error?.message||error));
   return false;
  }
  const variantStock=variantDraft.length?totalVariantStock(variantDraft):(+$('pCantidad').value||0);
@@ -5962,10 +6108,10 @@ document.addEventListener("DOMContentLoaded",()=>{
   const couponsHost=$("storefrontCouponsAdminList");if(couponsHost)couponsHost.addEventListener('click',event=>{const edit=event.target.closest('[data-coupon-admin-edit]');if(edit)editStorefrontCoupon(edit.dataset.couponAdminEdit)});
   const couponCodeInput=$("storefrontCouponCode");if(couponCodeInput)couponCodeInput.addEventListener('input',()=>{const normalized=String(couponCodeInput.value||'').trim().toUpperCase();if(couponCodeInput.value!==normalized)couponCodeInput.value=normalized});
   const comboRuleType=$('storefrontComboRuleType');if(comboRuleType)comboRuleType.addEventListener('change',updateStorefrontComboRuleFields);const comboPlacement=$('storefrontComboDisplayLocation');if(comboPlacement)comboPlacement.addEventListener('change',updateStorefrontComboRuleFields);const comboDiscountType=$('storefrontComboDiscountType');if(comboDiscountType)comboDiscountType.addEventListener('change',updateStorefrontComboRuleFields);
-  const brandIconInput=$("businessIcon");if(brandIconInput)brandIconInput.addEventListener("change",()=>void warmAdminUploadFiles(brandIconInput,"businessIconUploadStatus"));
-  const f=$("pFoto");if(f)f.addEventListener("change",()=>{productPhotoUploadStates=[];void warmAdminUploadFiles(f,"productPhotoUploadStatus");renderPhotoPreview()});
-  const guideFile=$("pGuiaTallasFoto");if(guideFile)guideFile.addEventListener("change",()=>{if(guideFile.files?.length)sizeGuideImageRemoveRequested=false;void warmAdminUploadFiles(guideFile,"sizeGuideUploadStatus");renderSizeGuidePhotoPreview()});
-  document.addEventListener("change",event=>{const variantInput=event.target?.closest?.("#productModal .variantColorPhoto");if(variantInput)void warmAdminUploadFiles(variantInput)},true);
+  const brandIconInput=$("businessIcon");if(brandIconInput)brandIconInput.addEventListener("change",()=>{const file=brandIconInput.files?.[0];void warmAdminUploadFiles(brandIconInput,"businessIconUploadStatus",{toWebp:!!file&&!isLegacyIcoBrandFile(file)})});
+  const f=$("pFoto");if(f)f.addEventListener("change",()=>{productPhotoUploadStates=[];void warmAdminUploadFiles(f,"productPhotoUploadStatus",{toWebp:true});renderPhotoPreview()});
+  const guideFile=$("pGuiaTallasFoto");if(guideFile)guideFile.addEventListener("change",()=>{if(guideFile.files?.length)sizeGuideImageRemoveRequested=false;void warmAdminUploadFiles(guideFile,"sizeGuideUploadStatus",{toWebp:true});renderSizeGuidePhotoPreview()});
+	  document.addEventListener("change",event=>{const variantInput=event.target?.closest?.("#productModal .variantColorPhoto");if(variantInput)void warmAdminUploadFiles(variantInput,String(variantInput.dataset.varPhotoStatus||""),{toWebp:true})},true);
 
   const box=$("categoryManager");
   if(box){
