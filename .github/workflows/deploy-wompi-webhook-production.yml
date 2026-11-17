@@ -1,0 +1,63 @@
+name: deploy-wompi-webhook-production
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: sirevya-supabase-production
+    env:
+      SUPABASE_PROJECT_REF: hnlbbtnfmbnbkcgegufa
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+    steps:
+      - name: Checkout exact selected commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+
+      - name: Verify production-only scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = "refs/heads/main"
+          test "$SUPABASE_PROJECT_REF" = "hnlbbtnfmbnbkcgegufa"
+          test -n "${SUPABASE_ACCESS_TOKEN:-}"
+          test -s supabase/functions/wompi-webhook/index.ts
+          files="$(find supabase/functions/wompi-webhook -type f -printf '%P\n' | LC_ALL=C sort)"
+          test "$files" = "index.ts"
+          grep -Eq 'expectedEnvironment = "prod"|expectedEnvironment = '\''prod'\''' supabase/functions/wompi-webhook/index.ts
+          grep -Eq 'link_storefront_wompi_transaction' supabase/functions/wompi-webhook/index.ts
+          test ! -e supabase/migrations/20261117162000_sandbox_wompi_atomic_transaction_link.sql
+          echo "Scope verified: only wompi-webhook/index.ts"
+          sha256sum supabase/functions/wompi-webhook/index.ts
+
+      - name: Install pinned Supabase CLI
+        uses: supabase/setup-cli@689adcfb80d947100a1eab127289b97d1fb07b13
+        with:
+          version: 3.1.0
+
+      - name: Deploy only wompi-webhook and verify remote source
+        shell: bash
+        run: |
+          set -euo pipefail
+          slug="wompi-webhook"
+          metadata_url="https://api.supabase.com/v1/projects/${SUPABASE_PROJECT_REF}/functions/${slug}"
+          before="$(curl --fail --silent --show-error -H "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" -H 'Accept: application/json' "$metadata_url")"
+          jq -e '.status == "ACTIVE" and .verify_jwt == false' <<<"$before" >/dev/null
+          before_version="$(jq -er '.version' <<<"$before")"
+          supabase functions deploy "$slug" --project-ref "$SUPABASE_PROJECT_REF" --no-verify-jwt --use-api --yes
+          after="$(curl --fail --silent --show-error -H "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" -H 'Accept: application/json' "$metadata_url")"
+          jq -e --argjson before "$before_version" '.status == "ACTIVE" and .verify_jwt == false and (.version | type == "number") and .version > $before' <<<"$after" >/dev/null
+          echo "Remote version: $(jq -er '.version' <<<"$after")"
+          remote_dir="$(mktemp -d)"
+          trap 'rm -rf "$remote_dir"' EXIT
+          mkdir -p "$remote_dir/supabase"
+          printf 'project_id = "%s"\n' "$SUPABASE_PROJECT_REF" > "$remote_dir/supabase/config.toml"
+          (cd "$remote_dir" && supabase functions download "$slug" --project-ref "$SUPABASE_PROJECT_REF" --use-api)
+          cmp --silent supabase/functions/wompi-webhook/index.ts "$remote_dir/supabase/functions/wompi-webhook/index.ts"
+          echo 'Remote source matches index.ts byte for byte.'

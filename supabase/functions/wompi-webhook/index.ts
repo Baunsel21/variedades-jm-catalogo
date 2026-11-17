@@ -157,56 +157,25 @@ async function ensureOrderTransactionLinked(args: {
   reference: string;
   transactionId: string;
 }): Promise<{ linked: boolean; conflict: boolean; httpStatus: number | null }> {
-  const patchUrl = new URL(`${args.supabaseUrl}/rest/v1/orders`);
-  patchUrl.searchParams.set("reference", `eq.${args.reference}`);
-  patchUrl.searchParams.set("payment_method", "ilike.wompi");
-  // Historical rows may store an empty string instead of SQL NULL. Treat both as
-  // unlinked so a verified transaction can be bound and duplicate checkout blocked.
-  patchUrl.searchParams.set("or", "(transaction_id.is.null,transaction_id.eq.)");
-
-  let lastStatus: number | null = null;
   try {
-    const patchResponse = await fetch(patchUrl.toString(), {
-      method: "PATCH",
-      headers: { ...supabaseHeaders(args.serviceRoleKey), Prefer: "return=representation" },
-      body: JSON.stringify({ transaction_id: args.transactionId, updated_at: new Date().toISOString() }),
+    const response = await fetch(`${args.supabaseUrl}/rest/v1/rpc/link_storefront_wompi_transaction`, {
+      method: "POST",
+      headers: supabaseHeaders(args.serviceRoleKey),
+      body: JSON.stringify({ p_reference: args.reference, p_transaction_id: args.transactionId }),
     });
-    lastStatus = patchResponse.status;
-    const patchedRows = await responseJson(patchResponse);
-    if (patchResponse.ok && Array.isArray(patchedRows) && patchedRows.length === 1 &&
-        String(patchedRows[0]?.transaction_id ?? "").trim() === args.transactionId) {
-      return { linked: true, conflict: false, httpStatus: lastStatus };
-    }
+    const result = rpcObject(await responseJson(response));
+    return {
+      linked: response.ok && result?.success === true && result?.linked === true,
+      conflict: result?.code === "WOMPI_TRANSACTION_LINK_CONFLICT",
+      httpStatus: response.status,
+    };
   } catch (error) {
     console.error("No se pudo vincular inmediatamente la transacción verificada al pedido.", {
       reference: args.reference,
       error: error instanceof Error ? error.message : "unknown",
     });
+    return { linked: false, conflict: false, httpStatus: null };
   }
-
-  // A timeout can happen after PostgreSQL committed the PATCH. Read back the row
-  // before deciding whether linking failed or another transaction won the race.
-  try {
-    const verifyUrl = new URL(`${args.supabaseUrl}/rest/v1/orders`);
-    verifyUrl.searchParams.set("reference", `eq.${args.reference}`);
-    verifyUrl.searchParams.set("payment_method", "ilike.wompi");
-    verifyUrl.searchParams.set("select", "reference,transaction_id,payment_status");
-    verifyUrl.searchParams.set("limit", "2");
-    const verifyResponse = await fetch(verifyUrl.toString(), { headers: supabaseHeaders(args.serviceRoleKey) });
-    lastStatus = verifyResponse.status;
-    const rows = await responseJson(verifyResponse);
-    if (verifyResponse.ok && Array.isArray(rows) && rows.length === 1) {
-      const existingId = String(rows[0]?.transaction_id ?? "").trim();
-      if (existingId === args.transactionId) return { linked: true, conflict: false, httpStatus: lastStatus };
-      if (existingId) return { linked: false, conflict: true, httpStatus: lastStatus };
-    }
-  } catch (error) {
-    console.error("No se pudo verificar el vínculo de la transacción con el pedido.", {
-      reference: args.reference,
-      error: error instanceof Error ? error.message : "unknown",
-    });
-  }
-  return { linked: false, conflict: false, httpStatus: lastStatus };
 }
 
 async function listPendingWompiOrdersForPhone(args: {
@@ -595,7 +564,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       return json({ error: reason, transactionLinked, checkoutLockMarkedPending, reconciliationRequired: !verifiedTerminalNoPayment, reconciliationStored }, status === "APPROVED" ? 500 : 409);
     }
 
-    const storedTransactionId = String(order.transaction_id ?? "").trim();
+    let storedTransactionId = String(order.transaction_id ?? "").trim();
     const storedStatus = String(order.payment_status ?? "").toUpperCase();
     if (storedStatus === "APPROVED" && status !== "APPROVED") {
       // Never downgrade a payment already confirmed by a previous verified event.
@@ -639,9 +608,45 @@ Deno.serve(async (req: Request): Promise<Response> => {
       return json({ error: "La referencia ya está vinculada a otra transacción." }, 409);
     }
 
-    const reconciliationAlreadyRequired = order.wompi_reconciliation_required === true ||
-      order.coupon_reconciliation_required === true;
-    if (reconciliationAlreadyRequired) {
+    const wompiReconciliationAlreadyRequired = order.wompi_reconciliation_required === true;
+    const couponReconciliationAlreadyRequired = order.coupon_reconciliation_required === true;
+    if (status === "APPROVED" && !storedTransactionId) {
+      const link = await ensureOrderTransactionLinked({
+        supabaseUrl, serviceRoleKey, reference: orderReference, transactionId: confirmedId,
+      });
+      if (!link.linked) {
+        const reason = link.conflict
+          ? "El pedido quedó vinculado concurrentemente a otra transacción."
+          : "No se pudo guardar el identificador de la transacción verificada en el pedido.";
+        const reconciliationStored = await recordInventoryReconciliation({
+          supabaseUrl, serviceRoleKey, transactionId: confirmedId,
+          reference: orderReference, amountInCents: confirmedAmount, reason,
+          details: { transaction_linked: false, link_conflict: link.conflict, link_http_status: link.httpStatus },
+        });
+        return json({ error: reason, reference: orderReference, transactionId: confirmedId,
+          reconciliationRequired: true, reconciliationStored }, 500);
+      }
+      storedTransactionId = confirmedId;
+      order.transaction_id = confirmedId;
+    }
+    // A verified link can clear only the Wompi-linking part of the recovery.
+    // Coupon reconciliation remains an independent hard stop, even when the
+    // approved transaction ID now matches the order.
+    if (couponReconciliationAlreadyRequired) {
+      const pendingLock = await setCheckoutLockState({
+        supabaseUrl, serviceRoleKey, reference: orderReference,
+        state: "pending", transactionId: confirmedId,
+      });
+      if (!pendingLock.success) {
+        return json({ error: "El pedido conserva una conciliación de cupón pendiente y no se pudo asegurar el lock preventivo." }, 502);
+      }
+      return json({ received: true, reference: orderReference, transactionId: confirmedId,
+        status: storedStatus, ignored: true, reconciliationRequired: true,
+        couponReconciliationRequired: true,
+        wompiReconciliationRequired: wompiReconciliationAlreadyRequired,
+        reason: "La conciliación del cupón sigue pendiente; no se repite la operación de inventario." }, 200);
+    }
+    if (wompiReconciliationAlreadyRequired && !(status === "APPROVED" && storedTransactionId === confirmedId)) {
       const pendingLock = await setCheckoutLockState({
         supabaseUrl, serviceRoleKey, reference: orderReference,
         state: "pending", transactionId: confirmedId,
@@ -651,8 +656,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
       }
       return json({ received: true, reference: orderReference, transactionId: confirmedId,
         status: storedStatus, ignored: true, reconciliationRequired: true,
-        couponReconciliationRequired: order.coupon_reconciliation_required === true,
-        wompiReconciliationRequired: order.wompi_reconciliation_required === true,
+        couponReconciliationRequired: false,
+        wompiReconciliationRequired: true,
         reason: "El pedido ya está marcado para conciliación manual; no se repite la operación de inventario." }, 200);
     }
 
