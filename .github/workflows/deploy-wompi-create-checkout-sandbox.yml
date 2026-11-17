@@ -42,8 +42,8 @@ jobs:
           test -s "$function_dir/index.ts"
           test -s "$function_dir/cedula.mjs"
           test "$(find "$function_dir" -type f -printf '%P\n' | LC_ALL=C sort)" = $'cedula.mjs\nindex.ts'
-          rg -q 'expired_session_recovery|renew_storefront_wompi_expired_session' "$function_dir/index.ts"
-          rg -q 'WOMPI_INTEGRITY_SECRET_TEST' "$function_dir/index.ts"
+          grep -Eq 'expired_session_recovery|renew_storefront_wompi_expired_session' "$function_dir/index.ts"
+          grep -Eq 'WOMPI_INTEGRITY_SECRET_TEST' "$function_dir/index.ts"
           sha256sum "$function_dir/index.ts" "$function_dir/cedula.mjs"
       - name: Install pinned Supabase CLI
         uses: supabase/setup-cli@v3
