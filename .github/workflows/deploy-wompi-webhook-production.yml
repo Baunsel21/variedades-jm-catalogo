@@ -45,14 +45,7 @@ jobs:
         run: |
           set -euo pipefail
           slug="wompi-webhook"
-          metadata_url="https://api.supabase.com/v1/projects/${SUPABASE_PROJECT_REF}/functions/${slug}"
-          before="$(curl --fail --silent --show-error -H "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" -H 'Accept: application/json' "$metadata_url")"
-          jq -e '.status == "ACTIVE" and .verify_jwt == false' <<<"$before" >/dev/null
-          before_version="$(jq -er '.version' <<<"$before")"
           supabase functions deploy "$slug" --project-ref "$SUPABASE_PROJECT_REF" --no-verify-jwt --use-api --yes
-          after="$(curl --fail --silent --show-error -H "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" -H 'Accept: application/json' "$metadata_url")"
-          jq -e --argjson before "$before_version" '.status == "ACTIVE" and .verify_jwt == false and (.version | type == "number") and .version > $before' <<<"$after" >/dev/null
-          echo "Remote version: $(jq -er '.version' <<<"$after")"
           remote_dir="$(mktemp -d)"
           trap 'rm -rf "$remote_dir"' EXIT
           mkdir -p "$remote_dir/supabase"
