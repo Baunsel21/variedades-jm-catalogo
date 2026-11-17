@@ -780,6 +780,12 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
             <button id="submitWompiManualAttestationBtn" class="primary" type="button" onclick="submitWompiManualAttestation()">Registrar verificación manual</button>
             <div id="wompiManualRecoveryStatus" class="status" role="status" aria-live="polite" style="margin-top:10px">Requiere una sesión administrativa autorizada.</div>
           </div>
+          <div class="box" style="grid-column:1/-1;border-color:#d7b1ff" id="wompiApprovedRecoveryBox" hidden>
+            <h3 style="margin:0 0 7px">🔒 Recuperación única del pago aprobado</h3>
+            <p class="muted" style="margin-top:0">Acción administrativa de uso único para el pago real ya aprobado. El servidor vuelve a validar la transacción directamente con Wompi y ejecuta la recuperación atómica; no inicia otro pago.</p>
+            <button id="runWompiApprovedRecoveryBtn" class="primary" type="button" onclick="runWompiApprovedRecovery()" disabled>Ejecutar recuperación autorizada</button>
+            <div id="wompiApprovedRecoveryStatus" class="status" role="status" aria-live="polite" style="margin-top:10px">Disponible solo para una sesión administradora autorizada en el dominio oficial.</div>
+          </div>
           <div class="box" style="grid-column:1/-1" id="telegramTestBox">
             <div class="rowBetween" style="align-items:flex-start;gap:16px;flex-wrap:wrap">
               <div style="flex:1;min-width:220px"><h3 style="margin-bottom:7px">🔔 Prueba de conexión con Telegram</h3><p class="muted" style="margin-top:0">Envía un único mensaje fijo al chat guardado en los secretos de Supabase. No incluye pedidos, clientes ni datos personales; no activa todavía notificaciones automáticas de eventos.</p></div>
@@ -2056,6 +2062,41 @@ async function submitWompiManualAttestation(){
  }
 }
 
+function setWompiApprovedRecoveryStatus(message,type=''){
+ const status=$('wompiApprovedRecoveryStatus');if(!status)return;
+ status.className=`status${type?' '+type:''}`;status.textContent=message;
+}
+function updateWompiApprovedRecoveryControl(){
+ const box=$('wompiApprovedRecoveryBox'),button=$('runWompiApprovedRecoveryBtn');
+ const authorized=adminSessionAuthorized&&!!adminSessionUserId&&location.origin==='https://sirevya.com.co';
+ if(box)box.hidden=!authorized;
+ if(button&&!wompiApprovedRecoveryBusy)button.disabled=!authorized;
+}
+async function runWompiApprovedRecovery(){
+ const userId=adminSessionUserId,authEpoch=adminAuthEpoch,isCurrent=()=>adminAuthOperationStillCurrent(userId,authEpoch);
+ const button=$('runWompiApprovedRecoveryBtn');
+ if(wompiApprovedRecoveryBusy)return;
+ if(!sb||!userId||!isCurrent()||location.origin!=='https://sirevya.com.co'){
+  setWompiApprovedRecoveryStatus('Inicia sesión con la cuenta administradora autorizada en el dominio oficial.','err');return;
+ }
+ wompiApprovedRecoveryBusy=true;if(button)button.disabled=true;
+ setWompiApprovedRecoveryStatus('Validando el pago original con Wompi y ejecutando la recuperación atómica…');
+ try{
+  const result=await sb.functions.invoke('admin-wompi-approved-recovery',{body:{...WOMPI_APPROVED_RECOVERY_TARGET}});
+  if(!isCurrent())return;
+  if(result?.error){setWompiApprovedRecoveryStatus('La recuperación no se confirmó. El pedido, la reserva y el inventario permanecen protegidos.','err');return;}
+  const data=result?.data;
+  if(!data||data.success!==true){setWompiApprovedRecoveryStatus('La recuperación fue rechazada por una validación segura. No se modificó manualmente ningún dato.','err');return;}
+  if(data.telegramTriggerVerified!==true){setWompiApprovedRecoveryStatus('La recuperación terminó, pero el evento Telegram no pudo verificarse en el outbox. No se reintentó ni se insertó ningún evento manual.','err');return;}
+  setWompiApprovedRecoveryStatus(data.alreadyProcessed===true?'El pedido ya estaba recuperado; no se volvió a descontar inventario ni a generar otro evento.':'Recuperación completada: pago aprobado, reserva convertida, inventario procesado una sola vez, conciliación resuelta y evento Telegram generado.','ok');
+ }catch{
+  if(isCurrent())setWompiApprovedRecoveryStatus('La recuperación falló de forma segura. No repitas la acción sin revisar el estado del pedido.','err');
+ }finally{
+  wompiApprovedRecoveryBusy=false;
+  if(isCurrent()){updateWompiApprovedRecoveryControl();if(button)button.disabled=false;}
+ }
+}
+
 const dashboardWompiReviewStateBySession=new Map();
 function renderDashboardWompiReviewCount(){
  const count=$('dashboardWompiReviewCount'),meta=$('dashboardWompiReviewMeta');
@@ -2420,6 +2461,8 @@ async function resetBrand(){
 }
 let adminAuthSubscription=null,adminSessionAuthorized=false,adminSessionUserId='',adminAuthorizationBusy=false,adminAuthorizationPending=false,adminStartBusy=false,adminStartPending=false,adminAuthEpoch=0,floatingPromotionsRequestToken=0;
 let adminPasswordRecoveryMode=false;
+let wompiApprovedRecoveryBusy=false;
+const WOMPI_APPROVED_RECOVERY_TARGET=Object.freeze({order_reference:'JMRES-09940D9B-D81C-4C3D-BAEC-39E0FD7C39A9',wompi_reference:'SW-A5AE9363E6F14D4E946F1C4ED0F5A9EA',transaction_id:'1538717-1794948766-44060',checkout_request_id:'15f439d0-a737-4b0d-97db-43c3e20538c1',amount_in_cents:200000});
 let availabilityRefreshBusy=false,availabilityRefreshToken=0,storefrontMarketingMetricsBusy=false,storefrontMarketingMetricsToken=0;
 function lockAdminPanel(message='Tu sesión terminó. Vuelve a entrar.'){
  adminAuthEpoch++;
@@ -2429,6 +2472,7 @@ function lockAdminPanel(message='Tu sesión terminó. Vuelve a entrar.'){
  ['orderTrackingCarrier','orderTrackingNumber','orderTrackingUrl','orderTrackingHistoryList'].forEach(id=>{const field=$(id);if(field)field.textContent='';if(field&&'value'in field)field.value='';});
  const trackingSaveButton=$('orderTrackingSave');if(trackingSaveButton)trackingSaveButton.disabled=false;
  adminSessionAuthorized=false;adminSessionUserId='';adminPasswordRecoveryMode=false;
+ updateWompiApprovedRecoveryControl();
  brandName='Variedades JM';brandIcon='';brandIconPath='';
  if(typeof clearLegacyAdminBrandCache==='function')clearLegacyAdminBrandCache();
  if(typeof applyBrand==='function')applyBrand();
@@ -2711,6 +2755,7 @@ async function startApp(){
   if(confirmedUserError||!confirmedUser||confirmedUser.id!==user.id){lockAdminPanel('La cuenta cambió durante la validación. Inicia sesión nuevamente.');await sb.auth.signOut({scope:'local'});return}
   $('retryLogout').classList.add('hidden');
   adminSessionAuthorized=true;adminSessionUserId=user.id;
+  updateWompiApprovedRecoveryControl();
   refreshTelegramTestButton();
   $("loginScreen").classList.add("hidden");$("app").classList.remove("hidden");
   startAdminCatalogRealtime();
