@@ -425,6 +425,12 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
           <div class="box"><div class="rowBetween"><h3>⚠️ Atención de inventario</h3><span class="badge low" id="lowCount" aria-label="Productos con stock bajo o agotados">—</span></div><p id="inventoryAttentionSummary" class="muted" role="status" aria-live="polite">Se calcula al cargar el inventario.</p><div id="stockBajo"></div></div>
           <div class="box"><div class="rowBetween"><h3>🧾 Ventas recientes</h3><button class="softbtn" onclick="show('ventas',document.querySelector('[data-view=ventas]'))">Ver todas</button></div><div id="recentSales"></div></div>
         </div>
+          <div class="box" style="grid-column:1/-1;border-color:#d7b1ff" id="wompiApprovedRecoveryBox" hidden>
+            <h3 style="margin:0 0 7px">🔒 Recuperación única del pago aprobado</h3>
+            <p class="muted" style="margin-top:0">Acción administrativa de uso único para el pago real ya aprobado. El servidor vuelve a validar la transacción directamente con Wompi y ejecuta la recuperación atómica; no inicia otro pago.</p>
+            <button id="runWompiApprovedRecoveryBtn" class="primary" type="button" onclick="runWompiApprovedRecovery()" disabled>Ejecutar recuperación autorizada</button>
+            <div id="wompiApprovedRecoveryStatus" class="status" role="status" aria-live="polite" style="margin-top:10px">Disponible solo para una sesión administradora autorizada en el dominio oficial.</div>
+          </div>
       </section>
 
       <section id="inventario" class="view">
@@ -779,12 +785,6 @@ table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:11px 12p
             <p class="paymentSettingsHelp">La recuperación solo será posible si el ledger confirma que el intento/orden sigue sin conciliarse, se cumple la espera de seguridad y la cotización e inventario pueden revalidarse de forma atómica. Si existe una transacción pendiente, aprobada o incierta, el sistema conservará el bloqueo.</p>
             <button id="submitWompiManualAttestationBtn" class="primary" type="button" onclick="submitWompiManualAttestation()">Registrar verificación manual</button>
             <div id="wompiManualRecoveryStatus" class="status" role="status" aria-live="polite" style="margin-top:10px">Requiere una sesión administrativa autorizada.</div>
-          </div>
-          <div class="box" style="grid-column:1/-1;border-color:#d7b1ff" id="wompiApprovedRecoveryBox" hidden>
-            <h3 style="margin:0 0 7px">🔒 Recuperación única del pago aprobado</h3>
-            <p class="muted" style="margin-top:0">Acción administrativa de uso único para el pago real ya aprobado. El servidor vuelve a validar la transacción directamente con Wompi y ejecuta la recuperación atómica; no inicia otro pago.</p>
-            <button id="runWompiApprovedRecoveryBtn" class="primary" type="button" onclick="runWompiApprovedRecovery()" disabled>Ejecutar recuperación autorizada</button>
-            <div id="wompiApprovedRecoveryStatus" class="status" role="status" aria-live="polite" style="margin-top:10px">Disponible solo para una sesión administradora autorizada en el dominio oficial.</div>
           </div>
           <div class="box" style="grid-column:1/-1" id="telegramTestBox">
             <div class="rowBetween" style="align-items:flex-start;gap:16px;flex-wrap:wrap">
