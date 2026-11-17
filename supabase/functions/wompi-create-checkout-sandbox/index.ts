@@ -247,15 +247,42 @@ async function fetchOrderByReference(supabaseUrl: string, serviceRoleKey: string
   }
 }
 
+async function verifyWompiSandboxAttempt(privateKey: string, attemptReference: string, transactionId: string, expectedAmountInCents: number, expectedOrderStatus: string): Promise<boolean> {
+  try {
+    const headers = { Authorization: `Bearer ${privateKey}`, "Content-Type": "application/json" };
+    if (transactionId) {
+      const response = await fetch(`https://sandbox.wompi.co/v1/transactions/${encodeURIComponent(transactionId)}`, { headers });
+      if (!response.ok) return false;
+      const payload = await readJson(response);
+      const tx = payload?.data;
+      const status = String(tx?.status ?? "").trim().toUpperCase();
+      return String(tx?.id ?? "").trim() === transactionId &&
+        Number(tx?.amount_in_cents) === expectedAmountInCents &&
+        String(tx?.currency ?? "").trim().toUpperCase() === "COP" &&
+        ["ERROR", "DECLINED", "VOIDED"].includes(status) &&
+        status === expectedOrderStatus;
+    }
+    const url = new URL("https://sandbox.wompi.co/v1/transactions");
+    url.searchParams.set("reference", attemptReference);
+    const response = await fetch(url.toString(), { headers });
+    if (!response.ok) return false;
+    const payload = await readJson(response);
+    return Array.isArray(payload?.data) && payload.data.length === 0;
+  } catch {
+    return false;
+  }
+}
+
 async function verifyTerminalOrderHistory(supabaseUrl: string, serviceRoleKey: string, order: any): Promise<boolean> {
   try {
     const reference = String(order?.reference ?? "").trim();
     const transactionId = String(order?.transaction_id ?? "").trim();
+    const wompiPrivateKey = Deno.env.get("WOMPI_PRIVATE_KEY_TEST")?.trim();
     const orderStatus = String(order?.payment_status ?? "").trim().toUpperCase();
     const total = copAmount(order?.total);
     const cart = canonicalCart(order?.items);
     const phone = String(order?.phone ?? "").replace(/\D/g, "").slice(-10);
-    if (!reference || !transactionId || !TERMINAL_PAYMENT_STATUSES.has(orderStatus) ||
+    if (!reference || !transactionId || !wompiPrivateKey || !TERMINAL_PAYMENT_STATUSES.has(orderStatus) ||
         String(order?.payment_method ?? "").trim().toLowerCase() !== "wompi" ||
         order?.wompi_reconciliation_required !== false || order?.coupon_reconciliation_required !== false ||
         total === null || total <= 0 || !Number.isSafeInteger(total * 100) || !cart || phone.length !== 10) return false;
@@ -279,7 +306,7 @@ async function verifyTerminalOrderHistory(supabaseUrl: string, serviceRoleKey: s
 
     const attemptsUrl = new URL(`${supabaseUrl}/rest/v1/storefront_wompi_payment_attempts`);
     attemptsUrl.searchParams.set("order_reference", `eq.${reference}`);
-    attemptsUrl.searchParams.set("select", "order_reference,attempt_number,attempt_reference,environment,currency,amount_in_cents,status,transaction_id,terminal_at");
+    attemptsUrl.searchParams.set("select", "order_reference,attempt_number,attempt_reference,environment,currency,amount_in_cents,status,transaction_id,terminal_at,manual_disposition,manual_verified_at");
     attemptsUrl.searchParams.set("order", "attempt_number.asc");
     attemptsUrl.searchParams.set("limit", "101");
     const attemptsResponse = await fetch(attemptsUrl.toString(), { headers: supabaseHeaders(serviceRoleKey) });
@@ -295,8 +322,16 @@ async function verifyTerminalOrderHistory(supabaseUrl: string, serviceRoleKey: s
       const attemptRef = String(attempt?.attempt_reference ?? "").trim();
       const attemptTransaction = String(attempt?.transaction_id ?? "").trim();
       const terminalAt = Date.parse(String(attempt?.terminal_at ?? ""));
+      const manualNoTransaction = status === "INITIATED" &&
+        String(attempt?.manual_disposition ?? "").trim() === "NO_TRANSACTION_VERIFIED" &&
+        !attemptTransaction && Number.isFinite(Date.parse(String(attempt?.manual_verified_at ?? ""))) &&
+        Date.parse(String(attempt?.manual_verified_at ?? "")) + WOMPI_TERMINAL_GRACE_MS <= Date.now();
+      const expiredBeforeSubmission = status === "EXPIRED_BEFORE_SUBMISSION" && !attemptTransaction &&
+        Number.isFinite(terminalAt) && terminalAt + WOMPI_TERMINAL_GRACE_MS <= Date.now();
+      const terminalProviderAttempt = TERMINAL_PAYMENT_STATUSES.has(status) && Boolean(attemptTransaction);
       if (String(attempt?.order_reference ?? "") !== reference || !Number.isSafeInteger(attemptNumber) || attemptNumber !== expectedAttemptNumber ||
-          !TERMINAL_PAYMENT_STATUSES.has(status) ||
+          (!manualNoTransaction && !expiredBeforeSubmission && !terminalProviderAttempt) ||
+          !(await verifyWompiSandboxAttempt(wompiPrivateKey, attemptRef, attemptTransaction, Number(attempt?.amount_in_cents), status === "INITIATED" ? "ERROR" : status)) ||
           String(attempt?.environment ?? "").trim().toLowerCase() !== "test" || String(attempt?.currency ?? "").trim().toUpperCase() !== "COP" ||
           Number(attempt?.amount_in_cents) !== total * 100 || !attemptRef || !attemptTransaction ||
           !Number.isFinite(terminalAt) || terminalAt + WOMPI_TERMINAL_GRACE_MS > Date.now() ||
