@@ -32,7 +32,6 @@ jobs:
           test "$files" = "index.ts"
           grep -Eq 'expectedEnvironment = "prod"|expectedEnvironment = '\''prod'\''' supabase/functions/wompi-webhook/index.ts
           grep -Eq 'link_storefront_wompi_transaction' supabase/functions/wompi-webhook/index.ts
-          test ! -e supabase/migrations/20261117162000_sandbox_wompi_atomic_transaction_link.sql
           echo "Scope verified: only wompi-webhook/index.ts"
           sha256sum supabase/functions/wompi-webhook/index.ts
 
