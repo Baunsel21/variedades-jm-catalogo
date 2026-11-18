@@ -492,6 +492,83 @@ async function advanceCheckoutRequest(
   });
 }
 
+async function readSandboxCheckoutState(
+  supabaseUrl: string,
+  serviceRoleKey: string,
+  reference: string,
+  checkoutRequestId: string,
+  attemptReference: string,
+): Promise<Record<string, unknown>> {
+  const orderLookup = await fetchOrderByReference(supabaseUrl, serviceRoleKey, reference);
+  if (!orderLookup.ok || orderLookup.duplicate || !orderLookup.order) {
+    return { success: false, state: "AMBIGUOUS", code: "WOMPI_RETURN_STATE_UNVERIFIED" };
+  }
+  const order = orderLookup.order;
+  const attemptsUrl = new URL(`${supabaseUrl}/rest/v1/storefront_wompi_payment_attempts`);
+  attemptsUrl.searchParams.set("order_reference", `eq.${reference}`);
+  attemptsUrl.searchParams.set("attempt_reference", `eq.${attemptReference}`);
+  attemptsUrl.searchParams.set("select", "attempt_reference,status,transaction_id,amount_in_cents,currency,environment");
+  attemptsUrl.searchParams.set("limit", "2");
+  const attemptsResponse = await fetch(attemptsUrl.toString(), { headers: supabaseHeaders(serviceRoleKey) });
+  const attempts = await readJson(attemptsResponse);
+  if (!attemptsResponse.ok || !Array.isArray(attempts) || attempts.length !== 1) {
+    return { success: false, state: "AMBIGUOUS", code: "WOMPI_RETURN_ATTEMPT_UNVERIFIED" };
+  }
+  const attempt = attempts[0];
+  const amountInCents = Number(attempt?.amount_in_cents);
+  const transactionId = String(attempt?.transaction_id ?? "").trim();
+  const expectedStatus = String(attempt?.status ?? order?.payment_status ?? "").trim().toUpperCase();
+  const privateKey = Deno.env.get("WOMPI_PRIVATE_KEY_TEST")?.trim();
+  if (!privateKey || !Number.isSafeInteger(amountInCents) || amountInCents <= 0 ||
+      String(attempt?.currency ?? "").trim().toUpperCase() !== "COP" ||
+      String(attempt?.environment ?? "").trim().toLowerCase() !== "test") {
+    return { success: false, state: "AMBIGUOUS", code: "WOMPI_RETURN_PROVIDER_CONFIG_UNVERIFIED" };
+  }
+  let providerStatus = "";
+  let providerTransactionId = transactionId;
+  if (transactionId) {
+    const response = await fetch(`https://sandbox.wompi.co/v1/transactions/${encodeURIComponent(transactionId)}`, {
+      headers: { Authorization: `Bearer ${privateKey}`, "Content-Type": "application/json" },
+    });
+    const payload = await readJson(response);
+    const tx = payload?.data;
+    providerStatus = String(tx?.status ?? "").trim().toUpperCase();
+    if (!response.ok || String(tx?.id ?? "").trim() !== transactionId ||
+        Number(tx?.amount_in_cents) !== amountInCents ||
+        String(tx?.currency ?? "").trim().toUpperCase() !== "COP") {
+      return { success: false, state: "AMBIGUOUS", code: "WOMPI_RETURN_PROVIDER_MISMATCH" };
+    }
+  } else {
+    const url = new URL("https://sandbox.wompi.co/v1/transactions");
+    url.searchParams.set("reference", attemptReference);
+    const response = await fetch(url.toString(), {
+      headers: { Authorization: `Bearer ${privateKey}`, "Content-Type": "application/json" },
+    });
+    const payload = await readJson(response);
+    if (!response.ok || !Array.isArray(payload?.data)) {
+      return { success: false, state: "AMBIGUOUS", code: "WOMPI_RETURN_PROVIDER_UNAVAILABLE" };
+    }
+    if (payload.data.length > 1) {
+      return { success: false, state: "AMBIGUOUS", code: "WOMPI_RETURN_MULTIPLE_TRANSACTIONS" };
+    }
+    const tx = payload.data[0];
+    providerStatus = String(tx?.status ?? "").trim().toUpperCase();
+    providerTransactionId = String(tx?.id ?? "").trim();
+    if (tx && (!providerTransactionId || Number(tx?.amount_in_cents) !== amountInCents ||
+        String(tx?.currency ?? "").trim().toUpperCase() !== "COP")) {
+      return { success: false, state: "AMBIGUOUS", code: "WOMPI_RETURN_PROVIDER_MISMATCH" };
+    }
+  }
+  const orderStatus = String(order?.payment_status ?? "").trim().toUpperCase();
+  if (providerStatus === "APPROVED" && orderStatus === "APPROVED" && providerTransactionId === transactionId) {
+    return { success: true, state: "APPROVED", reference, checkoutRequestId, attemptReference, transactionId: providerTransactionId };
+  }
+  if (["DECLINED", "ERROR", "VOIDED"].includes(providerStatus)) {
+    return { success: true, state: "TERMINAL", reference, checkoutRequestId, attemptReference, providerStatus };
+  }
+  return { success: true, state: "PENDING", reference, checkoutRequestId, attemptReference, providerStatus: providerStatus || expectedStatus };
+}
+
 Deno.serve(async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "Método no permitido." }, 405);
@@ -500,6 +577,20 @@ Deno.serve(async (req: Request): Promise<Response> => {
   try {
     let body: any;
     try { body = await req.json(); } catch { return json({ error: "El cuerpo de la solicitud no es JSON válido." }, 400); }
+
+    if (body?.action === "query_return_state") {
+      const reference = String(body?.reference ?? "").trim();
+      const checkoutRequestId = String(body?.checkout_request_id ?? "").trim();
+      const attemptReference = String(body?.attempt_reference ?? "").trim();
+      if (!/^SBX-[A-Z0-9]{32}$/.test(reference) || !UUID_PATTERN.test(checkoutRequestId) ||
+          !/^SW-[A-F0-9]{32}$/.test(attemptReference)) {
+        return json({ code: "WOMPI_RETURN_STATE_INPUT_INVALID" }, 400);
+      }
+      const supabaseUrl = Deno.env.get("SUPABASE_URL");
+      const serviceRoleKey = getSupabaseServiceKey();
+      if (!supabaseUrl || !serviceRoleKey) return json({ code: "WOMPI_RETURN_STATE_UNAVAILABLE" }, 503);
+      return json(await readSandboxCheckoutState(supabaseUrl, serviceRoleKey, reference, checkoutRequestId, attemptReference));
+    }
 
     if (body?.action === "cancel_request") {
       const origin = String(req.headers.get("origin") ?? "").replace(/\/$/, "");
