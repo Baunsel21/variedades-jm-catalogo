@@ -15,10 +15,10 @@ jobs:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    # Reuses the existing token secret without changing or creating secrets.
+    # Sandbox-only environment; the secret must be configured in this environment.
     # The fixed project ref below is Sandbox; production is never targeted.
     environment:
-      name: sirevya-supabase-production
+      name: sirevya-supabase-sandbox
     env:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
       SUPABASE_PROJECT_REF: xfrxvpzmderenmudegqt
