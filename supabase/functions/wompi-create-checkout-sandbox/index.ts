@@ -194,6 +194,7 @@ function couponMetadataMatches(
 }
 
 const TERMINAL_PAYMENT_STATUSES = new Set(["ERROR", "DECLINED", "VOIDED"]);
+const VERIFIED_PAYMENT_STATUSES = new Set(["ERROR", "DECLINED", "VOIDED", "APPROVED"]);
 const WOMPI_TERMINAL_GRACE_MS = 15 * 60 * 1000;
 const WOMPI_ORDER_SELECT = "reference,created_at,total,subtotal,shipping,city,items,payment_method,payment_status,transaction_id,customer_name,phone,address,neighborhood,coupon_id,coupon_code,coupon_discount_total,wompi_reconciliation_required,coupon_reconciliation_required";
 
@@ -259,7 +260,7 @@ async function verifyWompiSandboxAttempt(privateKey: string, attemptReference: s
       return String(tx?.id ?? "").trim() === transactionId &&
         Number(tx?.amount_in_cents) === expectedAmountInCents &&
         String(tx?.currency ?? "").trim().toUpperCase() === "COP" &&
-        ["ERROR", "DECLINED", "VOIDED"].includes(status) &&
+        VERIFIED_PAYMENT_STATUSES.has(status) &&
         status === expectedOrderStatus;
     }
     const url = new URL("https://sandbox.wompi.co/v1/transactions");
@@ -282,10 +283,11 @@ async function verifyTerminalOrderHistory(supabaseUrl: string, serviceRoleKey: s
     const total = copAmount(order?.total);
     const cart = canonicalCart(order?.items);
     const phone = String(order?.phone ?? "").replace(/\D/g, "").slice(-10);
-    if (!reference || !transactionId || !wompiPrivateKey || !TERMINAL_PAYMENT_STATUSES.has(orderStatus) ||
+    if (!reference || !transactionId || !wompiPrivateKey || !VERIFIED_PAYMENT_STATUSES.has(orderStatus) ||
         String(order?.payment_method ?? "").trim().toLowerCase() !== "wompi" ||
         order?.wompi_reconciliation_required !== false || order?.coupon_reconciliation_required !== false ||
         total === null || total <= 0 || !Number.isSafeInteger(total * 100) || !cart || phone.length !== 10) return false;
+    if (orderStatus === "APPROVED" && !await verifyApprovedOrderInventoryConverted(supabaseUrl, serviceRoleKey, reference)) return false;
 
     const expectedPhoneHash = await sha256Hex(phone);
     const expectedCartHash = await sha256Hex(cart);
@@ -321,30 +323,45 @@ async function verifyTerminalOrderHistory(supabaseUrl: string, serviceRoleKey: s
       const attemptNumber = Number(attempt?.attempt_number);
       const attemptRef = String(attempt?.attempt_reference ?? "").trim();
       const attemptTransaction = String(attempt?.transaction_id ?? "").trim();
-      const manualVerifiedAt = Date.parse(String(attempt?.manual_verified_at ?? ""));
-      const storedTerminalAt = Date.parse(String(attempt?.terminal_at ?? ""));
+      const terminalAt = Date.parse(String(attempt?.terminal_at ?? ""));
       const manualNoTransaction = status === "INITIATED" &&
         String(attempt?.manual_disposition ?? "").trim() === "NO_TRANSACTION_VERIFIED" &&
-        !attemptTransaction && Number.isFinite(manualVerifiedAt) &&
-        manualVerifiedAt + WOMPI_TERMINAL_GRACE_MS <= Date.now();
-      const terminalAt = Number.isFinite(storedTerminalAt) ? storedTerminalAt : manualVerifiedAt;
+        !attemptTransaction && Number.isFinite(Date.parse(String(attempt?.manual_verified_at ?? ""))) &&
+        Date.parse(String(attempt?.manual_verified_at ?? "")) + WOMPI_TERMINAL_GRACE_MS <= Date.now();
       const expiredBeforeSubmission = status === "EXPIRED_BEFORE_SUBMISSION" && !attemptTransaction &&
         Number.isFinite(terminalAt) && terminalAt + WOMPI_TERMINAL_GRACE_MS <= Date.now();
-      const terminalProviderAttempt = TERMINAL_PAYMENT_STATUSES.has(status) && Boolean(attemptTransaction);
+      const terminalProviderAttempt = VERIFIED_PAYMENT_STATUSES.has(status) && Boolean(attemptTransaction);
       if (String(attempt?.order_reference ?? "") !== reference || !Number.isSafeInteger(attemptNumber) || attemptNumber !== expectedAttemptNumber ||
           (!manualNoTransaction && !expiredBeforeSubmission && !terminalProviderAttempt) ||
           !(await verifyWompiSandboxAttempt(wompiPrivateKey, attemptRef, attemptTransaction, Number(attempt?.amount_in_cents), status === "INITIATED" ? "ERROR" : status)) ||
           String(attempt?.environment ?? "").trim().toLowerCase() !== "test" || String(attempt?.currency ?? "").trim().toUpperCase() !== "COP" ||
-          Number(attempt?.amount_in_cents) !== total * 100 || !attemptRef ||
+          Number(attempt?.amount_in_cents) !== total * 100 || !attemptRef || !attemptTransaction ||
           !Number.isFinite(terminalAt) || terminalAt + WOMPI_TERMINAL_GRACE_MS > Date.now() ||
-          seenAttemptRefs.has(attemptRef) || (attemptTransaction && seenTransactions.has(attemptTransaction))) return false;
+          seenAttemptRefs.has(attemptRef) || seenTransactions.has(attemptTransaction)) return false;
       expectedAttemptNumber += 1;
       seenAttemptRefs.add(attemptRef);
-      if (attemptTransaction) seenTransactions.add(attemptTransaction);
+      seenTransactions.add(attemptTransaction);
     }
     const latestAttempt = attempts[attempts.length - 1];
     return String(latestAttempt?.transaction_id ?? "").trim() === transactionId &&
       String(latestAttempt?.status ?? "").trim().toUpperCase() === orderStatus;
+  } catch {
+    return false;
+  }
+}
+
+async function verifyApprovedOrderInventoryConverted(supabaseUrl: string, serviceRoleKey: string, reference: string): Promise<boolean> {
+  try {
+    const url = new URL(`${supabaseUrl}/rest/v1/inventory_reservations`);
+    url.searchParams.set("reference", `eq.${reference}`);
+    url.searchParams.set("select", "reference,status");
+    url.searchParams.set("limit", "101");
+    const response = await fetch(url.toString(), { headers: supabaseHeaders(serviceRoleKey) });
+    if (!response.ok) return false;
+    const rows = await readJson(response);
+    if (!Array.isArray(rows) || rows.length < 1 || rows.length > 100) return false;
+    return rows.every((row: any) => String(row?.reference ?? "") === reference &&
+      String(row?.status ?? "").trim().toLowerCase() === "converted");
   } catch {
     return false;
   }
@@ -859,6 +876,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     let manualRetryPreparation: any = null;
     let existingTerminalTransaction = false;
     let forceNewOrderAuthorized = false;
+    let approvedReplacementAuthorized = false;
     const userConfirmedSeparateOrder = body?.confirm_new_order_after_terminal_mismatch === true;
     const supersedesReference = String(body?.supersedes_reference ?? "").trim();
     const initialOrderLookup = await fetchOrderByReference(supabaseUrl, serviceRoleKey, reference);
@@ -986,12 +1004,16 @@ Deno.serve(async (req: Request): Promise<Response> => {
         couponCode, couponDiscountTotal,
       });
       if (!supersededMismatches.length) {
+        if (approvedReplacementAuthorized && supersedesReference === supersededLookup.order.reference) {
+          forceNewOrderAuthorized = true;
+        } else {
         return json({ code: "WOMPI_REUSE_EXISTING_ORDER", existingReference: supersedesReference,
           canRetryWithNewReference: false,
           error: "Los datos coinciden con el pedido anterior; se debe reutilizar esa misma orden y reserva." }, 409);
+        }
       }
-      console.warn("WOMPI_TERMINAL_ORDER_SNAPSHOT_MISMATCH", supersededMismatches.join(","));
-      if (!await verifyNoActiveInventoryReservation(supabaseUrl, serviceRoleKey, supersedesReference)) {
+      if (supersededMismatches.length) console.warn("WOMPI_TERMINAL_ORDER_SNAPSHOT_MISMATCH", supersededMismatches.join(","));
+      if (!approvedReplacementAuthorized && !await verifyNoActiveInventoryReservation(supabaseUrl, serviceRoleKey, supersedesReference)) {
         return json({ code: "WOMPI_UNRESOLVED_RESERVATION", canRetryWithNewReference: false,
           error: "El pedido anterior aún tiene una retención de inventario activa o no verificable. No se creó otra orden ni reserva." }, 409);
       }
@@ -1025,9 +1047,20 @@ Deno.serve(async (req: Request): Promise<Response> => {
     }
     const sameCartApproved = sameCartRows.find((row: any) => String(row?.payment_status ?? "").toUpperCase() === "APPROVED");
     if (sameCartApproved) {
-      return json({ code: "WOMPI_ALREADY_APPROVED", canRetryWithNewReference: false,
-        existingReference: String(sameCartApproved.reference ?? ""),
-        error: "Este carrito ya tiene un pago aprobado. No inicies otro cobro." }, 409);
+      const approvedReference = String(sameCartApproved.reference ?? "").trim();
+      if (!approvedReference || !await verifyTerminalOrderHistory(supabaseUrl, serviceRoleKey, sameCartApproved)) {
+        return json({ code: "WOMPI_ATTEMPT_UNVERIFIED", canRetryWithNewReference: false,
+          existingReference: approvedReference,
+          error: "El pedido aprobado anterior no está completamente conciliado o su reserva no figura como convertida. No se inició otro cobro." }, 409);
+      }
+      if (userConfirmedSeparateOrder && supersedesReference === approvedReference && approvedReference !== reference) {
+        approvedReplacementAuthorized = true;
+        forceNewOrderAuthorized = true;
+      } else {
+        return json({ code: "WOMPI_ALREADY_APPROVED", canCreateNewOrder: true, canRetryWithNewReference: false,
+          existingReference: approvedReference, quote,
+          error: "Este carrito ya tiene un pago aprobado y conciliado. Si deseas comprarlo nuevamente, revisa el desglose y pulsa Confirmar otra vez para autorizar una compra separada." }, 409);
+      }
     }
     const knownPaymentStatuses = new Set(["PENDING", "APPROVED", "ERROR", "DECLINED", "VOIDED"]);
     const sameCartUnknown = sameCartRows.find((row: any) => !knownPaymentStatuses.has(String(row?.payment_status ?? "").trim().toUpperCase()));
