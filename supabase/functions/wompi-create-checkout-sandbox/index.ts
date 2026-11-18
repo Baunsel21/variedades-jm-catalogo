@@ -582,7 +582,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       const reference = String(body?.reference ?? "").trim();
       const checkoutRequestId = String(body?.checkout_request_id ?? "").trim();
       const attemptReference = String(body?.attempt_reference ?? "").trim();
-      if (!/^SBX-[A-Z0-9]{32}$/.test(reference) || !UUID_PATTERN.test(checkoutRequestId) ||
+      if (!/^(?:SBX-[A-Z0-9]{32}|JMRES-[A-Z0-9-]{20,120})$/.test(reference) || !UUID_PATTERN.test(checkoutRequestId) ||
           !/^SW-[A-F0-9]{32}$/.test(attemptReference)) {
         return json({ code: "WOMPI_RETURN_STATE_INPUT_INVALID" }, 400);
       }
