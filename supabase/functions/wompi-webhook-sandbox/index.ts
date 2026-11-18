@@ -246,33 +246,67 @@ async function recordInventoryReconciliation(args: {
       }
     }
 
-    const url = new URL(`${args.supabaseUrl}/rest/v1/sirevya_wompi_inventory_reconciliation`);
-    url.searchParams.set("on_conflict", "transaction_id");
-    const response = await fetch(url.toString(), {
+    const response = await fetch(`${args.supabaseUrl}/rest/v1/rpc/record_storefront_wompi_inventory_reconciliation`, {
       method: "POST",
-      headers: {
-        ...supabaseHeaders(args.serviceRoleKey),
-        Prefer: "resolution=merge-duplicates,return=minimal",
-      },
+      headers: supabaseHeaders(args.serviceRoleKey),
       body: JSON.stringify({
-        transaction_id: args.transactionId,
-        reference: args.reference,
-        amount_in_cents: args.amountInCents,
-        currency: "COP",
-        verified_wompi_status: "APPROVED",
-        reconciliation_status: "NEEDS_REVIEW",
-        reason: args.reason.slice(0, 1000),
-        details: args.details ?? {},
-        last_seen_at: new Date().toISOString(),
+        p_transaction_id: args.transactionId,
+        p_reference: args.reference,
+        p_amount_in_cents: args.amountInCents,
+        p_reconciliation_status: "NEEDS_REVIEW",
+        p_reason: args.reason.slice(0, 1000),
+        p_details: args.details ?? {},
       }),
     });
-    if (!response.ok) {
-      console.error("No se pudo guardar el registro de conciliación de Wompi.", { httpStatus: response.status, reference: args.reference });
+    const result = rpcObject(await responseJson(response));
+    if (!response.ok || result?.success !== true) {
+      console.error("No se pudo guardar el registro de conciliación de Wompi.", {
+        httpStatus: response.status, reference: args.reference,
+        code: result?.code ?? "unknown",
+      });
       return false;
     }
     return orderAndLockMarked;
   } catch (error) {
     console.error("Error guardando el registro de conciliación de Wompi.", { reference: args.reference, error: error instanceof Error ? error.message : "unknown" });
+    return false;
+  }
+}
+
+async function recordResolvedInventoryReconciliation(args: {
+  supabaseUrl: string;
+  serviceRoleKey: string;
+  transactionId: string;
+  reference: string;
+  amountInCents: number;
+  details?: Record<string, unknown>;
+}): Promise<boolean> {
+  try {
+    const response = await fetch(`${args.supabaseUrl}/rest/v1/rpc/record_storefront_wompi_inventory_reconciliation`, {
+      method: "POST",
+      headers: supabaseHeaders(args.serviceRoleKey),
+      body: JSON.stringify({
+        p_transaction_id: args.transactionId,
+        p_reference: args.reference,
+        p_amount_in_cents: args.amountInCents,
+        p_reconciliation_status: "RESOLVED",
+        p_reason: "Pago aprobado y reserva de inventario finalizada.",
+        p_details: { inventory_processed: true, ...(args.details ?? {}) },
+      }),
+    });
+    const result = rpcObject(await responseJson(response));
+    if (!response.ok || result?.success !== true || result?.reconciliation_status !== "RESOLVED") {
+      console.error("No se pudo crear o resolver el ledger de conciliación de inventario.", {
+        transactionId: args.transactionId, httpStatus: response.status,
+        code: result?.code ?? "unknown",
+      });
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.error("No se pudo registrar la conciliación resuelta.", {
+      transactionId: args.transactionId, error: error instanceof Error ? error.message : "unknown",
+    });
     return false;
   }
 }
@@ -948,7 +982,20 @@ Deno.serve(async (req: Request): Promise<Response> => {
       return json({ error: "El estado del pedido se guardó, pero su lock necesita reconciliación. El evento se reintentará." }, 502);
     }
     if (status === "APPROVED" && inventoryProcessed && !couponReconciliationRequired) {
-      await markInventoryReconciliationResolved({ supabaseUrl, serviceRoleKey, transactionId: confirmedId });
+      const ledgerResolved = await recordResolvedInventoryReconciliation({
+        supabaseUrl,
+        serviceRoleKey,
+        transactionId: confirmedId,
+        reference: orderReference,
+        amountInCents: confirmedAmount,
+        details: { coupon_reconciliation_required: false },
+      });
+      if (!ledgerResolved) {
+        console.error("El pago y el inventario terminaron, pero el ledger no pudo quedar RESOLVED; se conserva la trazabilidad para reintento.", {
+          reference: orderReference,
+          transactionId: confirmedId,
+        });
+      }
     }
     console.log("Evento Wompi procesado.", { reference: orderReference, transactionId: confirmedId, status, inventoryProcessed, couponReconciliationRequired, environment: expectedEnvironment });
     return json({ received: true, reference: orderReference, transactionId: confirmedId, status, inventoryProcessed, reconciliationRequired: couponReconciliationRequired, couponReconciliationRequired });

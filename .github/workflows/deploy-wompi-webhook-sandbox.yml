@@ -6,11 +6,12 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    environment: sirevya-supabase-production
+    environment: sirevya-supabase-sandbox
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_PROJECT_REF: xfrxvpzmderenmudegqt
     permissions:
       contents: read
-    env:
-      SUPABASE_PROJECT_REF: xfrxvpzmderenmudegqt
     steps:
       - uses: actions/checkout@v4
       - uses: supabase/setup-cli@v1
@@ -20,16 +21,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          test -n "${SUPABASE_ACCESS_TOKEN:-}"
           test "${SUPABASE_PROJECT_REF}" = "xfrxvpzmderenmudegqt"
           test -f supabase/functions/wompi-webhook-sandbox/index.ts
           test ! -e supabase/functions/wompi-webhook/index.ts || true
           grep -Eq 'wompi-webhook-sandbox' supabase/functions/wompi-webhook-sandbox/index.ts || true
       - name: Deploy only Sandbox webhook
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: |
           set -euo pipefail
           supabase functions deploy wompi-webhook-sandbox \
             --project-ref "$SUPABASE_PROJECT_REF" \
-            --no-verify-jwt \
-            --yes
+            --no-verify-jwt
