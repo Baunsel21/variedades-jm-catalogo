@@ -1227,7 +1227,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       retryLock = { success: true, reference, expires_at: resumed.result.expires_at };
     } else if (!retryLockReady) {
       const retryLockCall = await advanceCheckoutRequest(supabaseUrl, serviceRoleKey, checkoutRequestId,
-        requestSnapshotHash, "retry_lock", { p_customer_phone: phone, p_cart_hash: cartHash, p_minutes: 5 });
+        requestSnapshotHash, "retry_lock", { p_customer_phone: phone, p_cart_hash: cartHash, p_minutes: 10 });
       retryLock = retryLockCall.result;
       if (!retryLockCall.responseOk || !retryLock || typeof retryLock.success !== "boolean") {
         return json({ code: "WOMPI_RETRY_LOCK_UNCONFIRMED", error: "No se pudo comprobar si existe un intento terminal reanudable. No se abrió otro pago." }, 503);
@@ -1311,7 +1311,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     let checkoutLock: any = { responseOk: true, success: true };
     if (!retryLockReady) {
       const reserveCall = await advanceCheckoutRequest(supabaseUrl, serviceRoleKey, checkoutRequestId,
-        requestSnapshotHash, "reserve_lock", { p_customer_phone: phone, p_cart_hash: cartHash, p_minutes: 5 });
+        requestSnapshotHash, "reserve_lock", { p_customer_phone: phone, p_cart_hash: cartHash, p_minutes: 10 });
       checkoutLock = { responseOk: reserveCall.responseOk, ...reserveCall.result };
     }
     if (!checkoutLock.responseOk) {
@@ -1382,9 +1382,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     if (!Number.isFinite(expiryMs) || expiryMs <= Date.now() + 5000) {
       return json({ error: "La reserva atómica venció o no tiene una fecha válida. Cualquier hold restante vencerá por TTL; vuelve a iniciar después con una referencia nueva." }, 409);
     }
-    // The inventory hold expires after 5 minutes; the Wompi Sandbox session
-    // deliberately remains payable for 10 minutes to exercise APPROVED_LATE.
-    const expirationTime = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+    const expirationTime = expiryDate.toISOString();
 
     // Only one request can claim the hosted checkout session for this lock.
     // A lost claim response is left to TTL; another request may already own it.
